@@ -1,0 +1,88 @@
+<div [formGroup]="jobForm">
+  <div class="crmi-form-offset">
+    <h3>Job Parameters</h3>
+  </div>
+  <div formArrayName="paramsLairs" class="crmi-form-parameters-section">
+    <div *ngFor="let parameter of paramsLairs.controls; let i=index" [formGroupName]="i">
+      <div [ngSwitch]="parameter.value.type">
+        <ng-template ngSwitchCase="string">
+          <div class="crmi-form-group">
+            <label class="crmi-form-label">
+              <abbr *ngIf="parameter.value.required" title="required">*</abbr>
+              {{parameter.value.label}}
+            </label>
+            <mat-form-field floatPlaceholder="never">
+              <input matInput [placeholder]="parameter.value.label" formControlName="value">
+            </mat-form-field>
+          </div>
+        </ng-template>
+        <ng-template ngSwitchCase="number">
+          <div class="crmi-form-group">
+            <label class="crmi-form-label">
+              <abbr *ngIf="parameter.value.required" title="required">*</abbr>
+              {{parameter.value.label}}
+            </label>
+            <mat-form-field floatPlaceholder="never">
+              <input matInput [placeholder]="parameter.value.label" formControlName="value">
+            </mat-form-field>
+          </div>
+        </ng-template>
+        <ng-template ngSwitchCase="text">
+          <div class="crmi-form-group">
+            <label class="crmi-form-label">
+              <abbr *ngIf="parameter.value.required" title="required">*</abbr>
+              {{parameter.value.label}}
+            </label>
+            <mat-form-field floatPlaceholder="never">
+              <textarea matInput matTextareaAutosize type="text" [placeholder]="parameter.value.label" formControlName="value"></textarea>
+            </mat-form-field>
+          </div>
+          <div class="clearfix"></div>
+        </ng-template>
+        <ng-template ngSwitchCase="sql">
+          <div class="crmi-form-group" [class.crmi-form-group-editor]="true">
+            <label class="crmi-form-label">
+              <abbr *ngIf="parameter.value.required" title="required">*</abbr>
+              {{parameter.value.label}}
+            </label>
+            <ace-editor
+                  formControlName="value"
+                  theme="chrome"
+                  mode="sql"
+                  [options]="sql_editor_options"
+            ></ace-editor>
+          </div>
+          <div class="clearfix"></div>
+        </ng-template>
+        <ng-template ngSwitchCase="boolean">
+          <div class="crmi-form-offset crmi-form-group-checkbox">
+            <mat-checkbox formControlName="value">{{parameter.value.label}}</mat-checkbox>
+          </div>
+        </ng-template>
+        <ng-template ngSwitchCase="string_list">
+          <div class="crmi-form-group">
+            <label class="crmi-form-label">
+              <abbr *ngIf="parameter.value.required" title="required">*</abbr>
+              {{parameter.value.label}}
+            </label>
+            <mat-form-field floatPlaceholder="never">
+              <textarea matInput matTextareaAutosize [placeholder]="parameter.value.label" formControlName="value"></textarea>
+              <mat-hint>One value on line</mat-hint>
+            </mat-form-field>
+          </div>
+        </ng-template>
+        <ng-template ngSwitchCase="date">
+          <div class="crmi-form-group">
+            <label class="crmi-form-label">
+              <abbr *ngIf="parameter.value.required" title="required">*</abbr>
+              {{parameter.value.label}}
+            </label>
+            <mat-form-field floatPlaceholder="never">
+              <input matInput [placeholder]="parameter.value.label" formControlName="value">
+            </mat-form-field>
+          </div>
+        </ng-template>
+      </div>
+    </div>
+  </div>
+</div>

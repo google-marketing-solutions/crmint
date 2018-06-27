@@ -1,0 +1,6 @@
+## Testing
+coverage==4.5.1
+flake8==3.5.0
+Flask-Testing==0.7.1
+freezegun==0.3.10
+mock==2.0.0

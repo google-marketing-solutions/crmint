@@ -1,0 +1,50 @@
+# Copyright 2018 Google Inc
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+runtime: python27
+api_version: 1
+threadsafe: true
+
+handlers:
+- url: /favicon\.ico
+  static_files: dist/favicon.ico
+  upload: dist/favicon\.ico
+  login: admin
+  secure: always
+- url: /(.*\.(js|css|png|ico))$
+  static_files: dist/\1
+  upload: dist/(.*\.(js|css|png|ico))$
+  login: admin
+  secure: always
+# URLs without extension (including '/') are interpreted as the target of SPA Routing.
+- url: /(.*)$
+  static_files: dist/index.html
+  upload: dist/index.html
+  login: admin
+  secure: always
+
+skip_files:
+- ^README\..*
+- ^\.gitignore
+- ^\.editorconfig
+- ^app\.yaml
+- ^node_modules$
+- ^grunt\.js
+- ^src$
+- ^e2e$
+- ^karma\.config\.js
+- ^package\.json
+- ^protractor\.conf\.js
+- ^tslint\.json
+- ^.*DS_Store.*

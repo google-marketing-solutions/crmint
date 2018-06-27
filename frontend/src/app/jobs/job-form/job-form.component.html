@@ -1,0 +1,78 @@
+<mat-card>
+  <mat-card-title>
+    <div *ngIf="pipeline" class="crmi-card-breadcrumb">
+      <a [routerLink]="['/pipelines', pipeline.id]">{{pipeline.name}}</a>
+      <span><mat-icon>chevron_right</mat-icon></span>
+    </div>
+    <span>{{title}}</span>
+  </mat-card-title>
+  <div class="crmi-card-title-separator"></div>
+
+  <div [ngSwitch]="state">
+    <!-- LOADING -->
+    <ng-template ngSwitchCase="loading">
+      <div class="crmi-loading-block">
+        <mat-progress-spinner
+          strokeWidth="10"
+          style="width:50px;height:50px"
+          mode="indeterminate">
+        </mat-progress-spinner>
+        Loading data...
+      </div>
+    </ng-template>
+    <!-- LOADED -->
+    <ng-template ngSwitchCase="loaded">
+      <form [formGroup]="jobForm" class="crmi-form" novalidate (ngSubmit)="save()">
+        <!-- JOB DETAILS -->
+        <div class="crmi-form-group">
+          <label class="crmi-form-label">Name</label>
+          <mat-form-field floatPlaceholder="never">
+            <input matInput placeholder="Name" formControlName="name">
+          </mat-form-field>
+        </div>
+        <div class="crmi-form-group">
+          <label class="crmi-form-label">Worker Class</label>
+          <mat-select placeholder="Worker Class" formControlName="worker_class" floatPlaceholder="never">
+            <mat-option *ngFor="let worker_class of worker_classes" [value]="worker_class">{{worker_class}}</mat-option>
+          </mat-select>
+        </div>
+        <!-- DEPENDENCY JOBS -->
+        <div class="crmi-form-offset">
+          <h3>Job Dependencies</h3>
+        </div>
+        <div class="crmi-form-offset">
+          <div formArrayName="startConditionsLairs">
+            <div *ngFor="let start_condition of startConditionsLairs.controls; let i=index" class="crmi-form-group-row" [formGroupName]="i">
+              <mat-select placeholder="Dependency Job" formControlName="preceding_job_id">
+                <mat-option *ngFor="let dependency_job of dependency_jobs" [value]="dependency_job[1]">{{dependency_job[0]}}</mat-option>
+              </mat-select>
+              <mat-select placeholder="Condition" formControlName="condition">
+                <mat-option *ngFor="let condition of conditions" [value]="condition">{{condition}}</mat-option>
+              </mat-select>
+              <button mat-icon-button type="button" (click)="removeStartCondition(i)">
+                <mat-icon>close</mat-icon>
+              </button>
+            </div>
+          </div>
+          <button mat-button type="button" (click)="addStartCondition()">Add start condition</button>
+        </div>
+        <!-- WORKER PARAMS -->
+        <app-worker-params [jobForm]="jobForm" [worker_class]="jobForm.get('worker_class').value"></app-worker-params>
+        <div class="crmi-form-offset">
+          <div class="crmi-form-message crmi-form-message-error">{{error_message}}</div>
+          <button mat-raised-button
+                  type="submit"
+                  [disabled]="!jobForm.valid"
+                  color="primary">Save</button>
+          <button mat-raised-button
+                  (click)="cancel()"
+                  type="button">Cancel</button>
+        </div>
+      </form>
+    </ng-template>
+    <!-- ERROR -->
+    <ng-template ngSwitchCase="error">
+      <div class="crmi-error-block">There is error after loading data.</div>
+    </ng-template>
+  </div>
+</mat-card>

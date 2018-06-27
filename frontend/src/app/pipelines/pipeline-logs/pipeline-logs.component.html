@@ -1,0 +1,76 @@
+<div class="crmi-log-filters">
+  <mat-form-field class="datepicker-field">
+    <input matInput [matDatepicker]="fromdate" placeholder="From date" [(ngModel)]="filters.fromdate" (dateChange)="loadNewestLogs(true)">
+    <mat-datepicker-toggle matSuffix [for]="fromdate"></mat-datepicker-toggle>
+    <mat-datepicker #fromdate></mat-datepicker>
+  </mat-form-field>
+  <mat-form-field class="datepicker-field">
+    <input matInput [matDatepicker]="todate" placeholder="To date" [(ngModel)]="filters.todate" (dateChange)="loadNewestLogs(true)">
+    <mat-datepicker-toggle matSuffix [for]="todate"></mat-datepicker-toggle>
+    <mat-datepicker #todate></mat-datepicker>
+  </mat-form-field>
+  <mat-select placeholder="Job" [(ngModel)]="filters.job_id" (ngModelChange)="loadNewestLogs(true)">
+    <mat-option>All</mat-option>
+    <mat-option *ngFor="let job of jobs" [value]="job.id">{{ job.name }}</mat-option>
+  </mat-select>
+  <mat-select placeholder="Worker Class" [(ngModel)]="filters.worker_class" (ngModelChange)="loadNewestLogs(true)">
+    <mat-option>All</mat-option>
+    <mat-option *ngFor="let worker_class of worker_classes" [value]="worker_class">{{ worker_class }}</mat-option>
+  </mat-select>
+  <mat-select placeholder="Log Level" [(ngModel)]="filters.log_level" (ngModelChange)="loadNewestLogs(true)">
+    <mat-option>All</mat-option>
+    <mat-option *ngFor="let log_level of log_levels" [value]="log_level">{{ log_level }}</mat-option>
+  </mat-select>
+  <mat-form-field class="search-field">
+    <input matInput placeholder="Search" [(ngModel)]="filters.query" (ngModelChange)="loadNewestLogs(true)">
+  </mat-form-field>
+</div>
+
+<div [ngSwitch]="state">
+  <!-- LOADING -->
+  <ng-template [ngSwitchCase]="['pending', 'loading'].includes(state) ? state : ''">
+    <div class="crmi-loading-block">
+      <mat-progress-spinner
+        strokeWidth="10"
+        style="width:50px;height:50px"
+        mode="indeterminate">
+      </mat-progress-spinner>
+      Loading logs...
+    </div>
+  </ng-template>
+  <!-- LOADED -->
+  <ng-template ngSwitchCase="loaded">
+    <div class="crmi-log-list" *ngIf="logs.length > 0; else nologs">
+      <div class="crmi-log-load-more-wrap">
+        <button class="crmi-log-load-more-btn" mat-button [disabled]="btnNewestState=='loading'" (click)="loadNewestLogs()">
+          {{btnNewestText()}}
+        </button>
+      </div>
+      <div class="crmi-log-header">
+        <div class="crmi-log-header-timestamp">Local Time</div>
+        <div class="crmi-log-header-message">Message</div>
+      </div>
+      <div *ngFor="let log of logs" class="crmi-log-item crmi-log-item-{{log.log_lower_level()}}">
+        <mat-icon>{{log.icon()}}</mat-icon>
+        <div class="crmi-log-item-entry">
+          <div class="crmi-log-item-timestamp">{{log.timestamp | date:'dd.MM.y HH:mm:ss'}}</div>
+          <div class="crmi-log-item-message" [innerHtml]="log.message()"></div>
+        </div>
+      </div>
+      <div class="crmi-log-load-more-wrap">
+        <button class="crmi-log-load-more-btn" mat-button [disabled]="btnState=='loading'" (click)="loadLogs()">
+          {{btnText()}}
+        </button>
+      </div>
+    </div>
+    <ng-template #nologs>
+      <div class="crmi-no-items">
+        <div class="crmi-no-items-header">NO LOGS</div>
+        <div class="crmi-no-items-textaction">Logs are not found</div>
+      </div>
+    </ng-template>
+  </ng-template>
+  <ng-template ngSwitchCase="error">
+    <div class="crmi-error-block">There is error after loading data.</div>
+  </ng-template>
+</div>

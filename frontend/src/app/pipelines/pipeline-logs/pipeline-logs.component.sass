@@ -1,0 +1,75 @@
+\:host
+  .crmi-loading-block
+    margin: 24px auto
+
+.crmi-log-filters
+  background-color: #fafafa
+  border-top: 1px solid #eee
+  border-bottom: 1px solid #eee
+  margin-bottom: 10px
+  padding: 10px 54px 0
+  & > .mat-select
+    width: 180px
+  & > .mat-form-field.search-field
+    width: 320px
+  & > .mat-form-field.datepicker-field
+    width: 105px
+
+.crmi-log-list
+  // padding-left: 25px
+  .crmi-log-load-more-wrap
+    text-align: center
+  .crmi-log-load-more-btn
+    // text-align: center
+  .crmi-log-header
+    background-color: #fafafa
+    border-bottom: 1px solid #eee
+    border-top: 1px solid #eee
+    padding: 10px
+    & > div
+      display: inline-block
+    .crmi-log-header-timestamp
+      margin-left: 79px
+    .crmi-log-header-message
+      margin-left: 47px
+  .crmi-log-item
+    padding: 7px 52px 1px
+    border-bottom: 1px solid #ddd
+    &:hover
+      background-color: cornsilk
+    .crmi-log-item-entry
+      display: inline-flex
+      vertical-align: top
+      width: 1060px
+      font-size: 13px
+      padding-top: 6px
+      .crmi-log-item-timestamp, .crmi-log-item-message, .crmi-log-item-label
+        flex: 0 0 auto
+        display: inline-block
+        vertical-align: top
+        color: #8C8C8C
+        margin-left: 10px
+      .crmi-log-item-message
+        color: black
+      .crmi-log-item-label
+        max-width: 130px
+        height: 15px
+        background-color: #eee
+        border-radius: 4px
+        padding: 4px 10px
+        margin-top: -4px
+        max-width: 80px
+        text-overflow: ellipsis
+        overflow-x: hidden
+      .crmi-log-item-message
+        flex: 1 1 auto
+        white-space: pre-wrap
+    &.crmi-log-item-info
+      .mat-icon
+        color: #1E88E5
+    &.crmi-log-item-warning
+      .mat-icon
+        color: #FB8C00
+    &.crmi-log-item-error
+      .mat-icon
+        color: #CD3030

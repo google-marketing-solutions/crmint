@@ -1,0 +1,42 @@
+# System Files
+.DS_Store
+Thumbs.db
+
+env/*
+
+package-lock.json
+*.pyc
+service-account.json
+
+scripts/variables/**/*.sh
+!scripts/variables/common.sh
+
+# IDEs and editors
+.idea
+.project
+.classpath
+.c9/
+*.launch
+.settings/
+*.sublime-workspace
+
+# IDE - VSCode
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+# Dev app config
+backends/gae_dev_*.yaml
+
+# Dev libs
+backends/lib_dev
+
+# vim swap files
+*.swp
+*.swo
+*.swn
+
+# Sphinx build folder
+docs/_build

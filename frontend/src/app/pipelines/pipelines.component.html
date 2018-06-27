@@ -1,0 +1,85 @@
+<mat-card>
+  <div [ngSwitch]="state">
+    <!-- LOADING -->
+    <ng-template ngSwitchCase="loading">
+      <div class="crmi-loading-block">
+        <mat-progress-spinner
+          strokeWidth="10"
+          style="width:50px;height:50px"
+          mode="indeterminate">
+        </mat-progress-spinner>
+        Loading pipelines...
+      </div>
+    </ng-template>
+    <!-- LOADED -->
+    <ng-template ngSwitchCase="loaded">
+      <mat-card-title>
+        Pipelines
+        <div class="crmi-card-title-buttons">
+          <a mat-raised-button routerLink="/pipelines/new">
+            <mat-icon>add</mat-icon>
+            New Pipeline
+          </a>
+          <button mat-raised-button type="button" (click)="fileImport.click()">
+            <mat-icon>file_upload</mat-icon>
+            Import by template
+          </button>
+          <input hidden type="file" #fileImport (change)="importPipeline($event)"/>
+        </div>
+      </mat-card-title>
+
+      <div *ngIf="pipelines.length > 0; else nopipelines">
+        <div class="crmi-card-list">
+          <div class="crmi-card-list-header">
+            <div class="crmi-card-list-item">
+              <div class="crmi-card-list-item-col">Pipeline</div>
+              <div class="crmi-card-list-item-col crmi-card-list-item-col-2">Status</div>
+              <div class="crmi-card-list-item-col crmi-card-list-item-col-2">Last Activity (UTC)</div>
+              <div class="crmi-card-list-item-col crmi-card-list-item-col-1">Actions</div>
+            </div>
+          </div>
+          <div *ngFor="let pipeline of pipelines" class="crmi-card-list-item">
+            <div class="crmi-card-list-item-col">
+              <a class="crmi-card-list-item-name" [routerLink]="['/pipelines', pipeline.id]">{{pipeline.name}}</a>
+              <div class="crmi-pipelines-item-alarm">
+                <mat-icon class="crmi-pipelines-item-alarm-icon" *ngIf="pipeline.run_on_schedule">alarm</mat-icon>
+                <span *ngIf="pipeline.run_on_schedule" class="crmi-pipelines-item-alarm-date">{{pipeline.run_on_schedule_next_date()}}</span>
+              </div>
+            </div>
+            <div class="crmi-card-list-item-col crmi-card-list-item-col-2">
+              <app-status [status]="pipeline.status"></app-status>
+            </div>
+            <div class="crmi-card-list-item-col crmi-card-list-item-col-2">
+              {{pipeline.updated_at}}
+            </div>
+            <div class="crmi-card-list-item-col crmi-card-list-item-col-1">
+              <a class="crmi-link" [routerLink]="['/pipelines', pipeline.id, 'edit']" [class.disabled]="!pipeline.showed_running()">
+                <mat-icon>edit</mat-icon>
+                Edit
+              </a>
+              <br/>
+              <button class="crmi-link" (click)="deletePipeline(pipeline)" [class.disabled]="pipeline.blocked_managing()">
+                <mat-icon>delete</mat-icon>
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <ng-template #nopipelines>
+        <div class="crmi-no-items">
+          <div class="crmi-no-items-header">NO PIPELINES</div>
+          <div class="crmi-no-items-textaction">Let's get started shall we?</div>
+          <a mat-raised-button color="primary" type="button" routerLink="/pipelines/new">
+            <mat-icon>add</mat-icon>
+            Create New Pipeline
+          </a>
+        </div>
+      </ng-template>
+    </ng-template>
+    <!-- ERROR -->
+    <ng-template ngSwitchCase="error">
+      <div class="crmi-error-block">There is error after loading data.</div>
+    </ng-template>
+  </div>
+</mat-card>

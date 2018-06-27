@@ -1,0 +1,80 @@
+<mat-card>
+  <mat-card-title>{{title}}</mat-card-title>
+  <div class="crmi-card-title-separator"></div>
+
+  <div [ngSwitch]="state">
+    <!-- LOADING -->
+    <ng-template ngSwitchCase="loading">
+      <div class="crmi-loading-block">
+        <mat-progress-spinner
+          strokeWidth="10"
+          style="width:50px;height:50px"
+          mode="indeterminate">
+        </mat-progress-spinner>
+        Loading data...
+      </div>
+    </ng-template>
+    <!-- LOADED -->
+    <ng-template ngSwitchCase="loaded">
+      <form [formGroup]="pipelineForm" class="crmi-form" novalidate (ngSubmit)="save()">
+        <div class="crmi-form-group">
+          <label class="crmi-form-label">Name</label>
+          <mat-form-field floatPlaceholder="never">
+            <input matInput placeholder="Name" formControlName="name">
+          </mat-form-field>
+        </div>
+        <div class="crmi-form-group">
+          <label class="crmi-form-label">Emails for notifications</label>
+          <mat-form-field floatPlaceholder="never">
+            <textarea matInput matTextareaAutosize placeholder="Emails for notifications" formControlName="emails_for_notifications"></textarea>
+            <mat-hint>One email on line</mat-hint>
+          </mat-form-field>
+        </div>
+        <br/>
+        <div class="crmi-form-offset crmi-form-group-checkbox" *ngIf="pipeline.has_jobs">
+          <mat-checkbox formControlName="run_on_schedule">Run on Schedule</mat-checkbox>
+        </div>
+        <!-- SCHEDULE -->
+        <div class="crmi-form-offset">
+          <h3>Schedules</h3>
+          <p>See <a target="_blank" href="http://www.nncron.ru/help/EN/working/cron-format.htm">Cron Format.</a> Specify time in the UTC.</p>
+        </div>
+
+        <div class="crmi-form-offset">
+          <div formArrayName="schedulesLairs">
+            <div *ngFor="let schedule of schedulesLairs.controls; let i=index" class="crmi-form-group" [formGroupName]="i">
+              <!--<mat-select placeholder="Interval" formControlName="interval">
+                <mat-option [value]="custom">Custom</mat-option>
+              </mat-select>-->
+              <mat-form-field>
+                <input matInput placeholder="Cron" formControlName="cron">
+                <mat-hint>{{schedulesLairs.controls[i].get('cron').value | prettycron}}</mat-hint>
+              </mat-form-field>
+              <button mat-icon-button type="button" (click)="removeSchedule(i)">
+                <mat-icon>close</mat-icon>
+              </button>
+            </div>
+          </div>
+          <br/>
+          <div class="crmi-form-group">
+            <button mat-button type="button" (click)="addSchedule()">Add schedule</button>
+          </div>
+        </div>
+
+        <!-- PIPELINE PARAMS -->
+        <app-pipeline-params [pipelineForm]="pipelineForm"></app-pipeline-params>
+        <br/>
+        <div class="crmi-form-offset">
+          <div class="crmi-form-message crmi-form-message-error">{{error_message}}</div>
+          <button mat-raised-button
+                  type="submit"
+                  [disabled]="!pipelineForm.valid"
+                  color="primary">Save</button>
+          <button mat-raised-button
+                  (click)="cancel()"
+                  type="button">Cancel</button>
+        </div>
+      </form>
+    </ng-template>
+  </div>
+</mat-card>

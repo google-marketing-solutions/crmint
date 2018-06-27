@@ -1,0 +1,17 @@
+<div class="crmi-stages-form-new">
+  <button mat-raised-button (click)="addStage()">Add</button>
+
+  <mat-form-field>
+    <input matInput placeholder="New stage id" [(ngModel)]="newStageName">
+  </mat-form-field>
+</div>
+
+<div *ngFor="let stage of stages" class="crmi-stage">
+  <button mat-icon-button color="warn" class="crmi-stage-delete-btn" (click)="deleteStage(stage)">
+    <mat-icon>delete</mat-icon>
+  </button>
+  <a target="_blank" [href]="stage.link()">
+    <mat-icon>open_in_new</mat-icon>
+    {{ stage.sid }}
+  </a>
+</div>

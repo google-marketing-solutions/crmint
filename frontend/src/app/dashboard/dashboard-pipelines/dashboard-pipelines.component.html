@@ -1,0 +1,25 @@
+<div class="crmi-card-list">
+  <div class="crmi-card-list-header">
+    <div class="crmi-card-list-item">
+      <div class="crmi-card-list-item-col">Pipeline</div>
+      <div class="crmi-card-list-item-col crmi-card-list-item-col-1">Status</div>
+      <div class="crmi-card-list-item-col crmi-card-list-item-col-2">Last Activity (UTC)</div>
+      <div class="crmi-card-list-item-col crmi-card-list-item-col-2">Stage</div>
+    </div>
+  </div>
+  <div *ngFor="let pipeline of pipelines" class="crmi-card-list-item">
+    <div class="crmi-card-list-item-col">
+      <span class="crmi-card-list-item-name">{{pipeline.name}}</span>
+      <mat-icon class="crmi-pipelines-item-alarm" *ngIf="pipeline.run_on_schedule">alarm</mat-icon>
+    </div>
+    <div class="crmi-card-list-item-col crmi-card-list-item-col-1">
+      <app-status [status]="pipeline.status"></app-status>
+    </div>
+    <div class="crmi-card-list-item-col crmi-card-list-item-col-2">
+      {{pipeline.updated_at}}
+    </div>
+    <div class="crmi-card-list-item-col crmi-card-list-item-col-2">
+      {{pipeline.sid}}
+    </div>
+  </div>
+</div>

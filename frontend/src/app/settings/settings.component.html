@@ -1,0 +1,47 @@
+<div class="crmi-config-wrap">
+  <mat-card>
+    <mat-card-title>Service Account Email</mat-card-title>
+    <span>{{config.sa_email}}</span>
+    <button type="button" ngxClipboard [cbContent]="config.sa_email">copy</button>
+  </mat-card>
+  <mat-card class="crmi-settings-global">
+    <mat-card-title>General Settings</mat-card-title>
+    <form [formGroup]="settingsForm" novalidate (ngSubmit)="saveSettings()">
+      <div formArrayName="settingsLairs">
+        <div *ngFor="let setting of settingsLairs.controls; let i=index" [formGroupName]="i">
+          <mat-form-field>
+            <textarea matInput matTextareaAutosize [placeholder]="setting.controls.name.value | labelcase" formControlName="value"></textarea>
+          </mat-form-field>
+        </div>
+      </div>
+      <div>
+        <button mat-raised-button type="submit" color="primary">Save</button>
+      </div>
+    </form>
+  </mat-card>
+</div>
+<div class="crmi-config-wrap">
+  <mat-card>
+    <mat-card-title>Global variables</mat-card-title>
+    <!-- variables -->
+    <form [formGroup]="gVarsForm" novalidate (ngSubmit)="saveGVars()">
+      <div formArrayName="variablesLairs">
+        <div *ngFor="let gVar of variablesLairs.controls; let i=index" [formGroupName]="i" class="crmi-form-variable-row">
+          <button mat-icon-button type="button" (click)="removeGVar(i)">
+            <mat-icon>close</mat-icon>
+          </button>
+          <div class="crmi-form-variable-name-wrapper">
+            <mat-form-field>
+              <input matInput placeholder="Name" formControlName="name">
+            </mat-form-field>
+          </div>
+          <mat-form-field>
+            <textarea matInput matTextareaAutosize placeholder="Value" formControlName="value"></textarea>
+          </mat-form-field>
+        </div>
+      </div>
+      <button mat-button type="button" (click)="addGVar()">Add global variable</button>
+      <button mat-raised-button type="submit" color="primary" [disabled]="gVarsForm.invalid">Save</button>
+    </form>
+  </mat-card>
+</div>

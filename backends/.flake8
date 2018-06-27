@@ -1,0 +1,14 @@
+[flake8]
+ignore =
+  # indentation is not a multiple of four
+  E111,
+  E114,
+  # 1 blank line required before class docstring
+  D203
+exclude =
+    .git,
+    __pycache__,
+    migrations/versions,
+    lib,
+    lib_dev
+max-complexity = 10

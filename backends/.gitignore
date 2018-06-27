@@ -1,0 +1,19 @@
+instance/config.py
+lib
+config/dev.py
+data/*
+!data/*.example
+*.swp
+.idea
+
+# Unit test & coverage reports
+htmlcov/
+.tox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+.pytest_cache/

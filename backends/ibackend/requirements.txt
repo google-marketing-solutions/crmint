@@ -1,0 +1,2 @@
+# Include common libraries for backend applications
+-r ../core/requirements.txt

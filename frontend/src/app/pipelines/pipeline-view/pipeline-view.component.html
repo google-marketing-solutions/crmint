@@ -1,0 +1,87 @@
+<mat-card>
+  <div [ngSwitch]="state">
+    <!-- LOADING -->
+    <ng-template ngSwitchCase="loading">
+      <div class="crmi-loading-block">
+        <mat-progress-spinner
+          strokeWidth="10"
+          style="width:50px;height:50px"
+          mode="indeterminate">
+        </mat-progress-spinner>
+        Loading jobs...
+      </div>
+    </ng-template>
+    <!-- LOADED -->
+    <ng-template ngSwitchCase="loaded">
+      <mat-card-title>
+        {{pipeline.name}}
+        <div class="crmi-card-title-buttons">
+          <button mat-raised-button color="warn" (click)="stopPipeline()" *ngIf="pipeline.showed_stopping()" [disabled]="pipeline.blocked_stopping()">
+            <mat-icon>stop_arrow</mat-icon>
+            Stop pipeline
+          </button>
+          <button mat-raised-button color="primary" (click)="startPipeline()" *ngIf="pipeline.showed_running() && jobs.length" [disabled]="pipeline.blocked_running()">
+            <mat-icon>play_arrow</mat-icon>
+            Run pipeline
+          </button>
+          <button mat-raised-button color="warn" [routerLink]="['/pipelines', pipeline.id, 'edit']" [disabled]="!pipeline.showed_running()">
+            <mat-icon>edit</mat-icon>
+            Edit
+          </button>
+          <button mat-raised-button routerLink="/jobs/new" [queryParams]="{pipeline_id: pipeline.id}" [disabled]="pipeline.blocked_managing()">
+            <mat-icon>add</mat-icon>
+            Add Job
+          </button>
+          <button mat-raised-button (click)="export()">
+            <mat-icon>file_download</mat-icon>
+            Export
+          </button>
+        </div>
+      </mat-card-title>
+
+      <div class="crmi-pipeline-view-body" *ngIf="jobs.length > 0; else nojobs">
+        <div class="crmi-pipeline-view-extras">
+          <button mat-button type="button" (click)="loadJobs(pipeline.id)">Refresh</button>
+          <mat-slide-toggle [checked]="pipeline.run_on_schedule" (change)="updateRunOnSchedule($event)">{{pipeline.run_on_schedule_next_date(true)}}</mat-slide-toggle>
+        </div>
+
+        <mat-tab-group dynamicHeight disableRipple (selectChange)="tabChange($event)" class="crmi-card-tabs">
+          <mat-tab>
+            <ng-template mat-tab-label>Pipeline</ng-template>
+            <app-pipeline-graph #graph [(pipeline)]="pipeline" [(jobs)]="jobs" (deleteClicked)="deleteJob($event)" (jobStartClicked)="startJob($event)"></app-pipeline-graph>
+          </mat-tab>
+          <mat-tab>
+            <ng-template mat-tab-label>
+              Jobs
+              <!--<strong>{{jobs.length}}</strong>-->
+            </ng-template>
+            <div>
+              <app-pipeline-jobs #pipelineJobs [(pipeline)]="pipeline" [(jobs)]="jobs" (deleteClicked)="deleteJob($event)" (jobStartClicked)="startJob($event)"></app-pipeline-jobs>
+            </div>
+          </mat-tab>
+          <mat-tab>
+            <ng-template mat-tab-label>Logs</ng-template>
+            <div>
+              <!-- LOGS HERE -->
+              <app-pipeline-logs #pipelineLogs [(jobs)]="jobs" [pipeline]="pipeline"></app-pipeline-logs>
+            </div>
+          </mat-tab>
+        </mat-tab-group>
+      </div>
+      <ng-template #nojobs>
+        <div class="crmi-no-items">
+          <div class="crmi-no-items-header">NO JOBS</div>
+          <div class="crmi-no-items-textaction">Let's get started shall we?</div>
+          <a mat-raised-button color="primary" type="button" routerLink="/jobs/new" [queryParams]="{pipeline_id: pipeline.id}">
+            <mat-icon>add</mat-icon>
+            Create New Job
+          </a>
+        </div>
+      </ng-template>
+    </ng-template>
+    <!-- ERROR -->
+    <ng-template ngSwitchCase="error">
+      <div class="crmi-error-block">There is error after loading data.</div>
+    </ng-template>
+  </div>
+</mat-card>

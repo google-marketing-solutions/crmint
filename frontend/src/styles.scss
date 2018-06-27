@@ -1,0 +1,334 @@
+/* You can add global styles to this file, and also import other style files */
+
+@import '~@angular/material/theming';
+
+// Include the common styles for Angular Material.
+@include mat-core();
+
+
+
+// $crmi-app-primary: mat-palette($mat-teal, A400)
+
+$crmi-primary: (
+  50: #21cccb,
+  100: #21cccb,
+  200: #21cccb,
+  300: #21cccb,
+  400: #21cccb,
+  500: #21cccb,
+  600: #21cccb,
+  700: #21cccb,
+  800: #21cccb,
+  900: #21cccb,
+  A100: #ff80ab,
+  A200: #ff4081,
+  A400: #f50057,
+  A700: #c51162,
+  contrast: (
+    50: $black-87-opacity,
+    100: $black-87-opacity,
+    200: $black-87-opacity,
+    300: $black-87-opacity,
+    400: $black-87-opacity,
+    500: white,
+    600: white,
+    700: $white-87-opacity,
+    800: $white-87-opacity,
+    900: $white-87-opacity,
+    A100: $black-87-opacity,
+    A200: white,
+    A400: white,
+    A700: white
+  )
+);
+
+$crmi-app-primary: mat-palette($crmi-primary, 700);
+$crmi-app-accent: mat-palette($crmi-primary, 500);
+$crmi-app-warn: mat-palette($mat-orange, 800);
+$crmi-app-theme: mat-light-theme($crmi-app-primary, $crmi-app-accent, $crmi-app-warn);
+
+// Include the default theme styles.
+@include angular-material-theme($crmi-app-theme);
+
+// SIZES
+$crmi-sidebar-width: 200px;
+$crmi-toolbar-height: 64px;
+
+// COLORS
+$crmi-content-color: #fafcfe;
+
+html, body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: Roboto, "Helvetica Neue", sans-serif;
+  background-color: #F5F5F5;
+}
+
+.clearfix {
+  clear: both;
+}
+
+// Overwrite
+.mat-card-title {
+  margin-top: -5px;
+  & > .crmi-card-breadcrumb {
+    display: inline-block;
+    span {
+      vertical-align: middle;
+      display: inline-block;
+      padding-top: 4px;
+    }
+    a {
+      text-decoration: none;
+      color: #2196F3;
+      &:hover {
+        transition: all .2s ease-in;
+        color: #21cccb;
+      }
+    }
+  }
+}
+
+.crmi-toolbar-space {
+  flex: 1 1 auto;
+}
+.crmi-header-logo {
+  background-color: rgba(0, 0, 0, .1);
+  width: $crmi-sidebar-width;
+  margin-left: -16px;
+  height: $crmi-toolbar-height;
+  line-height: $crmi-toolbar-height;
+  padding-left: 16px;
+}
+
+.crmi-form-wrap {
+  background-color: white;
+  border: 1px solid #dfe8f1;
+  padding: 10px 20px;
+}
+
+.crmi-card {
+  background-color: white;
+  border: 1px solid #dfe8f1;
+  padding: 10px 20px;
+}
+
+.crmi-form-group {
+  display: block;
+}
+
+.crmi-container {
+  width: 1200px;
+  margin: 0 auto;
+}
+
+// CRMI CARD
+.crmi-card-title-buttons {
+  float: right;
+  margin-top: -5px;
+  .mat-raised-button {
+    mat-icon {
+      margin-left: -5px;
+    }
+  }
+}
+.crmi-card-title-separator {
+  border: 1px solid #eee;
+  margin: 0 -24px 20px;
+}
+
+.crmi-no-items {
+  text-align: center;
+  margin: 0 -24px;
+  padding-top: 20px;
+  color: #616161;
+  border-top: 1px solid #e0e0e0;
+  .crmi-no-items-header {
+    font-size: 20px;
+    font-weight: 500;
+    margin-bottom: 10px;
+  }
+  .crmi-no-items-textaction {
+    margin-bottom: 10px;
+  }
+  a, button {
+    margin-top: 5px;
+    .mat-icon {
+      font-size: 20px;
+      margin-top: 2px;
+      margin-left: -5px;
+    }
+  }
+}
+
+.crmi-card-list {
+  margin: 0 -24px -24px;
+  .crmi-card-list-header {
+    background: #f5f5f5;
+    border-top: 1px solid #eee;
+    .crmi-card-list-item-col {
+      padding: 10px 24px;
+      margin-top: 1px;
+      text-transform: uppercase;
+      color: #757575;
+      font-weight: 300;
+      font-size: 14px;
+    }
+  }
+  .crmi-card-list-item {
+    display: flex;
+    flex-direction: row;
+    border-bottom: 1px solid #eee;
+    a.crmi-card-list-item-name {
+      color: #1976D2;
+      text-decoration: none;
+    }
+    .crmi-card-list-item-name {
+      font-weight: 400;
+      font-size: 18px;
+    }
+    .crmi-card-list-item-col {
+      flex: 1 1 auto;
+      padding: 10px 24px;
+      &.crmi-card-list-item-col-1 {
+        flex: 0 0 110px;
+      }
+      &.crmi-card-list-item-col-2 {
+        flex: 0 0 200px;
+      }
+    }
+  }
+}
+.crmi-card-tabs {
+  margin: 0 -24px -24px;
+
+  .mat-tab-label:focus {
+    background-color: transparent !important;
+  }
+
+  .mat-ink-bar {
+    background-color: #21CCCB;
+  }
+  .crmi-card-list {
+    margin: 0;
+  }
+  .mat-tab-header {
+    margin-bottom: -1px;
+  }
+}
+// CRMI FORM
+$crmi-form-label-width: 300px;
+$crmi-form-label-field: 750px;
+.crmi-form {
+  .mat-input-element, .mat-select {
+    width: 350px;
+  }
+  textarea.mat-input-element {
+    height: 50px;
+  }
+  .crmi-form-group-row {
+    margin-bottom: 15px;
+  }
+  .crmi-form-group-checkbox {
+    margin-bottom: 15px;
+  }
+  .crmi-form-variables-section {
+    .mat-input-element, .mat-select {
+      width: $crmi-form-label-field;
+    }
+  }
+
+  .mat-input-container, .mat-input-element, textarea {
+    width: $crmi-form-label-field;
+  }
+}
+.crmi-form-label {
+  display: inline-block;
+  font-size: 14px;
+  padding-right: 10px;
+  text-align: right;
+  width: $crmi-form-label-width;
+}
+.crmi-form-message {
+  margin-bottom: 5px;
+  &.crmi-form-message-error {
+    color: #f50057;
+  }
+}
+
+.crmi-form-group {
+  &.crmi-form-group-editor {
+    label {
+      float: left;
+    }
+    .ace_editor {
+      width: $crmi-form-label-field;
+      border: 1px solid #ddd;
+      .ace_scrollbar-v {
+        &::-webkit-scrollbar-track {
+          background-color: #F5F5F5;
+        }
+        &::-webkit-scrollbar {
+          width: 7px;
+          background-color: #F5F5F5;
+        }
+        &::-webkit-scrollbar-thumb {
+          background-color: #b2b2b2;
+        }
+      }
+    }
+  }
+}
+.crmi-form-offset {
+  padding-left: ($crmi-form-label-width + 10px);
+}
+
+// CRMI LOADING BLOCK
+.crmi-loading-block {
+  margin: 24px auto 0;
+  text-align: center;
+  width: 150px;
+  .mat-progress-spinner {
+    margin: 10px auto;
+  }
+}
+// CRMI ERROR BLOCK
+.crmi-error-block {
+  margin: 24px auto 0;
+  text-align: center;
+  color: #F44336;
+}
+
+// CRMI MISC
+.crmi-block-center {
+  margin: 0 auto;
+}
+.crmi-text-center {
+  text-align: center;
+}
+
+a, button {
+  &.disabled {
+    color: #888;
+    text-decoration: none;
+    pointer-events: none;
+  }
+}
+.crmi-link {
+  background: none !important;
+  border: 0 !important;
+  padding: 0 !important;
+  cursor: pointer;
+  font: inherit;
+  color: #1e88e5;
+  text-decoration: none;
+  .mat-icon {
+    font-size: 15px;
+    margin-right: -6px;
+    text-align: center;
+  }
+}

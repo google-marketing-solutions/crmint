@@ -1,0 +1,54 @@
+<div class="crmi-dashboard-grid">
+  <div class="crmi-dashboard-col-stages">
+    <mat-card>
+      <div [ngSwitch]="stages_state">
+        <!-- LOADING -->
+        <ng-template ngSwitchCase="loading">
+          <div class="crmi-loading-block">
+            <mat-progress-spinner
+              strokeWidth="10"
+              style="width:50px;height:50px"
+              mode="indeterminate">
+            </mat-progress-spinner>
+            Loading stages...
+          </div>
+        </ng-template>
+        <!-- LOADED -->
+        <ng-template ngSwitchCase="loaded">
+          <mat-card-title>Stages</mat-card-title>
+          <app-stages [(stages)]="stages" class="crmi-dashboard-stages"></app-stages>
+        </ng-template>
+        <!-- ERROR -->
+        <ng-template ngSwitchCase="error">
+          <div class="crmi-error-block">There is error after loading data.</div>
+        </ng-template>
+      </div>
+    </mat-card>
+  </div>
+  <div class="crmi-dashboard-col-pipelines">
+    <mat-card>
+      <div [ngSwitch]="pipelines_state">
+        <!-- LOADING -->
+        <ng-template ngSwitchCase="loading">
+          <div class="crmi-loading-block">
+            <mat-progress-spinner
+              strokeWidth="10"
+              style="width:50px;height:50px"
+              mode="indeterminate">
+            </mat-progress-spinner>
+            Loading pipelines...
+          </div>
+        </ng-template>
+        <!-- LOADED -->
+        <ng-template ngSwitchCase="loaded">
+          <mat-card-title>Pipelines</mat-card-title>
+          <app-dashboard-pipelines [pipelines]="pipelines"></app-dashboard-pipelines>
+        </ng-template>
+        <!-- ERROR -->
+        <ng-template ngSwitchCase="error">
+          <div class="crmi-error-block">There is error after loading data.</div>
+        </ng-template>
+      </div>
+    </mat-card>
+  </div>
+</div>

@@ -1,0 +1,46 @@
+<div class="crmi-card-list">
+  <div class="crmi-card-list-header">
+    <div class="crmi-card-list-item">
+      <div class="crmi-card-list-item-col">Job</div>
+      <div class="crmi-card-list-item-col crmi-card-list-item-col-2">Dependency Jobs</div>
+      <div class="crmi-card-list-item-col crmi-card-list-item-col-2">Status</div>
+      <div class="crmi-card-list-item-col crmi-card-list-item-col-2">Last Activity (UTC)</div>
+      <div class="crmi-card-list-item-col crmi-card-list-item-col-1">Actions</div>
+    </div>
+  </div>
+  <div *ngIf="jobs.length > 0; else nojobs">
+    <div *ngFor="let job of jobs" class="crmi-card-list-item">
+      <div class="crmi-card-list-item-col">
+        <strong>{{job.name}}</strong>
+      </div>
+      <div class="crmi-card-list-item-col crmi-card-list-item-col-2">
+        <div *ngFor="let start_condition of job.start_conditions">
+          {{start_condition.preceding_job_name}}
+        </div>
+      </div>
+      <div class="crmi-card-list-item-col crmi-card-list-item-col-2">
+        <app-status [status]="job.status"></app-status>
+      </div>
+      <div class="crmi-card-list-item-col crmi-card-list-item-col-2">
+        {{job.updated_at}}
+      </div>
+      <div class="crmi-card-list-item-col crmi-card-list-item-col-1">
+        <a class="crmi-link" (click)="jobStartClicked.emit(job.id)" [class.disabled]="pipeline.blocked_managing()">
+          <mat-icon>play_arrow</mat-icon>
+          Run
+        </a>
+        <br>
+        <a class="crmi-link" [routerLink]="['/jobs', job.id, 'edit']" [class.disabled]="pipeline.blocked_managing()">
+          <mat-icon>edit</mat-icon>
+          Edit
+        </a>
+        <br>
+        <button class="crmi-link" (click)="deleteClicked.emit(job.id)" [class.disabled]="pipeline.blocked_managing()">
+          <mat-icon>delete</mat-icon>
+          Delete
+        </button>
+      </div>
+    </div>
+  </div>
+  <ng-template #nojobs><div class="crmi-card-list-item">No jobs.</div></ng-template>
+</div>

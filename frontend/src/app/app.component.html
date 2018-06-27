@@ -1,0 +1,16 @@
+<app-top-bar [title]="title"></app-top-bar>
+
+<div class="crmi-main-container">
+  <div class="crmi-container">
+    <div class="crmi-content">
+      <mat-card *ngFor="let alert of alerts; let i = index" class="crmi-alert active crmi-alert-danger">
+        <span class="close" aria-hidden="true" (click)="closeAlert(i)">&times;</span>
+        <i class="mdi mdi-{{alert.icon}}"></i>
+        <div class="crmi-alert-text">{{alert.text}}</div>
+      </mat-card>
+      <router-outlet></router-outlet>
+    </div>
+  </div>
+</div>
+
+<a id="crmi-download"></a>
