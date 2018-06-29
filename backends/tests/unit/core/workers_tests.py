@@ -18,6 +18,7 @@ import unittest
 from apiclient.errors import HttpError
 import cloudstorage
 from google.appengine.ext import testbed
+from google.cloud.bigquery.query import QueryResults
 from google.cloud.exceptions import ClientError
 import mock
 
@@ -248,3 +249,144 @@ class TestStorageToBQImporter(unittest.TestCase):
     self.assertEqual(len(source_uris), 2)
     self.assertEqual(source_uris[0], 'gs://bucket/subdir/input.csv')
     self.assertEqual(source_uris[1], 'gs://bucket/subdir/data.csv')
+
+
+class TestBQToMeasurementProtocol(unittest.TestCase):
+
+  def setUp(self):
+    super(TestBQToMeasurementProtocol, self).setUp()
+
+    self._client = mock.Mock()
+    patcher_get_client = mock.patch.object(
+        workers.BQToMeasurementProtocol,
+        '_get_client',
+        return_value=self._client)
+    self.addCleanup(patcher_get_client.stop)
+    patcher_get_client.start()
+
+    patcher_requests_post = mock.patch('requests.post')
+    self.addCleanup(patcher_requests_post.stop)
+    self._patched_post = patcher_requests_post.start()
+
+    self._worker = workers.BQToMeasurementProtocol(
+        {
+            'bq_project_id': 'BQID',
+            'bq_dataset_id': 'DTID',
+            'bq_table_id': 'table_id',
+        },
+        1,
+        1)
+
+  def _use_query_results(self, response_json):
+    # NB: be sure to remove the jobReference from the api response used to
+    #     create the QueryResults instance.
+    response_json_copy = response_json.copy()
+    del response_json_copy['jobReference']
+    fake_query_results = QueryResults.from_api_repr(response_json_copy, self._client)
+    self._client.run_sync_query.return_value = fake_query_results
+    self._client._connection.api_request.return_value = response_json
+
+  def test_success_with_one_post_request(self):
+    self._use_query_results({
+        'jobReference': {
+            'jobId': 'one-row-query',
+        },
+        'rows': [
+            {
+                'f': [
+                    {'v': 'UA-12345-1'},
+                    {'v': '35009a79-1a05-49d7-b876-2b884d0f825b'},
+                    {'v': 'event'},
+                    {'v': 1},
+                    {'v': 'category'},
+                    {'v': 'action'},
+                    {'v': 'label'},
+                    {'v': 'value'},
+                    {'v': 'User Agent / 1.0'},
+                ]
+            }
+        ],
+        'schema': {
+            'fields': [
+                {'name': 'tid', 'type': 'STRING'},
+                {'name': 'cid', 'type': 'STRING'},
+                {'name': 't', 'type': 'STRING'},
+                {'name': 'ni', 'type': 'FLOAT'},
+                {'name': 'ec', 'type': 'STRING'},
+                {'name': 'ea', 'type': 'STRING'},
+                {'name': 'el', 'type': 'STRING'},
+                {'name': 'ev', 'type': 'STRING'},
+                {'name': 'ua', 'type': 'STRING'},
+            ]
+        }
+    })
+
+    mock_response = mock.Mock()
+    mock_response.status_code = 200
+    self._patched_post.return_value = mock_response
+
+    self._worker._execute()
+    self._patched_post.assert_called_once()
+    self.assertEqual(
+        self._patched_post.call_args[0][0],
+        'https://www.google-analytics.com/collect')
+    self.assertEqual(
+        self._patched_post.call_args[1],
+        {
+            'headers': {'user-agent': 'CRMint / 0.1'},
+            'data': {
+                'ni': 1.0,
+                'el': 'label',
+                'cid': '35009a79-1a05-49d7-b876-2b884d0f825b',
+                'ea': 'action',
+                'ec': 'category',
+                't': 'event',
+                'v': 1,
+                'tid': 'UA-12345-1',
+                'ev': 'value',
+                'ua': 'User Agent / 1.0'
+            }
+        })
+
+  def test_raises_exception_if_http_fails(self):
+    self._use_query_results({
+        'jobReference': {
+            'jobId': 'one-row-query',
+        },
+        'rows': [
+            {
+                'f': [
+                    {'v': 'UA-12345-1'},
+                    {'v': '35009a79-1a05-49d7-b876-2b884d0f825b'},
+                    {'v': 'event'},
+                    {'v': 1},
+                    {'v': 'category'},
+                    {'v': 'action'},
+                    {'v': 'label'},
+                    {'v': 'value'},
+                    {'v': 'User Agent / 1.0'},
+                ]
+            }
+        ],
+        'schema': {
+            'fields': [
+                {'name': 'tid', 'type': 'STRING'},
+                {'name': 'cid', 'type': 'STRING'},
+                {'name': 't', 'type': 'STRING'},
+                {'name': 'ni', 'type': 'FLOAT'},
+                {'name': 'ec', 'type': 'STRING'},
+                {'name': 'ea', 'type': 'STRING'},
+                {'name': 'el', 'type': 'STRING'},
+                {'name': 'ev', 'type': 'STRING'},
+                {'name': 'ua', 'type': 'STRING'},
+            ]
+        }
+    })
+
+    mock_response = mock.Mock()
+    mock_response.status_code = 500
+    self._patched_post.return_value = mock_response
+
+    with self.assertRaises(workers.WorkerException):
+      self._worker._execute()
+    self._patched_post.assert_called_once()

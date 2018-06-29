@@ -24,6 +24,7 @@ import os
 from random import random
 import time
 import uuid
+
 from apiclient.discovery import build
 from apiclient.errors import HttpError
 from apiclient.http import MediaIoBaseUpload
@@ -31,6 +32,7 @@ import cloudstorage as gcs
 from oauth2client.service_account import ServiceAccountCredentials
 from google.cloud import bigquery
 from google.cloud.exceptions import ClientError
+import requests
 
 
 _KEY_FILE = os.path.join(os.path.dirname(__file__), '..', 'data',
@@ -45,6 +47,7 @@ AVAILABLE = (
     'MLPredictor',
     'StorageCleaner',
     'Commenter',
+    'BQToMeasurementProtocol',
 )
 
 
@@ -760,3 +763,76 @@ class MLPredictor(MLWorker):
     self.retry(request.execute)()
     job_name = '%s/jobs/%s' % (project_id, self._ml_job_id)
     self._enqueue('MLWaiter', {'job_name': job_name}, 60)
+
+
+class MeasurementProtocolWorker(Worker):
+  """Abstract Measurement Protocol worker."""
+
+  def _send_event_hit(self, user_agent='CRMint / 0.1', **kwargs):
+    """Send a measurement protocol hit.
+
+    Arguments:
+      user_agent string representing the client User Agent.
+      kwargs dictionary of key/values to pass to the Measurement
+          Protocol endpoint.
+
+    Raises: WorkerException if the HTTP request fails.
+    """
+    headers = {'user-agent': user_agent}
+    payload = {'v': 1}
+    payload.update(kwargs)
+
+    req = requests.post('https://www.google-analytics.com/collect',
+                        headers=headers,
+                        data=payload)
+
+    if req.status_code != requests.codes.ok:
+      raise WorkerException('Failed to send event hit with status code (%s) '
+                            'and parameters: %s' % (req.status_code, kwargs))
+
+
+class BQToMeasurementProtocol(MeasurementProtocolWorker):
+  """Worker to import data through Measurement Protocol"""
+
+  PARAMS = [
+      ('bq_project_id', 'string', False, '', 'BQ Project ID'),
+      ('bq_dataset_id', 'string', True, '', 'BQ Dataset ID'),
+      ('bq_table_id', 'string', True, '', 'BQ Table ID'),
+  ]
+
+  def _get_client(self):
+    client = bigquery.Client.from_service_account_json(_KEY_FILE)
+    if self._params['bq_project_id'].strip():
+      client.project = self._params['bq_project_id']
+    return client
+
+  def _bq_setup(self):
+    self._client = self._get_client()
+
+  def _process_query_results(self, query_data):
+    """Sends event hits for this chunk of data."""
+    fields = [f.name for f in query_data.query_result.schema]
+    for row in query_data:
+      data = dict(zip(fields, row))
+      self._send_event_hit(**data)
+
+  def _execute(self):
+    # Retrieves data from BigQuery.
+    self._bq_setup()
+    query = 'SELECT * FROM %s.%s.%s' % (
+        self._params['bq_project_id'],
+        self._params['bq_dataset_id'],
+        self._params['bq_table_id'])
+    query_results = self._client.run_sync_query(query)
+    query_results.use_legacy_sql = False
+    query_results.run()
+
+    page_token = None
+    while True:
+      query_data = query_results.fetch_data(
+          max_results=10000,
+          page_token=page_token)
+      self._process_query_results(query_data)
+      if query_data.next_page_token is None:
+        break
+      page_token = query_data.next_page_token
