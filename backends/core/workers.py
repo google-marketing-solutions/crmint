@@ -81,7 +81,7 @@ class Worker(object):
     self._workers_to_enqueue = []
 
   def _log(self, level, message, *substs):
-    logger.log_struct({
+    self.retry(logger.log_struct)({
         'labels': {
             'pipeline_id': self._pipeline_id,
             'job_id': self._job_id,
@@ -134,7 +134,6 @@ class Worker(object):
         except Exception as e:  # pylint: disable=broad-except
           tries += 1
           delay = 5 * 2 ** (tries + random())
-          self.log_warn('%s, Retrying in %.1f seconds...', e, delay)
           time.sleep(delay)
       return func(*args, **kwargs)
     return func_with_retries
