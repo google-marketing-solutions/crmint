@@ -819,7 +819,7 @@ class BQToMeasurementProtocol(MeasurementProtocolWorker):
   def _execute(self):
     # Retrieves data from BigQuery.
     self._bq_setup()
-    query = 'SELECT * FROM %s.%s.%s' % (
+    query = 'SELECT * FROM `%s.%s.%s`' % (
         self._params['bq_project_id'],
         self._params['bq_dataset_id'],
         self._params['bq_table_id'])
