@@ -60,13 +60,6 @@ def main(sdk_path, test_path, test_pattern):
   import dev_appserver
   dev_appserver.fix_sys_path()
 
-  # HACK START
-  # Remove conflicting paths between gcloud sdk libs and appengine libs.
-  sys.path.remove(os.path.join(sdk_path, 'lib/pyasn1_modules'))
-  sys.path.remove(os.path.join(sdk_path, 'lib/pyasn1'))
-  sys.path.remove(os.path.join(sdk_path, 'lib/oauth2client_devserver'))
-  # HACK END
-
   # Set test env vars.
   os.environ['APPLICATION_ID'] = 'crmint-dev'
 
