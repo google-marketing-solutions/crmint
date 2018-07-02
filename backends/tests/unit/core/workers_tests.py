@@ -225,10 +225,10 @@ class TestStorageToBQImporter(unittest.TestCase):
       },
       1,
       1)
-    worker._get_source_uris()
-    self.assertEqual(len(worker._source_uris), 2)
-    self.assertEqual(worker._source_uris[0], 'gs://bucket/data.csv')
-    self.assertEqual(worker._source_uris[1], 'gs://bucket/subdir/data.csv')
+    source_uris = worker._get_source_uris()
+    self.assertEqual(len(source_uris), 2)
+    self.assertEqual(source_uris[0], 'gs://bucket/data.csv')
+    self.assertEqual(source_uris[1], 'gs://bucket/subdir/data.csv')
 
   def test_get_source_uris_with_pattern(self):
     worker = workers.StorageToBQImporter(
@@ -239,7 +239,7 @@ class TestStorageToBQImporter(unittest.TestCase):
       },
       1,
       1)
-    worker._get_source_uris()
-    self.assertEqual(len(worker._source_uris), 2)
-    self.assertEqual(worker._source_uris[0], 'gs://bucket/subdir/input.csv')
-    self.assertEqual(worker._source_uris[1], 'gs://bucket/subdir/data.csv')
+    source_uris = worker._get_source_uris()
+    self.assertEqual(len(source_uris), 2)
+    self.assertEqual(source_uris[0], 'gs://bucket/subdir/input.csv')
+    self.assertEqual(source_uris[1], 'gs://bucket/subdir/data.csv')
