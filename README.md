@@ -3,6 +3,11 @@
 **Make reliable data integration and data processing with Google easy for
 advertisers.**
 
+| Status | Coverage | Branch | Description |
+| :----- | :--------- | :----- | :---------- |
+| [![Build Status](https://travis-ci.org/google/crmint.svg?branch=develop)](https://travis-ci.org/google/crmint) | - | [dev](https://github.com/google/crmint/tree/dev) | Latest build, use it at your own risks  |
+| [![Build Status](https://travis-ci.org/google/crmint.svg?branch=master)](https://travis-ci.org/google/crmint) | - | [master](https://github.com/google/crmint/tree/master) | Production ready releases |
+
 > You can have data without information, but you cannot have information
 > without data.
 >
