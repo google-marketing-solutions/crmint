@@ -77,6 +77,7 @@ def abort_if_pipeline_doesnt_exist(pipeline, pipeline_id):
 
 class PipelineSingle(Resource):
   """Shows a single pipeline item and lets you delete a pipeline item"""
+
   @marshal_with(pipeline_fields)
   def get(self, pipeline_id):
     pipeline = Pipeline.find(pipeline_id)
@@ -116,6 +117,7 @@ class PipelineSingle(Resource):
 
 class PipelineList(Resource):
   """Shows a list of all pipelines, and lets you POST to add new pipelines"""
+
   @marshal_with(pipeline_fields)
   def get(self):
     pipelines = Pipeline.all()
@@ -282,6 +284,7 @@ logs_fields = {
 
 
 class PipelineLogs(Resource):
+
   def get(self, pipeline_id):
     args = log_parser.parse_args()
     entries = []

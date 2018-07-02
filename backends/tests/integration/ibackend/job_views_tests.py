@@ -21,5 +21,5 @@ class TestJobList(utils.IBackendBaseTest):
 
   def test_list_with_success(self):
     pipeline = models.Pipeline.create()
-    response = self.client.get('/jobs?pipeline_id=%d' % pipeline.id)
+    response = self.client.get('/api/jobs?pipeline_id=%d' % pipeline.id)
     self.assertEqual(response.status_code, 200)

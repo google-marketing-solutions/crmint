@@ -41,7 +41,7 @@ class TestIBackend(TestBaseBackendEndToEnd):
     return app
 
   def test_root_accessible(self):
-    response = self.client.get('/pipelines')
+    response = self.client.get('/api/pipelines')
     self.assertEqual(response.status_code, 200)
 
 
