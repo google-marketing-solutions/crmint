@@ -41,6 +41,7 @@ class TestAbstractWorker(unittest.TestCase):
 
   @mock.patch('core.logging.logger')
   def test_log_info_succeeds(self, patched_logger):
+    patched_logger.log_struct.__name__ = 'foo'
     worker = workers.Worker({}, 1, 1)
     self.assertEqual(patched_logger.log_struct.call_count, 0)
     worker.log_info('Hi there!')
@@ -50,6 +51,7 @@ class TestAbstractWorker(unittest.TestCase):
 
   @mock.patch('core.logging.logger')
   def test_log_warn_succeeds(self, patched_logger):
+    patched_logger.log_struct.__name__ = 'foo'
     worker = workers.Worker({}, 1, 1)
     self.assertEqual(patched_logger.log_struct.call_count, 0)
     worker.log_warn('Hi there!')
@@ -59,6 +61,7 @@ class TestAbstractWorker(unittest.TestCase):
 
   @mock.patch('core.logging.logger')
   def test_log_error_succeeds(self, patched_logger):
+    patched_logger.log_struct.__name__ = 'foo'
     worker = workers.Worker({}, 1, 1)
     self.assertEqual(patched_logger.log_struct.call_count, 0)
     worker.log_error('Hi there!')
@@ -68,6 +71,7 @@ class TestAbstractWorker(unittest.TestCase):
 
   @mock.patch('core.logging.logger')
   def test_execute_client_error_raises_worker_exception(self, patched_logger):
+    patched_logger.log_struct.__name__ = 'foo'
     class DummyWorker(workers.Worker):
       def _execute(self):
         raise ClientError('There has been an issue here.')
@@ -87,6 +91,7 @@ class TestAbstractWorker(unittest.TestCase):
   @mock.patch('core.logging.logger')
   def test_retry_until_a_finite_number_of_times(self, patched_logger,
       patched_time_sleep):
+    patched_logger.log_struct.__name__ = 'foo'
     # NB: bypass the time.sleep wait, otherwise the test will take ages
     patched_time_sleep.side_effect = lambda delay: delay
     worker = workers.Worker({}, 1, 1)

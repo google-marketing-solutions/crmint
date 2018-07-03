@@ -143,6 +143,7 @@ class TestJob(utils.ModelTestCase):
 
   @mock.patch('core.logging.logger')
   def test_job_fails_get_ready_without_pipeline_param(self, patched_logger):
+    patched_logger.log_struct.__name__ = 'foo'
     pipeline = models.Pipeline.create()
     job1 = models.Job.create(pipeline_id=pipeline.id)
     models.Param.create(
