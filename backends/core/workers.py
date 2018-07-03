@@ -162,12 +162,13 @@ class BQWorker(Worker):
   """Abstract BigQuery worker."""
 
   def _get_client(self):
-    self._client = bigquery.Client.from_service_account_json(_KEY_FILE)
+    client = bigquery.Client.from_service_account_json(_KEY_FILE)
     if self._params['bq_project_id'].strip():
-      self._client.project = self._params['bq_project_id']
+      client.project = self._params['bq_project_id']
+    return client
 
   def _bq_setup(self):
-    self._get_client()
+    self._client = self._get_client()
     self._dataset = self._client.dataset(self._params['bq_dataset_id'])
     self._table = self._dataset.table(self._params['bq_table_id'])
     self._job_name = '%i_%i_%s_%s' % (self._pipeline_id, self._job_id,
@@ -205,10 +206,10 @@ class BQWaiter(BQWorker):
   """Worker that checks BQ job status and respawns itself if job is running."""
 
   def _execute(self):
-    self._get_client()
+    client = self._get_client()
     for job_name in self._params['job_names']:
       # pylint: disable=protected-access
-      job = bigquery.job._AsyncJob(job_name, self._client)
+      job = bigquery.job._AsyncJob(job_name, client)
       # pylint: enable=protected-access
       job.reload()
       if job.error_result is not None:
@@ -797,7 +798,7 @@ class MeasurementProtocolWorker(Worker):
                                          % (req.status_code, kwargs))
 
 
-class BQToMeasurementProtocol(MeasurementProtocolWorker):
+class BQToMeasurementProtocol(BQWorker, MeasurementProtocolWorker):
   """Worker to import data through Measurement Protocol"""
 
   PARAMS = [
@@ -805,15 +806,6 @@ class BQToMeasurementProtocol(MeasurementProtocolWorker):
       ('bq_dataset_id', 'string', True, '', 'BQ Dataset ID'),
       ('bq_table_id', 'string', True, '', 'BQ Table ID'),
   ]
-
-  def _get_client(self):
-    client = bigquery.Client.from_service_account_json(_KEY_FILE)
-    if self._params['bq_project_id'].strip():
-      client.project = self._params['bq_project_id']
-    return client
-
-  def _bq_setup(self):
-    self._client = self._get_client()
 
   def _process_query_results(self, query_data):
     """Sends event hits for this chunk of data."""
@@ -827,12 +819,12 @@ class BQToMeasurementProtocol(MeasurementProtocolWorker):
 
   def _execute(self):
     # Retrieves data from BigQuery.
-    self._bq_setup()
+    client = self._get_client()
     query = 'SELECT * FROM `%s.%s.%s`' % (
         self._params['bq_project_id'],
         self._params['bq_dataset_id'],
         self._params['bq_table_id'])
-    query_results = self._client.run_sync_query(query)
+    query_results = client.run_sync_query(query)
     query_results.use_legacy_sql = False
     query_results.run()
 
