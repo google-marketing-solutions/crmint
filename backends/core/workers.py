@@ -826,11 +826,11 @@ class BQToMeasurementProtocol(BQWorker, MeasurementProtocolWorker):
         self._params['bq_table_id'])
     query_results = client.run_sync_query(query)
     query_results.use_legacy_sql = False
-    query_results.run()
+    self.retry(query_results.run)()
 
     page_token = None
     while True:
-      query_data = query_results.fetch_data(
+      query_data = self.retry(query_results.fetch_data)(
           max_results=10000,
           page_token=page_token)
       self._process_query_results(query_data)
