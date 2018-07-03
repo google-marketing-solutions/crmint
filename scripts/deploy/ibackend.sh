@@ -21,6 +21,9 @@ cd $workdir/backends
 
 pip install -r ibackend/requirements.txt -t lib -q
 
+# Applying patches required in GAE environment (alas!).
+cp -r "$SCRIPTS_DIR"/patches/lib/* lib/
+
 # Remove *.pyc files left after migrations and similar tasks.
 find "$workdir" -name '*.pyc' -exec rm {} \;
 
