@@ -12,10 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from google.appengine.api import app_identity
 from google.cloud.logging import Client
 
+from core.app_data import SA_FILE
 
-project_id = app_identity.get_application_id()
+
 logger_name = 'crmintapplogger'
-logger = Client(project=project_id).logger(logger_name)
+client = Client.from_service_account_json(SA_FILE)
+logger = client.logger(logger_name)

@@ -22,8 +22,8 @@ display_help() {
   echo "Usage: $0 dev run [command] [options]"
   echo
   echo -e "${BOLD}COMMANDS${NONE}"
-  echo "   frontend                   Run frontend"
-  echo "   backends                   Run backends"
+  echo "   frontend                           Run frontend"
+  echo "   backends <gcp_application_id>      Run backends"
   echo
   echo -e "${BOLD}OPTIONS${NONE}"
   echo "   -h, --help                 display detailed help."
@@ -41,8 +41,13 @@ frontend() {
 }
 
 backends() {
+  GCP_APP_ID=$1
   cd $PROJECT_DIR/backends
-  dev_appserver.py --enable_sendmail=yes --enable_console=yes gae_dev_ibackend.yaml gae_dev_jbackend.yaml
+  dev_appserver.py \
+    --enable_sendmail=yes \
+    --enable_console=yes \
+    --env_var APPLICATION_ID=$GCP_APP_ID \
+    gae_dev_ibackend.yaml gae_dev_jbackend.yaml
 }
 
 ##########################################################################
@@ -53,7 +58,7 @@ case $1 in
   frontend )              frontend
                           exit
                           ;;
-  backends )              backends
+  backends )              backends $2
                           exit
                           ;;
   * )                     display_help

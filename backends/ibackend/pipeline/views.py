@@ -17,6 +17,7 @@ import time
 import datetime
 import uuid
 
+from google.appengine.api import app_identity
 from google.appengine.api import urlfetch
 from google.cloud.logging import DESCENDING
 
@@ -28,7 +29,6 @@ from flask_restful import marshal_with
 from flask_restful import Resource
 from flask_restful import reqparse
 
-from core.logging import project_id
 from core.logging import logger_name
 from core.models import Job
 from core.models import Pipeline
@@ -289,9 +289,9 @@ class PipelineLogs(Resource):
 
     next_page_token = args.get('next_page_token')
     page_size = 20
-    import google.cloud.logging
-    client = google.cloud.logging.Client(project=project_id)
+    from core.logging import client
 
+    project_id = app_identity.get_application_id()
     filter_ = 'logName="projects/%s/logs/%s"' % (project_id, logger_name)
     filter_ += ' AND jsonPayload.labels.pipeline_id="%s"' % pipeline_id
     if args.get('worker_class'):
