@@ -14,9 +14,14 @@
 
 from google.cloud.logging import Client
 
-from core.app_data import SA_FILE
+from core.app_data import SA_DATA, SA_FILE
+
+
+if SA_DATA.get('private_key', ''):
+  client = Client.from_service_account_json(SA_FILE)
+else:
+  client = Client()
 
 
 logger_name = 'crmintapplogger'
-client = Client.from_service_account_json(SA_FILE)
 logger = client.logger(logger_name)

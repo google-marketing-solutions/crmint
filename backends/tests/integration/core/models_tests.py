@@ -91,6 +91,7 @@ class TestPipelineWithJobs(utils.ModelTestCase):
 
   @mock.patch('core.logging.logger')
   def test_start_fails_with_one_job_not_getting_ready(self, patched_logger):
+    patched_logger.log_struct.__name__ = 'foo'
     pipeline = models.Pipeline.create()
     job1 = models.Job.create(pipeline_id=pipeline.id)
     models.Param.create(

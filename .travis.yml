@@ -1,0 +1,46 @@
+# Use Dockerized infrastructure
+sudo: false
+language: python
+
+# Cache our Gcloud SDK between commands
+cache:
+  directories:
+    - "$HOME/google-cloud-sdk/"
+
+services:
+  - mysql
+
+env:
+  # Make sure gcloud command is on our PATH and the App Engine SDK is in the Python path
+  - GAE_PYTHONPATH=${HOME}/.cache/google_appengine PATH=$PATH:${HOME}/google-cloud-sdk/bin PYTHONPATH=${PYTHONPATH}:${GAE_PYTHONPATH} CLOUDSDK_CORE_DISABLE_PROMPTS=1
+
+before_install:
+  # Install additional libraries
+  - sudo apt-get install -y realpath
+  # Install Google App Engine Python SDK
+  - if [ ! -d "${GAE_PYTHONPATH}" ]; then
+      python scripts/fetch_gae_sdk.py $(dirname "${GAE_PYTHONPATH}");
+    fi
+  - gcloud version || true
+  - if [ ! -d "${HOME}/google-cloud-sdk/bin" ]; then
+      rm -rf ${HOME}/google-cloud-sdk;
+      export CLOUDSDK_CORE_DISABLE_PROMPTS=1;
+      curl https://sdk.cloud.google.com | bash;
+    fi
+  # Add gcloud to $PATH
+  - source ${HOME}/google-cloud-sdk/path.bash.inc
+  - gcloud version
+
+install:
+  # Update the App Engine environment
+  - gcloud -q components update gae-python
+  # Setup the CRMint project
+  - bin/app dev setup
+  - bin/app dev do requirements
+  - pip install -r backends/tests/requirements.txt
+  - mysql -u root --execute="CREATE DATABASE IF NOT EXISTS crmintapp_test;"
+  - mysql -u root --execute="GRANT ALL PRIVILEGES ON crmintapp_test.* TO 'crmint'@'localhost' IDENTIFIED BY 'crmint'";
+
+script:
+  # Run the unit tests
+  - cd backends && python runtests.py ${HOME}/google-cloud-sdk

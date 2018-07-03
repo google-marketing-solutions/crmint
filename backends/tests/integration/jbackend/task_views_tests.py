@@ -42,14 +42,10 @@ class TestTaskCreation(utils.JBackendBaseTest):
   def test_submit_task_success(self, patched_logger):
     # NB: patching the StackDriver logger is needed because there is no
     #     testbed service available for now
-    patched_logger.log_struct.return_value = "patched_log_struct"
-    pipeline = models.Pipeline()
-    pipeline.id = 1
-    pipeline.save()
-    job = models.Job()
-    job.id = 1
-    job.pipeline_id = pipeline.id
-    job.save()
+    patched_logger.log_struct.__name__ = 'foo'
+    patched_logger.log_struct.return_value = 'patched_log_struct'
+    pipeline = models.Pipeline.create()
+    job = models.Job.create(pipeline_id=pipeline.id)
     data = dict(
         job_id=job.id,
         worker_class='Commenter',

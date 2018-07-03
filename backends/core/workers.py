@@ -28,7 +28,6 @@ from apiclient.discovery import build
 from apiclient.errors import HttpError
 from apiclient.http import MediaIoBaseUpload
 import cloudstorage as gcs
-from core.logging import logger
 from oauth2client.service_account import ServiceAccountCredentials
 from google.cloud import bigquery
 from google.cloud.exceptions import ClientError
@@ -81,6 +80,7 @@ class Worker(object):
     self._workers_to_enqueue = []
 
   def _log(self, level, message, *substs):
+    from core.logging import logger
     self.retry(logger.log_struct)({
         'labels': {
             'pipeline_id': self._pipeline_id,
@@ -308,12 +308,15 @@ class StorageToBQImporter(StorageWorker, BQWorker):
       ('import_json', 'boolean', False, False, 'Source is in JSON format'),
   ]
 
+  def _get_source_uris(self):
+    stats = self._get_matching_stats(self._params['source_uris'])
+    return ['gs:/%s' % s.filename for s in stats]
+
   def _execute(self):
     self._bq_setup()
-    stats = self._get_matching_stats(self._params['source_uris'])
-    self._source_uris = ['gs:/%s' % s.filename for s in stats]
+    source_uris = self._get_source_uris()
     job = self._client.load_table_from_storage(
-        self._job_name, self._table, *self._source_uris)
+        self._job_name, self._table, *source_uris)
     if self._params['import_json']:
       job.source_format = 'NEWLINE_DELIMITED_JSON'
     else:
