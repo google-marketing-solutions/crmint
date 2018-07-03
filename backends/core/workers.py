@@ -773,7 +773,7 @@ class MeasurementProtocolException(WorkerException):
 class MeasurementProtocolWorker(Worker):
   """Abstract Measurement Protocol worker."""
 
-  def _send_event_hit(self, user_agent='CRMint / 0.1', **kwargs):
+  def _send_hit(self, user_agent='CRMint / 0.1', **kwargs):
     """Send a measurement protocol hit.
 
     Arguments:
@@ -821,7 +821,7 @@ class BQToMeasurementProtocol(MeasurementProtocolWorker):
     for row in query_data:
       data = dict(zip(fields, row))
       try:
-        self.retry(self._send_event_hit)(**data)
+        self.retry(self._send_hit)(**data)
       except MeasurementProtocolException as inst:
         self.log_error(inst.message)
 
