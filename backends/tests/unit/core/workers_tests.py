@@ -349,7 +349,10 @@ class TestBQToMeasurementProtocol(unittest.TestCase):
         })
 
   @mock.patch('core.logging.logger')
-  def test_log_exception_if_http_fails(self, patched_logger):
+  @mock.patch('time.sleep')
+  def test_log_exception_if_http_fails(self, patched_time_sleep, patched_logger):
+    # Bypass the time.sleep wait
+    patched_time_sleep.return_value = 1
     # NB: patching the StackDriver logger is needed because there is no
     #     testbed service available for now
     patched_logger.log_struct.__name__ = 'foo'
@@ -393,5 +396,7 @@ class TestBQToMeasurementProtocol(unittest.TestCase):
     self._patched_post.return_value = mock_response
 
     self._worker._execute()
-    self._patched_post.assert_called_once()
+    # Called 6 times because of retry.
+    self.assertEqual(self._patched_post.call_count, 6)
+    # When retry stops it should log the message as an error.
     patched_logger.log_error.called_once()

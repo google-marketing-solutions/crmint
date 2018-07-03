@@ -766,6 +766,7 @@ class MLPredictor(MLWorker):
 
 
 class MeasurementProtocolException(WorkerException):
+  """Measurement Protocol execution exception."""
   pass
 
 
@@ -820,7 +821,7 @@ class BQToMeasurementProtocol(MeasurementProtocolWorker):
     for row in query_data:
       data = dict(zip(fields, row))
       try:
-        self._send_event_hit(**data)
+        self.retry(self._send_event_hit)(**data)
       except MeasurementProtocolException as inst:
         self.log_error(inst.message)
 
