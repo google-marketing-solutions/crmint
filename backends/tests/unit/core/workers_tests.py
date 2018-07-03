@@ -348,7 +348,12 @@ class TestBQToMeasurementProtocol(unittest.TestCase):
             }
         })
 
-  def test_raises_exception_if_http_fails(self):
+  @mock.patch('core.logging.logger')
+  def test_log_exception_if_http_fails(self, patched_logger):
+    # NB: patching the StackDriver logger is needed because there is no
+    #     testbed service available for now
+    patched_logger.log_struct.__name__ = 'foo'
+    patched_logger.log_struct.return_value = "patched_log_struct"
     self._use_query_results({
         'jobReference': {
             'jobId': 'one-row-query',
@@ -387,6 +392,6 @@ class TestBQToMeasurementProtocol(unittest.TestCase):
     mock_response.status_code = 500
     self._patched_post.return_value = mock_response
 
-    with self.assertRaises(workers.WorkerException):
-      self._worker._execute()
+    self._worker._execute()
     self._patched_post.assert_called_once()
+    patched_logger.log_error.called_once()

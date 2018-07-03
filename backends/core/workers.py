@@ -765,6 +765,10 @@ class MLPredictor(MLWorker):
     self._enqueue('MLWaiter', {'job_name': job_name}, 60)
 
 
+class MeasurementProtocolException(WorkerException):
+  pass
+
+
 class MeasurementProtocolWorker(Worker):
   """Abstract Measurement Protocol worker."""
 
@@ -776,7 +780,7 @@ class MeasurementProtocolWorker(Worker):
       kwargs dictionary of key/values to pass to the Measurement
           Protocol endpoint.
 
-    Raises: WorkerException if the HTTP request fails.
+    Raises: MeasurementProtocolException if the HTTP request fails.
     """
     headers = {'user-agent': user_agent}
     payload = {'v': 1}
@@ -787,8 +791,9 @@ class MeasurementProtocolWorker(Worker):
                         data=payload)
 
     if req.status_code != requests.codes.ok:
-      raise WorkerException('Failed to send event hit with status code (%s) '
-                            'and parameters: %s' % (req.status_code, kwargs))
+      raise MeasurementProtocolException('Failed to send event hit with status'
+                                         'code (%s) and parameters: %s'
+                                         % (req.status_code, kwargs))
 
 
 class BQToMeasurementProtocol(MeasurementProtocolWorker):
@@ -814,7 +819,10 @@ class BQToMeasurementProtocol(MeasurementProtocolWorker):
     fields = [f.name for f in query_data.query_result.schema]
     for row in query_data:
       data = dict(zip(fields, row))
-      self._send_event_hit(**data)
+      try:
+        self._send_event_hit(**data)
+      except MeasurementProtocolException as inst:
+        self.log_error(inst.message)
 
   def _execute(self):
     # Retrieves data from BigQuery.
