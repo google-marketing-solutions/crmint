@@ -809,7 +809,7 @@ class BQToMeasurementProtocol(BQWorker, MeasurementProtocolWorker):
 
   def _process_query_results(self, query_data):
     """Sends event hits for this chunk of data."""
-    fields = [f.name for f in query_data.query_result.schema]
+    fields = [f.name for f in query_data.schema]
     for row in query_data:
       data = dict(zip(fields, row))
       try:
@@ -819,18 +819,10 @@ class BQToMeasurementProtocol(BQWorker, MeasurementProtocolWorker):
 
   def _execute(self):
     # Retrieves data from BigQuery.
-    client = self._get_client()
-    query = 'SELECT * FROM `%s.%s.%s`' % (
-        self._params['bq_project_id'],
-        self._params['bq_dataset_id'],
-        self._params['bq_table_id'])
-    query_results = client.run_sync_query(query)
-    query_results.use_legacy_sql = False
-    self.retry(query_results.run)()
-
+    self._bq_setup()
     page_token = None
     while True:
-      query_data = self.retry(query_results.fetch_data)(
+      query_data = self.retry(self._table.fetch_data)(
           max_results=10000,
           page_token=page_token)
       self._process_query_results(query_data)

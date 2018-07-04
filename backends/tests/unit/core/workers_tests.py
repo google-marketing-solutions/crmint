@@ -18,7 +18,8 @@ import unittest
 from apiclient.errors import HttpError
 import cloudstorage
 from google.appengine.ext import testbed
-from google.cloud.bigquery.query import QueryResults
+from google.cloud.bigquery.dataset import Dataset
+from google.cloud.bigquery.table import Table
 from google.cloud.exceptions import ClientError
 import mock
 
@@ -279,15 +280,24 @@ class TestBQToMeasurementProtocol(unittest.TestCase):
 
   def _use_query_results(self, response_json):
     # NB: be sure to remove the jobReference from the api response used to
-    #     create the QueryResults instance.
+    #     create the Table instance.
     response_json_copy = response_json.copy()
     del response_json_copy['jobReference']
-    fake_query_results = QueryResults.from_api_repr(response_json_copy, self._client)
-    self._client.run_sync_query.return_value = fake_query_results
+    mock_dataset = mock.Mock()
+    mock_dataset._client = self._client
+    mock_table = Table.from_api_repr(response_json_copy, mock_dataset)
     self._client._connection.api_request.return_value = response_json
+    self._client.dataset.return_value = mock_dataset
+    mock_dataset.table.return_value = mock_table
 
-  def test_success_with_one_post_request(self):
+  @mock.patch('time.sleep')
+  def test_success_with_one_post_request(self, patched_time_sleep):
+    # Bypass the time.sleep wait
+    patched_time_sleep.return_value = 1
     self._use_query_results({
+        'tableReference': {
+            'tableId': 'mock_table',
+        },
         'jobReference': {
             'jobId': 'one-row-query',
         },
@@ -358,6 +368,9 @@ class TestBQToMeasurementProtocol(unittest.TestCase):
     patched_logger.log_struct.__name__ = 'foo'
     patched_logger.log_struct.return_value = "patched_log_struct"
     self._use_query_results({
+        'tableReference': {
+            'tableId': 'mock_table',
+        },
         'jobReference': {
             'jobId': 'one-row-query',
         },
