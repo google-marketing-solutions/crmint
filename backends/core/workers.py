@@ -777,28 +777,47 @@ class MeasurementProtocolException(WorkerException):
 class MeasurementProtocolWorker(Worker):
   """Abstract Measurement Protocol worker."""
 
-  def _send_hit(self, user_agent='CRMint / 0.1', **kwargs):
-    """Send a measurement protocol hit.
+  def _get_payload_from_data(self, data):
+    payload = {'v': 1}  # Use version 1
+    payload.update(data)
+    return payload
+
+  def _prepare_payloads_for_batch_request(self, payloads):
+    """Merges payloads to send them as a batch request.
 
     Arguments:
+      payloads list of payload, each payload being a list of
+          tuples representing key/value pairs.
+
+    Returns: list from the concatenation of existing_payload and new_payload.
+    """
+    assert isinstance(payloads, list) or isinstance(payloads, tuple)
+    return reduce(lambda x, y: x+y, map(lambda p: p.items(), payloads))
+
+  def _send_batch_hits(self, batch_payload, user_agent='CRMint / 0.1'):
+    """Sends a batch request to the Measurement Protocol endpoint.
+
+    NB: Use the the HitBuilder service to validate a Measurement Protocol
+        hit format with the Measurement Protocol Validation Server.
+
+        https://ga-dev-tools.appspot.com/hit-builder/
+
+    Arguments:
+      data list of payloads, each payload being a list of key/values tuples
+          to pass to the Measurement Protocol batch endpoint.
       user_agent string representing the client User Agent.
-      kwargs dictionary of key/values to pass to the Measurement
-          Protocol endpoint.
 
     Raises: MeasurementProtocolException if the HTTP request fails.
     """
     headers = {'user-agent': user_agent}
-    payload = {'v': 1}
-    payload.update(kwargs)
-
-    req = requests.post('https://www.google-analytics.com/collect',
+    req = requests.post('https://www.google-analytics.com/batch',
                         headers=headers,
-                        data=payload)
+                        data=batch_payload)
 
     if req.status_code != requests.codes.ok:
       raise MeasurementProtocolException('Failed to send event hit with status'
                                          'code (%s) and parameters: %s'
-                                         % (req.status_code, kwargs))
+                                         % (req.status_code, batch_payload))
 
 
 class BQToMeasurementProtocol(BQWorker, MeasurementProtocolWorker):
@@ -812,15 +831,28 @@ class BQToMeasurementProtocol(BQWorker, MeasurementProtocolWorker):
       ('bg_page_token', 'string', False, '', 'BQ Page Token (optional)'),
   ]
 
-  def _process_query_results(self, query_data, query_schema):
-    """Sends event hits for this chunk of data."""
+  def _send_payload_list(self, payload_list):
+    batch_payload = self._prepare_payloads_for_batch_request(payload_list)
+    try:
+      self.retry(self._send_batch_hits, max_retries=1)(batch_payload)
+    except MeasurementProtocolException as e:
+      self.log_error(e.message)
+
+  def _process_query_results(self, query_data, query_schema,
+      payloads_batch_size=20):
+    """Sends event hits from query data."""
     fields = [f.name for f in query_schema]
+    payload_list = []
     for row in query_data:
       data = dict(zip(fields, row))
-      try:
-        self.retry(self._send_hit, max_retries=1)(**data)
-      except MeasurementProtocolException as e:
-        self.log_error(e.message)
+      payload = self._get_payload_from_data(data)
+      payload_list.append(payload)
+      if len(payload_list) >= payloads_batch_size:
+        self._send_payload_list(payload_list)
+        payload_list = []
+    if payload_list:
+      # Sends remaining payloads.
+      self._send_payload_list(payload_list)
 
   def _execute(self):
     self._bq_setup()

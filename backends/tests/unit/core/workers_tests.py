@@ -298,7 +298,7 @@ class TestBQToMeasurementProtocol(unittest.TestCase):
             'tableId': 'mock_table',
         },
         'jobReference': {
-            'jobId': 'one-row-query',
+            'jobId': 'two-rows-query',
         },
         'rows': [
             {
@@ -310,7 +310,20 @@ class TestBQToMeasurementProtocol(unittest.TestCase):
                     {'v': 'category'},
                     {'v': 'action'},
                     {'v': 'label'},
-                    {'v': 'value'},
+                    {'v': 0.9},
+                    {'v': 'User Agent / 1.0'},
+                ]
+            },
+            {
+                'f': [
+                    {'v': 'UA-12345-1'},
+                    {'v': '35009a79-1a05-49d7-b876-2b884d0f825b'},
+                    {'v': 'event'},
+                    {'v': 1},
+                    {'v': 'category'},
+                    {'v': 'action'},
+                    {'v': 'label'},
+                    {'v': 0.8},
                     {'v': 'User Agent / 1.0'},
                 ]
             }
@@ -324,7 +337,7 @@ class TestBQToMeasurementProtocol(unittest.TestCase):
                 {'name': 'ec', 'type': 'STRING'},
                 {'name': 'ea', 'type': 'STRING'},
                 {'name': 'el', 'type': 'STRING'},
-                {'name': 'ev', 'type': 'STRING'},
+                {'name': 'ev', 'type': 'FLOAT'},
                 {'name': 'ua', 'type': 'STRING'},
             ]
         }
@@ -338,23 +351,34 @@ class TestBQToMeasurementProtocol(unittest.TestCase):
     self._patched_post.assert_called_once()
     self.assertEqual(
         self._patched_post.call_args[0][0],
-        'https://www.google-analytics.com/collect')
+        'https://www.google-analytics.com/batch')
     self.assertEqual(
         self._patched_post.call_args[1],
         {
             'headers': {'user-agent': 'CRMint / 0.1'},
-            'data': {
-                'ni': 1.0,
-                'el': 'label',
-                'cid': '35009a79-1a05-49d7-b876-2b884d0f825b',
-                'ea': 'action',
-                'ec': 'category',
-                't': 'event',
-                'v': 1,
-                'tid': 'UA-12345-1',
-                'ev': 'value',
-                'ua': 'User Agent / 1.0'
-            }
+            'data': [
+                ('ni', 1.0),
+                ('el', 'label'),
+                ('cid', '35009a79-1a05-49d7-b876-2b884d0f825b'),
+                ('ea', 'action'),
+                ('ec', 'category'),
+                ('t', 'event'),
+                ('v', 1),
+                ('tid', 'UA-12345-1'),
+                ('ev', 0.9),
+                ('ua', 'User Agent / 1.0'),
+
+                ('ni', 1.0),
+                ('el', 'label'),
+                ('cid', '35009a79-1a05-49d7-b876-2b884d0f825b'),
+                ('ea', 'action'),
+                ('ec', 'category'),
+                ('t', 'event'),
+                ('v', 1),
+                ('tid', 'UA-12345-1'),
+                ('ev', 0.8),
+                ('ua', 'User Agent / 1.0'),
+            ]
         })
 
   @mock.patch('time.sleep')
@@ -430,7 +454,7 @@ class TestBQToMeasurementProtocol(unittest.TestCase):
     patched_enqueue = patcher_worker_enqueue.start()
 
     self._worker._execute()
-    self.assertEqual(self._patched_post.call_count, 2)
+    self.assertEqual(self._patched_post.call_count, 1)
     patched_enqueue.assert_called_once()
     self.assertEqual(patched_enqueue.call_args[0][0], 'BQToMeasurementProtocol')
     self.assertEqual(patched_enqueue.call_args[0][1]['bg_page_token'], 'abc')
