@@ -276,7 +276,7 @@ class TestBQToMeasurementProtocol(unittest.TestCase):
     del response_json_copy['jobReference']
     mock_dataset = mock.Mock()
     mock_dataset._client = self._client
-    mock_table = Table.from_api_repr(response_json_copy, mock_dataset)
+    mock_table = Table('mock_table', mock_dataset)
     self._client._connection.api_request.return_value = response_json
     self._client.dataset.return_value = mock_dataset
     mock_dataset.table.return_value = mock_table
