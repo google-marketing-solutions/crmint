@@ -783,13 +783,19 @@ class MeasurementProtocolWorker(Worker):
     return payload
 
   def _prepare_payloads_for_batch_request(self, payloads):
-    """Merges payloads to send them as a batch request.
+    """Merges payloads to send them in a batch request.
 
     Arguments:
-      payloads list of payload, each payload being a list of
-          tuples representing key/value pairs.
+      payloads list of payload, each payload being a dictionary.
 
-    Returns: list from the concatenation of existing_payload and new_payload.
+    Returns: concatenated elements from each payloads as key/value tuples.
+        For example:
+
+          [
+            ('param1', 'value10'), ('param2', 'value20'),
+            ('param1', 'value11'), ('param2', 'value21'),
+            ...
+          ]
     """
     assert isinstance(payloads, list) or isinstance(payloads, tuple)
     return reduce(lambda x, y: x+y, map(lambda p: p.items(), payloads))
