@@ -814,8 +814,8 @@ class BQToMeasurementProtocol(BQWorker, MeasurementProtocolWorker):
       data = dict(zip(fields, row))
       try:
         self.retry(self._send_hit)(**data)
-      except MeasurementProtocolException as inst:
-        self.log_error(inst.message)
+      except MeasurementProtocolException as e:
+        self.log_error(e.message)
 
   def _execute(self):
     # Retrieves data from BigQuery.
