@@ -50,6 +50,9 @@ AVAILABLE = (
     'BQToMeasurementProtocol',
 )
 
+# Defines how many times to retry on failure, default to 5 times.
+DEFAULT_MAX_RETRIES = os.environ.get('MAX_RETRIES', 5)
+
 
 # pylint: disable=too-few-public-methods
 
@@ -121,13 +124,13 @@ class Worker(object):
   def _enqueue(self, worker_class, worker_params, delay=0):
     self._workers_to_enqueue.append((worker_class, worker_params, delay))
 
-  def retry(self, func):
+  def retry(self, func, max_retries=DEFAULT_MAX_RETRIES):
     """Decorator implementing retries with exponentially increasing delays."""
     @wraps(func)
     def func_with_retries(*args, **kwargs):
       """Retriable version of function being decorated."""
       tries = 0
-      while tries < 5:
+      while tries < max_retries:
         try:
           return func(*args, **kwargs)
         except HttpError as e:
