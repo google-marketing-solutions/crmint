@@ -805,27 +805,37 @@ class BQToMeasurementProtocol(BQWorker, MeasurementProtocolWorker):
       ('bq_project_id', 'string', False, '', 'BQ Project ID'),
       ('bq_dataset_id', 'string', True, '', 'BQ Dataset ID'),
       ('bq_table_id', 'string', True, '', 'BQ Table ID'),
+      ('bq_batch_size', 'number', True, int(1e5), 'BQ Batch Size'),
+      ('bg_page_token', 'string', False, '', 'BQ Page Token (optional)'),
   ]
 
-  def _process_query_results(self, query_data):
+  def _process_query_results(self, query_data, query_schema):
     """Sends event hits for this chunk of data."""
-    fields = [f.name for f in query_data.schema]
+    fields = [f.name for f in query_schema]
     for row in query_data:
       data = dict(zip(fields, row))
       try:
-        self.retry(self._send_hit)(**data)
+        self.retry(self._send_hit, max_retries=1)(**data)
       except MeasurementProtocolException as e:
         self.log_error(e.message)
 
   def _execute(self):
-    # Retrieves data from BigQuery.
     self._bq_setup()
-    page_token = None
-    while True:
-      query_data = self.retry(self._table.fetch_data)(
-          max_results=10000,
-          page_token=page_token)
-      self._process_query_results(query_data)
-      if query_data.next_page_token is None:
-        break
-      page_token = query_data.next_page_token
+    self._table.reload()
+    page_token = self._params['bg_page_token'] or None
+    query_iterator = self.retry(self._table.fetch_data, max_retries=1)(
+        max_results=int(self._params['bq_batch_size']),
+        page_token=page_token)
+    query_first_page = next(query_iterator.pages)
+    self._process_query_results(query_first_page, query_iterator.schema)
+
+    if query_iterator.next_page_token is not None:
+      # Spawn a new worker for the next batch
+      worker_params = {
+        'bq_project_id': self._params['bq_project_id'],
+        'bq_dataset_id': self._params['bq_dataset_id'],
+        'bq_table_id': self._params['bq_table_id'],
+        'bq_batch_size': self._params['bq_batch_size'],
+        'bg_page_token': query_iterator.next_page_token,
+      }
+      self._enqueue('BQToMeasurementProtocol', worker_params, 0)

@@ -269,15 +269,6 @@ class TestBQToMeasurementProtocol(unittest.TestCase):
     self.addCleanup(patcher_requests_post.stop)
     self._patched_post = patcher_requests_post.start()
 
-    self._worker = workers.BQToMeasurementProtocol(
-        {
-            'bq_project_id': 'BQID',
-            'bq_dataset_id': 'DTID',
-            'bq_table_id': 'table_id',
-        },
-        1,
-        1)
-
   def _use_query_results(self, response_json):
     # NB: be sure to remove the jobReference from the api response used to
     #     create the Table instance.
@@ -294,6 +285,14 @@ class TestBQToMeasurementProtocol(unittest.TestCase):
   def test_success_with_one_post_request(self, patched_time_sleep):
     # Bypass the time.sleep wait
     patched_time_sleep.return_value = 1
+    self._worker = workers.BQToMeasurementProtocol(
+        {
+            'bq_project_id': 'BQID',
+            'bq_dataset_id': 'DTID',
+            'bq_table_id': 'table_id',
+        },
+        1,
+        1)
     self._use_query_results({
         'tableReference': {
             'tableId': 'mock_table',
@@ -358,6 +357,84 @@ class TestBQToMeasurementProtocol(unittest.TestCase):
             }
         })
 
+  @mock.patch('time.sleep')
+  def test_success_with_spawning_new_worker(self, patched_time_sleep):
+    # Bypass the time.sleep wait
+    patched_time_sleep.return_value = 1
+    self._worker = workers.BQToMeasurementProtocol(
+        {
+            'bq_project_id': 'BQID',
+            'bq_dataset_id': 'DTID',
+            'bq_table_id': 'table_id',
+            'bq_batch_size': 1,
+        },
+        1,
+        1)
+    self._use_query_results({
+        'tableReference': {
+            'tableId': 'mock_table',
+        },
+        'jobReference': {
+            'jobId': 'one-row-query',
+        },
+        'pageToken': 'abc',
+        'rows': [
+            {
+                'f': [
+                    {'v': 'UA-12345-1'},
+                    {'v': '35009a79-1a05-49d7-b876-2b884d0f825b'},
+                    {'v': 'event'},
+                    {'v': 1},
+                    {'v': 'category'},
+                    {'v': 'action'},
+                    {'v': 'label'},
+                    {'v': 0.9},
+                    {'v': 'User Agent / 1.0'},
+                ]
+            },
+            {
+                'f': [
+                    {'v': 'UA-12345-1'},
+                    {'v': '35009a79-1a05-49d7-b876-2b884d0f825b'},
+                    {'v': 'event'},
+                    {'v': 1},
+                    {'v': 'category'},
+                    {'v': 'action'},
+                    {'v': 'label'},
+                    {'v': 0.8},
+                    {'v': 'User Agent / 1.0'},
+                ]
+            },
+        ],
+        'schema': {
+            'fields': [
+                {'name': 'tid', 'type': 'STRING'},
+                {'name': 'cid', 'type': 'STRING'},
+                {'name': 't', 'type': 'STRING'},
+                {'name': 'ni', 'type': 'FLOAT'},
+                {'name': 'ec', 'type': 'STRING'},
+                {'name': 'ea', 'type': 'STRING'},
+                {'name': 'el', 'type': 'STRING'},
+                {'name': 'ev', 'type': 'FLOAT'},
+                {'name': 'ua', 'type': 'STRING'},
+            ]
+        }
+    })
+
+    mock_response = mock.Mock()
+    mock_response.status_code = 200
+    self._patched_post.return_value = mock_response
+
+    patcher_worker_enqueue = mock.patch.object(workers.BQToMeasurementProtocol, '_enqueue')
+    self.addCleanup(patcher_worker_enqueue.stop)
+    patched_enqueue = patcher_worker_enqueue.start()
+
+    self._worker._execute()
+    self.assertEqual(self._patched_post.call_count, 2)
+    patched_enqueue.assert_called_once()
+    self.assertEqual(patched_enqueue.call_args[0][0], 'BQToMeasurementProtocol')
+    self.assertEqual(patched_enqueue.call_args[0][1]['bg_page_token'], 'abc')
+
   @mock.patch('core.logging.logger')
   @mock.patch('time.sleep')
   def test_log_exception_if_http_fails(self, patched_time_sleep, patched_logger):
@@ -367,6 +444,14 @@ class TestBQToMeasurementProtocol(unittest.TestCase):
     #     testbed service available for now
     patched_logger.log_struct.__name__ = 'foo'
     patched_logger.log_struct.return_value = "patched_log_struct"
+    self._worker = workers.BQToMeasurementProtocol(
+        {
+            'bq_project_id': 'BQID',
+            'bq_dataset_id': 'DTID',
+            'bq_table_id': 'table_id',
+        },
+        1,
+        1)
     self._use_query_results({
         'tableReference': {
             'tableId': 'mock_table',
@@ -409,7 +494,7 @@ class TestBQToMeasurementProtocol(unittest.TestCase):
     self._patched_post.return_value = mock_response
 
     self._worker._execute()
-    # Called 6 times because of retry.
-    self.assertEqual(self._patched_post.call_count, 6)
+    # Called 2 times because of 1 retry.
+    self.assertEqual(self._patched_post.call_count, 2)
     # When retry stops it should log the message as an error.
     patched_logger.log_error.called_once()
