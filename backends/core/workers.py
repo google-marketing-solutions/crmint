@@ -872,11 +872,6 @@ class BQToMeasurementProtocol(BQWorker, MeasurementProtocolWorker):
 
     if query_iterator.next_page_token is not None:
       # Spawn a new worker for the next batch
-      worker_params = {
-        'bq_project_id': self._params['bq_project_id'],
-        'bq_dataset_id': self._params['bq_dataset_id'],
-        'bq_table_id': self._params['bq_table_id'],
-        'bq_batch_size': self._params['bq_batch_size'],
-        'bg_page_token': query_iterator.next_page_token,
-      }
-      self._enqueue('BQToMeasurementProtocol', worker_params, 0)
+      worker_params = self._params.copy()
+      worker_params['bg_page_token'] = query_iterator.next_page_token
+      self._enqueue(self.__class__.__name__, worker_params, 0)
