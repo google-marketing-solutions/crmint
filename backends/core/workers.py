@@ -24,6 +24,7 @@ import os
 from random import random
 import time
 import uuid
+
 from apiclient.discovery import build
 from apiclient.errors import HttpError
 from apiclient.http import MediaIoBaseUpload
@@ -31,6 +32,7 @@ import cloudstorage as gcs
 from oauth2client.service_account import ServiceAccountCredentials
 from google.cloud import bigquery
 from google.cloud.exceptions import ClientError
+import requests
 
 
 _KEY_FILE = os.path.join(os.path.dirname(__file__), '..', 'data',
@@ -45,7 +47,11 @@ AVAILABLE = (
     'MLPredictor',
     'StorageCleaner',
     'Commenter',
+    'BQToMeasurementProtocol',
 )
+
+# Defines how many times to retry on failure, default to 5 times.
+DEFAULT_MAX_RETRIES = os.environ.get('MAX_RETRIES', 5)
 
 
 # pylint: disable=too-few-public-methods
@@ -118,13 +124,13 @@ class Worker(object):
   def _enqueue(self, worker_class, worker_params, delay=0):
     self._workers_to_enqueue.append((worker_class, worker_params, delay))
 
-  def retry(self, func):
+  def retry(self, func, max_retries=DEFAULT_MAX_RETRIES):
     """Decorator implementing retries with exponentially increasing delays."""
     @wraps(func)
     def func_with_retries(*args, **kwargs):
       """Retriable version of function being decorated."""
       tries = 0
-      while tries < 5:
+      while tries < max_retries:
         try:
           return func(*args, **kwargs)
         except HttpError as e:
@@ -159,12 +165,13 @@ class BQWorker(Worker):
   """Abstract BigQuery worker."""
 
   def _get_client(self):
-    self._client = bigquery.Client.from_service_account_json(_KEY_FILE)
+    client = bigquery.Client.from_service_account_json(_KEY_FILE)
     if self._params['bq_project_id'].strip():
-      self._client.project = self._params['bq_project_id']
+      client.project = self._params['bq_project_id']
+    return client
 
   def _bq_setup(self):
-    self._get_client()
+    self._client = self._get_client()
     self._dataset = self._client.dataset(self._params['bq_dataset_id'])
     self._table = self._dataset.table(self._params['bq_table_id'])
     self._job_name = '%i_%i_%s_%s' % (self._pipeline_id, self._job_id,
@@ -202,10 +209,10 @@ class BQWaiter(BQWorker):
   """Worker that checks BQ job status and respawns itself if job is running."""
 
   def _execute(self):
-    self._get_client()
+    client = self._get_client()
     for job_name in self._params['job_names']:
       # pylint: disable=protected-access
-      job = bigquery.job._AsyncJob(job_name, self._client)
+      job = bigquery.job._AsyncJob(job_name, client)
       # pylint: enable=protected-access
       job.reload()
       if job.error_result is not None:
@@ -760,3 +767,111 @@ class MLPredictor(MLWorker):
     self.retry(request.execute)()
     job_name = '%s/jobs/%s' % (project_id, self._ml_job_id)
     self._enqueue('MLWaiter', {'job_name': job_name}, 60)
+
+
+class MeasurementProtocolException(WorkerException):
+  """Measurement Protocol execution exception."""
+  pass
+
+
+class MeasurementProtocolWorker(Worker):
+  """Abstract Measurement Protocol worker."""
+
+  def _get_payload_from_data(self, data):
+    payload = {'v': 1}  # Use version 1
+    payload.update(data)
+    return payload
+
+  def _prepare_payloads_for_batch_request(self, payloads):
+    """Merges payloads to send them in a batch request.
+
+    Arguments:
+      payloads list of payload, each payload being a dictionary.
+
+    Returns: concatenated elements from each payloads as key/value tuples.
+        For example:
+
+          [
+            ('param1', 'value10'), ('param2', 'value20'),
+            ('param1', 'value11'), ('param2', 'value21'),
+            ...
+          ]
+    """
+    assert isinstance(payloads, list) or isinstance(payloads, tuple)
+    return reduce(lambda x, y: x+y, map(lambda p: p.items(), payloads))
+
+  def _send_batch_hits(self, batch_payload, user_agent='CRMint / 0.1'):
+    """Sends a batch request to the Measurement Protocol endpoint.
+
+    NB: Use the the HitBuilder service to validate a Measurement Protocol
+        hit format with the Measurement Protocol Validation Server.
+
+        https://ga-dev-tools.appspot.com/hit-builder/
+
+    Arguments:
+      data list of payloads, each payload being a list of key/values tuples
+          to pass to the Measurement Protocol batch endpoint.
+      user_agent string representing the client User Agent.
+
+    Raises: MeasurementProtocolException if the HTTP request fails.
+    """
+    headers = {'user-agent': user_agent}
+    req = requests.post('https://www.google-analytics.com/batch',
+                        headers=headers,
+                        data=batch_payload)
+
+    if req.status_code != requests.codes.ok:
+      raise MeasurementProtocolException('Failed to send event hit with status'
+                                         'code (%s) and parameters: %s'
+                                         % (req.status_code, batch_payload))
+
+
+class BQToMeasurementProtocol(BQWorker, MeasurementProtocolWorker):
+  """Worker to import data through Measurement Protocol"""
+
+  PARAMS = [
+      ('bq_project_id', 'string', False, '', 'BQ Project ID'),
+      ('bq_dataset_id', 'string', True, '', 'BQ Dataset ID'),
+      ('bq_table_id', 'string', True, '', 'BQ Table ID'),
+      ('bq_batch_size', 'number', True, int(1e5), 'BQ Batch Size'),
+      ('bg_page_token', 'string', False, '', 'BQ Page Token (optional)'),
+  ]
+
+  def _send_payload_list(self, payload_list):
+    batch_payload = self._prepare_payloads_for_batch_request(payload_list)
+    try:
+      self.retry(self._send_batch_hits, max_retries=1)(batch_payload)
+    except MeasurementProtocolException as e:
+      self.log_error(e.message)
+
+  def _process_query_results(self, query_data, query_schema,
+      payloads_batch_size=20):
+    """Sends event hits from query data."""
+    fields = [f.name for f in query_schema]
+    payload_list = []
+    for row in query_data:
+      data = dict(zip(fields, row))
+      payload = self._get_payload_from_data(data)
+      payload_list.append(payload)
+      if len(payload_list) >= payloads_batch_size:
+        self._send_payload_list(payload_list)
+        payload_list = []
+    if payload_list:
+      # Sends remaining payloads.
+      self._send_payload_list(payload_list)
+
+  def _execute(self):
+    self._bq_setup()
+    self._table.reload()
+    page_token = self._params['bg_page_token'] or None
+    query_iterator = self.retry(self._table.fetch_data, max_retries=1)(
+        max_results=int(self._params['bq_batch_size']),
+        page_token=page_token)
+    query_first_page = next(query_iterator.pages)
+    self._process_query_results(query_first_page, query_iterator.schema)
+
+    if query_iterator.next_page_token is not None:
+      # Spawn a new worker for the next batch
+      worker_params = self._params.copy()
+      worker_params['bg_page_token'] = query_iterator.next_page_token
+      self._enqueue(self.__class__.__name__, worker_params, 0)

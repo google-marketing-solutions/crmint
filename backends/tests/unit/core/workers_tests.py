@@ -18,6 +18,8 @@ import unittest
 from apiclient.errors import HttpError
 import cloudstorage
 from google.appengine.ext import testbed
+from google.cloud.bigquery.dataset import Dataset
+from google.cloud.bigquery.table import Table
 from google.cloud.exceptions import ClientError
 import mock
 
@@ -248,3 +250,275 @@ class TestStorageToBQImporter(unittest.TestCase):
     self.assertEqual(len(source_uris), 2)
     self.assertEqual(source_uris[0], 'gs://bucket/subdir/input.csv')
     self.assertEqual(source_uris[1], 'gs://bucket/subdir/data.csv')
+
+
+class TestBQToMeasurementProtocol(unittest.TestCase):
+
+  def setUp(self):
+    super(TestBQToMeasurementProtocol, self).setUp()
+
+    self._client = mock.Mock()
+    patcher_get_client = mock.patch.object(
+        workers.BQToMeasurementProtocol,
+        '_get_client',
+        return_value=self._client)
+    self.addCleanup(patcher_get_client.stop)
+    patcher_get_client.start()
+
+    patcher_requests_post = mock.patch('requests.post')
+    self.addCleanup(patcher_requests_post.stop)
+    self._patched_post = patcher_requests_post.start()
+
+  def _use_query_results(self, response_json):
+    # NB: be sure to remove the jobReference from the api response used to
+    #     create the Table instance.
+    response_json_copy = response_json.copy()
+    del response_json_copy['jobReference']
+    mock_dataset = mock.Mock()
+    mock_dataset._client = self._client
+    mock_table = Table('mock_table', mock_dataset)
+    self._client._connection.api_request.return_value = response_json
+    self._client.dataset.return_value = mock_dataset
+    mock_dataset.table.return_value = mock_table
+
+  @mock.patch('time.sleep')
+  def test_success_with_one_post_request(self, patched_time_sleep):
+    # Bypass the time.sleep wait
+    patched_time_sleep.return_value = 1
+    self._worker = workers.BQToMeasurementProtocol(
+        {
+            'bq_project_id': 'BQID',
+            'bq_dataset_id': 'DTID',
+            'bq_table_id': 'table_id',
+        },
+        1,
+        1)
+    self._use_query_results({
+        'tableReference': {
+            'tableId': 'mock_table',
+        },
+        'jobReference': {
+            'jobId': 'two-rows-query',
+        },
+        'rows': [
+            {
+                'f': [
+                    {'v': 'UA-12345-1'},
+                    {'v': '35009a79-1a05-49d7-b876-2b884d0f825b'},
+                    {'v': 'event'},
+                    {'v': 1},
+                    {'v': 'category'},
+                    {'v': 'action'},
+                    {'v': 'label'},
+                    {'v': 0.9},
+                    {'v': 'User Agent / 1.0'},
+                ]
+            },
+            {
+                'f': [
+                    {'v': 'UA-12345-1'},
+                    {'v': '35009a79-1a05-49d7-b876-2b884d0f825b'},
+                    {'v': 'event'},
+                    {'v': 1},
+                    {'v': 'category'},
+                    {'v': 'action'},
+                    {'v': 'label'},
+                    {'v': 0.8},
+                    {'v': 'User Agent / 1.0'},
+                ]
+            }
+        ],
+        'schema': {
+            'fields': [
+                {'name': 'tid', 'type': 'STRING'},
+                {'name': 'cid', 'type': 'STRING'},
+                {'name': 't', 'type': 'STRING'},
+                {'name': 'ni', 'type': 'FLOAT'},
+                {'name': 'ec', 'type': 'STRING'},
+                {'name': 'ea', 'type': 'STRING'},
+                {'name': 'el', 'type': 'STRING'},
+                {'name': 'ev', 'type': 'FLOAT'},
+                {'name': 'ua', 'type': 'STRING'},
+            ]
+        }
+    })
+
+    mock_response = mock.Mock()
+    mock_response.status_code = 200
+    self._patched_post.return_value = mock_response
+
+    self._worker._execute()
+    self._patched_post.assert_called_once()
+    self.assertEqual(
+        self._patched_post.call_args[0][0],
+        'https://www.google-analytics.com/batch')
+    self.assertEqual(
+        self._patched_post.call_args[1],
+        {
+            'headers': {'user-agent': 'CRMint / 0.1'},
+            'data': [
+                ('ni', 1.0),
+                ('el', 'label'),
+                ('cid', '35009a79-1a05-49d7-b876-2b884d0f825b'),
+                ('ea', 'action'),
+                ('ec', 'category'),
+                ('t', 'event'),
+                ('v', 1),
+                ('tid', 'UA-12345-1'),
+                ('ev', 0.9),
+                ('ua', 'User Agent / 1.0'),
+
+                ('ni', 1.0),
+                ('el', 'label'),
+                ('cid', '35009a79-1a05-49d7-b876-2b884d0f825b'),
+                ('ea', 'action'),
+                ('ec', 'category'),
+                ('t', 'event'),
+                ('v', 1),
+                ('tid', 'UA-12345-1'),
+                ('ev', 0.8),
+                ('ua', 'User Agent / 1.0'),
+            ]
+        })
+
+  @mock.patch('time.sleep')
+  def test_success_with_spawning_new_worker(self, patched_time_sleep):
+    # Bypass the time.sleep wait
+    patched_time_sleep.return_value = 1
+    self._worker = workers.BQToMeasurementProtocol(
+        {
+            'bq_project_id': 'BQID',
+            'bq_dataset_id': 'DTID',
+            'bq_table_id': 'table_id',
+            'bq_batch_size': 1,
+        },
+        1,
+        1)
+    self._use_query_results({
+        'tableReference': {
+            'tableId': 'mock_table',
+        },
+        'jobReference': {
+            'jobId': 'one-row-query',
+        },
+        'pageToken': 'abc',
+        'rows': [
+            {
+                'f': [
+                    {'v': 'UA-12345-1'},
+                    {'v': '35009a79-1a05-49d7-b876-2b884d0f825b'},
+                    {'v': 'event'},
+                    {'v': 1},
+                    {'v': 'category'},
+                    {'v': 'action'},
+                    {'v': 'label'},
+                    {'v': 0.9},
+                    {'v': 'User Agent / 1.0'},
+                ]
+            },
+            {
+                'f': [
+                    {'v': 'UA-12345-1'},
+                    {'v': '35009a79-1a05-49d7-b876-2b884d0f825b'},
+                    {'v': 'event'},
+                    {'v': 1},
+                    {'v': 'category'},
+                    {'v': 'action'},
+                    {'v': 'label'},
+                    {'v': 0.8},
+                    {'v': 'User Agent / 1.0'},
+                ]
+            },
+        ],
+        'schema': {
+            'fields': [
+                {'name': 'tid', 'type': 'STRING'},
+                {'name': 'cid', 'type': 'STRING'},
+                {'name': 't', 'type': 'STRING'},
+                {'name': 'ni', 'type': 'FLOAT'},
+                {'name': 'ec', 'type': 'STRING'},
+                {'name': 'ea', 'type': 'STRING'},
+                {'name': 'el', 'type': 'STRING'},
+                {'name': 'ev', 'type': 'FLOAT'},
+                {'name': 'ua', 'type': 'STRING'},
+            ]
+        }
+    })
+
+    mock_response = mock.Mock()
+    mock_response.status_code = 200
+    self._patched_post.return_value = mock_response
+
+    patcher_worker_enqueue = mock.patch.object(workers.BQToMeasurementProtocol, '_enqueue')
+    self.addCleanup(patcher_worker_enqueue.stop)
+    patched_enqueue = patcher_worker_enqueue.start()
+
+    self._worker._execute()
+    self.assertEqual(self._patched_post.call_count, 1)
+    patched_enqueue.assert_called_once()
+    self.assertEqual(patched_enqueue.call_args[0][0], 'BQToMeasurementProtocol')
+    self.assertEqual(patched_enqueue.call_args[0][1]['bg_page_token'], 'abc')
+
+  @mock.patch('core.logging.logger')
+  @mock.patch('time.sleep')
+  def test_log_exception_if_http_fails(self, patched_time_sleep, patched_logger):
+    # Bypass the time.sleep wait
+    patched_time_sleep.return_value = 1
+    # NB: patching the StackDriver logger is needed because there is no
+    #     testbed service available for now
+    patched_logger.log_struct.__name__ = 'foo'
+    patched_logger.log_struct.return_value = "patched_log_struct"
+    self._worker = workers.BQToMeasurementProtocol(
+        {
+            'bq_project_id': 'BQID',
+            'bq_dataset_id': 'DTID',
+            'bq_table_id': 'table_id',
+        },
+        1,
+        1)
+    self._use_query_results({
+        'tableReference': {
+            'tableId': 'mock_table',
+        },
+        'jobReference': {
+            'jobId': 'one-row-query',
+        },
+        'rows': [
+            {
+                'f': [
+                    {'v': 'UA-12345-1'},
+                    {'v': '35009a79-1a05-49d7-b876-2b884d0f825b'},
+                    {'v': 'event'},
+                    {'v': 1},
+                    {'v': 'category'},
+                    {'v': 'action'},
+                    {'v': 'label'},
+                    {'v': 'value'},
+                    {'v': 'User Agent / 1.0'},
+                ]
+            }
+        ],
+        'schema': {
+            'fields': [
+                {'name': 'tid', 'type': 'STRING'},
+                {'name': 'cid', 'type': 'STRING'},
+                {'name': 't', 'type': 'STRING'},
+                {'name': 'ni', 'type': 'FLOAT'},
+                {'name': 'ec', 'type': 'STRING'},
+                {'name': 'ea', 'type': 'STRING'},
+                {'name': 'el', 'type': 'STRING'},
+                {'name': 'ev', 'type': 'STRING'},
+                {'name': 'ua', 'type': 'STRING'},
+            ]
+        }
+    })
+
+    mock_response = mock.Mock()
+    mock_response.status_code = 500
+    self._patched_post.return_value = mock_response
+
+    self._worker._execute()
+    # Called 2 times because of 1 retry.
+    self.assertEqual(self._patched_post.call_count, 2)
+    # When retry stops it should log the message as an error.
+    patched_logger.log_error.called_once()
