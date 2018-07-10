@@ -23,6 +23,7 @@ import json
 import os
 from random import random
 import time
+import urllib
 import uuid
 
 from apiclient.discovery import build
@@ -788,17 +789,14 @@ class MeasurementProtocolWorker(Worker):
     Arguments:
       payloads list of payload, each payload being a dictionary.
 
-    Returns: concatenated elements from each payloads as key/value tuples.
+    Returns: concatenated url-encoded payloads.
         For example:
 
-          [
-            ('param1', 'value10'), ('param2', 'value20'),
-            ('param1', 'value11'), ('param2', 'value21'),
-            ...
-          ]
+          param1=value10&param2=value20
+          param1=value11&param2=value21
     """
     assert isinstance(payloads, list) or isinstance(payloads, tuple)
-    return reduce(lambda x, y: x+y, map(lambda p: p.items(), payloads))
+    return '\n'.join(map(lambda p: urllib.urlencode(p), payloads))
 
   def _send_batch_hits(self, batch_payload, user_agent='CRMint / 0.1'):
     """Sends a batch request to the Measurement Protocol endpoint.
@@ -842,7 +840,8 @@ class BQToMeasurementProtocol(BQWorker, MeasurementProtocolWorker):
     try:
       self.retry(self._send_batch_hits, max_retries=1)(batch_payload)
     except MeasurementProtocolException as e:
-      self.log_error(e.message)
+      escaped_message = e.message.replace('%', '%%')
+      self.log_error(escaped_message)
 
   def _process_query_results(self, query_data, query_schema,
       payloads_batch_size=20):
