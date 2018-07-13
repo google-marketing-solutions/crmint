@@ -833,6 +833,7 @@ class BQToMeasurementProtocol(BQWorker, MeasurementProtocolWorker):
       ('bq_table_id', 'string', True, '', 'BQ Table ID'),
       ('bq_batch_size', 'number', True, int(1e5), 'BQ Batch Size'),
       ('bg_page_token', 'string', False, '', 'BQ Page Token (optional)'),
+      ('mp_batch_size', 'number', True, 20, 'Measurement Protocol batch size (https://goo.gl/7VeWuB)'),
   ]
 
   def _send_payload_list(self, payload_list):
@@ -843,8 +844,7 @@ class BQToMeasurementProtocol(BQWorker, MeasurementProtocolWorker):
       escaped_message = e.message.replace('%', '%%')
       self.log_error(escaped_message)
 
-  def _process_query_results(self, query_data, query_schema,
-      payloads_batch_size=20):
+  def _process_query_results(self, query_data, query_schema):
     """Sends event hits from query data."""
     fields = [f.name for f in query_schema]
     payload_list = []
@@ -852,7 +852,7 @@ class BQToMeasurementProtocol(BQWorker, MeasurementProtocolWorker):
       data = dict(zip(fields, row))
       payload = self._get_payload_from_data(data)
       payload_list.append(payload)
-      if len(payload_list) >= payloads_batch_size:
+      if len(payload_list) >= self._params['mp_batch_size']:
         self._send_payload_list(payload_list)
         payload_list = []
     if payload_list:
