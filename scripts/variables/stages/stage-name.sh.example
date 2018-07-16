@@ -18,7 +18,7 @@
 
 # Specify service account json file
 # Example: <customer>.json
-service_account_name=
+service_account_file=
 
 # Specify Project ID in Google Cloud
 # Example: crmintapp-<customer>

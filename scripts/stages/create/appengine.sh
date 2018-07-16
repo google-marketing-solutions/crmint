@@ -22,6 +22,6 @@ echo -e "$BLUE==>$NONE$BOLD Creating App Engine instance is started$NONE"
 $gcloud_sdk_dir/bin/gcloud app create --quiet --project $project_id_gae --region=$project_region
 
 # Create key for appengine service account
-$gcloud_sdk_dir/bin/gcloud iam service-accounts keys create "$SCRIPTS_DIR/../backends/data/$service_account_name" --iam-account="$project_id_gae@appspot.gserviceaccount.com" --key-file-type='json' --quiet --project $project_id_gae
+$gcloud_sdk_dir/bin/gcloud iam service-accounts keys create "$SCRIPTS_DIR/../backends/data/$service_account_file" --iam-account="$project_id_gae@appspot.gserviceaccount.com" --key-file-type='json' --quiet --project $project_id_gae
 
 # ------------------------- END CREATE APPENGINE INSTANCE --------------------

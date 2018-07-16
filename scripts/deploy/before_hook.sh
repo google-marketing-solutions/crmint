@@ -37,8 +37,8 @@ fi
 
 echo "SQLALCHEMY_DATABASE_URI=\"$cloud_db_uri\"" > $workdir/backends/instance/config.py
 
-# Make service account for stage is main for deployment
-mv $workdir/backends/data/$service_account_name $workdir/backends/data/service-account.json
+# Copy service account file for deployment.
+cp backends/data/$service_account_file $workdir/backends/data/service-account.json
 rm -f $workdir/backends/data/service-account.json.*
 
 # Make app_data.json for backends
