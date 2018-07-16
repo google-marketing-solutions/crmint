@@ -18,31 +18,32 @@ if [ ! -z $hook_executed ]; then
   return
 fi
 
-# Variables
+hook_executed=1
+
+# Set DB connection variables.
 cloudsql_dir=/tmp/cloudsql
 cloud_db_uri="mysql+mysqldb://$db_username:$db_password@/$db_name?unix_socket=/cloudsql/$db_instance_conn_name"
 local_db_uri="mysql+mysqldb://$db_username:$db_password@/$db_name?unix_socket=$cloudsql_dir/$db_instance_conn_name"
-hook_executed=1
 
 # Show Deploy Variables
 echo "Specified stage: ${stage}"
 echo "Current dir: $(pwd)"
 echo "Workdir: $workdir"
 
-# Copy
-# TODO: add case when $workdir is $current_dir
+# Copy source code to the working directory.
 if [ -x "$(command -v rsync)" ]; then
-  rsync -r --exclude=.git --exclude=.idea --exclude='*.pyc' --exclude=frontend/node_modules . $workdir
+  rsync -r --exclude=.git --exclude=.idea --exclude='*.pyc' \
+    --exclude=frontend/node_modules --exclude=backends/data/*.json . $workdir
 fi
 
+# Create DB config for App Engine application in the cloud.
 echo "SQLALCHEMY_DATABASE_URI=\"$cloud_db_uri\"" > $workdir/backends/instance/config.py
 
 # Copy service account file for deployment.
 cp backends/data/$service_account_file $workdir/backends/data/service-account.json
 rm -f $workdir/backends/data/service-account.json.*
 
-# Make app_data.json for backends
-
+# Make app_data.json for backends.
 cat > $workdir/backends/data/app.json <<EOL
 {
   "notification_sender_email": "$notification_sender_email",
@@ -51,7 +52,6 @@ cat > $workdir/backends/data/app.json <<EOL
 EOL
 
 # Make environment.prod.ts for frontend
-
 cat > $workdir/frontend/src/environments/environment.prod.ts <<EOL
 export const environment = {
   production: true,

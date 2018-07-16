@@ -15,10 +15,12 @@
 # limitations under the License.
 
 # ------------------------- CREATE USER MYSQL ------------------------
-echo
-echo -e "$BLUE==>$NONE$BOLD Creating MySQL user is started$NONE"
+if gcloud sql users list --instance="$db_instance_name" 2>/dev/null | egrep -q "^$db_username\s"; then
+  echo -e "$BLUE==>$NONE$BOLD MySQL user $db_username exists$NONE"
+else
+  echo -e "$BLUE==>$NONE$BOLD Creating MySQL user$NONE"
 
-# Create sql user
-$gcloud_sdk_dir/bin/gcloud sql users create $db_username % --instance $db_instance_name --password $db_password --project $project_id_gae --quiet
-
+  gcloud sql users create $db_username % --instance $db_instance_name \
+    --password $db_password --project $project_id_gae --quiet
+fi
 # ------------------------- END USER MYSQL --------------------------

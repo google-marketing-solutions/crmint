@@ -22,6 +22,7 @@ cd $workdir/backends
 source "$SCRIPTS_DIR/deploy/before_task.sh"
 
 flask db upgrade
+flask db_seeds
 
 source "$SCRIPTS_DIR/deploy/after_task.sh"
 
