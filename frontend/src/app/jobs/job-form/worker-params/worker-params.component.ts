@@ -86,7 +86,7 @@ export class WorkerParamsComponent implements OnInit {
     if (!this.cacheWorkerParams[worker_class].length) {
       for (const worker_param of worker_params) {
         const param = this.jobForm.get('paramsLairs').value.find(p => p.name === worker_param.name);
-        worker_param.value = param && param.value || '';
+        worker_param.value = param && param.value || worker_param.default || '';
       }
     }
     this.setParamsLairs(worker_params);
