@@ -356,29 +356,9 @@ class TestBQToMeasurementProtocol(unittest.TestCase):
         self._patched_post.call_args[1],
         {
             'headers': {'user-agent': 'CRMint / 0.1'},
-            'data': [
-                ('ni', 1.0),
-                ('el', 'label'),
-                ('cid', '35009a79-1a05-49d7-b876-2b884d0f825b'),
-                ('ea', 'action'),
-                ('ec', 'category'),
-                ('t', 'event'),
-                ('v', 1),
-                ('tid', 'UA-12345-1'),
-                ('ev', 0.9),
-                ('ua', 'User Agent / 1.0'),
-
-                ('ni', 1.0),
-                ('el', 'label'),
-                ('cid', '35009a79-1a05-49d7-b876-2b884d0f825b'),
-                ('ea', 'action'),
-                ('ec', 'category'),
-                ('t', 'event'),
-                ('v', 1),
-                ('tid', 'UA-12345-1'),
-                ('ev', 0.8),
-                ('ua', 'User Agent / 1.0'),
-            ]
+            'data':
+"""ni=1.0&el=label&cid=35009a79-1a05-49d7-b876-2b884d0f825b&ea=action&ec=category&t=event&v=1&tid=UA-12345-1&ev=0.9&ua=User+Agent+%2F+1.0
+ni=1.0&el=label&cid=35009a79-1a05-49d7-b876-2b884d0f825b&ea=action&ec=category&t=event&v=1&tid=UA-12345-1&ev=0.8&ua=User+Agent+%2F+1.0""",
         })
 
   @mock.patch('time.sleep')
