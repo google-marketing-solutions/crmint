@@ -832,7 +832,6 @@ class BQToMeasurementProtocol(BQWorker, MeasurementProtocolWorker):
       ('bq_dataset_id', 'string', True, '', 'BQ Dataset ID'),
       ('bq_table_id', 'string', True, '', 'BQ Table ID'),
       ('bq_batch_size', 'number', True, int(1e5), 'BQ Batch Size'),
-      ('bg_page_token', 'string', False, '', 'BQ Page Token (optional)'),
       ('mp_batch_size', 'number', True, 20, 'Measurement Protocol batch size (https://goo.gl/7VeWuB)'),
   ]
 
@@ -862,7 +861,7 @@ class BQToMeasurementProtocol(BQWorker, MeasurementProtocolWorker):
   def _execute(self):
     self._bq_setup()
     self._table.reload()
-    page_token = self._params['bg_page_token'] or None
+    page_token = self._params.get('bg_page_token', None)
     query_iterator = self.retry(self._table.fetch_data, max_retries=1)(
         max_results=int(self._params['bq_batch_size']),
         page_token=page_token)
