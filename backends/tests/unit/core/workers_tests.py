@@ -41,6 +41,15 @@ class TestAbstractWorker(unittest.TestCase):
     super(TestAbstractWorker, self).tearDown()
     self.testbed.deactivate()
 
+  def test_default_params_values(self):
+    class DummyWorker(workers.Worker):
+      PARAMS = [
+        ('int_with_default', 'number', True, 20, 'Description'),
+      ]
+    worker = DummyWorker({}, 1, 1)
+    self.assertIsInstance(worker._params['int_with_default'], int)
+    self.assertEqual(worker._params['int_with_default'], 20)
+
   @mock.patch('core.logging.logger')
   def test_log_info_succeeds(self, patched_logger):
     patched_logger.log_struct.__name__ = 'foo'

@@ -21,5 +21,6 @@ export class Param {
   type: string;
   job: Job;
   value: string;
+  default: string;
   required: boolean;
 }
