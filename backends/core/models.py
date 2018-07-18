@@ -15,7 +15,7 @@
 from datetime import datetime
 import json
 import re
-import time
+import uuid
 from google.appengine.api import taskqueue
 from simpleeval import simple_eval
 from simpleeval import InvalidExpression
@@ -323,9 +323,13 @@ class Job(BaseModel):
     }
     task_name = '%s_%s_%s' % (self.pipeline.name, self.name, self.worker_class)
     escaped_task_name = re.sub(r'[^-_0-9a-zA-Z]', '-', task_name)
-    timed_task_name = '%s_%i' % (escaped_task_name, int(time.time()))
-    task = taskqueue.add(target='job-service', name=timed_task_name,
-                         url='/task', params=task_params, countdown=delay)
+    unique_task_name = '%s_%s' % (escaped_task_name, str(uuid.uuid4()))
+    task = taskqueue.add(
+        target='job-service',
+        name=unique_task_name,
+        url='/task',
+        params=task_params,
+        countdown=delay)
     self.enqueued_workers_count += 1
     self.save()
     return task
