@@ -834,11 +834,11 @@ class BQToMeasurementProtocol(BQWorker):
       ('mp_batch_size', 'number', True, 20, 'Measurement Protocol batch size (https://goo.gl/7VeWuB)'),
   ]
 
-  # BigQuery batch size for querying results. Default to 50,000.
-  BQ_BATCH_SIZE = int(5 * 1e4)
+  # BigQuery batch size for querying results. Default to 10,000.
+  BQ_BATCH_SIZE = int(1e4)
 
-  # Maximum number of jobs to enqueued in parallel.
-  MAX_ENQUEUED_JOBS = 20
+  # Maximum number of jobs to enqueued before spawning a new scheduler.
+  MAX_ENQUEUED_JOBS = 50
 
   def _execute(self):
     self._bq_setup()
