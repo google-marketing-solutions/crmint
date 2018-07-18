@@ -19,6 +19,6 @@ echo
 echo -e "$BLUE==>$NONE$BOLD Creating MySQL instance is started$NONE"
 
 # Create instance
-$gcloud_sdk_dir/bin/gcloud sql instances create $db_instance_name --tier=$project_sql_tier --region=$project_region --project $project_id_gae --quiet --database-version MYSQL_5_7 --storage-auto-increase
+$gcloud_sdk_dir/bin/gcloud sql instances create $db_instance_name --tier=$project_sql_tier --region=$project_sql_region --project $project_id_gae --quiet --database-version MYSQL_5_7 --storage-auto-increase
 
 # ------------------------- END CREATE MYSQL INSTANCE --------------------

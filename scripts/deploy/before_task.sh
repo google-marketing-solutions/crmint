@@ -21,9 +21,9 @@ mkdir $cloudsql_dir
 echo "SQLALCHEMY_DATABASE_URI=\"$local_db_uri\"" > $workdir/backends/instance/config.py
 
 if [ "$use_sa" != "" ]; then
-  $cloud_sql_proxy -projects=$project_id_gae -instances=$db_instance_conn_name -dir=$cloudsql_dir -credential_file=data/service-account.json &
+  $cloud_sql_proxy -projects=$project_id_gae -instances=$db_instance_conn_name -dir=$cloudsql_dir -credential_file=$SCRIPTS_DIR/../backends/data/service-account.json &
 else
-  $cloud_sql_proxy -projects=$project_id_gae -instances=$db_instance_conn_name -dir=$cloudsql_dir &
+  $cloud_sql_proxy -projects=$project_id_gae -instances=$db_instance_conn_name -dir=$cloudsql_dir -credential_file=$SCRIPTS_DIR/../backends/data/$service_account_file &
 fi
 cloud_sql_proxy_pid=$!
 echo -e "$BLUE==>$NONE$BOLD Run cloud_sql_proxy with pid $cloud_sql_proxy_pid$NONE"

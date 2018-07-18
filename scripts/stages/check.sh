@@ -36,10 +36,10 @@ warning() {
 }
 
 check_service_account() {
-  if [ -z $service_account_name ]; then
-    warning 'Variable $service_account_name must not be empty'
+  if [ -z $service_account_file ]; then
+    warning 'Variable $service_account_file must not be empty'
   else
-    echo 'Variable $service_account_name is ok'
+    echo 'Variable $service_account_file is ok'
   fi
 }
 

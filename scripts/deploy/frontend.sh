@@ -20,8 +20,9 @@ echo -e "$BLUE==>$NONE$BOLD Deploy frontend is started$NONE"
 cd $workdir/frontend
 
 npm install
-ng build --prod
+node_modules/@angular/cli/bin/ng build --prod
 
 $gcloud_sdk_dir/bin/gcloud --quiet --project $project_id_gae app deploy gae.yaml --version=v1
+$gcloud_sdk_dir/bin/gcloud --quiet --project $project_id_gae app deploy dispatch.yaml
 
 # ------------------------- END DEPLOY FRONTEND --------------------
