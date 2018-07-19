@@ -14,26 +14,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-##########################################################################
-# THE COMMAND LINE HELP                                                  #
-##########################################################################
-
-display_help() {
-  echo "Usage: $0 stages setup <name> [options]"
+if [ "$1" == "" ]; then
+  echo "Usage: $0 stages setup <stage_name>"
   echo
-  echo -e "${BOLD}OPTIONS${NONE}"
-  echo "   -a, --all                  create project in Google Cloud and add instances"
-  echo "   --project                  create only project in Google Cloud"
-  echo "   --mysql                    create only mysql instance"
-  echo "   --mysql-user               create only mysql user"
-  echo "   --mysql-db                 create only mysql database"
-  echo "   --appengine                create only appengine instance"
-  echo
-}
-
-##########################################################################
-# READ PASSED ARGUMENTS                                                  #
-##########################################################################
+  exit
+fi
 
 STAGE_NAME=$1
 project_id_gae=`gcloud config get-value project 2>/dev/null`
