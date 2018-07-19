@@ -55,7 +55,11 @@ class Task(Resource):
       job.worker_failed()
     else:
       try:
-        workers_to_enqueue = worker.execute()
+        # NB: Calls to execute() return an generator of workers to enqueue.
+        worker_to_enqueue_gen = worker.execute()
+        for worker_to_enqueue in worker_to_enqueue_gen:
+          worker_class_name, worker_params, delay = worker_to_enqueue
+          job.enqueue(worker_class_name, worker_params, delay)
       except workers.WorkerException as e:
         worker.log_error('Execution failed: %s: %s', e.__class__.__name__, e)
         job.worker_failed()
@@ -63,8 +67,6 @@ class Task(Resource):
         worker.log_error('Unexpected error: %s: %s', e.__class__.__name__, e)
         raise e
       else:
-        for worker_class_name, worker_params, delay in workers_to_enqueue:
-          job.enqueue(worker_class_name, worker_params, delay)
         job.worker_succeeded()
     return 'OK', 200
 

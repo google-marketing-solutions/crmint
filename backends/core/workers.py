@@ -84,7 +84,6 @@ class Worker(object):
         self._params[p[0]]
       except KeyError:
         self._params[p[0]] = p[3]
-    self._workers_to_enqueue = []
 
   def _log(self, level, message, *substs):
     from core.logging import logger
@@ -108,22 +107,30 @@ class Worker(object):
     self._log('ERROR', message, *substs)
 
   def execute(self):
+    """
+    Returns:
+      Generator of workers to enqueue.
+    """
     self.log_info('Started with params: %s',
                   json.dumps(self._params, sort_keys=True, indent=2,
                              separators=(', ', ': ')))
     try:
-      self._execute()
+      for worker_to_enqueue in self._execute():
+        yield worker_to_enqueue
     except ClientError as e:
       raise WorkerException(e)
     self.log_info('Finished successfully')
-    return self._workers_to_enqueue
 
   def _execute(self):
-    """Abstract method that does actual worker's job."""
+    """Abstract method that does actual worker's job.
+
+    Returns:
+      Generator of workers to enqueue.
+    """
     pass
 
   def _enqueue(self, worker_class, worker_params, delay=0):
-    self._workers_to_enqueue.append((worker_class, worker_params, delay))
+    return (worker_class, worker_params, delay)
 
   def retry(self, func, max_retries=DEFAULT_MAX_RETRIES):
     """Decorator implementing retries with exponentially increasing delays."""
@@ -191,7 +198,7 @@ class BQWorker(Worker):
             'job_names': [job.name for job in jobs],
             'bq_project_id': self._params['bq_project_id']
         }
-        self._enqueue('BQWaiter', worker_params, 60)
+        yield self._enqueue('BQWaiter', worker_params, 60)
         return
       time.sleep(delay)
       if delay < 30:
@@ -223,7 +230,7 @@ class BQWaiter(BQWorker):
             'job_names': self._params['job_names'],
             'bq_project_id': self._params['bq_project_id']
         }
-        self._enqueue('BQWaiter', worker_params, 60)
+        yield self._enqueue('BQWaiter', worker_params, 60)
         return
 
 
@@ -501,7 +508,7 @@ class GAToBQImporter(BQWorker, GAWorker):
         start_date += timedelta(1)
         params = self._params.copy()
         params['start_date'] = start_date.strftime('%Y-%m-%d')
-        self._enqueue(self.__class__.__name__, params)
+        yield self._enqueue(self.__class__.__name__, params)
     else:
       for view_id in self._params['view_ids']:
         self._get_report(
@@ -731,7 +738,7 @@ class MLWaiter(MLWorker):
         name=self._params['job_name'])
     job = self.retry(request.execute)()
     if job.get('state') not in self.FINAL_STATUSES:
-      self._enqueue('MLWaiter', {'job_name': self._params['job_name']}, 60)
+      yield self._enqueue('MLWaiter', {'job_name': self._params['job_name']}, 60)
 
 
 class MLPredictor(MLWorker):
@@ -767,7 +774,7 @@ class MLPredictor(MLWorker):
                                                        body=body)
     self.retry(request.execute)()
     job_name = '%s/jobs/%s' % (project_id, self._ml_job_id)
-    self._enqueue('MLWaiter', {'job_name': job_name}, 60)
+    yield self._enqueue('MLWaiter', {'job_name': job_name}, 60)
 
 
 class MeasurementProtocolException(WorkerException):
@@ -906,3 +913,9 @@ class BQToMeasurementProtocolProcessor(BQWorker, MeasurementProtocolWorker):
         page_token=page_token)
     query_first_page = next(query_iterator.pages)
     self._process_query_results(query_first_page, query_iterator.schema)
+
+    if query_iterator.next_page_token is not None:
+      # Spawn a new worker for the next batch
+      worker_params = self._params.copy()
+      worker_params['bg_page_token'] = query_iterator.next_page_token
+      yield self._enqueue(self.__class__.__name__, worker_params, 0)
