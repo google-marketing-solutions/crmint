@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import os
+import types
 import unittest
 
 from apiclient.errors import HttpError
@@ -83,20 +84,38 @@ class TestAbstractWorker(unittest.TestCase):
   @mock.patch('core.logging.logger')
   def test_execute_client_error_raises_worker_exception(self, patched_logger):
     patched_logger.log_struct.__name__ = 'foo'
-    class DummyWorker(workers.Worker):
+    class WorkerRaisingClientError(workers.Worker):
       def _execute(self):
         raise ClientError('There has been an issue here.')
-    worker = DummyWorker({}, 1, 1)
+        yield None
+    worker = WorkerRaisingClientError({}, 1, 1)
     with self.assertRaises(workers.WorkerException):
-      worker.execute()
+      result = worker.execute()
+      self.assertIsInstance(result, types.GeneratorType)
+      # We need to access at least one item otherwise the generator
+      # is garbage collected.
+      enqueued_worker = next(result)
 
-  def test_enqueue_succeedly_add_to_the_list(self):
+  def test_enqueue_formats_as_tuple(self):
     worker = workers.Worker({}, 1, 1)
-    self.assertEqual(len(worker._workers_to_enqueue), 0)
-    worker._enqueue('DummyClass', 'params')
-    self.assertEqual(len(worker._workers_to_enqueue), 1)
-    self.assertEqual(worker._workers_to_enqueue[0][0], 'DummyClass')
-    self.assertEqual(worker._workers_to_enqueue[0][1], 'params')
+    result = worker._enqueue('DummyClass', 'params')
+    self.assertIsInstance(result, tuple)
+    self.assertEqual(result[0], 'DummyClass')
+    self.assertEqual(result[1], 'params')
+
+  @mock.patch('core.logging.logger')
+  def test_execute_returns_generator_of_enqueued_workers(self, patched_logger):
+    patched_logger.log_struct.__name__ = 'foo'
+    class WorkerEnqueuingJob(workers.Worker):
+      def _execute(self):
+        yield self._enqueue('DummyClass', 'params')
+    worker = WorkerEnqueuingJob({}, 1, 1)
+    result = worker.execute()
+    self.assertIsInstance(result, types.GeneratorType)
+    enqueued_worker = next(result)
+    self.assertIsInstance(enqueued_worker, tuple)
+    self.assertEqual(enqueued_worker[0], 'DummyClass')
+    self.assertEqual(enqueued_worker[1], 'params')
 
   @mock.patch('time.sleep')
   @mock.patch('core.logging.logger')
@@ -142,7 +161,9 @@ class TestBQWorker(unittest.TestCase):
       job0.state = 'DONE'
     job0.reload.side_effect = _mark_as_done
     job0.error_result = None
-    worker._begin_and_wait(job0)
+    # Consume the generator to avoid garbage collection.
+    generator = worker._begin_and_wait(job0)
+    workers_to_enqueue = list(generator)
     job0.begin.assert_called_once()
 
   @mock.patch('time.sleep')
@@ -159,7 +180,9 @@ class TestBQWorker(unittest.TestCase):
     worker = workers.BQWorker({'bq_project_id': 'BQID'}, 1, 1)
     job0 = patched_bigquery_QueryJob()
     job0.error_result = None
-    worker._begin_and_wait(job0)
+    # Consume the generator to avoid garbage collection.
+    generator = worker._begin_and_wait(job0)
+    workers_to_enqueue = list(generator)
     patched_BQWorker_enqueue.assert_called_once()
     self.assertEqual(patched_BQWorker_enqueue.call_args[0][0], 'BQWaiter')
     self.assertIsInstance(patched_BQWorker_enqueue.call_args[0][1], dict)
@@ -189,7 +212,11 @@ class TestBQWaiter(unittest.TestCase):
         1,
         1)
     worker._client = mock.Mock()
-    worker._execute()
+
+    # Consume the generator to avoid garbage collection.
+    generator = worker._execute()
+    workers_to_enqueue = list(generator)
+
     patched_enqueue.assert_called_once()
     self.assertEqual(patched_enqueue.call_args[0][0], 'BQWaiter')
 
@@ -362,7 +389,9 @@ class TestBQToMeasurementProtocolProcessor(TestBQToMeasurementProtocolMixin, uni
     mock_response.status_code = 200
     self._patched_post.return_value = mock_response
 
-    self._worker._execute()
+    # Consume the generator to avoid garbage collection.
+    generator = self._worker.execute()
+    workers_to_enqueue = list(generator)
     self._patched_post.assert_called_once()
     self.assertEqual(
         self._patched_post.call_args[0][0],
@@ -437,7 +466,9 @@ ni=1.0&el=label&cid=35009a79-1a05-49d7-b876-2b884d0f825b&ea=action&ec=category&t
     mock_response.status_code = 500
     self._patched_post.return_value = mock_response
 
-    self._worker._execute()
+    # Consume the generator to avoid garbage collection.
+    generator = self._worker.execute()
+    workers_to_enqueue = list(generator)
     # Called 2 times because of 1 retry.
     self.assertEqual(self._patched_post.call_count, 2)
     # When retry stops it should log the message as an error.
@@ -527,13 +558,16 @@ class TestBQToMeasurementProtocol(TestBQToMeasurementProtocolMixin, unittest.Tes
     patcher_worker_enqueue = mock.patch.object(workers.BQToMeasurementProtocol, '_enqueue')
     self.addCleanup(patcher_worker_enqueue.stop)
     patched_enqueue = patcher_worker_enqueue.start()
+
     def _remove_next_page_token(worker_name, *args, **kwargs):
       if worker_name == 'BQToMeasurementProtocol':
         del api_response['pageToken']
         self._use_query_results(api_response)
     patched_enqueue.side_effect = _remove_next_page_token
 
-    self._worker._execute()
+    # Consume the generator to avoid garbage collection.
+    generator = self._worker.execute()
+    workers_to_enqueue = list(generator)
     self.assertEqual(patched_enqueue.call_count, 2)
     self.assertEqual(patched_enqueue.call_args_list[0][0][0], 'BQToMeasurementProtocolProcessor')
     self.assertEqual(patched_enqueue.call_args_list[0][0][1]['bq_page_token'], None)

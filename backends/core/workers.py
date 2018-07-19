@@ -115,7 +115,10 @@ class Worker(object):
                   json.dumps(self._params, sort_keys=True, indent=2,
                              separators=(', ', ': ')))
     try:
-      for worker_to_enqueue in self._execute():
+      workers_to_enqueue_generator = self._execute()
+      if workers_to_enqueue_generator is None:
+        return
+      for worker_to_enqueue in workers_to_enqueue_generator:
         yield worker_to_enqueue
     except ClientError as e:
       raise WorkerException(e)
@@ -254,7 +257,8 @@ class BQQueryLauncher(BQWorker):
       job.write_disposition = 'WRITE_TRUNCATE'
     else:
       job.write_disposition = 'WRITE_APPEND'
-    self._begin_and_wait(job)
+    for worker_to_enqueue in self._begin_and_wait(job):
+      yield worker_to_enqueue
 
 
 class StorageWorker(Worker):
@@ -862,7 +866,7 @@ class BQToMeasurementProtocol(BQWorker):
       worker_params = self._params.copy()
       worker_params['bq_page_token'] = page_token
       worker_params['bq_batch_size'] = self.BQ_BATCH_SIZE
-      self._enqueue('BQToMeasurementProtocolProcessor', worker_params, 0)
+      yield self._enqueue('BQToMeasurementProtocolProcessor', worker_params, 0)
       enqueued_jobs_count += 1
 
       # Updates the page token reference for the next iteration.
@@ -873,7 +877,7 @@ class BQToMeasurementProtocol(BQWorker):
           and page_token is not None):
         worker_params = self._params.copy()
         worker_params['bq_page_token'] = page_token
-        self._enqueue(self.__class__.__name__, worker_params, 0)
+        yield self._enqueue(self.__class__.__name__, worker_params, 0)
         return
 
 
@@ -913,9 +917,3 @@ class BQToMeasurementProtocolProcessor(BQWorker, MeasurementProtocolWorker):
         page_token=page_token)
     query_first_page = next(query_iterator.pages)
     self._process_query_results(query_first_page, query_iterator.schema)
-
-    if query_iterator.next_page_token is not None:
-      # Spawn a new worker for the next batch
-      worker_params = self._params.copy()
-      worker_params['bg_page_token'] = query_iterator.next_page_token
-      yield self._enqueue(self.__class__.__name__, worker_params, 0)
