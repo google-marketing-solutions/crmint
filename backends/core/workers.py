@@ -824,16 +824,54 @@ class MeasurementProtocolWorker(Worker):
                                          % (req.status_code, batch_payload))
 
 
-class BQToMeasurementProtocol(BQWorker, MeasurementProtocolWorker):
-  """Worker to import data through Measurement Protocol"""
+class BQToMeasurementProtocol(BQWorker):
+  """Worker to push data through Measurement Protocol"""
 
   PARAMS = [
       ('bq_project_id', 'string', False, '', 'BQ Project ID'),
       ('bq_dataset_id', 'string', True, '', 'BQ Dataset ID'),
       ('bq_table_id', 'string', True, '', 'BQ Table ID'),
-      ('bq_batch_size', 'number', True, int(1e5), 'BQ Batch Size'),
       ('mp_batch_size', 'number', True, 20, 'Measurement Protocol batch size (https://goo.gl/7VeWuB)'),
   ]
+
+  # BigQuery batch size for querying results. Default to 10,000.
+  BQ_BATCH_SIZE = int(1e4)
+
+  # Maximum number of jobs to enqueued before spawning a new scheduler.
+  MAX_ENQUEUED_JOBS = 50
+
+  def _execute(self):
+    self._bq_setup()
+    self._table.reload()
+    page_token = self._params.get('bq_page_token', None)
+    batch_size = self.BQ_BATCH_SIZE
+    query_iterator = self.retry(self._table.fetch_data, max_retries=1)(
+        max_results=batch_size,
+        page_token=page_token)
+
+    enqueued_jobs_count = 0
+    for query_page in query_iterator.pages:
+      # Enqueue job for this page
+      worker_params = self._params.copy()
+      worker_params['bq_page_token'] = page_token
+      worker_params['bq_batch_size'] = self.BQ_BATCH_SIZE
+      self._enqueue('BQToMeasurementProtocolProcessor', worker_params, 0)
+      enqueued_jobs_count += 1
+
+      # Updates the page token reference for the next iteration.
+      page_token = query_iterator.next_page_token
+
+      # Spawns a new job to schedule the remaining pages.
+      if (enqueued_jobs_count >= self.MAX_ENQUEUED_JOBS
+          and page_token is not None):
+        worker_params = self._params.copy()
+        worker_params['bq_page_token'] = page_token
+        self._enqueue(self.__class__.__name__, worker_params, 0)
+        return
+
+
+class BQToMeasurementProtocolProcessor(BQWorker, MeasurementProtocolWorker):
+  """Worker pushing to Measurement Protocol the first page only of a query"""
 
   def _send_payload_list(self, payload_list):
     batch_payload = self._prepare_payloads_for_batch_request(payload_list)
@@ -861,15 +899,10 @@ class BQToMeasurementProtocol(BQWorker, MeasurementProtocolWorker):
   def _execute(self):
     self._bq_setup()
     self._table.reload()
-    page_token = self._params.get('bg_page_token', None)
+    page_token = self._params['bq_page_token'] or None
+    batch_size = self._params['bq_batch_size']
     query_iterator = self.retry(self._table.fetch_data, max_retries=1)(
-        max_results=int(self._params['bq_batch_size']),
+        max_results=batch_size,
         page_token=page_token)
     query_first_page = next(query_iterator.pages)
     self._process_query_results(query_first_page, query_iterator.schema)
-
-    if query_iterator.next_page_token is not None:
-      # Spawn a new worker for the next batch
-      worker_params = self._params.copy()
-      worker_params['bg_page_token'] = query_iterator.next_page_token
-      self._enqueue(self.__class__.__name__, worker_params, 0)
