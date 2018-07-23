@@ -308,6 +308,12 @@ class TestBQToMeasurementProtocolProcessor(TestBQToMeasurementProtocolMixin, uni
   def setUp(self):
     super(TestBQToMeasurementProtocolProcessor, self).setUp()
 
+    self.testbed = testbed.Testbed()
+    self.testbed.activate()
+    # Activate which service we want to stub
+    self.testbed.init_memcache_stub()
+    self.testbed.init_app_identity_stub()
+
     self._client = mock.Mock()
     patcher_get_client = mock.patch.object(
         workers.BQToMeasurementProtocolProcessor,
@@ -320,10 +326,20 @@ class TestBQToMeasurementProtocolProcessor(TestBQToMeasurementProtocolMixin, uni
     self.addCleanup(patcher_requests_post.stop)
     self._patched_post = patcher_requests_post.start()
 
+  def tearDown(self):
+    super(TestBQToMeasurementProtocolProcessor, self).tearDown()
+    self.testbed.deactivate()
+
   @mock.patch('time.sleep')
-  def test_success_with_one_post_request(self, patched_time_sleep):
+  @mock.patch('core.logging.logger')
+  def test_success_with_one_post_request(self, patched_logger,
+      patched_time_sleep):
     # Bypass the time.sleep wait
     patched_time_sleep.return_value = 1
+    # NB: patching the StackDriver logger is needed because there is no
+    #     testbed service available for now
+    patched_logger.log_struct.__name__ = 'foo'
+    patched_logger.log_struct.return_value = "patched_log_struct"
     self._worker = workers.BQToMeasurementProtocolProcessor(
         {
             'bq_project_id': 'BQID',
@@ -480,6 +496,12 @@ class TestBQToMeasurementProtocol(TestBQToMeasurementProtocolMixin, unittest.Tes
   def setUp(self):
     super(TestBQToMeasurementProtocol, self).setUp()
 
+    self.testbed = testbed.Testbed()
+    self.testbed.activate()
+    # Activate which service we want to stub
+    self.testbed.init_memcache_stub()
+    self.testbed.init_app_identity_stub()
+
     self._client = mock.Mock()
     patcher_get_client = mock.patch.object(
         workers.BQToMeasurementProtocol,
@@ -488,10 +510,20 @@ class TestBQToMeasurementProtocol(TestBQToMeasurementProtocolMixin, unittest.Tes
     self.addCleanup(patcher_get_client.stop)
     patcher_get_client.start()
 
+  def tearDown(self):
+    super(TestBQToMeasurementProtocol, self).tearDown()
+    self.testbed.deactivate()
+
   @mock.patch('time.sleep')
-  def test_success_with_spawning_new_worker(self, patched_time_sleep):
+  @mock.patch('core.logging.logger')
+  def test_success_with_spawning_new_worker(self, patched_logger,
+      patched_time_sleep):
     # Bypass the time.sleep wait
     patched_time_sleep.return_value = 1
+    # NB: patching the StackDriver logger is needed because there is no
+    #     testbed service available for now
+    patched_logger.log_struct.__name__ = 'foo'
+    patched_logger.log_struct.return_value = "patched_log_struct"
     self._worker = workers.BQToMeasurementProtocol(
         {
             'bq_project_id': 'BQID',
