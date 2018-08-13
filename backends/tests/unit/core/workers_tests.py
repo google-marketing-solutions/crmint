@@ -337,7 +337,7 @@ class TestBQToMeasurementProtocolProcessor(TestBQToMeasurementProtocolMixin, uni
                     {'v': 1},
                     {'v': 'category'},
                     {'v': 'action'},
-                    {'v': 'label'},
+                    {'v': u'\u043c\u0435\u0442\u043a\u0430'},
                     {'v': 0.8},
                     {'v': 'User Agent / 1.0'},
                 ]
@@ -348,7 +348,7 @@ class TestBQToMeasurementProtocolProcessor(TestBQToMeasurementProtocolMixin, uni
                 {'name': 'tid', 'type': 'STRING'},
                 {'name': 'cid', 'type': 'STRING'},
                 {'name': 't', 'type': 'STRING'},
-                {'name': 'ni', 'type': 'FLOAT'},
+                {'name': 'ni', 'type': 'INTEGER'},
                 {'name': 'ec', 'type': 'STRING'},
                 {'name': 'ea', 'type': 'STRING'},
                 {'name': 'el', 'type': 'STRING'},
@@ -372,8 +372,8 @@ class TestBQToMeasurementProtocolProcessor(TestBQToMeasurementProtocolMixin, uni
         {
             'headers': {'user-agent': 'CRMint / 0.1'},
             'data':
-"""ni=1.0&el=label&cid=35009a79-1a05-49d7-b876-2b884d0f825b&ea=action&ec=category&t=event&v=1&tid=UA-12345-1&ev=0.9&ua=User+Agent+%2F+1.0
-ni=1.0&el=label&cid=35009a79-1a05-49d7-b876-2b884d0f825b&ea=action&ec=category&t=event&v=1&tid=UA-12345-1&ev=0.8&ua=User+Agent+%2F+1.0""",
+"""cid=35009a79-1a05-49d7-b876-2b884d0f825b&ea=action&ec=category&el=label&ev=0.9&ni=1&t=event&tid=UA-12345-1&ua=User+Agent+%2F+1.0&v=1
+cid=35009a79-1a05-49d7-b876-2b884d0f825b&ea=action&ec=category&el=%D0%BC%D0%B5%D1%82%D0%BA%D0%B0&ev=0.8&ni=1&t=event&tid=UA-12345-1&ua=User+Agent+%2F+1.0&v=1""",
         })
 
   @mock.patch('core.logging.logger')
@@ -423,7 +423,7 @@ ni=1.0&el=label&cid=35009a79-1a05-49d7-b876-2b884d0f825b&ea=action&ec=category&t
                 {'name': 'tid', 'type': 'STRING'},
                 {'name': 'cid', 'type': 'STRING'},
                 {'name': 't', 'type': 'STRING'},
-                {'name': 'ni', 'type': 'FLOAT'},
+                {'name': 'ni', 'type': 'INTEGER'},
                 {'name': 'ec', 'type': 'STRING'},
                 {'name': 'ea', 'type': 'STRING'},
                 {'name': 'el', 'type': 'STRING'},
@@ -513,7 +513,7 @@ class TestBQToMeasurementProtocol(TestBQToMeasurementProtocolMixin, unittest.Tes
                 {'name': 'tid', 'type': 'STRING'},
                 {'name': 'cid', 'type': 'STRING'},
                 {'name': 't', 'type': 'STRING'},
-                {'name': 'ni', 'type': 'FLOAT'},
+                {'name': 'ni', 'type': 'INTEGER'},
                 {'name': 'ec', 'type': 'STRING'},
                 {'name': 'ea', 'type': 'STRING'},
                 {'name': 'el', 'type': 'STRING'},

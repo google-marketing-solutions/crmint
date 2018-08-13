@@ -31,9 +31,9 @@ from apiclient.errors import HttpError
 from apiclient.http import MediaIoBaseUpload
 import cloudstorage as gcs
 from oauth2client.service_account import ServiceAccountCredentials
+import requests
 from google.cloud import bigquery
 from google.cloud.exceptions import ClientError
-import requests
 
 
 _KEY_FILE = os.path.join(os.path.dirname(__file__), '..', 'data',
@@ -796,7 +796,9 @@ class MeasurementProtocolWorker(Worker):
           param1=value11&param2=value21
     """
     assert isinstance(payloads, list) or isinstance(payloads, tuple)
-    return '\n'.join(map(lambda p: urllib.urlencode(p), payloads))
+    payloads_utf8 = [sorted([(k, unicode(p[k]).encode('utf-8')) for k in p],
+                            key=lambda t: t[0]) for p in payloads]
+    return '\n'.join(map(lambda p: urllib.urlencode(p), payloads_utf8))
 
   def _send_batch_hits(self, batch_payload, user_agent='CRMint / 0.1'):
     """Sends a batch request to the Measurement Protocol endpoint.
@@ -819,7 +821,7 @@ class MeasurementProtocolWorker(Worker):
                         data=batch_payload)
 
     if req.status_code != requests.codes.ok:
-      raise MeasurementProtocolException('Failed to send event hit with status'
+      raise MeasurementProtocolException('Failed to send event hit with status '
                                          'code (%s) and parameters: %s'
                                          % (req.status_code, batch_payload))
 
@@ -831,7 +833,8 @@ class BQToMeasurementProtocol(BQWorker):
       ('bq_project_id', 'string', False, '', 'BQ Project ID'),
       ('bq_dataset_id', 'string', True, '', 'BQ Dataset ID'),
       ('bq_table_id', 'string', True, '', 'BQ Table ID'),
-      ('mp_batch_size', 'number', True, 20, 'Measurement Protocol batch size (https://goo.gl/7VeWuB)'),
+      ('mp_batch_size', 'number', True, 20, ('Measurement Protocol batch size '
+                                             '(https://goo.gl/7VeWuB)')),
   ]
 
   # BigQuery batch size for querying results. Default to 10,000.
@@ -850,7 +853,7 @@ class BQToMeasurementProtocol(BQWorker):
         page_token=page_token)
 
     enqueued_jobs_count = 0
-    for query_page in query_iterator.pages:
+    for query_page in query_iterator.pages:  # pylint: disable=unused-variable
       # Enqueue job for this page
       worker_params = self._params.copy()
       worker_params['bq_page_token'] = page_token
