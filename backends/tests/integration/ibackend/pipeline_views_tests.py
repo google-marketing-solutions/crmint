@@ -12,10 +12,26 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from datetime import datetime
+from google.appengine.ext import testbed
+
+from core import models
+from mock import patch
 from tests import utils
 
+import time
+import mock
 
 class TestPipelineList(utils.IBackendBaseTest):
+
+  def setUp(self):  
+    super(TestPipelineList, self).setUp()
+    self.testbed = testbed.Testbed()
+    self.testbed.activate()
+    # Activate which service we want to stub
+    self.testbed.init_memcache_stub()
+    self.testbed.init_app_identity_stub()
+    self.testbed.init_datastore_v3_stub()
 
   def test_list_success(self):
     response = self.client.get('/api/pipelines')
@@ -28,3 +44,50 @@ class TestPipelineList(utils.IBackendBaseTest):
     """
     response = self.client.get('/api/pipelines')
     self.assertEqual(response.status_code, 200)
+
+class TestPipelineParallelProcessing(utils.IBackendBaseTest):
+
+  def setUp(self):  
+    super(TestPipelineParallelProcessing, self).setUp()
+    self.testbed = testbed.Testbed()
+    self.testbed.activate()
+    # Activate which service we want to stub
+    self.testbed.init_memcache_stub()
+    self.testbed.init_app_identity_stub()
+    self.testbed.init_taskqueue_stub()
+    self.taskqueue_stub = self.testbed.get_stub(
+            testbed.TASKQUEUE_SERVICE_NAME)
+    self.taskqueue_stub.StartBackgroundExecution()
+
+  @patch('time.sleep', return_value=None)
+  def test_pipeline_success_no_dependencies_jobs(self, patched_time_sleep):
+    """
+    This test ensures that the pipeline status is updated ('succeeded') 
+    after the successful execution (in parallel) of all the jobs.
+    """
+    pipeline = models.Pipeline.create()
+    jobs = [models.Job.create(name=str(index), pipeline_id=pipeline.id, worker_class="WaitingWorker") 
+                for index in range(10)]
+
+    params = [
+        {'id': None, 'name': 'waiting_time', 'type': 'number', 'value': '5'}
+    ]
+    relations = {'start_conditions': [], 'params': params}
+
+    for job in jobs:
+      job.save_relations(relations)
+
+    self.assertEqual(len(pipeline.jobs.all()), 10)
+    
+    # necessary for starting the tasks in the background    
+    self.taskqueue_stub._auto_task_running = True
+
+    pipeline.start()
+
+    self.taskqueue_stub.StartBackgroundExecution()
+
+    patched_time_sleep(55)
+
+    result = pipeline.job_finished()
+    self.assertTrue(result)
+    self.assertEqual(pipeline.status, 'succeeded')
