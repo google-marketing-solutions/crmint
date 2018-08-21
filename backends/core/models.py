@@ -17,6 +17,7 @@ import json
 import re
 import uuid
 from google.appengine.api import taskqueue
+from google.appengine.api import memcache
 from simpleeval import simple_eval
 from simpleeval import InvalidExpression
 from sqlalchemy import Column
@@ -46,6 +47,7 @@ def _parse_num(s):
 
 class Pipeline(BaseModel):
   __tablename__ = 'pipelines'
+  _memcache_client = memcache.Client()
   id = Column(Integer, primary_key=True, autoincrement=True)
   name = Column(String(255))
   emails_for_notifications = Column(String(255))
@@ -59,6 +61,14 @@ class Pipeline(BaseModel):
 
   def __init__(self, name=None):
     self.name = name
+    cached_values = {
+      "failed_jobs": 0, 
+      "remaining_jobs": len(self.jobs.all()), 
+      "list_of_tasks_enqueued": self.get_all_task_names()
+    }
+    self._memcache_client.add_multi(cached_values, 
+      key_prefix = str(self.id) + "_",
+      time = 24 * 60 * 60)
 
   @property
   def state(self):
@@ -73,6 +83,10 @@ class Pipeline(BaseModel):
     if self.emails_for_notifications:
       return self.emails_for_notifications.split()
     return []
+
+  def get_all_task_names(self):
+    return [job.get_enqueued_task_names() for job in jobs]
+
 
   def assign_attributes(self, attributes):
     for key, value in attributes.iteritems():
