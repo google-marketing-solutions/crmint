@@ -18,6 +18,12 @@ from tests import utils
 
 
 class TestJobList(utils.IBackendBaseTest):
+  def setUp(self):
+    super(TestPipelineList, self).setUp()
+    self.testbed = testbed.Testbed()
+    self.testbed.activate()
+    # Activate which service we want to stub
+    self.testbed.init_memcache_stub()
 
   def test_list_with_success(self):
     pipeline = models.Pipeline.create()
