@@ -12,14 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from google.appengine.ext import testbed
+
 from core import models
 
 from tests import utils
 
-
 class TestJobList(utils.IBackendBaseTest):
   def setUp(self):
-    super(TestPipelineList, self).setUp()
+    super(TestJobList, self).setUp()
     self.testbed = testbed.Testbed()
     self.testbed.activate()
     # Activate which service we want to stub
