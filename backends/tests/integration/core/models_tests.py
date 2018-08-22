@@ -142,7 +142,7 @@ class TestPipelineWithJobs(utils.ModelTestCase):
     job1 = models.Job.create(pipeline_id=pipeline.id)
     result = pipeline.start_single_job(job1)
     self.assertTrue(result)
-    self.assertEqual(job1.status, 'running')
+    self.assertEqual(job1.get_status(), 'running')
     self.assertEqual(pipeline.status, 'running')
 
   def test_start_single_job_fails_if_running(self):

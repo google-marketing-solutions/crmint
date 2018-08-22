@@ -29,6 +29,7 @@ parser = reqparse.RequestParser()
 parser.add_argument('job_id')
 parser.add_argument('worker_class')
 parser.add_argument('worker_params')
+parser.add_argument('task_name')
 
 
 class Task(Resource):
@@ -43,29 +44,30 @@ class Task(Resource):
     """
     retries = int(request.headers.get('X-AppEngine-TaskExecutionCount'))
     args = parser.parse_args()
+    task_name = args['task_name']
     job = Job.find(args['job_id'])
     worker_class = getattr(workers, args['worker_class'])
     worker_params = json.loads(args['worker_params'])
     worker = worker_class(worker_params, job.pipeline_id, job.id)
     if retries >= worker_class.MAX_ATTEMPTS:
       worker.log_error('Execution canceled after %i failed attempts', retries)
-      job.worker_failed()
+      job.worker_failed(task_name)
     elif job.status == 'stopping':
       worker.log_warn('Execution canceled as parent job is going to stop')
-      job.worker_failed()
+      job.worker_failed(task_name)
     else:
       try:
         workers_to_enqueue = worker.execute()
       except workers.WorkerException as e:
         worker.log_error('Execution failed: %s: %s', e.__class__.__name__, e)
-        job.worker_failed()
+        job.worker_failed(task_name)
       except Exception as e:
         worker.log_error('Unexpected error: %s: %s', e.__class__.__name__, e)
         raise e
       else:
         for worker_class_name, worker_params, delay in workers_to_enqueue:
           job.enqueue(worker_class_name, worker_params, delay)
-        job.worker_succeeded()
+        job.worker_succeeded(task_name)
     return 'OK', 200
 
 

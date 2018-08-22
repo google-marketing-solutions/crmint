@@ -49,6 +49,7 @@ AVAILABLE = (
     'StorageCleaner',
     'Commenter',
     'BQToMeasurementProtocol',
+    'WaitingWorker',
 )
 
 # Defines how many times to retry on failure, default to 5 times.
@@ -909,3 +910,13 @@ class BQToMeasurementProtocolProcessor(BQWorker, MeasurementProtocolWorker):
         page_token=page_token)
     query_first_page = next(query_iterator.pages)
     self._process_query_results(query_first_page, query_iterator.schema)
+
+
+class WaitingWorker(Worker):
+  PARAMS = [
+      ('waiting_time', 'number', True, 10, 'Waiting time of the job'),
+  ]
+
+  def _execute(self):
+    time.sleep(self._params['waiting_time'])
+

@@ -190,7 +190,7 @@ class TestJob(utils.ModelTestCase):
         succeeded_workers_count=0,
         failed_workers_count=0)
     self.assertEqual(job.status, 'idle')
-    job.worker_succeeded()
+    job.worker_succeeded('')
     self.assertEqual(job.status, 'succeeded')
 
   def test_worker_succeeded_fails_with_failed_workers(self):
@@ -198,10 +198,9 @@ class TestJob(utils.ModelTestCase):
     job = models.Job.create(
         pipeline_id=pipeline.id,
         enqueued_workers_count=2,
-        succeeded_workers_count=0,
-        failed_workers_count=1)
-    self.assertEqual(job.status, 'idle')
-    job.worker_succeeded()
+        succeeded_workers_count=0)
+    job.worker_failed('')
+    job.worker_succeeded('')
     self.assertEqual(job.status, 'failed')
 
   def test_save_relations(self):
