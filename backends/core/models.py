@@ -259,8 +259,6 @@ class Job(BaseModel):
       primaryjoin='Job.id==StartCondition.preceding_job_id',
       secondaryjoin='StartCondition.job_id==Job.id')
   enqueued_workers_count = Column(Integer, default=0)
-  succeeded_workers_count = Column(Integer, default=0) #TODO remove
-  failed_workers_count = Column(Integer, default=0) #TODO remove
 
   def __init__(self, name=None, worker_class=None, pipeline_id=None):
     self.name = name
@@ -476,8 +474,6 @@ class Job(BaseModel):
 
   def run(self):
     self.enqueued_workers_count = 0
-    self.succeeded_workers_count = 0
-    self.failed_workers_count = 0
     self._set_memcache(str(self.id) + "_status", 'running')
     worker_params = dict([(p.name, p.val) for p in self.params])
     self.enqueue(self.worker_class, worker_params)
@@ -515,10 +511,6 @@ class Job(BaseModel):
     self.save()
     return task
 
-  @property
-  def finished_workers_count(self):
-    return self.succeeded_workers_count + self.failed_workers_count
-
   def _start_dependent_jobs(self):
     if self.dependent_jobs:
       for job in self.dependent_jobs:
@@ -542,7 +534,6 @@ class Job(BaseModel):
     self._delete_task_name_memcache(task_name)
     self._decrease_value_memcache(str(self.id) + "_enqueued_tasks", 
                                   db_value = self.enqueued_workers_count)
-    self.succeeded_workers_count += 1
     if self._get_by_key_memcache(str(self.id) + "_enqueued_tasks") == 0:
       if self.get_status() != 'failed':
         self.set_succeeded_status()
@@ -556,7 +547,6 @@ class Job(BaseModel):
   def worker_failed(self, task_name):
     self._delete_task_name_memcache(task_name)
     self._decrease_value_memcache(str(self.id) + "_enqueued_tasks")
-    self.failed_workers_count += 1
     self.set_failed_status()
     if self._get_by_key_memcache(str(self.id) + "_enqueued_tasks") == 0:
       self._start_dependent_jobs()
