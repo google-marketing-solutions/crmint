@@ -184,8 +184,6 @@ class TestJob(utils.ModelTestCase):
 
   def test_worker_succeeded_succeeds(self):
     pipeline = models.Pipeline.create()
-    # import ipdb
-    # ipdb.set_trace(context=10)
     job = models.Job.create(
         pipeline_id=pipeline.id,
         enqueued_workers_count=1,
