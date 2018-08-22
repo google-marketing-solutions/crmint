@@ -29,6 +29,7 @@ parser = reqparse.RequestParser()
 parser.add_argument('job_id')
 parser.add_argument('worker_class')
 parser.add_argument('worker_params')
+parser.add_argument('task_name')
 
 
 class Task(Resource):
@@ -41,9 +42,9 @@ class Task(Resource):
         task_name = request.headers.get('X-AppEngine-TaskName')[11:]
 
     """
-    task_name = request.headers.get('X-AppEngine-TaskName')[11:]
     retries = int(request.headers.get('X-AppEngine-TaskExecutionCount'))
     args = parser.parse_args()
+    task_name = args['task_name']
     job = Job.find(args['job_id'])
     worker_class = getattr(workers, args['worker_class'])
     worker_params = json.loads(args['worker_params'])
