@@ -32,7 +32,7 @@ from sqlalchemy.orm import load_only
 from core.database import BaseModel
 from core import inline
 from core.mailers import NotificationMailer
-import ipdb
+
 MEMCACHE_DEFAULT_EXPIRATION_TIME = 24 * 60 * 60
 
 def _parse_num(s):
@@ -259,8 +259,8 @@ class Job(BaseModel):
       primaryjoin='Job.id==StartCondition.preceding_job_id',
       secondaryjoin='StartCondition.job_id==Job.id')
   enqueued_workers_count = Column(Integer, default=0)
-  succeeded_workers_count = Column(Integer, default=0)#
-  failed_workers_count = Column(Integer, default=0)#
+  succeeded_workers_count = Column(Integer, default=0) #TODO remove
+  failed_workers_count = Column(Integer, default=0) #TODO remove
 
   def __init__(self, name=None, worker_class=None, pipeline_id=None):
     self.name = name
@@ -283,10 +283,6 @@ class Job(BaseModel):
     self.delete()
 
   def get_status(self, retries = 10):
-    # import ipdb
-    # ipdb.set_trace(context=10)
-    # if self.failed_workers_count:
-    #   self.set_failed_status()
     client = memcache.Client()
     key = str(self.pipeline_id) + "_" + str(self.id) + "_" + "status"
     while retries > 0:
@@ -543,8 +539,6 @@ class Job(BaseModel):
     self.update(status='succeeded', status_changed_at=datetime.now())
 
   def worker_succeeded(self, task_name):
-    # import ipdb
-    # ipdb.set_trace(context=10)
     self._delete_task_name_memcache(task_name)
     self._decrease_value_memcache(str(self.id) + "_enqueued_tasks", 
                                   db_value = self.enqueued_workers_count)
