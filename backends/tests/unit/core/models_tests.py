@@ -186,9 +186,7 @@ class TestJob(utils.ModelTestCase):
     pipeline = models.Pipeline.create()
     job = models.Job.create(
         pipeline_id=pipeline.id,
-        enqueued_workers_count=1,
-        succeeded_workers_count=0,
-        failed_workers_count=0)
+        enqueued_workers_count=1)
     self.assertEqual(job.status, 'idle')
     job.worker_succeeded('')
     self.assertEqual(job.status, 'succeeded')
@@ -197,8 +195,7 @@ class TestJob(utils.ModelTestCase):
     pipeline = models.Pipeline.create()
     job = models.Job.create(
         pipeline_id=pipeline.id,
-        enqueued_workers_count=2,
-        succeeded_workers_count=0)
+        enqueued_workers_count=2)
     job.worker_failed('')
     job.worker_succeeded('')
     self.assertEqual(job.status, 'failed')
