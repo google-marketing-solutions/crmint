@@ -74,7 +74,7 @@ class Pipeline(BaseModel):
       CACHE_KEY_REMAINING_JOBS: len(self.jobs.all()), 
       CACHE_KEY_LIST_OF_TASKS_ENQUEUED: []
     }
-    self._add_multi_to_memcache(cached_values)
+    self._add_or_update_multi_to_cache(cached_values)
 
 
   @property
@@ -91,21 +91,39 @@ class Pipeline(BaseModel):
       return self.emails_for_notifications.split()
     return []
 
-  def _add_multi_to_memcache(self, mapping, max_retires=10, 
+  def _build_pipeline_prefix(self):
+    return '%s_' % str(self.id)
+
+  def _add_or_update_multi_to_cache(self, mapping, max_retires=10, 
     time=MEMCACHE_DEFAULT_EXPIRATION_TIME_SECONDS):
-    '''
-        Set multiple values in memcache, prefixed by the id of the pipeline
-        and having a default expiration time of 24 hours
-    '''
+    """Set multiple values in the cache.
+
+    Arguments:
+    mapping: Dictionary of key/value pairs to push into the cache.
+    max_retries: Number of times to retry setting values into the cache 
+    before raising an exception.
+    expiration_time: Integer representing the values expiration time in seconds. 
+    Defaults to 24 hours
+    """
     retries = 0
     while retries < max_retires:
-      cached_mapping = self.memcache_client.get_multi(mapping, key_prefix=str(self.id) + '_', for_cas=True)
+      cached_mapping = self.memcache_client.get_multi(mapping, 
+        key_prefix=self._build_pipeline_prefix(), for_cas=True)
       if cached_mapping is None: 
-        self.memcache_client.set_multi(mapping, key_prefix=str(self.id) + '_', time=time)
+        self.memcache_client.set_multi(mapping, key_prefix=self._build_pipeline_prefix(), time=time)
         return True
-      if self.memcache_client.cas_multi(mapping, key_prefix=str(self.id) + '_', time=time):
+      if self.memcache_client.cas_multi(mapping, key_prefix=self._build_pipeline_prefix(), time=time):
         return True
       retries += 1
+    from core.logging import logger
+    logger.log_struct({
+        'labels': {
+            'pipeline_id': self.pipeline_id,
+        },
+        'log_level': 'ERROR',
+        'message': 'Cannot add to cache mapping: %s' % (mapping),
+    })
+    return False
 
   def assign_attributes(self, attributes):
     for key, value in attributes.iteritems():
@@ -153,7 +171,7 @@ class Pipeline(BaseModel):
       CACHE_KEY_REMAINING_JOBS: len(self.jobs.all()),
       CACHE_KEY_LIST_OF_TASKS_ENQUEUED: []
     }
-    self._add_multi_to_memcache(cache_values)
+    self._add_or_update_multi_to_cache(cache_values)
 
   def start(self):
     if self.status not in ['idle', 'finished', 'failed', 'succeeded']:
@@ -278,7 +296,10 @@ class Job(BaseModel):
   @orm.reconstructor
   def init_on_load(self):
     self.memcache_client = memcache.Client()
-    
+  
+  def _build_pipeline_prefix(self):
+    return '%s_' % str(self.id)
+
   def destroy(self):
     sc_ids = [sc.id for sc in self.start_conditions]
     if sc_ids:
@@ -365,21 +386,36 @@ class Job(BaseModel):
       })
       return False
   
-  def _set_multi_memcache(self, mapping, time=MEMCACHE_DEFAULT_EXPIRATION_TIME_SECONDS, max_retries=10):
-    '''
-        Set multiple values in memcache, prefixed by the id of the pipeline
-        and having a default expiration time of 24 hours
-    '''
+  def _set_multi_cache(self, mapping, time=MEMCACHE_DEFAULT_EXPIRATION_TIME_SECONDS, max_retries=10):
+    """Set multiple values in the cache.
+    Arguments:
+    mapping: Dictionary of key/value pairs to push into the cache.
+    max_retries: Number of times to retry setting values into the cache 
+    before raising an exception.
+    expiration_time: Integer representing the values expiration time in seconds. 
+    Defaults to 24 hours
+    """
     while retries < max_retries:
       cached_mapping = self.memcache_client.gets(key)
       if cached_mapping is None: 
-        self.memcache_client.set_multi(mapping, key_prefix=str(self.pipeline_id) + '_', time=time)
+        self.memcache_client.set_multi(mapping, key_prefix=self._build_pipeline_prefix(), time=time)
         return True
-      if self.memcache_client.cas_multi(mapping, key_prefix=str(self.pipeline_id) + '_', time=time):
+      if self.memcache_client.cas_multi(mapping, key_prefix=self._build_pipeline_prefix(), time=time):
         return True
       retries += 1
+    from core.logging import logger
+    logger.log_struct({
+        'labels': {
+            'pipeline_id': self.pipeline_id,
+            'job_id': self.id,
+            'worker_class': self.worker_class,
+        },
+        'log_level': 'ERROR',
+        'message': 'Cannot add to cache mapping: %s' % (mapping),
+    })
+    return False
 
-  def _set_memcache(self, key, value, time=MEMCACHE_DEFAULT_EXPIRATION_TIME_SECONDS, max_retries=10):
+  def _set_cache(self, key, value, time=MEMCACHE_DEFAULT_EXPIRATION_TIME_SECONDS, max_retries=10):
     key = str(self.pipeline_id) + '_' + key
     retries = 0
     while retries < max_retries:
@@ -391,7 +427,7 @@ class Job(BaseModel):
         return True
       retries += 1
 
-  def _increase_value_memcache(self, key, db_value=None, 
+  def _increase_value_cache(self, key, db_value=None, 
     time=MEMCACHE_DEFAULT_EXPIRATION_TIME_SECONDS, max_retries=10):
     '''
     params:
@@ -410,7 +446,7 @@ class Job(BaseModel):
         return True
       retries += 1
 
-  def _decrease_value_memcache(self, key, db_value=None, 
+  def _decrease_value_cache(self, key, db_value=None, 
     time=MEMCACHE_DEFAULT_EXPIRATION_TIME_SECONDS, max_retries=10):
     '''
     params:
@@ -429,7 +465,7 @@ class Job(BaseModel):
         return True
       retries += 1
 
-  def _add_task_name_memcache(self, task_name, key=CACHE_KEY_LIST_OF_TASKS_ENQUEUED, 
+  def _add_task_name_cache(self, task_name, key=CACHE_KEY_LIST_OF_TASKS_ENQUEUED, 
     time=MEMCACHE_DEFAULT_EXPIRATION_TIME_SECONDS, max_retries=10):
     key = str(self.pipeline_id) + '_' + key
     retries = 0
@@ -442,7 +478,7 @@ class Job(BaseModel):
         return True
       retries += 1
 
-  def _delete_task_name_memcache(self, task_name, key=CACHE_KEY_LIST_OF_TASKS_ENQUEUED, 
+  def _delete_task_name_cache(self, task_name, key=CACHE_KEY_LIST_OF_TASKS_ENQUEUED, 
                                   time=MEMCACHE_DEFAULT_EXPIRATION_TIME_SECONDS, max_retries=10):
     key = str(self.pipeline_id) + '_' + key
     retries = 0
@@ -455,7 +491,7 @@ class Job(BaseModel):
         return True
       retries += 1
 
-  def _get_by_key_memcache(self, key):
+  def _get_by_key_cache(self, key):
     key = str(self.pipeline_id) + '_' + key
     return self.memcache_client.get(key)
 
@@ -488,7 +524,7 @@ class Job(BaseModel):
 
   def run(self):
     self.enqueued_workers_count = 0
-    self._set_memcache(str(self.id) + '_' + CACHE_KEY_STATUS, 'running')
+    self._set_cache(str(self.id) + '_' + CACHE_KEY_STATUS, 'running')
     worker_params = dict([(p.name, p.val) for p in self.params])
     self.enqueue(self.worker_class, worker_params)
 
@@ -507,7 +543,7 @@ class Job(BaseModel):
     task_name = '%s_%s_%s' % (self.pipeline.name, self.name, self.worker_class)
     escaped_task_name = re.sub(r'[^-_0-9a-zA-Z]', '-', task_name)
     unique_task_name = '%s_%s' % (escaped_task_name, str(uuid.uuid4()))
-    self._add_task_name_memcache(unique_task_name)
+    self._add_task_name_cache(unique_task_name)
     task_params = {
         'job_id': self.id,
         'worker_class': worker_class,
@@ -521,7 +557,7 @@ class Job(BaseModel):
         params=task_params,
         countdown=delay)
     self.enqueued_workers_count += 1
-    self._increase_value_memcache(str(self.id) + '_' + CACHE_KEY_ENQUEUED_TASKS)
+    self._increase_value_cache(str(self.id) + '_' + CACHE_KEY_ENQUEUED_TASKS)
     self.save()
     return task
 
@@ -532,23 +568,23 @@ class Job(BaseModel):
     self.pipeline.job_finished()
 
   def set_failed_status(self):
-    self._increase_value_memcache(CACHE_KEY_FAILED_JOBS)
-    self._decrease_value_memcache(CACHE_KEY_REMAINING_JOBS, db_value=len(self.pipeline.jobs.all()))
-    self._set_memcache(str(self.id) + '_' + CACHE_KEY_STATUS, 'failed')
+    self._increase_value_cache(CACHE_KEY_FAILED_JOBS)
+    self._decrease_value_cache(CACHE_KEY_REMAINING_JOBS, db_value=len(self.pipeline.jobs.all()))
+    self._set_cache(str(self.id) + '_' + CACHE_KEY_STATUS, 'failed')
     self.update(status='failed', status_changed_at=datetime.now())
     self.pipeline.status = 'failed'
     # TODO cancel all other jobs in the pipeline with the status 'failed'
 
   def set_succeeded_status(self):
-    self._decrease_value_memcache(CACHE_KEY_REMAINING_JOBS, db_value=len(self.pipeline.jobs.all()))
-    self._set_memcache(str(self.id) + '_' + CACHE_KEY_STATUS, 'succeeded')
+    self._decrease_value_cache(CACHE_KEY_REMAINING_JOBS, db_value=len(self.pipeline.jobs.all()))
+    self._set_cache(str(self.id) + '_' + CACHE_KEY_STATUS, 'succeeded')
     self.update(status='succeeded', status_changed_at=datetime.now())
 
   def worker_succeeded(self, task_name):
-    self._delete_task_name_memcache(task_name)
-    self._decrease_value_memcache(str(self.id) +  '_' + CACHE_KEY_ENQUEUED_TASKS, 
+    self._delete_task_name_cache(task_name)
+    self._decrease_value_cache(str(self.id) +  '_' + CACHE_KEY_ENQUEUED_TASKS, 
                                   db_value=self.enqueued_workers_count)
-    if self._get_by_key_memcache(str(self.id) +  '_' + CACHE_KEY_ENQUEUED_TASKS) == 0:
+    if self._get_by_key_cache(str(self.id) +  '_' + CACHE_KEY_ENQUEUED_TASKS) == 0:
       if self.get_status() != 'failed':
         self.set_succeeded_status()
       else:
@@ -559,10 +595,10 @@ class Job(BaseModel):
       self.save()
 
   def worker_failed(self, task_name):
-    self._delete_task_name_memcache(task_name)
-    self._decrease_value_memcache(str(self.id) +  '_' + CACHE_KEY_ENQUEUED_TASKS)
+    self._delete_task_name_cache(task_name)
+    self._decrease_value_cache(str(self.id) +  '_' + CACHE_KEY_ENQUEUED_TASKS)
     self.set_failed_status()
-    if self._get_by_key_memcache(str(self.id) +  '_' + CACHE_KEY_ENQUEUED_TASKS) == 0:
+    if self._get_by_key_cache(str(self.id) +  '_' + CACHE_KEY_ENQUEUED_TASKS) == 0:
       self._start_dependent_jobs()
     else:
       # TODO cancel other workers in the job
