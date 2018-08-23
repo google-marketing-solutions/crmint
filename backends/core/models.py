@@ -125,6 +125,7 @@ class Pipeline(BaseModel):
     })
     return False
 
+
   def assign_attributes(self, attributes):
     for key, value in attributes.iteritems():
       if key in ['schedules', 'jobs', 'params']:
