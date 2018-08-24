@@ -17,7 +17,6 @@ import json
 import re
 import uuid
 from google.appengine.api import taskqueue
-from google.appengine.api import memcache
 from simpleeval import simple_eval
 from simpleeval import InvalidExpression
 from sqlalchemy import Column
@@ -33,8 +32,7 @@ from sqlalchemy.orm import load_only
 from core.database import BaseModel
 from core import inline
 from core.mailers import NotificationMailer
-
-MEMCACHE_DEFAULT_EXPIRATION_TIME_SECONDS = 24 * 60 * 60
+import core.cache as memcache_client
 
 CACHE_KEY_ENQUEUED_TASKS = 'enqueued_tasks'
 CACHE_KEY_STATUS = 'status'
@@ -68,7 +66,6 @@ class Pipeline(BaseModel):
 
   def __init__(self, name=None):
     super(Pipeline, self).__init__()
-    self.memcache_client = memcache.Client()
     self.name = name
     self.get_ready()
 
@@ -88,38 +85,6 @@ class Pipeline(BaseModel):
 
   def _get_pipeline_prefix(self):
     return '%s_' % (str(self.id))
-
-  def _add_or_update_multi_to_cache(self, mapping, max_retires=10, 
-                                    time=MEMCACHE_DEFAULT_EXPIRATION_TIME_SECONDS):
-    """Set multiple values in the cache.
-
-    Arguments:
-    mapping: Dictionary of key/value pairs to push into the cache.
-    max_retries: Number of times to retry setting values into the cache 
-    before raising an exception.
-    expiration_time: Integer representing the values expiration time in seconds. 
-    Defaults to 24 hours
-    """
-    retries = 0
-    while retries < max_retires:
-      cached_mapping = self.memcache_client.get_multi(mapping, 
-        key_prefix=self._get_pipeline_prefix(), for_cas=True)
-      if cached_mapping is None: 
-        self.memcache_client.set_multi(mapping, key_prefix=self._get_pipeline_prefix(), time=time)
-        return True
-      if self.memcache_client.cas_multi(mapping, key_prefix=self._get_pipeline_prefix(), time=time):
-        return True
-      retries += 1
-    from core.logging import logger
-    logger.log_struct({
-        'labels': {
-            'pipeline_id': self.pipeline_id,
-        },
-        'log_level': 'ERROR',
-        'message': 'Cannot add to cache mapping: %s' % (mapping),
-    })
-    return False
-
 
   def assign_attributes(self, attributes):
     for key, value in attributes.iteritems():
@@ -167,7 +132,7 @@ class Pipeline(BaseModel):
       CACHE_KEY_REMAINING_JOBS: len(self.jobs.all()),
       CACHE_KEY_LIST_OF_TASKS_ENQUEUED: []
     }
-    self._add_or_update_multi_to_cache(cache_values)
+    memcache_client.set_multi_cache(cache_values)
 
   def start(self):
     if self.status not in ['idle', 'finished', 'failed', 'succeeded']:
@@ -285,14 +250,9 @@ class Job(BaseModel):
 
   def __init__(self, name=None, worker_class=None, pipeline_id=None):
     super(Job, self).__init__()
-    self.memcache_client = memcache.Client()
     self.name = name
     self.worker_class = worker_class
     self.pipeline_id = pipeline_id
-  
-  @orm.reconstructor
-  def init_on_load(self):
-    self.memcache_client = memcache.Client()
   
   def _get_pipeline_prefix(self):
     return '%s_' % (str(self.pipeline_id))
@@ -315,31 +275,19 @@ class Job(BaseModel):
       Param.destroy(*param_ids)
     self.delete()
 
-  def get_status(self, max_retires=10):
+  def get_status(self):
     key = '%s%s%s' % (self._get_pipeline_prefix(), self._get_job_prefix(), CACHE_KEY_STATUS)
-    retries = 0
-    while retries < max_retires:
-      status = self.memcache_client.gets(key)
-      if status is None: 
-        # The status is uninitialized in memcache, 
-        # getting it from the database and
-        # updating its value in memcache
-        if self.memcache_client.add(key, self.status,
-                                    time=MEMCACHE_DEFAULT_EXPIRATION_TIME_SECONDS):
-          return self.status
-      else:
-        return status
-      retries += 1
+    return memcache_client.get(key, default_value=self.status)
 
-  def prepare_for_start(self, max_retries=10):
+  def prepare_for_start(self):
     """
       Check the current status of the job and update for 'waiting'
     """
     status = self.get_status()
     if status not in ['idle', 'succeeded', 'failed']:
       return False
-    key = '%s%s' % (self._get_job_prefix(), CACHE_KEY_STATUS)
-    self.memcache_client.set(key, 'waiting', time=MEMCACHE_DEFAULT_EXPIRATION_TIME_SECONDS)
+    key = '%s%s%s' % (self._get_pipeline_prefix(), self._get_job_prefix(), CACHE_KEY_STATUS)
+    memcache_client.set_cache(key, 'waiting')
     return True
 
   def get_ready(self):
@@ -371,117 +319,54 @@ class Job(BaseModel):
           'message': 'Memcache error - could not update the status of the job',
       })
       return False
-  
-  def _set_multi_cache(self, mapping, time=MEMCACHE_DEFAULT_EXPIRATION_TIME_SECONDS, max_retries=10):
-    """Set multiple values in the cache.
-    Arguments:
-    mapping: Dictionary of key/value pairs to push into the cache.
-    max_retries: Number of times to retry setting values into the cache 
-    before raising an exception.
-    expiration_time: Integer representing the values expiration time in seconds. 
-    Defaults to 24 hours
-    """
-    while retries < max_retries:
-      cached_mapping = self.memcache_client.gets(key)
-      if cached_mapping is None: 
-        self.memcache_client.set_multi(mapping, key_prefix=self._bget_pipeline_prefix(), time=time)
-        return True
-      if self.memcache_client.cas_multi(mapping, key_prefix=self._get_pipeline_prefix(), time=time):
-        return True
-      retries += 1
-    from core.logging import logger
-    logger.log_struct({
-        'labels': {
-            'pipeline_id': self.pipeline_id,
-            'job_id': self.id,
-            'worker_class': self.worker_class,
-        },
-        'log_level': 'ERROR',
-        'message': 'Cannot add to cache mapping: %s' % (mapping),
-    })
-    return False
 
-  def _set_cache(self, key, value, time=MEMCACHE_DEFAULT_EXPIRATION_TIME_SECONDS, max_retries=10):
-    retries = 0
-    key = '%s%s' % (self._get_pipeline_prefix(), key)
-    while retries < max_retries:
-      cached_value = self.memcache_client.gets(key)
-      if cached_value is None: 
-        self.memcache_client.set(key, value, time=time)
-        return True
-      if self.memcache_client.cas(key, value, time=time):
-        return True
-      retries += 1
-
-  def _increase_value_cache(self, key, db_value=None, 
-                            time=MEMCACHE_DEFAULT_EXPIRATION_TIME_SECONDS, max_retries=10):
+  def _increase_value_cache(self, key, db_value=None):
     """
     params:
     db_value = default value from database in case the variable 
               has not been initialized in memcache
     """
     key = '%s%s' % (self._get_pipeline_prefix(), key)
-    retries = 0
-    while retries < max_retries:
-      cached_value = self.memcache_client.gets(key)
-      if cached_value is None:
-        db_value = db_value + 1 if db_value else 0
-        self.memcache_client.set(key, db_value, time=time)
-        return False
-      if self.memcache_client.cas(key, cached_value + 1, time=time):
-        return True
-      retries += 1
+    db_value = db_value + 1 if db_value else 1
+    def get_value_handler(cached_value):
+      if cached_value:
+        return cached_value + 1
+      else:
+        return db_value
+    memcache_client.set_cache_with_value_function(key, get_value_handler)
 
-  def _decrease_value_cache(self, key, db_value=None, 
-                              time=MEMCACHE_DEFAULT_EXPIRATION_TIME_SECONDS, max_retries=10):
+  def _decrease_value_cache(self, key, db_value=None):
     """
     params:
     db_value = default value from database in case the variable 
               has not been initialized in memcache
     """
     key = '%s%s' % (self._get_pipeline_prefix(), key)
-    retries = 0
-    while retries < max_retries:
-      cached_value = self.memcache_client.gets(key)
-      if cached_value is None: 
-        db_value = db_value - 1 if db_value else 0
-        self.memcache_client.set(key, db_value, time=time)
-        return False
-      if self.memcache_client.cas(key, cached_value - 1, time=time):
-        return True
-      retries += 1
+    db_value = db_value - 1 if db_value else 0
+    def get_value_handler(cached_value):
+      if cached_value:
+        return cached_value - 1
+      else:
+        return db_value
+    memcache_client.set_cache_with_value_function(key, get_value_handler)
 
-  def _add_task_name_cache(self, task_name, time=MEMCACHE_DEFAULT_EXPIRATION_TIME_SECONDS, 
-                                max_retries=10):
-    key = '%s_%s' % (self._get_pipeline_prefix(), CACHE_KEY_LIST_OF_TASKS_ENQUEUED)
-    retries = 0
-    while retries < max_retries:
-      cached_value = self.memcache_client.gets(key)
-      if cached_value is None: 
-        # TODO replace with a function
-        # define function in the function (closure) and return the name
-        self.memcache_client.set(key, [task_name], time = time)
-        return True
-      if self.memcache_client.cas(key, cached_value + [task_name], time = time):
-        return True
-      retries += 1
-
-  def _delete_task_name_cache(self, task_name, time=MEMCACHE_DEFAULT_EXPIRATION_TIME_SECONDS, 
-                                    max_retries=10):
+  def _add_task_name_cache(self, task_name):
     key = '%s%s' % (self._get_pipeline_prefix(), CACHE_KEY_LIST_OF_TASKS_ENQUEUED)
-    retries = 0
-    while retries < max_retries:
-      cached_value = self.memcache_client.gets(key)
-      if cached_value is None: 
-        self.memcache_client.set(key, [], time=time)
-        return True
-      if self.memcache_client.cas(key, [task for task in cached_value if task != task_name], time=time):
-        return True
-      retries += 1
+    def get_value_handler(cached_value):
+      if cached_value:
+        return cached_value + [task_name]
+      else:
+        return [task_name]
+    memcache_client.set_cache_with_value_function(key, get_value_handler)
 
-  def _get_by_key_cache(self, key):
-    key = '%s%s' % (self._get_pipeline_prefix(), key)
-    return self.memcache_client.get(key)
+  def _delete_task_name_cache(self, task_name):
+    key = '%s%s' % (self._get_pipeline_prefix(), CACHE_KEY_LIST_OF_TASKS_ENQUEUED)
+    def get_value_handler(cached_value):
+      if cached_value:
+        return [task for task in cached_value if task != task_name]
+      else:
+        return []
+    memcache_client.set_cache_with_value_function(key, get_value_handler)
 
   def start(self):
     """
@@ -512,7 +397,7 @@ class Job(BaseModel):
 
   def run(self):
     self.enqueued_workers_count = 0
-    self._set_cache('%s%s' % (self._get_job_prefix(), CACHE_KEY_STATUS), 'running')
+    memcache_client.set_cache('%s%s%s' % (self._get_pipeline_prefix(), self._get_job_prefix(), CACHE_KEY_STATUS), 'running')
     worker_params = dict([(p.name, p.val) for p in self.params])
     self.enqueue(self.worker_class, worker_params)
 
@@ -558,21 +443,21 @@ class Job(BaseModel):
   def set_failed_status(self):
     self._increase_value_cache(CACHE_KEY_FAILED_JOBS)
     self._decrease_value_cache(CACHE_KEY_REMAINING_JOBS, db_value=len(self.pipeline.jobs.all()))
-    self._set_cache(self._get_job_prefix() + CACHE_KEY_STATUS, 'failed')
+    memcache_client.set_cache('%s%s%s' % (self._get_pipeline_prefix(), self._get_job_prefix(), CACHE_KEY_STATUS), 'failed')
     self.update(status='failed', status_changed_at=datetime.now())
     self.pipeline.status = 'failed'
     # TODO cancel all other jobs in the pipeline with the status 'failed'
 
   def set_succeeded_status(self):
     self._decrease_value_cache(CACHE_KEY_REMAINING_JOBS, db_value=len(self.pipeline.jobs.all()))
-    self._set_cache('%s%s' % (self._get_job_prefix(), CACHE_KEY_STATUS), 'succeeded')
+    memcache_client.set_cache('%s%s%s' % (self._get_pipeline_prefix(), self._get_job_prefix(), CACHE_KEY_STATUS), 'succeeded')
     self.update(status='succeeded', status_changed_at=datetime.now())
 
   def worker_succeeded(self, task_name):
     self._delete_task_name_cache(task_name)
     self._decrease_value_cache('%s%s' % (self._get_job_prefix(), CACHE_KEY_ENQUEUED_TASKS), 
                                   db_value=self.enqueued_workers_count)
-    if self._get_by_key_cache('%s%s' % (self._get_job_prefix(), CACHE_KEY_ENQUEUED_TASKS)) == 0:
+    if memcache_client.get('%s%s%s' % (self._get_pipeline_prefix(), self._get_job_prefix(), CACHE_KEY_ENQUEUED_TASKS)) == 0:
       if self.get_status() != 'failed':
         self.set_succeeded_status()
       else:
@@ -586,7 +471,7 @@ class Job(BaseModel):
     self._delete_task_name_cache(task_name)
     self._decrease_value_cache('%s%s' % (self._get_job_prefix(), CACHE_KEY_ENQUEUED_TASKS))
     self.set_failed_status()
-    if self._get_by_key_cache('%s%s' % (self._get_job_prefix(), CACHE_KEY_ENQUEUED_TASKS)) == 0:
+    if memcache_client.get('%s%s%s' % (self._get_pipeline_prefix(), self._get_job_prefix(), CACHE_KEY_ENQUEUED_TASKS)) == 0:
       self._start_dependent_jobs()
     else:
       # TODO cancel other workers in the job
