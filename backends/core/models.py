@@ -90,7 +90,7 @@ class Pipeline(BaseModel):
     return '%s_' % (str(self.id))
 
   def _add_or_update_multi_to_cache(self, mapping, max_retires=10, 
-      time=MEMCACHE_DEFAULT_EXPIRATION_TIME_SECONDS):
+                                    time=MEMCACHE_DEFAULT_EXPIRATION_TIME_SECONDS):
     """Set multiple values in the cache.
 
     Arguments:
@@ -321,33 +321,32 @@ class Job(BaseModel):
     while retries < max_retires:
       status = self.memcache_client.gets(key)
       if status is None: 
-        '''The status is uninitialized in memcache, 
-          getting it from the database and
-          updating its value in memcache
-        '''
-        self.memcache_client.set(key, self.status, time=MEMCACHE_DEFAULT_EXPIRATION_TIME_SECONDS)
-        return self.status
-      if self.memcache_client.cas(key, status):
+        # The status is uninitialized in memcache, 
+        # getting it from the database and
+        # updating its value in memcache
+        if self.memcache_client.add(key, self.status,
+                                    time=MEMCACHE_DEFAULT_EXPIRATION_TIME_SECONDS):
+          return self.status
+      else:
         return status
       retries += 1
 
   def prepare_for_start(self, max_retries=10):
-    '''
+    """
       Check the current status of the job and update for 'running'
-    '''
+    """
     key = '%s_%s' % (self._get_job_prefix, CACHE_KEY_STATUS)
     retries = 0
     while retries < max_retries:
       status = self.memcache_client.gets(key)
       if status is None: 
-        '''The status is uninitialized in memcache, 
-        getting it from the database and
-        updating its value in memcache
-        '''
+        # The status is uninitialized in memcache, 
+        # getting it from the database and
+        # updating its value in memcache
         if self.status not in ['idle', 'succeeded', 'failed']:
           self.memcache_client.set(key, self.status, time=MEMCACHE_DEFAULT_EXPIRATION_TIME_SECONDS)
           return False
-        '''The job is ready to start running'''
+        # The job is ready to start running
         self.memcache_client.set(key, 'waiting', time=MEMCACHE_DEFAULT_EXPIRATION_TIME_SECONDS)
         return True
       if self.memcache_client.cas(key, status):
@@ -428,12 +427,12 @@ class Job(BaseModel):
       retries += 1
 
   def _increase_value_cache(self, key, db_value=None, 
-    time=MEMCACHE_DEFAULT_EXPIRATION_TIME_SECONDS, max_retries=10):
-    '''
+                            time=MEMCACHE_DEFAULT_EXPIRATION_TIME_SECONDS, max_retries=10):
+    """
     params:
     db_value = default value from database in case the variable 
               has not been initialized in memcache
-    '''
+    """
     key = '%s%s' % (self._get_pipeline_prefix(), key)
     retries = 0
     while retries < max_retries:
@@ -447,12 +446,12 @@ class Job(BaseModel):
       retries += 1
 
   def _decrease_value_cache(self, key, db_value=None, 
-    time=MEMCACHE_DEFAULT_EXPIRATION_TIME_SECONDS, max_retries=10):
-    '''
+                              time=MEMCACHE_DEFAULT_EXPIRATION_TIME_SECONDS, max_retries=10):
+    """
     params:
     db_value = default value from database in case the variable 
               has not been initialized in memcache
-    '''
+    """
     key = '%s%s' % (self._get_pipeline_prefix(), key)
     retries = 0
     while retries < max_retries:
@@ -465,9 +464,9 @@ class Job(BaseModel):
         return True
       retries += 1
 
-  def _add_task_name_cache(self, task_name, key=CACHE_KEY_LIST_OF_TASKS_ENQUEUED, # TODO remove key parameter
-    time=MEMCACHE_DEFAULT_EXPIRATION_TIME_SECONDS, max_retries=10):
-    key = '%s_%s' % (self._get_pipeline_prefix(), key)
+  def _add_task_name_cache(self, task_name, time=MEMCACHE_DEFAULT_EXPIRATION_TIME_SECONDS, 
+                                max_retries=10):
+    key = '%s_%s' % (self._get_pipeline_prefix(), CACHE_KEY_LIST_OF_TASKS_ENQUEUED)
     retries = 0
     while retries < max_retries:
       cached_value = self.memcache_client.gets(key)
@@ -498,9 +497,9 @@ class Job(BaseModel):
     return self.memcache_client.get(key)
 
   def start(self):
-    '''
+    """
     TODO(dulacp): refactor this method, too complex branching logic
-    '''
+    """
     if self.get_status() != 'waiting':
       return False
     for start_condition in self.start_conditions:
