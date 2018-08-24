@@ -397,7 +397,8 @@ class Job(BaseModel):
 
   def run(self):
     self.enqueued_workers_count = 0
-    memcache_client.set_cache('%s%s%s' % (self._get_pipeline_prefix(), self._get_job_prefix(), CACHE_KEY_STATUS), 'running')
+    memcache_client.set_cache('%s%s%s' % (self._get_pipeline_prefix(),
+                              self._get_job_prefix(), CACHE_KEY_STATUS), 'running')
     worker_params = dict([(p.name, p.val) for p in self.params])
     self.enqueue(self.worker_class, worker_params)
 

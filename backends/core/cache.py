@@ -21,10 +21,10 @@ def set_multi_cache(mapping, time=MEMCACHE_DEFAULT_EXPIRATION_TIME_SECONDS,
   retries = 0
   while retries < max_retries:
     cached_mapping = shared_memcache_client.get_multi(mapping, for_cas=True)
-    if cached_mapping is None: 
+    if not cached_mapping:
       shared_memcache_client.add_multi(mapping, time=time)
       return True
-    if shared_memcache_client.cas_multi(mapping, time=time):
+    elif shared_memcache_client.cas_multi(mapping, time=time):
       return True
     retries += 1
   from core.logging import logger
@@ -36,9 +36,8 @@ def set_multi_cache(mapping, time=MEMCACHE_DEFAULT_EXPIRATION_TIME_SECONDS,
 
 def set_cache(key, value, time=MEMCACHE_DEFAULT_EXPIRATION_TIME_SECONDS, 
               max_retries=MEMCACHE_DEFAULT_MAX_RETRIES):
-  def handler(val):
-    return value
-  return set_cache_with_value_function(key, handler, time=time, max_retries=max_retries)
+  mapping = { key: value }
+  return set_multi_cache(mapping, time=time, max_retries=max_retries)
 
 def set_cache_with_value_function(key, value_function, time=MEMCACHE_DEFAULT_EXPIRATION_TIME_SECONDS,
                           max_retries=10):
@@ -61,7 +60,7 @@ def set_cache_with_value_function(key, value_function, time=MEMCACHE_DEFAULT_EXP
   })
   return False
 
-def get(key, default_value=None, max_retries=10):
+def get(key, default_value=None, max_retries=MEMCACHE_DEFAULT_MAX_RETRIES):
   retries = 0
   while retries < max_retries:
     value = shared_memcache_client.gets(key)
