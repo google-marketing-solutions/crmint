@@ -22,15 +22,15 @@ def set_multi_cache(mapping, time=MEMCACHE_DEFAULT_EXPIRATION_TIME_SECONDS,
   while retries < max_retries:
     cached_mapping = shared_memcache_client.get_multi(mapping, for_cas=True)
     if not cached_mapping:
-      shared_memcache_client.add_multi(mapping, time=time)
-      return True
+      if shared_memcache_client.add_multi(mapping, time=time):
+        return True
     elif shared_memcache_client.cas_multi(mapping, time=time):
       return True
     retries += 1
   from core.logging import logger
   logger.log_struct({
-      'log_level': 'ERROR',
-      'message': 'Cannot add to cache mapping: %s' % (mapping),
+      'log_level': 'WARN',
+      'message': 'Could not add to cache mapping: %s' % (mapping),
   })
   return False
 
@@ -55,7 +55,7 @@ def set_cache_with_value_function(key, value_function, time=MEMCACHE_DEFAULT_EXP
       'labels': {
           'key': key,
       },
-      'log_level': 'ERROR',
+      'log_level': 'WARN',
       'message': 'Could not set key "%s" to cache' % (key),
   })
   return False
@@ -82,7 +82,7 @@ def get(key, default_value=None, max_retries=MEMCACHE_DEFAULT_MAX_RETRIES):
       'labels': {
           'key': key,
       },
-      'log_level': 'ERROR',
+      'log_level': 'WARN',
       'message': 'Could not get key "%s" from cache' % (key),
   })
   return False
