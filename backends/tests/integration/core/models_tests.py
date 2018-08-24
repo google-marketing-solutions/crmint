@@ -514,5 +514,5 @@ class TestJobStartWithDependentJobs(utils.ModelTestCase):
         condition='success')
     result = job2.start()
     self.assertFalse(result)
-    self.assertEqual(job2.status, 'failed')
-    self.assertEqual(job3.status, 'failed')
+    self.assertEqual(job2.get_status(), 'failed')
+    self.assertEqual(job3.get_status(), 'failed')
