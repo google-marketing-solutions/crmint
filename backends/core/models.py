@@ -333,27 +333,14 @@ class Job(BaseModel):
 
   def prepare_for_start(self, max_retries=10):
     """
-      Check the current status of the job and update for 'running'
+      Check the current status of the job and update for 'waiting'
     """
-    key = '%s_%s' % (self._get_job_prefix, CACHE_KEY_STATUS)
-    retries = 0
-    while retries < max_retries:
-      status = self.memcache_client.gets(key)
-      if status is None: 
-        # The status is uninitialized in memcache, 
-        # getting it from the database and
-        # updating its value in memcache
-        if self.status not in ['idle', 'succeeded', 'failed']:
-          self.memcache_client.set(key, self.status, time=MEMCACHE_DEFAULT_EXPIRATION_TIME_SECONDS)
-          return False
-        # The job is ready to start running
-        self.memcache_client.set(key, 'waiting', time=MEMCACHE_DEFAULT_EXPIRATION_TIME_SECONDS)
-        return True
-      if self.memcache_client.cas(key, status):
-        if status not in ['idle', 'succeeded', 'failed']:
-          return False
-        return True
-      retries += 1
+    status = self.get_status()
+    if status not in ['idle', 'succeeded', 'failed']:
+      return False
+    key = '%s%s' % (self._get_job_prefix(), CACHE_KEY_STATUS)
+    self.memcache_client.set(key, 'waiting', time=MEMCACHE_DEFAULT_EXPIRATION_TIME_SECONDS)
+    return True
 
   def get_ready(self):
     try:
