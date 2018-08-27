@@ -131,7 +131,7 @@ class Pipeline(BaseModel):
       CACHE_KEY_REMAINING_JOBS: len(self.jobs.all()),
       CACHE_KEY_LIST_OF_TASKS_ENQUEUED: []
     }
-    cache.set_multi_cache(cache_values)
+    cache.set_multi_cache(cache_values, prefix=self._get_pipeline_prefix())
 
   def start(self):
     if self.status not in ['idle', 'finished', 'failed', 'succeeded']:
@@ -257,7 +257,7 @@ class Job(BaseModel):
     return '%s_' % (str(self.pipeline_id))
 
   def _get_job_prefix(self):
-    return '%s_' % (str(self.id))
+    return '%s_%s_' % (str(self.pipeline_id), str(self.id))
 
   def destroy(self):
     sc_ids = [sc.id for sc in self.start_conditions]
@@ -275,8 +275,10 @@ class Job(BaseModel):
     self.delete()
 
   def get_status(self):
-    key = '%s%s%s' % (self._get_pipeline_prefix(), self._get_job_prefix(), CACHE_KEY_STATUS)
-    return cache.get_or_create(key, default_value=self.status)
+    return cache.get_or_create(
+        CACHE_KEY_STATUS, 
+        prefix=self._get_job_prefix(),
+        default_value=self.status)
 
   def prepare_for_start(self):
     """
@@ -285,8 +287,10 @@ class Job(BaseModel):
     status = self.get_status()
     if status not in ['idle', 'succeeded', 'failed']:
       return False
-    key = '%s%s%s' % (self._get_pipeline_prefix(), self._get_job_prefix(), CACHE_KEY_STATUS)
-    cache.set_cache(key, 'waiting')
+    cache.set_cache(
+        CACHE_KEY_STATUS,
+        'waiting',
+        prefix=self._get_job_prefix())
     return True
 
   def get_ready(self):
@@ -319,53 +323,61 @@ class Job(BaseModel):
       })
       return False
 
-  def _increase_value_cache(self, key, db_value=None):
+  def _increase_value_cache(self, key, prefix="", db_value=None):
     """
     params:
     db_value = default value from database in case the variable 
               has not been initialized in memcache
     """
-    key = '%s%s' % (self._get_pipeline_prefix(), key)
     db_value = db_value + 1 if db_value else 1
     def get_value_handler(cached_value):
       if cached_value:
         return cached_value + 1
       else:
         return db_value
-    cache.set_cache_with_value_function(key, get_value_handler)
+    cache.set_cache_with_value_function(
+        key,
+        get_value_handler,
+        prefix=prefix)
 
-  def _decrease_value_cache(self, key, db_value=None):
+  def _decrease_value_cache(self, key, prefix="", db_value=None):
     """
     params:
     db_value = default value from database in case the variable 
               has not been initialized in memcache
     """
-    key = '%s%s' % (self._get_pipeline_prefix(), key)
     db_value = db_value - 1 if db_value else 0
     def get_value_handler(cached_value):
       if cached_value:
         return cached_value - 1
       else:
         return db_value
-    cache.set_cache_with_value_function(key, get_value_handler)
+    cache.set_cache_with_value_function(
+        key,
+        get_value_handler,
+        prefix=prefix)
 
   def _add_task_name_cache(self, task_name):
-    key = '%s%s' % (self._get_pipeline_prefix(), CACHE_KEY_LIST_OF_TASKS_ENQUEUED)
     def get_value_handler(cached_value):
       if cached_value:
         return cached_value + [task_name]
       else:
         return [task_name]
-    cache.set_cache_with_value_function(key, get_value_handler)
+    cache.set_cache_with_value_function(
+        CACHE_KEY_LIST_OF_TASKS_ENQUEUED,
+        get_value_handler,
+        prefix=self._get_pipeline_prefix())
 
   def _delete_task_name_cache(self, task_name):
-    key = '%s%s' % (self._get_pipeline_prefix(), CACHE_KEY_LIST_OF_TASKS_ENQUEUED)
     def get_value_handler(cached_value):
       if cached_value:
         return [task for task in cached_value if task != task_name]
       else:
         return []
-    cache.set_cache_with_value_function(key, get_value_handler)
+    cache.set_cache_with_value_function(
+        CACHE_KEY_LIST_OF_TASKS_ENQUEUED,
+        get_value_handler,
+        prefix=self._get_pipeline_prefix())
 
   def _start_condition_is_fulfuilled(self, start_condition):
     preceding_job_status = start_condition.preceding_job.get_status()
@@ -394,8 +406,10 @@ class Job(BaseModel):
 
   def run(self):
     self.enqueued_workers_count = 0
-    cache.set_cache('%s%s%s' % (self._get_pipeline_prefix(),
-                              self._get_job_prefix(), CACHE_KEY_STATUS), 'running')
+    cache.set_cache(
+        CACHE_KEY_STATUS,
+        value='running',
+        prefix=self._get_job_prefix())
     worker_params = dict([(p.name, p.val) for p in self.params])
     self.enqueue(self.worker_class, worker_params)
 
@@ -428,7 +442,7 @@ class Job(BaseModel):
         params=task_params,
         countdown=delay)
     self.enqueued_workers_count += 1
-    self._increase_value_cache('%s%s' % (self._get_job_prefix(),CACHE_KEY_ENQUEUED_TASKS))
+    self._increase_value_cache(CACHE_KEY_ENQUEUED_TASKS, prefix=self._get_job_prefix())
     self.save()
     return task
 
@@ -439,26 +453,25 @@ class Job(BaseModel):
     self.pipeline.job_finished()
 
   def set_failed_status(self):
-    self._increase_value_cache(CACHE_KEY_FAILED_JOBS)
-    self._decrease_value_cache(CACHE_KEY_REMAINING_JOBS, db_value=len(self.pipeline.jobs.all()))
-    cache.set_cache('%s%s%s' % (self._get_pipeline_prefix(), self._get_job_prefix(), 
-      CACHE_KEY_STATUS), 'failed')
+    self._increase_value_cache(CACHE_KEY_FAILED_JOBS, prefix=self._get_pipeline_prefix())
+    self._decrease_value_cache(CACHE_KEY_REMAINING_JOBS, db_value=len(self.pipeline.jobs.all()),
+      prefix=self._get_pipeline_prefix())
+    cache.set_cache(CACHE_KEY_STATUS, 'failed', prefix=self._get_job_prefix())
     self.update(status='failed', status_changed_at=datetime.now())
     self.pipeline.status = 'failed'
     # TODO cancel all other jobs in the pipeline with the status 'failed'
 
   def set_succeeded_status(self):
-    self._decrease_value_cache(CACHE_KEY_REMAINING_JOBS, db_value=len(self.pipeline.jobs.all()))
-    cache.set_cache('%s%s%s' % (self._get_pipeline_prefix(), self._get_job_prefix(),
-      CACHE_KEY_STATUS), 'succeeded')
+    self._decrease_value_cache(CACHE_KEY_REMAINING_JOBS, db_value=len(self.pipeline.jobs.all()),
+      prefix=self._get_pipeline_prefix())
+    cache.set_cache(CACHE_KEY_STATUS, 'succeeded', prefix=self._get_job_prefix())
     self.update(status='succeeded', status_changed_at=datetime.now())
 
   def worker_succeeded(self, task_name):
     self._delete_task_name_cache(task_name)
-    self._decrease_value_cache('%s%s' % (self._get_job_prefix(), CACHE_KEY_ENQUEUED_TASKS), 
+    self._decrease_value_cache(CACHE_KEY_ENQUEUED_TASKS, prefix=self._get_job_prefix(), 
                                   db_value=self.enqueued_workers_count)
-    if cache.get_or_create('%s%s%s' % (self._get_pipeline_prefix(), self._get_job_prefix(),
-      CACHE_KEY_ENQUEUED_TASKS)) == 0:
+    if cache.get_or_create(CACHE_KEY_ENQUEUED_TASKS, prefix=self._get_job_prefix()) == 0:
       if self.get_status() != 'failed':
         self.set_succeeded_status()
       else:
@@ -470,10 +483,9 @@ class Job(BaseModel):
 
   def worker_failed(self, task_name):
     self._delete_task_name_cache(task_name)
-    self._decrease_value_cache('%s%s' % (self._get_job_prefix(), CACHE_KEY_ENQUEUED_TASKS))
+    self._decrease_value_cache(CACHE_KEY_ENQUEUED_TASKS, prefix=self._get_job_prefix())
     self.set_failed_status()
-    if cache.get_or_create('%s%s%s' % (self._get_pipeline_prefix(), self._get_job_prefix(),
-      CACHE_KEY_ENQUEUED_TASKS)) == 0:
+    if cache.get_or_create(CACHE_KEY_ENQUEUED_TASKS, prefix=self._get_job_prefix()) == 0:
       self._start_dependent_jobs()
     else:
       # TODO cancel other workers in the job

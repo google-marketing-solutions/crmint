@@ -11,7 +11,8 @@ def get_memcache_client():
 shared_memcache_client = get_memcache_client()
 
 
-def set_multi_cache(mapping, time=MEMCACHE_DEFAULT_EXPIRATION_TIME_SECONDS, 
+def set_multi_cache(mapping, prefix="",
+    time=MEMCACHE_DEFAULT_EXPIRATION_TIME_SECONDS,
     max_retries=MEMCACHE_DEFAULT_MAX_RETRIES):
   """Set multiple values in the cache.
 
@@ -24,11 +25,11 @@ def set_multi_cache(mapping, time=MEMCACHE_DEFAULT_EXPIRATION_TIME_SECONDS,
   """
   retries = 0
   while retries < max_retries:
-    cached_mapping = shared_memcache_client.get_multi(mapping, for_cas=True)
+    cached_mapping = shared_memcache_client.get_multi(mapping, key_prefix=prefix, for_cas=True)
     if not cached_mapping:
-      if shared_memcache_client.add_multi(mapping, time=time):
+      if shared_memcache_client.add_multi(mapping, key_prefix=prefix, time=time):
         return True
-    elif shared_memcache_client.cas_multi(mapping, time=time):
+    elif shared_memcache_client.cas_multi(mapping, key_prefix=prefix, time=time):
       return True
     retries += 1
   from core.logging import logger
@@ -39,14 +40,15 @@ def set_multi_cache(mapping, time=MEMCACHE_DEFAULT_EXPIRATION_TIME_SECONDS,
   return False
 
 
-def set_cache(key, value, time=MEMCACHE_DEFAULT_EXPIRATION_TIME_SECONDS, 
-              max_retries=MEMCACHE_DEFAULT_MAX_RETRIES):
+def set_cache(key, value, prefix="", time=MEMCACHE_DEFAULT_EXPIRATION_TIME_SECONDS,
+    max_retries=MEMCACHE_DEFAULT_MAX_RETRIES):
   mapping = { key: value }
-  return set_multi_cache(mapping, time=time, max_retries=max_retries)
+  return set_multi_cache(mapping, prefix=prefix, time=time, max_retries=max_retries)
 
 
-def set_cache_with_value_function(key, value_function, time=MEMCACHE_DEFAULT_EXPIRATION_TIME_SECONDS,
-                          max_retries=10):
+def set_cache_with_value_function(key, value_function, prefix="",
+    time=MEMCACHE_DEFAULT_EXPIRATION_TIME_SECONDS, max_retries=10):
+  key = '%s%s' % (prefix, key)
   retries = 0
   while retries < max_retries:
     cached_value = shared_memcache_client.gets(key)
@@ -67,7 +69,8 @@ def set_cache_with_value_function(key, value_function, time=MEMCACHE_DEFAULT_EXP
   return False
 
 
-def get_or_create(key, default_value=None, max_retries=MEMCACHE_DEFAULT_MAX_RETRIES):
+def get_or_create(key, default_value=None, prefix="", max_retries=MEMCACHE_DEFAULT_MAX_RETRIES):
+  key = '%s%s' % (prefix, key)
   retries = 0
   while retries < max_retries:
     value = shared_memcache_client.gets(key)
