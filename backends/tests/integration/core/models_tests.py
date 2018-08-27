@@ -180,6 +180,17 @@ class TestPipelineWithJobs(utils.ModelTestCase):
 
 
 class TestPipelineDestroy(utils.ModelTestCase):
+  
+  def setUp(self):
+    super(TestPipelineDestroy, self).setUp()
+    self.testbed = testbed.Testbed()
+    self.testbed.activate()
+    # Activate which service we want to stub
+    self.testbed.init_memcache_stub()
+
+  def tearDown(self):
+    super(TestPipelineDestroy, self).tearDown()
+    self.testbed.deactivate()
 
   def test_destroy_succeeds(self):
     pipeline = models.Pipeline.create()
@@ -213,6 +224,19 @@ class TestPipelineDestroy(utils.ModelTestCase):
 
 class TestPipelineImport(utils.ModelTestCase):
 
+  def setUp(self):
+    super(TestPipelineImport, self).setUp()
+    self.testbed = testbed.Testbed()
+    self.testbed.activate()
+    # Activate which service we want to stub
+    self.testbed.init_taskqueue_stub()
+    self.testbed.init_memcache_stub()
+    self.testbed.init_app_identity_stub()
+
+  def tearDown(self):
+    super(TestPipelineImport, self).tearDown()
+    self.testbed.deactivate()
+
   def test_import_data_succeeds(self):
     pipeline = models.Pipeline.create()
     job1 = models.Job.create()
@@ -243,6 +267,17 @@ class TestPipelineImport(utils.ModelTestCase):
 
 
 class TestJobDestroy(utils.ModelTestCase):
+  
+  def setUp(self):
+    super(TestJobDestroy, self).setUp()
+    self.testbed = testbed.Testbed()
+    self.testbed.activate()
+    # Activate which service we want to stub
+    self.testbed.init_memcache_stub()
+
+  def tearDown(self):
+    super(TestJobDestroy, self).tearDown()
+    self.testbed.deactivate()
 
   def test_destroy_succeeds(self):
     job = models.Job.create()
@@ -281,6 +316,17 @@ class TestJobDestroy(utils.ModelTestCase):
 
 
 class TestStartConditionWithJobs(utils.ModelTestCase):
+
+  def setUp(self):
+    super(TestStartConditionWithJobs, self).setUp()
+    self.testbed = testbed.Testbed()
+    self.testbed.activate()
+    # Activate which service we want to stub
+    self.testbed.init_memcache_stub()
+
+  def tearDown(self):
+    super(TestStartConditionWithJobs, self).tearDown()
+    self.testbed.deactivate()
 
   def test_value_succeeds(self):
     pipeline = models.Pipeline.create()
@@ -443,6 +489,17 @@ class TestJobStartConditions(utils.ModelTestCase):
 
 
 class TestJobStopConditions(utils.ModelTestCase):
+  
+  def setUp(self):
+    super(TestJobStopConditions, self).setUp()
+    self.testbed = testbed.Testbed()
+    self.testbed.activate()
+    # Activate which service we want to stub
+    self.testbed.init_memcache_stub()
+
+  def tearDown(self):
+    super(TestJobStopConditions, self).tearDown()
+    self.testbed.deactivate()
 
   def test_stop_fails_with_idle(self):
     pipeline = models.Pipeline.create()
