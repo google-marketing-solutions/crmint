@@ -252,7 +252,8 @@ class Job(BaseModel):
     self.name = name
     self.worker_class = worker_class
     self.pipeline_id = pipeline_id
-  
+    self.get_ready()
+
   def _get_pipeline_prefix(self):
     return '%s_' % (str(self.pipeline_id))
 
@@ -309,19 +310,21 @@ class Job(BaseModel):
           'message': 'Bad job param "%s": %s' % (param.label, e),
       })
       return False
-    if self.prepare_for_start():  
+
+    if self.prepare_for_start():
       return True
-    else:
-      logger.log_struct({
-          'labels': {
-              'pipeline_id': self.pipeline_id,
-              'job_id': self.id,
-              'worker_class': self.worker_class,
-          },
-          'log_level': 'ERROR',
-          'message': 'Memcache error - could not update the status of the job',
-      })
-      return False
+
+    from core.logging import logger
+    logger.log_struct({
+        'labels': {
+            'pipeline_id': self.pipeline_id,
+            'job_id': self.id,
+            'worker_class': self.worker_class,
+        },
+        'log_level': 'ERROR',
+        'message': 'Could not prepare the job for start',
+    })
+    return False
 
   def _increase_value_cache(self, key, prefix="", db_value=None):
     """

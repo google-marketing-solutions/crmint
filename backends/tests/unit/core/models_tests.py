@@ -197,7 +197,6 @@ class TestJob(utils.ModelTestCase):
         pipeline_id=pipeline.id,
         enqueued_workers_count=2)
     job.worker_failed('')
-    job.worker_succeeded('')
     self.assertEqual(job.status, 'failed')
 
   def test_save_relations(self):
