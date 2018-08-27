@@ -26,13 +26,12 @@ from sqlalchemy import DateTime
 from sqlalchemy import Text
 from sqlalchemy import Boolean
 from sqlalchemy import ForeignKey
-from sqlalchemy import orm
 from sqlalchemy.orm import relationship
 from sqlalchemy.orm import load_only
 from core.database import BaseModel
 from core import inline
 from core.mailers import NotificationMailer
-import core.cache as memcache_client
+from core import cache
 
 CACHE_KEY_ENQUEUED_TASKS = 'enqueued_tasks'
 CACHE_KEY_STATUS = 'status'
@@ -132,7 +131,7 @@ class Pipeline(BaseModel):
       CACHE_KEY_REMAINING_JOBS: len(self.jobs.all()),
       CACHE_KEY_LIST_OF_TASKS_ENQUEUED: []
     }
-    memcache_client.set_multi_cache(cache_values)
+    cache.set_multi_cache(cache_values)
 
   def start(self):
     if self.status not in ['idle', 'finished', 'failed', 'succeeded']:
@@ -277,7 +276,7 @@ class Job(BaseModel):
 
   def get_status(self):
     key = '%s%s%s' % (self._get_pipeline_prefix(), self._get_job_prefix(), CACHE_KEY_STATUS)
-    return memcache_client.get_or_create(key, default_value=self.status)
+    return cache.get_or_create(key, default_value=self.status)
 
   def prepare_for_start(self):
     """
@@ -287,7 +286,7 @@ class Job(BaseModel):
     if status not in ['idle', 'succeeded', 'failed']:
       return False
     key = '%s%s%s' % (self._get_pipeline_prefix(), self._get_job_prefix(), CACHE_KEY_STATUS)
-    memcache_client.set_cache(key, 'waiting')
+    cache.set_cache(key, 'waiting')
     return True
 
   def get_ready(self):
@@ -333,7 +332,7 @@ class Job(BaseModel):
         return cached_value + 1
       else:
         return db_value
-    memcache_client.set_cache_with_value_function(key, get_value_handler)
+    cache.set_cache_with_value_function(key, get_value_handler)
 
   def _decrease_value_cache(self, key, db_value=None):
     """
@@ -348,7 +347,7 @@ class Job(BaseModel):
         return cached_value - 1
       else:
         return db_value
-    memcache_client.set_cache_with_value_function(key, get_value_handler)
+    cache.set_cache_with_value_function(key, get_value_handler)
 
   def _add_task_name_cache(self, task_name):
     key = '%s%s' % (self._get_pipeline_prefix(), CACHE_KEY_LIST_OF_TASKS_ENQUEUED)
@@ -357,7 +356,7 @@ class Job(BaseModel):
         return cached_value + [task_name]
       else:
         return [task_name]
-    memcache_client.set_cache_with_value_function(key, get_value_handler)
+    cache.set_cache_with_value_function(key, get_value_handler)
 
   def _delete_task_name_cache(self, task_name):
     key = '%s%s' % (self._get_pipeline_prefix(), CACHE_KEY_LIST_OF_TASKS_ENQUEUED)
@@ -366,7 +365,7 @@ class Job(BaseModel):
         return [task for task in cached_value if task != task_name]
       else:
         return []
-    memcache_client.set_cache_with_value_function(key, get_value_handler)
+    cache.set_cache_with_value_function(key, get_value_handler)
 
   def _start_condition_is_fulfuilled(self, start_condition):
     preceding_job_status = start_condition.preceding_job.get_status()
@@ -395,7 +394,7 @@ class Job(BaseModel):
 
   def run(self):
     self.enqueued_workers_count = 0
-    memcache_client.set_cache('%s%s%s' % (self._get_pipeline_prefix(),
+    cache.set_cache('%s%s%s' % (self._get_pipeline_prefix(),
                               self._get_job_prefix(), CACHE_KEY_STATUS), 'running')
     worker_params = dict([(p.name, p.val) for p in self.params])
     self.enqueue(self.worker_class, worker_params)
@@ -442,7 +441,7 @@ class Job(BaseModel):
   def set_failed_status(self):
     self._increase_value_cache(CACHE_KEY_FAILED_JOBS)
     self._decrease_value_cache(CACHE_KEY_REMAINING_JOBS, db_value=len(self.pipeline.jobs.all()))
-    memcache_client.set_cache('%s%s%s' % (self._get_pipeline_prefix(), self._get_job_prefix(), 
+    cache.set_cache('%s%s%s' % (self._get_pipeline_prefix(), self._get_job_prefix(), 
       CACHE_KEY_STATUS), 'failed')
     self.update(status='failed', status_changed_at=datetime.now())
     self.pipeline.status = 'failed'
@@ -450,7 +449,7 @@ class Job(BaseModel):
 
   def set_succeeded_status(self):
     self._decrease_value_cache(CACHE_KEY_REMAINING_JOBS, db_value=len(self.pipeline.jobs.all()))
-    memcache_client.set_cache('%s%s%s' % (self._get_pipeline_prefix(), self._get_job_prefix(),
+    cache.set_cache('%s%s%s' % (self._get_pipeline_prefix(), self._get_job_prefix(),
       CACHE_KEY_STATUS), 'succeeded')
     self.update(status='succeeded', status_changed_at=datetime.now())
 
@@ -458,7 +457,7 @@ class Job(BaseModel):
     self._delete_task_name_cache(task_name)
     self._decrease_value_cache('%s%s' % (self._get_job_prefix(), CACHE_KEY_ENQUEUED_TASKS), 
                                   db_value=self.enqueued_workers_count)
-    if memcache_client.get_or_create('%s%s%s' % (self._get_pipeline_prefix(), self._get_job_prefix(),
+    if cache.get_or_create('%s%s%s' % (self._get_pipeline_prefix(), self._get_job_prefix(),
       CACHE_KEY_ENQUEUED_TASKS)) == 0:
       if self.get_status() != 'failed':
         self.set_succeeded_status()
@@ -473,7 +472,7 @@ class Job(BaseModel):
     self._delete_task_name_cache(task_name)
     self._decrease_value_cache('%s%s' % (self._get_job_prefix(), CACHE_KEY_ENQUEUED_TASKS))
     self.set_failed_status()
-    if memcache_client.get_or_create('%s%s%s' % (self._get_pipeline_prefix(), self._get_job_prefix(),
+    if cache.get_or_create('%s%s%s' % (self._get_pipeline_prefix(), self._get_job_prefix(),
       CACHE_KEY_ENQUEUED_TASKS)) == 0:
       self._start_dependent_jobs()
     else:
