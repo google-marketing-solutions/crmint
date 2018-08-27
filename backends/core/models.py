@@ -368,30 +368,28 @@ class Job(BaseModel):
         return []
     memcache_client.set_cache_with_value_function(key, get_value_handler)
 
+  def _start_condition_is_fulfuilled(self, start_condition):
+    preceding_job_status = start_condition.preceding_job.get_status()
+    if start_condition.condition == 'success':
+      if preceding_job_status == 'failed':
+        return False
+    elif start_condition.condition == 'fail':
+      if preceding_job_status == 'succeeded':
+        return False
+    return True
+
   def start(self):
-    """
-    TODO(dulacp): refactor this method, too complex branching logic
-    """
     if self.get_status() != 'waiting':
       return False
     for start_condition in self.start_conditions:
-      if start_condition.condition == 'success':
-        if start_condition.preceding_job.get_status() != 'succeeded':
-          if start_condition.preceding_job.get_status() == 'failed':
-            self.set_failed_status()
-            # TODO replace method with cancelling tasks method
-            self._start_dependent_jobs()
-          return False
-      elif start_condition.condition == 'fail':
-        if start_condition.preceding_job.get_status() != 'failed':
-          if start_condition.preceding_job.get_status() == 'succeeded':
-            self.set_failed_status()
-            # TODO replace method with cancelling tasks method
-            self._start_dependent_jobs()
-          return False
-      elif start_condition.condition == 'whatever':
+      if self._start_condition_is_fulfuilled(start_condition):
         if start_condition.preceding_job.get_status() not in ['succeeded', 'failed']:
           return False
+      else:
+        self.set_failed_status()
+        # TODO replace method with cancelling tasks method
+        self._start_dependent_jobs()
+        return False
     self.run()
     return True
 
