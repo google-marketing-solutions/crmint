@@ -28,6 +28,7 @@ class TestNotificationMailer(utils.ModelTestCase):
     self.testbed.activate()
     # Activate which service we want to stub
     self.testbed.init_mail_stub()
+    self.testbed.init_memcache_stub()
     self.mailer = mailers.NotificationMailer()
     self.mail_stub = self.testbed.get_stub(testbed.MAIL_SERVICE_NAME)
 
