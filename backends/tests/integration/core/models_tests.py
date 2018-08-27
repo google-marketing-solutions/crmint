@@ -187,6 +187,7 @@ class TestPipelineDestroy(utils.ModelTestCase):
     self.testbed.activate()
     # Activate which service we want to stub
     self.testbed.init_memcache_stub()
+    self.testbed.init_app_identity_stub()
 
   def tearDown(self):
     super(TestPipelineDestroy, self).tearDown()
@@ -274,6 +275,7 @@ class TestJobDestroy(utils.ModelTestCase):
     self.testbed.activate()
     # Activate which service we want to stub
     self.testbed.init_memcache_stub()
+    self.testbed.init_app_identity_stub()
 
   def tearDown(self):
     super(TestJobDestroy, self).tearDown()
@@ -323,7 +325,8 @@ class TestStartConditionWithJobs(utils.ModelTestCase):
     self.testbed.activate()
     # Activate which service we want to stub
     self.testbed.init_memcache_stub()
-
+    self.testbed.init_app_identity_stub()
+    
   def tearDown(self):
     super(TestStartConditionWithJobs, self).tearDown()
     self.testbed.deactivate()
@@ -496,6 +499,7 @@ class TestJobStopConditions(utils.ModelTestCase):
     self.testbed.activate()
     # Activate which service we want to stub
     self.testbed.init_memcache_stub()
+    self.testbed.init_app_identity_stub()
 
   def tearDown(self):
     super(TestJobStopConditions, self).tearDown()
