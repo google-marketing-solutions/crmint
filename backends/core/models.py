@@ -197,7 +197,7 @@ class Pipeline(BaseModel):
     jobs = jobs.options(load_only('status')).all()
     status = Pipeline.STATUS.SUCCEEDED
     for job in jobs:
-      if job.get_status() == 'failed':
+      if job.get_status() == Job.STATUS.FAILED:
         status = Pipeline.STATUS.FAILED
         break
     self.update(status=status, status_changed_at=datetime.now())
@@ -265,6 +265,8 @@ class Job(BaseModel):
     FAILED = 'failed'
     SUCCEEDED = 'succeeded'
     RUNNING = 'running'
+    WAITING = 'waiting'
+    STOPPING = 'stopping'
 
   def __init__(self, name=None, worker_class=None, pipeline_id=None):
     super(Job, self).__init__()
@@ -295,7 +297,7 @@ class Job(BaseModel):
     return cache.get_memcache_client().get(key) or self.status
 
   def get_ready(self):
-    if self.status not in ['idle', 'succeeded', 'failed']:
+    if self.status not in [Job.STATUS.IDLE, Job.STATUS.SUCCEEDED, Job.STATUS.FAILED]:
       return False
 
     try:
@@ -314,12 +316,13 @@ class Job(BaseModel):
       })
       return False
 
-    self.update(status='waiting', status_changed_at=datetime.now())
+    self.update(status=Job.STATUS.WAITING, status_changed_at=datetime.now())
     mapping = {
       self._get_prefixed_cache_key(CACHE_KEY_STATUS): self.status,
       self._get_prefixed_cache_key(CACHE_KEY_LIST_OF_TASKS_ENQUEUED): []
     }
-    cache.get_memcache_client().set_multi(mapping, time=cache.MEMCACHE_DEFAULT_EXPIRATION_TIME_SECONDS)
+    cache.get_memcache_client().set_multi(mapping,
+        time=cache.MEMCACHE_DEFAULT_EXPIRATION_TIME_SECONDS)
     return True
 
   def _add_task_name_cache(self, task_name, max_retries=cache.MEMCACHE_DEFAULT_MAX_RETRIES):
@@ -328,7 +331,8 @@ class Job(BaseModel):
     while retries < max_retries:
       curr_task_names = cache.get_memcache_client().get(key, for_cas=True)
       curr_task_names.append(task_name)
-      if cache.get_memcache_client().cas(key, curr_task_names, time=cache.MEMCACHE_DEFAULT_EXPIRATION_TIME_SECONDS):
+      if cache.get_memcache_client().cas(key, curr_task_names,
+          time=cache.MEMCACHE_DEFAULT_EXPIRATION_TIME_SECONDS):
         return True
       else:
         retries += 1
@@ -343,7 +347,8 @@ class Job(BaseModel):
     while retries < max_retries:
       curr_task_names = cache.get_memcache_client().get(key, for_cas=True)
       curr_task_names.remove(task_name)
-      if cache.get_memcache_client().cas(key, curr_task_names, time=cache.MEMCACHE_DEFAULT_EXPIRATION_TIME_SECONDS):
+      if cache.get_memcache_client().cas(key, curr_task_names,
+          time=cache.MEMCACHE_DEFAULT_EXPIRATION_TIME_SECONDS):
         return len(curr_task_names)
       else:
         retries += 1
@@ -356,10 +361,10 @@ class Job(BaseModel):
   def _start_condition_is_fulfilled(self, start_condition):
     preceding_job_status = start_condition.preceding_job.get_status()
     if start_condition.condition == 'success':
-      if preceding_job_status == 'failed':
+      if preceding_job_status == Job.STATUS.FAILED:
         return False
     elif start_condition.condition == 'fail':
-      if preceding_job_status == 'succeeded':
+      if preceding_job_status == Job.STATUS.SUCCEEDED:
         return False
     return True
 
@@ -370,7 +375,9 @@ class Job(BaseModel):
     # Validates that preceding jobs fulfill the starting conditions.
     for start_condition in self.start_conditions:
       if self._start_condition_is_fulfilled(start_condition):
-        if start_condition.preceding_job.get_status() not in ['succeeded', 'failed']:
+        if start_condition.preceding_job.get_status() not in [
+            Job.STATUS.SUCCEEDED,
+            Job.STATUS.FAILED]:
           return None
       else:
         self.set_failed_status()
@@ -383,9 +390,10 @@ class Job(BaseModel):
     key = self._get_prefixed_cache_key(CACHE_KEY_STATUS)
     while retries < max_retries:
       curr_status = cache.get_memcache_client().get(key, for_cas=True)
-      if curr_status != 'waiting':
+      if curr_status != Job.STATUS.WAITING:
         return None
-      elif cache.get_memcache_client().cas(key, 'running', time=cache.MEMCACHE_DEFAULT_EXPIRATION_TIME_SECONDS):
+      elif cache.get_memcache_client().cas(key, Job.STATUS.RUNNING,
+          time=cache.MEMCACHE_DEFAULT_EXPIRATION_TIME_SECONDS):
         return self.run()
       else:
         retries += 1
@@ -411,20 +419,20 @@ class Job(BaseModel):
 
   def stop(self):
     # TODO cancel all running tasks in a concurrently safe manner.
-    if self.get_status() == 'waiting':
+    if self.get_status() == Job.STATUS.WAITING:
       key = self._get_prefixed_cache_key(CACHE_KEY_STATUS)
-      cache.get_memcache_client().set(key, 'failed')
-      self.update(status='failed', status_changed_at=datetime.now())
+      cache.get_memcache_client().set(key, Job.STATUS.FAILED)
+      self.update(status=Job.STATUS.FAILED, status_changed_at=datetime.now())
       return True
-    elif self.get_status() == 'running':
+    elif self.get_status() == Job.STATUS.RUNNING:
       key = self._get_prefixed_cache_key(CACHE_KEY_STATUS)
-      cache.get_memcache_client().set(key, 'stopping')
-      self.update(status='stopping', status_changed_at=datetime.now())
+      cache.get_memcache_client().set(key, Job.STATUS.STOPPING)
+      self.update(status=Job.STATUS.STOPPING, status_changed_at=datetime.now())
       return True
     return False
 
   def enqueue(self, worker_class, worker_params, delay=0):
-    if self.get_status() != 'running':
+    if self.get_status() != Job.STATUS.RUNNING:
       return None
 
     # Add a new task to the queue.
@@ -461,14 +469,14 @@ class Job(BaseModel):
 
   def set_failed_status(self):
     key = self._get_prefixed_cache_key(CACHE_KEY_STATUS)
-    cache.get_memcache_client().set(key, 'failed')
-    self.update(status='failed', status_changed_at=datetime.now())
-    self.pipeline.status = 'failed'
+    cache.get_memcache_client().set(key, Job.STATUS.FAILED)
+    self.update(status=Job.STATUS.FAILED, status_changed_at=datetime.now())
+    self.pipeline.status = Pipeline.STATUS.FAILED
 
   def set_succeeded_status(self):
     key = self._get_prefixed_cache_key(CACHE_KEY_STATUS)
-    cache.get_memcache_client().set(key, 'succeeded')
-    self.update(status='succeeded', status_changed_at=datetime.now())
+    cache.get_memcache_client().set(key, Job.STATUS.SUCCEEDED)
+    self.update(status=Job.STATUS.SUCCEEDED, status_changed_at=datetime.now())
 
   def _task_completed(self, task_name):
     """Completes task execution.
@@ -487,7 +495,7 @@ class Job(BaseModel):
     # NB: `was_last_task` acts as a concurrent lock, only one task can
     #     validate this condition.
     if was_last_task:
-      if self.get_status() != 'failed':  # TODO is this check useful now?!
+      if self.get_status() != Job.STATUS.FAILED:  # TODO is this check useful now?!
         self.set_succeeded_status()
       else:
         self.set_failed_status()
