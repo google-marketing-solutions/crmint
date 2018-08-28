@@ -670,6 +670,7 @@ class StartCondition(BaseModel):
   class CONDITION:
     SUCCESS = 'success'
     FAIL = 'fail'
+    WHATEVER = 'whatever'
 
   def __init__(self, job_id=None, preceding_job_id=None, condition=None):
     self.job_id = job_id

@@ -114,15 +114,15 @@ class TestPipeline(utils.ModelTestCase):
     self.assertTrue(pipeline.is_blocked())
 
   def test_is_blocked_if_running(self):
-    pipeline = models.Pipeline.create(status='running')
+    pipeline = models.Pipeline.create(status=models.Pipeline.STATUS.RUNNING)
     self.assertTrue(pipeline.is_blocked())
 
   def test_is_not_blocked_if_finished(self):
-    pipeline = models.Pipeline.create(status='succeeded')
+    pipeline = models.Pipeline.create(status=models.Pipeline.STATUS.SUCCEEDED)
     self.assertFalse(pipeline.is_blocked())
 
   def test_is_not_blocked_if_finished(self):
-    pipeline = models.Pipeline.create(status='failed')
+    pipeline = models.Pipeline.create(status=models.Pipeline.STATUS.FAILED)
     self.assertFalse(pipeline.is_blocked())
 
 
@@ -187,13 +187,13 @@ class TestJob(utils.ModelTestCase):
     job = models.Job.create(
         pipeline_id=pipeline.id,
         enqueued_workers_count=1)
-    self.assertEqual(job.get_status(), 'idle')
+    self.assertEqual(job.get_status(), models.Job.STATUS.IDLE)
     self.assertTrue(job.get_ready())
-    self.assertEqual(job.get_status(), 'waiting')
+    self.assertEqual(job.get_status(), models.Job.STATUS.WAITING)
     task = job.start()
-    self.assertEqual(job.get_status(), 'running')
+    self.assertEqual(job.get_status(), models.Job.STATUS.RUNNING)
     job.set_succeeded_status()
-    self.assertEqual(job.get_status(), 'succeeded')
+    self.assertEqual(job.get_status(), models.Job.STATUS.SUCCEEDED)
 
   def test_worker_succeeded_fails_with_failed_workers(self):
     pipeline = models.Pipeline.create()
@@ -201,19 +201,21 @@ class TestJob(utils.ModelTestCase):
         pipeline_id=pipeline.id,
         enqueued_workers_count=2)
     self.assertTrue(job.get_ready())
-    self.assertEqual(job.get_status(), 'waiting')
+    self.assertEqual(job.get_status(), models.Job.STATUS.WAITING)
     task = job.start()
-    self.assertEqual(job.get_status(), 'running')
+    self.assertEqual(job.get_status(), models.Job.STATUS.RUNNING)
     job.set_failed_status()
-    self.assertEqual(job.get_status(), 'failed')
-    self.assertEqual(job.status, 'failed')
+    self.assertEqual(job.get_status(), models.Job.STATUS.FAILED)
+    self.assertEqual(job.get_status(), models.Job.STATUS.FAILED)
 
   def test_save_relations(self):
     pipeline = models.Pipeline.create()
     job0 = models.Job.create(pipeline_id=pipeline.id)
     job1 = models.Job.create(pipeline_id=pipeline.id)
-    start_conditions = [
-        {'id': None, 'preceding_job_id': job0.id, 'condition': 'success'}
+    start_conditions = [{
+        'id': None,
+        'preceding_job_id': job0.id,
+        'condition': models.StartCondition.CONDITION.SUCCESS}
     ]
     params = [
         {'id': None, 'name': 'desc', 'type': 'text', 'value': 'Hello world!'}
