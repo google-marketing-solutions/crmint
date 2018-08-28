@@ -26,7 +26,7 @@ def set_multi_cache(mapping, prefix="",
 
   Arguments:
       mapping: Dictionary of key/value pairs to push into the cache.
-      max_retries: Number of times to retry setting values into the cache 
+      max_retries: Number of times to retry setting values into the cache
           before raising an exception.
       expiration_time: Integer representing the values expiration time in seconds.
           Defaults to 24 hours
@@ -48,19 +48,27 @@ def set_multi_cache(mapping, prefix="",
   return False
 
 
-def set_cache(key, value, prefix="", time=MEMCACHE_DEFAULT_EXPIRATION_TIME_SECONDS,
+def set_cache(key, value, prefix="",
+    time=MEMCACHE_DEFAULT_EXPIRATION_TIME_SECONDS,
     max_retries=MEMCACHE_DEFAULT_MAX_RETRIES):
-  mapping = { key: value }
-  return set_multi_cache(mapping, prefix=prefix, time=time, max_retries=max_retries)
+  def value_function(*args):
+    return value
+  return set_cache_with_value_function(
+      key,
+      value_function,
+      prefix=prefix,
+      time=time,
+      max_retries=max_retries)
 
 
 def set_cache_with_value_function(key, value_function, prefix="",
-    time=MEMCACHE_DEFAULT_EXPIRATION_TIME_SECONDS, max_retries=10):
+    time=MEMCACHE_DEFAULT_EXPIRATION_TIME_SECONDS,
+    max_retries=MEMCACHE_DEFAULT_MAX_RETRIES):
   key = '%s%s' % (prefix, key)
   retries = 0
   while retries < max_retries:
     cached_value = get_memcache_client().gets(key)
-    if cached_value is None: 
+    if cached_value is None:
       if get_memcache_client().add(key, value_function(cached_value), time=time):
         return True
     elif get_memcache_client().cas(key, value_function(cached_value), time=time):
@@ -85,7 +93,7 @@ def get_or_create(key, default_value=None, prefix="", max_retries=MEMCACHE_DEFAU
     if value is None:
       if default_value:
         # If the key is not initialized in memcache
-        # and there is a default_value, 
+        # and there is a default_value,
         # then the cache gets updated with the default_value.
         if get_memcache_client().add(key, default_value,
                                     time=MEMCACHE_DEFAULT_EXPIRATION_TIME_SECONDS):
