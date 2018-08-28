@@ -362,7 +362,7 @@ class Job(BaseModel):
     while retries < max_retries:
       curr_status = cache.get_memcache_client().get(key, for_cas=True)
       if curr_status != 'waiting':
-        return False
+        return None
       elif cache.get_memcache_client().cas(key, 'running', time=cache.MEMCACHE_DEFAULT_EXPIRATION_TIME_SECONDS):
         return self.run()
       else:
