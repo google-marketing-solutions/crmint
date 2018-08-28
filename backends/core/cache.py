@@ -27,9 +27,9 @@ def set_multi_cache(mapping, prefix="",
   while retries < max_retries:
     cached_mapping = shared_memcache_client.get_multi(mapping, key_prefix=prefix, for_cas=True)
     if not cached_mapping:
-      if shared_memcache_client.add_multi(mapping, key_prefix=prefix, time=time):
+      if not shared_memcache_client.add_multi(mapping, key_prefix=prefix, time=time):
         return True
-    elif shared_memcache_client.cas_multi(mapping, key_prefix=prefix, time=time):
+    elif not shared_memcache_client.cas_multi(mapping, key_prefix=prefix, time=time):
       return True
     retries += 1
   from core.logging import logger
