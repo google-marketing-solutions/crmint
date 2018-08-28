@@ -360,10 +360,10 @@ class Job(BaseModel):
 
   def _start_condition_is_fulfilled(self, start_condition):
     preceding_job_status = start_condition.preceding_job.get_status()
-    if start_condition.condition == 'success':
+    if start_condition.condition == StartCondition.CONDITION.SUCCESS:
       if preceding_job_status == Job.STATUS.FAILED:
         return False
-    elif start_condition.condition == 'fail':
+    elif start_condition.condition == StartCondition.CONDITION.FAIL:
       if preceding_job_status == Job.STATUS.SUCCEEDED:
         return False
     return True
@@ -666,6 +666,10 @@ class StartCondition(BaseModel):
 
   job = relationship('Job', foreign_keys=[job_id])
   preceding_job = relationship('Job', foreign_keys=[preceding_job_id])
+
+  class CONDITION:
+    SUCCESS = 'success'
+    FAIL = 'fail'
 
   def __init__(self, job_id=None, preceding_job_id=None, condition=None):
     self.job_id = job_id
