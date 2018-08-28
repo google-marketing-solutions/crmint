@@ -131,7 +131,7 @@ class Pipeline(BaseModel):
     return True
 
   def start(self):
-    if self.status not in ['idle', 'finished', 'failed', 'succeeded']:
+    if self.status not in ['idle', 'failed', 'succeeded']:
       return False
     self.get_ready()
     jobs = self.jobs.all()
@@ -161,7 +161,7 @@ class Pipeline(BaseModel):
     return True
 
   def start_single_job(self, job):
-    if self.status not in ['idle', 'finished', 'failed', 'succeeded']:
+    if self.status not in ['idle', 'failed', 'succeeded']:
       return False
     if not job.get_ready():
       return False
