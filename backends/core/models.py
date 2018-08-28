@@ -63,6 +63,13 @@ class Pipeline(BaseModel):
   schedules = relationship('Schedule', lazy='dynamic')
   params = relationship('Param', lazy='dynamic', order_by='asc(Param.name)')
 
+  class STATUS:
+    IDLE = 'idle'
+    FAILED = 'failed'
+    SUCCEEDED = 'succeeded'
+    STOPPING = 'stopping'
+    RUNNING = 'running'
+
   def __init__(self, name=None):
     super(Pipeline, self).__init__()
     self.name = name
@@ -131,47 +138,53 @@ class Pipeline(BaseModel):
     return True
 
   def start(self):
-    if self.status not in ['idle', 'failed', 'succeeded']:
+    if self.status not in [Pipeline.STATUS.IDLE, Pipeline.STATUS.FAILED, Pipeline.STATUS.SUCCEEDED]:
       return False
     self.get_ready()
     jobs = self.jobs.all()
     if len(jobs) < 1:
       return False
     for job in jobs:
-      if job.get_status() not in ['idle', 'succeeded', 'failed']:
+      if job.get_status() not in [
+          Pipeline.STATUS.IDLE,
+          Pipeline.STATUS.FAILED,
+          Pipeline.STATUS.SUCCEEDED]:
         return False
     for job in jobs:
       if not job.get_ready():
         return False
-    self.update(status='running', status_changed_at=datetime.now())
+    self.update(status=Pipeline.STATUS.RUNNING, status_changed_at=datetime.now())
     for job in jobs:
       job.start()
     return True
 
   def stop(self):
-    if self.status != 'running':
+    if self.status != Pipeline.STATUS.RUNNING:
       return False
     for job in self.jobs:
       job.stop()
     for job in self.jobs:
-      if job.get_status() not in ['succeeded', 'failed']:
-        self.update(status='stopping', status_changed_at=datetime.now())
+      if job.get_status() not in [Pipeline.STATUS.FAILED, Pipeline.STATUS.SUCCEEDED]:
+        self.update(status=Pipeline.STATUS.STOPPING, status_changed_at=datetime.now())
         return True
     self._finish()
     return True
 
   def start_single_job(self, job):
-    if self.status not in ['idle', 'failed', 'succeeded']:
+    if self.status not in [Pipeline.STATUS.IDLE, Pipeline.STATUS.FAILED, Pipeline.STATUS.SUCCEEDED]:
       return False
     if not job.get_ready():
       return False
-    self.update(status='running', status_changed_at=datetime.now())
+    self.update(status=Pipeline.STATUS.RUNNING, status_changed_at=datetime.now())
     job.start()
     return True
 
   def job_finished(self):
     for job in self.jobs:
-      if job.get_status() not in ['succeeded', 'failed', 'idle']:
+      if job.get_status() not in [
+          Pipeline.STATUS.IDLE,
+          Pipeline.STATUS.FAILED,
+          Pipeline.STATUS.SUCCEEDED]:
         return False
     self._finish()
     return True
@@ -182,10 +195,10 @@ class Pipeline(BaseModel):
     jobs = jobs.filter(Job.pipeline_id == self.id)
     jobs = jobs.filter(StartCondition.preceding_job_id == None)
     jobs = jobs.options(load_only('status')).all()
-    status = 'succeeded'
+    status = Pipeline.STATUS.SUCCEEDED
     for job in jobs:
       if job.get_status() == 'failed':
-        status = 'failed'
+        status = Pipeline.STATUS.FAILED
         break
     self.update(status=status, status_changed_at=datetime.now())
     NotificationMailer().finished_pipeline(self)
@@ -211,7 +224,8 @@ class Pipeline(BaseModel):
                                          job_mapping)
 
   def is_blocked(self):
-    return (self.run_on_schedule or self.status in ['running', 'stopping'])
+    return (self.run_on_schedule or
+        self.status in [Pipeline.STATUS.RUNNING, Pipeline.STATUS.STOPPING])
 
   def destroy(self):
     sc_ids = [sc.id for sc in self.schedules]
@@ -245,6 +259,12 @@ class Job(BaseModel):
       primaryjoin='Job.id==StartCondition.preceding_job_id',
       secondaryjoin='StartCondition.job_id==Job.id')
   enqueued_workers_count = Column(Integer, default=0)
+
+  class STATUS:
+    IDLE = 'idle'
+    FAILED = 'failed'
+    SUCCEEDED = 'succeeded'
+    RUNNING = 'running'
 
   def __init__(self, name=None, worker_class=None, pipeline_id=None):
     super(Job, self).__init__()
