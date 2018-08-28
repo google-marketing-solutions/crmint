@@ -29,6 +29,7 @@ class TestTaskCreation(utils.JBackendBaseTest):
     # Activate which service we want to stub
     self.testbed.init_memcache_stub()
     self.testbed.init_app_identity_stub()
+    self.testbed.init_taskqueue_stub()
 
   def tearDown(self):
     super(TestTaskCreation, self).tearDown()
@@ -46,10 +47,15 @@ class TestTaskCreation(utils.JBackendBaseTest):
     patched_logger.log_struct.return_value = 'patched_log_struct'
     pipeline = models.Pipeline.create()
     job = models.Job.create(pipeline_id=pipeline.id)
+    self.assertTrue(pipeline.get_ready())
+    self.assertTrue(job.get_ready())
+    task = job.start()
+    self.assertIsNotNone(task)
     data = dict(
         job_id=job.id,
         worker_class='Commenter',
-        worker_params='{"comment": "", "success": false}')
+        worker_params='{"comment": "", "success": false}',
+        task_name=task.name)
     headers = {
         'X-AppEngine-TaskExecutionCount': '0'}
     response = self.client.post('/task', headers=headers, data=data)
