@@ -381,9 +381,9 @@ class TestJobStartConditions(utils.ModelTestCase):
 
   def test_update_start_conditions_succeeds(self):
     pipeline = models.Pipeline.create()
-    job1 = models.Job.create(pipeline_id=pipeline.id, status='idle')
-    job2 = models.Job.create(pipeline_id=pipeline.id, status='idle')
-    job3 = models.Job.create(pipeline_id=pipeline.id, status='idle')
+    job1 = models.Job.create(pipeline_id=pipeline.id)
+    job2 = models.Job.create(pipeline_id=pipeline.id)
+    job3 = models.Job.create(pipeline_id=pipeline.id)
     models.StartCondition.create(
         job_id=job3.id,
         preceding_job_id=job2.id,
@@ -401,110 +401,155 @@ class TestJobStartConditions(utils.ModelTestCase):
 
   def test_fails_if_running(self):
     pipeline = models.Pipeline.create()
-    job = models.Job.create(pipeline_id=pipeline.id, status='running')
-    job.get_ready()
-    result = job.start()
-    self.assertFalse(result)
+    job = models.Job.create(pipeline_id=pipeline.id)
+    self.assertTrue(job.get_ready())
+    self.assertEqual(job.get_status(), 'waiting')
+    task1 = job.start()
+    self.assertIsNotNone(task1)
+    self.assertEqual(job.get_status(), 'running')
+    task2 = job.start()
+    self.assertIsNone(task2)
 
   def test_succeeds_if_waiting_without_start_conditions(self):
     pipeline = models.Pipeline.create()
-    job = models.Job.create(pipeline_id=pipeline.id, status='waiting')
-    job.get_ready()
-    result = job.start()
-    self.assertTrue(result)
+    job = models.Job.create(pipeline_id=pipeline.id)
+    self.assertTrue(job.get_ready())
+    self.assertEqual(job.get_status(), 'waiting')
+    task = job.start()
+    self.assertEqual(job.get_status(), 'running')
+    self.assertIsNotNone(task)
 
   def test_succeeds_with_start_condition_fulfill_success_with_succeeded(self):
     pipeline = models.Pipeline.create()
-    job1 = models.Job.create(pipeline_id=pipeline.id, status='succeeded')
-    job2 = models.Job.create(pipeline_id=pipeline.id, status='waiting')
+    job1 = models.Job.create(pipeline_id=pipeline.id)
+    job2 = models.Job.create(pipeline_id=pipeline.id)
     models.StartCondition.create(
         job_id=job2.id,
         preceding_job_id=job1.id,
         condition='success')
-    job1.get_ready()
-    job2.get_ready()
-    result = job2.start()
-    self.assertTrue(result)
+    self.assertTrue(job1.get_ready())
+    self.assertTrue(job2.get_ready())
+    self.assertEqual(job1.get_status(), 'waiting')
+    self.assertEqual(job2.get_status(), 'waiting')
+    task1 = job1.start()
+    self.assertEqual(job1.get_status(), 'running')
+    self.assertEqual(job2.get_status(), 'waiting')
+    job1.worker_succeeded(task1.name)
+    self.assertEqual(job1.get_status(), 'succeeded')
+    self.assertEqual(job2.get_status(), 'running')
 
   def test_fails_with_start_condition_unfulfill_success_with_failed(self):
     pipeline = models.Pipeline.create()
-    job1 = models.Job.create(pipeline_id=pipeline.id, status='failed')
-    job2 = models.Job.create(pipeline_id=pipeline.id, status='waiting')
+    job1 = models.Job.create(pipeline_id=pipeline.id)
+    job2 = models.Job.create(pipeline_id=pipeline.id)
     models.StartCondition.create(
         job_id=job2.id,
         preceding_job_id=job1.id,
         condition='success')
-    job1.get_ready()
-    job2.get_ready()
-    result = job2.start()
-    self.assertFalse(result)
+    self.assertTrue(job1.get_ready())
+    self.assertTrue(job2.get_ready())
+    self.assertEqual(job1.get_status(), 'waiting')
+    self.assertEqual(job2.get_status(), 'waiting')
+    task1 = job1.start()
+    self.assertEqual(job1.get_status(), 'running')
+    self.assertEqual(job2.get_status(), 'waiting')
+    job1.worker_failed(task1.name)
+    self.assertEqual(job1.get_status(), 'failed')
     self.assertEqual(job2.get_status(), 'failed')
 
   def test_succeeds_with_start_condition_fulfill_fail_with_failed(self):
     pipeline = models.Pipeline.create()
-    job1 = models.Job.create(pipeline_id=pipeline.id, status='failed')
-    job2 = models.Job.create(pipeline_id=pipeline.id, status='waiting')
+    job1 = models.Job.create(pipeline_id=pipeline.id)
+    job2 = models.Job.create(pipeline_id=pipeline.id)
     models.StartCondition.create(
         job_id=job2.id,
         preceding_job_id=job1.id,
         condition='fail')
-    job1.get_ready()
-    job2.get_ready()
-    result = job2.start()
-    self.assertTrue(result)
+    self.assertTrue(job1.get_ready())
+    self.assertTrue(job2.get_ready())
+    self.assertEqual(job1.get_status(), 'waiting')
+    self.assertEqual(job2.get_status(), 'waiting')
+    task1 = job1.start()
+    self.assertEqual(job1.get_status(), 'running')
+    self.assertEqual(job2.get_status(), 'waiting')
+    job1.worker_failed(task1.name)
+    self.assertEqual(job1.get_status(), 'failed')
+    self.assertEqual(job2.get_status(), 'running')
 
   def test_fails_with_start_condition_unfulfill_fail_with_succeeded(self):
     pipeline = models.Pipeline.create()
-    job1 = models.Job.create(pipeline_id=pipeline.id, status='succeeded')
-    job2 = models.Job.create(pipeline_id=pipeline.id, status='waiting')
+    job1 = models.Job.create(pipeline_id=pipeline.id)
+    job2 = models.Job.create(pipeline_id=pipeline.id)
     models.StartCondition.create(
         job_id=job2.id,
         preceding_job_id=job1.id,
         condition='fail')
-    job1.get_ready()
-    job2.get_ready()
-    result = job2.start()
-    self.assertFalse(result)
+    self.assertTrue(job1.get_ready())
+    self.assertTrue(job2.get_ready())
+    self.assertEqual(job1.get_status(), 'waiting')
+    self.assertEqual(job2.get_status(), 'waiting')
+    task1 = job1.start()
+    self.assertEqual(job1.get_status(), 'running')
+    self.assertEqual(job2.get_status(), 'waiting')
+    job1.worker_succeeded(task1.name)
+    self.assertEqual(job1.get_status(), 'succeeded')
     self.assertEqual(job2.get_status(), 'failed')
 
   def test_succeeds_with_start_condition_fulfill_whatever_with_failed(self):
     pipeline = models.Pipeline.create()
-    job1 = models.Job.create(pipeline_id=pipeline.id, status='failed')
-    job2 = models.Job.create(pipeline_id=pipeline.id, status='waiting')
+    job1 = models.Job.create(pipeline_id=pipeline.id)
+    job2 = models.Job.create(pipeline_id=pipeline.id)
     models.StartCondition.create(
         job_id=job2.id,
         preceding_job_id=job1.id,
         condition='whatever')
-    job1.get_ready()
-    job2.get_ready()
-    result = job2.start()
-    self.assertTrue(result)
+    self.assertTrue(job1.get_ready())
+    self.assertTrue(job2.get_ready())
+    self.assertEqual(job1.get_status(), 'waiting')
+    self.assertEqual(job2.get_status(), 'waiting')
+    task1 = job1.start()
+    self.assertEqual(job1.get_status(), 'running')
+    self.assertEqual(job2.get_status(), 'waiting')
+    job1.worker_failed(task1.name)
+    self.assertEqual(job1.get_status(), 'failed')
+    self.assertEqual(job2.get_status(), 'running')
 
   def test_succeeds_with_start_condition_fulfill_whatever_with_succeeded(self):
     pipeline = models.Pipeline.create()
-    job1 = models.Job.create(pipeline_id=pipeline.id, status='succeeded')
-    job2 = models.Job.create(pipeline_id=pipeline.id, status='waiting')
+    job1 = models.Job.create(pipeline_id=pipeline.id)
+    job2 = models.Job.create(pipeline_id=pipeline.id)
     models.StartCondition.create(
         job_id=job2.id,
         preceding_job_id=job1.id,
         condition='whatever')
-    job1.get_ready()
-    job2.get_ready()
-    result = job2.start()
-    self.assertTrue(result)
+    self.assertTrue(job1.get_ready())
+    self.assertTrue(job2.get_ready())
+    self.assertEqual(job1.get_status(), 'waiting')
+    self.assertEqual(job2.get_status(), 'waiting')
+    task1 = job1.start()
+    self.assertEqual(job1.get_status(), 'running')
+    self.assertEqual(job2.get_status(), 'waiting')
+    job1.worker_succeeded(task1.name)
+    self.assertEqual(job1.get_status(), 'succeeded')
+    self.assertEqual(job2.get_status(), 'running')
 
   def test_fails_with_start_condition_unfulfill_whatever_with_running(self):
     pipeline = models.Pipeline.create()
-    job1 = models.Job.create(pipeline_id=pipeline.id, status='running')
-    job2 = models.Job.create(pipeline_id=pipeline.id, status='waiting')
+    job1 = models.Job.create(pipeline_id=pipeline.id)
+    job2 = models.Job.create(pipeline_id=pipeline.id)
     models.StartCondition.create(
         job_id=job2.id,
         preceding_job_id=job1.id,
         condition='whatever')
-    job1.get_ready()
-    job2.get_ready()
-    result = job2.start()
-    self.assertFalse(result)
+    self.assertTrue(job1.get_ready())
+    self.assertTrue(job2.get_ready())
+    task1 = job1.start()
+    self.assertEqual(job1.get_status(), 'running')
+    self.assertEqual(job2.get_status(), 'waiting')
+    task2 = job2.start()
+    self.assertIsNone(task2)
+    self.assertEqual(job1.get_status(), 'running')
+    self.assertEqual(job2.get_status(), 'waiting')
 
 
 class TestJobStopConditions(utils.ModelTestCase):
@@ -516,6 +561,7 @@ class TestJobStopConditions(utils.ModelTestCase):
     # Activate which service we want to stub
     self.testbed.init_memcache_stub()
     self.testbed.init_app_identity_stub()
+    self.testbed.init_taskqueue_stub()
 
   def tearDown(self):
     super(TestJobStopConditions, self).tearDown()
@@ -523,24 +569,27 @@ class TestJobStopConditions(utils.ModelTestCase):
 
   def test_stop_fails_with_idle(self):
     pipeline = models.Pipeline.create()
-    job1 = models.Job.create(pipeline_id=pipeline.id, status='idle')
-    job1.get_ready()
+    job1 = models.Job.create(pipeline_id=pipeline.id)
+    self.assertEqual(job1.get_status(), 'idle')
     result = job1.stop()
     self.assertFalse(result)
     self.assertEqual(job1.get_status(), 'idle')
 
   def test_stop_fails_with_waiting(self):
     pipeline = models.Pipeline.create()
-    job1 = models.Job.create(pipeline_id=pipeline.id, status='waiting')
-    job1.get_ready()
+    job1 = models.Job.create(pipeline_id=pipeline.id)
+    self.assertTrue(job1.get_ready())
+    self.assertEqual(job1.get_status(), 'waiting')
     result = job1.stop()
     self.assertTrue(result)
+    self.assertEqual(job1.status, 'failed')
     self.assertEqual(job1.get_status(), 'failed')
 
   def test_stop_succeeds_with_running(self):
     pipeline = models.Pipeline.create()
-    job1 = models.Job.create(pipeline_id=pipeline.id, status='running')
-    job1.get_ready()
+    job1 = models.Job.create(pipeline_id=pipeline.id)
+    self.assertTrue(job1.get_ready())
+    self.assertIsNotNone(job1.start())
     result = job1.stop()
     self.assertTrue(result)
     self.assertEqual(job1.get_status(), 'stopping')
@@ -563,9 +612,9 @@ class TestJobStartWithDependentJobs(utils.ModelTestCase):
 
   def test_start_fails_with_dependent_jobs_and_expecting_success(self):
     pipeline = models.Pipeline.create()
-    job1 = models.Job.create(pipeline_id=pipeline.id, status='failed')
-    job2 = models.Job.create(pipeline_id=pipeline.id, status='waiting')
-    job3 = models.Job.create(pipeline_id=pipeline.id, status='waiting')
+    job1 = models.Job.create(pipeline_id=pipeline.id)
+    job2 = models.Job.create(pipeline_id=pipeline.id)
+    job3 = models.Job.create(pipeline_id=pipeline.id)
     models.StartCondition.create(
         job_id=job2.id,
         preceding_job_id=job1.id,
@@ -574,19 +623,23 @@ class TestJobStartWithDependentJobs(utils.ModelTestCase):
         job_id=job3.id,
         preceding_job_id=job2.id,
         condition='success')
-    job1.get_ready()
-    job2.get_ready()
-    job3.get_ready()
-    result = job2.start()
-    self.assertFalse(result)
+    self.assertTrue(job1.get_ready())
+    self.assertTrue(job2.get_ready())
+    self.assertTrue(job3.get_ready())
+    self.assertEqual(job1.get_status(), 'waiting')
+    self.assertEqual(job2.get_status(), 'waiting')
+    self.assertEqual(job3.get_status(), 'waiting')
+    task = job1.start()
+    self.assertIsNotNone(task)
+    job1.worker_failed(task.name)
     self.assertEqual(job2.get_status(), 'failed')
     self.assertEqual(job3.get_status(), 'failed')
 
   def test_start_fails_with_dependent_jobs_and_expecting_fail(self):
     pipeline = models.Pipeline.create()
-    job1 = models.Job.create(pipeline_id=pipeline.id, status='succeeded')
-    job2 = models.Job.create(pipeline_id=pipeline.id, status='waiting')
-    job3 = models.Job.create(pipeline_id=pipeline.id, status='waiting')
+    job1 = models.Job.create(pipeline_id=pipeline.id)
+    job2 = models.Job.create(pipeline_id=pipeline.id)
+    job3 = models.Job.create(pipeline_id=pipeline.id)
     models.StartCondition.create(
         job_id=job2.id,
         preceding_job_id=job1.id,
@@ -595,10 +648,16 @@ class TestJobStartWithDependentJobs(utils.ModelTestCase):
         job_id=job3.id,
         preceding_job_id=job2.id,
         condition='success')
-    job1.get_ready()
-    job2.get_ready()
-    job3.get_ready()
-    result = job2.start()
-    self.assertFalse(result)
+    self.assertTrue(job1.get_ready())
+    self.assertTrue(job2.get_ready())
+    self.assertTrue(job3.get_ready())
+    self.assertEqual(job1.get_status(), 'waiting')
+    self.assertEqual(job2.get_status(), 'waiting')
+    self.assertEqual(job3.get_status(), 'waiting')
+    task1 = job1.start()
+    self.assertIsNotNone(task1)
+    job1.worker_succeeded(task1.name)
+    task2 = job2.start()
+    self.assertIsNone(task2)
     self.assertEqual(job2.get_status(), 'failed')
     self.assertEqual(job3.get_status(), 'failed')

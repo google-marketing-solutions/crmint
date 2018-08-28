@@ -143,9 +143,9 @@ class Pipeline(BaseModel):
     for job in jobs:
       if not job.get_ready():
         return False
+    self.update(status='running', status_changed_at=datetime.now())
     for job in jobs:
       job.start()
-    self.update(status='running', status_changed_at=datetime.now())
     return True
 
   def stop(self):
@@ -163,8 +163,10 @@ class Pipeline(BaseModel):
   def start_single_job(self, job):
     if self.status not in ['idle', 'finished', 'failed', 'succeeded']:
       return False
-    job.run()
+    if not job.get_ready():
+      return False
     self.update(status='running', status_changed_at=datetime.now())
+    job.start()
     return True
 
   def job_finished(self):
@@ -390,9 +392,13 @@ class Job(BaseModel):
   def stop(self):
     # TODO cancel all running tasks in a concurrently safe manner.
     if self.get_status() == 'waiting':
+      key = self._get_prefixed_cache_key(CACHE_KEY_STATUS)
+      cache.get_memcache_client().set(key, 'failed')
       self.update(status='failed', status_changed_at=datetime.now())
       return True
     elif self.get_status() == 'running':
+      key = self._get_prefixed_cache_key(CACHE_KEY_STATUS)
+      cache.get_memcache_client().set(key, 'stopping')
       self.update(status='stopping', status_changed_at=datetime.now())
       return True
     return False
