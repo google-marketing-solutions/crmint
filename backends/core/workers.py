@@ -838,7 +838,7 @@ class BQToMeasurementProtocol(BQWorker):
   ]
 
   # BigQuery batch size for querying results. Default to 10,000.
-  BQ_BATCH_SIZE = int(1e4)
+  BQ_BATCH_SIZE = int(1e3)
 
   # Maximum number of jobs to enqueued before spawning a new scheduler.
   MAX_ENQUEUED_JOBS = 50
