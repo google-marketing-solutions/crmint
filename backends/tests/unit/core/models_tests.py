@@ -187,17 +187,25 @@ class TestJob(utils.ModelTestCase):
     job = models.Job.create(
         pipeline_id=pipeline.id,
         enqueued_workers_count=1)
-    self.assertEqual(job.status, 'idle')
-    job.worker_succeeded('')
-    self.assertEqual(job.status, 'succeeded')
+    self.assertEqual(job.get_status(), 'idle')
+    self.assertTrue(job.get_ready())
+    self.assertEqual(job.get_status(), 'waiting')
+    task = job.start()
+    self.assertEqual(job.get_status(), 'running')
+    job.worker_succeeded(task.name)
+    self.assertEqual(job.get_status(), 'succeeded')
 
   def test_worker_succeeded_fails_with_failed_workers(self):
     pipeline = models.Pipeline.create()
     job = models.Job.create(
         pipeline_id=pipeline.id,
         enqueued_workers_count=2)
-    job.worker_failed('')
-    job.worker_succeeded('')
+    self.assertTrue(job.get_ready())
+    self.assertEqual(job.get_status(), 'waiting')
+    task = job.start()
+    self.assertEqual(job.get_status(), 'running')
+    job.worker_failed(task.name)
+    self.assertEqual(job.get_status(), 'failed')
     self.assertEqual(job.status, 'failed')
 
   def test_save_relations(self):

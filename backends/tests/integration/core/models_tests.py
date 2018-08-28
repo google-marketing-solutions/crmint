@@ -116,14 +116,14 @@ class TestPipelineWithJobs(utils.ModelTestCase):
     models.Job.create(pipeline_id=pipeline.id, status='running')
     models.Job.create(pipeline_id=pipeline.id, status='running')
     self.assertEqual(len(pipeline.jobs.all()), 3)
-    self.assertEqual(pipeline.jobs[0].status, 'succeeded')
-    self.assertEqual(pipeline.jobs[1].status, 'running')
-    self.assertEqual(pipeline.jobs[2].status, 'running')
+    self.assertEqual(pipeline.jobs[0].get_status(), 'succeeded')
+    self.assertEqual(pipeline.jobs[1].get_status(), 'running')
+    self.assertEqual(pipeline.jobs[2].get_status(), 'running')
     result = pipeline.stop()
     self.assertTrue(result)
-    self.assertEqual(pipeline.jobs[0].status, 'succeeded')
-    self.assertEqual(pipeline.jobs[1].status, 'stopping')
-    self.assertEqual(pipeline.jobs[2].status, 'stopping')
+    self.assertEqual(pipeline.jobs[0].get_status(), 'succeeded')
+    self.assertEqual(pipeline.jobs[1].get_status(), 'stopping')
+    self.assertEqual(pipeline.jobs[2].get_status(), 'stopping')
 
   def test_stop_succeeds_if_all_jobs_succeeded(self):
     pipeline = models.Pipeline.create(status='running')
@@ -133,9 +133,9 @@ class TestPipelineWithJobs(utils.ModelTestCase):
     self.assertEqual(len(pipeline.jobs.all()), 3)
     result = pipeline.stop()
     self.assertTrue(result)
-    self.assertEqual(pipeline.jobs[0].status, 'succeeded')
-    self.assertEqual(pipeline.jobs[1].status, 'succeeded')
-    self.assertEqual(pipeline.jobs[2].status, 'succeeded')
+    self.assertEqual(pipeline.jobs[0].get_status(), 'succeeded')
+    self.assertEqual(pipeline.jobs[1].get_status(), 'succeeded')
+    self.assertEqual(pipeline.jobs[2].get_status(), 'succeeded')
 
   def test_start_single_job_succeeds(self):
     pipeline = models.Pipeline.create(status='idle')
@@ -150,7 +150,7 @@ class TestPipelineWithJobs(utils.ModelTestCase):
     job1 = models.Job.create(pipeline_id=pipeline.id)
     result = pipeline.start_single_job(job1)
     self.assertFalse(result)
-    self.assertEqual(job1.status, 'idle')
+    self.assertEqual(job1.get_status(), 'idle')
     self.assertEqual(pipeline.status, 'running')
 
   def test_job_finished_succeeds(self):
@@ -402,12 +402,14 @@ class TestJobStartConditions(utils.ModelTestCase):
   def test_fails_if_running(self):
     pipeline = models.Pipeline.create()
     job = models.Job.create(pipeline_id=pipeline.id, status='running')
+    job.get_ready()
     result = job.start()
     self.assertFalse(result)
 
   def test_succeeds_if_waiting_without_start_conditions(self):
     pipeline = models.Pipeline.create()
     job = models.Job.create(pipeline_id=pipeline.id, status='waiting')
+    job.get_ready()
     result = job.start()
     self.assertTrue(result)
 
@@ -419,6 +421,8 @@ class TestJobStartConditions(utils.ModelTestCase):
         job_id=job2.id,
         preceding_job_id=job1.id,
         condition='success')
+    job1.get_ready()
+    job2.get_ready()
     result = job2.start()
     self.assertTrue(result)
 
@@ -430,9 +434,11 @@ class TestJobStartConditions(utils.ModelTestCase):
         job_id=job2.id,
         preceding_job_id=job1.id,
         condition='success')
+    job1.get_ready()
+    job2.get_ready()
     result = job2.start()
     self.assertFalse(result)
-    self.assertEqual(job2.status, 'failed')
+    self.assertEqual(job2.get_status(), 'failed')
 
   def test_succeeds_with_start_condition_fulfill_fail_with_failed(self):
     pipeline = models.Pipeline.create()
@@ -442,6 +448,8 @@ class TestJobStartConditions(utils.ModelTestCase):
         job_id=job2.id,
         preceding_job_id=job1.id,
         condition='fail')
+    job1.get_ready()
+    job2.get_ready()
     result = job2.start()
     self.assertTrue(result)
 
@@ -453,9 +461,11 @@ class TestJobStartConditions(utils.ModelTestCase):
         job_id=job2.id,
         preceding_job_id=job1.id,
         condition='fail')
+    job1.get_ready()
+    job2.get_ready()
     result = job2.start()
     self.assertFalse(result)
-    self.assertEqual(job2.status, 'failed')
+    self.assertEqual(job2.get_status(), 'failed')
 
   def test_succeeds_with_start_condition_fulfill_whatever_with_failed(self):
     pipeline = models.Pipeline.create()
@@ -465,6 +475,8 @@ class TestJobStartConditions(utils.ModelTestCase):
         job_id=job2.id,
         preceding_job_id=job1.id,
         condition='whatever')
+    job1.get_ready()
+    job2.get_ready()
     result = job2.start()
     self.assertTrue(result)
 
@@ -476,6 +488,8 @@ class TestJobStartConditions(utils.ModelTestCase):
         job_id=job2.id,
         preceding_job_id=job1.id,
         condition='whatever')
+    job1.get_ready()
+    job2.get_ready()
     result = job2.start()
     self.assertTrue(result)
 
@@ -487,12 +501,14 @@ class TestJobStartConditions(utils.ModelTestCase):
         job_id=job2.id,
         preceding_job_id=job1.id,
         condition='whatever')
+    job1.get_ready()
+    job2.get_ready()
     result = job2.start()
     self.assertFalse(result)
 
 
 class TestJobStopConditions(utils.ModelTestCase):
-  
+
   def setUp(self):
     super(TestJobStopConditions, self).setUp()
     self.testbed = testbed.Testbed()
@@ -508,23 +524,26 @@ class TestJobStopConditions(utils.ModelTestCase):
   def test_stop_fails_with_idle(self):
     pipeline = models.Pipeline.create()
     job1 = models.Job.create(pipeline_id=pipeline.id, status='idle')
+    job1.get_ready()
     result = job1.stop()
     self.assertFalse(result)
-    self.assertEqual(job1.status, 'idle')
+    self.assertEqual(job1.get_status(), 'idle')
 
   def test_stop_fails_with_waiting(self):
     pipeline = models.Pipeline.create()
     job1 = models.Job.create(pipeline_id=pipeline.id, status='waiting')
+    job1.get_ready()
     result = job1.stop()
     self.assertTrue(result)
-    self.assertEqual(job1.status, 'failed')
+    self.assertEqual(job1.get_status(), 'failed')
 
   def test_stop_succeeds_with_running(self):
     pipeline = models.Pipeline.create()
     job1 = models.Job.create(pipeline_id=pipeline.id, status='running')
+    job1.get_ready()
     result = job1.stop()
     self.assertTrue(result)
-    self.assertEqual(job1.status, 'stopping')
+    self.assertEqual(job1.get_status(), 'stopping')
 
 
 class TestJobStartWithDependentJobs(utils.ModelTestCase):
@@ -555,10 +574,13 @@ class TestJobStartWithDependentJobs(utils.ModelTestCase):
         job_id=job3.id,
         preceding_job_id=job2.id,
         condition='success')
+    job1.get_ready()
+    job2.get_ready()
+    job3.get_ready()
     result = job2.start()
     self.assertFalse(result)
-    self.assertEqual(job2.status, 'failed')
-    self.assertEqual(job3.status, 'failed')
+    self.assertEqual(job2.get_status(), 'failed')
+    self.assertEqual(job3.get_status(), 'failed')
 
   def test_start_fails_with_dependent_jobs_and_expecting_fail(self):
     pipeline = models.Pipeline.create()
@@ -573,6 +595,9 @@ class TestJobStartWithDependentJobs(utils.ModelTestCase):
         job_id=job3.id,
         preceding_job_id=job2.id,
         condition='success')
+    job1.get_ready()
+    job2.get_ready()
+    job3.get_ready()
     result = job2.start()
     self.assertFalse(result)
     self.assertEqual(job2.get_status(), 'failed')
