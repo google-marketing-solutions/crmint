@@ -192,8 +192,29 @@ class TestPipelineWithJobs(utils.ModelTestCase):
     self.assertEqual(pipeline.status, models.Pipeline.STATUS.SUCCEEDED)
 
   def test_cancelled_tasks_on_pipeline_failure(self):
-    #TODO
-    pass
+    pipeline = models.Pipeline.create(status=models.Pipeline.STATUS.RUNNING)
+    job1 = models.Job.create(pipeline_id=pipeline.id)
+    job2 = models.Job.create(pipeline_id=pipeline.id)
+
+    self.assertTrue(job1.get_ready())
+    self.assertEqual(job1.get_status(), models.Job.STATUS.WAITING)
+    task1 = job1.start()
+    self.assertIsNotNone(task1)
+    self.assertEqual(job1.get_status(), models.Job.STATUS.RUNNING)
+    self.assertEqual(job1._running_task_names_count(),1)
+
+    self.assertTrue(job2.get_ready())
+    self.assertEqual(job2.get_status(), models.Job.STATUS.WAITING)
+    task2 = job2.start()
+    self.assertIsNotNone(task2)
+    self.assertEqual(job2.get_status(), models.Job.STATUS.RUNNING)
+    self.assertEqual(job2._running_task_names_count(),1)
+
+    job2.worker_failed(task2.name)
+    pipeline.job_finished()
+    self.assertEqual(job1._running_task_names_count(),0)
+    self.assertEqual(job2._running_task_names_count(),0)
+    self.assertEqual(pipeline.status, models.Pipeline.STATUS.FAILED)
 
 
 class TestPipelineDestroy(utils.ModelTestCase):
