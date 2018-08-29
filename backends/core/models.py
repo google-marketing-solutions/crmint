@@ -158,6 +158,18 @@ class Pipeline(BaseModel):
       job.start()
     return True
 
+  def _cancel_all_tasks(self):
+    for job in self.jobs:
+      key = job._get_prefixed_cache_key(CACHE_KEY_LIST_OF_TASKS_ENQUEUED)
+      enqueued_tasks = cache.get_memcache_client().get(key)
+      taskqueue.Queue().delete_tasks([taskqueue.Task(name=task_name) for task_name in enqueued_tasks])
+      cache.get_memcache_client().set(key, [])
+      if job.get_status() not in [
+          Job.STATUS.SUCCEEDED,
+          Job.STATUS.FAILED,
+          Job.STATUS.IDLE]:
+        job.set_failed_status()
+
   def stop(self):
     if self.status != Pipeline.STATUS.RUNNING:
       return False
@@ -383,7 +395,8 @@ class Job(BaseModel):
         # pipeline failure
         self.set_failed_status()
         self.pipeline.status = Pipeline.STATUS.FAILED
-        self._cancel_pipeline_tasks()
+        self.pipeline.save()
+        self.pipeline._cancel_all_tasks()
         self._start_dependent_jobs()
         return None
     if self.pipeline.status == Pipeline.STATUS.FAILED:
@@ -480,12 +493,6 @@ class Job(BaseModel):
     cache.get_memcache_client().set(key, Job.STATUS.SUCCEEDED)
     self.update(status=Job.STATUS.SUCCEEDED, status_changed_at=datetime.now())
 
-  def _cancel_pipeline_tasks(self):
-    key = self._get_prefixed_cache_key(CACHE_KEY_LIST_OF_TASKS_ENQUEUED)
-    enqueued_tasks = cache.get_memcache_client().get(key)
-    for task_name in enqueued_tasks:
-      taskqueue.Queue().delete_task(taskqueue.Task(name=task_name))
-
   def _task_completed(self, task_name):
     """Completes task execution.
 
@@ -514,8 +521,11 @@ class Job(BaseModel):
     was_last_task = self._task_completed(task_name)
     self.set_failed_status()
     # TODO cancel all other jobs in the pipeline with the status 'failed'
+    # TODO cancel tasks at job level
     if was_last_task:
       self._start_dependent_jobs()
+      if len(self.dependent_jobs) == 0:
+        self.pipeline._cancel_all_tasks()
 
   def assign_attributes(self, attributes):
     for key, value in attributes.iteritems():
