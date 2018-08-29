@@ -17,3 +17,8 @@ def get_memcache_client():
   client = memcache.Client()
   shared_memcache_client = client
   return client
+
+
+def clear_memcache_client():
+  global shared_memcache_client
+  shared_memcache_client = None
