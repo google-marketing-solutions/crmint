@@ -366,6 +366,12 @@ class Job(BaseModel):
         retries += 1
     return len(curr_task_names) + 1  # Failed to remove the task name
 
+  def _cancel_job_tasks(self):
+    key = self._get_prefixed_cache_key(CACHE_KEY_LIST_OF_TASKS_ENQUEUED)
+    enqueued_tasks = cache.get_memcache_client().get(key)
+    taskqueue.Queue().delete_tasks([taskqueue.Task(name=task_name) for task_name in enqueued_tasks])
+    cache.get_memcache_client().set(key, [])
+
   def _running_task_names_count(self):
     key = self._get_prefixed_cache_key(CACHE_KEY_LIST_OF_TASKS_ENQUEUED)
     return len(cache.get_memcache_client().get(key))
@@ -521,11 +527,10 @@ class Job(BaseModel):
     was_last_task = self._task_completed(task_name)
     self.set_failed_status()
     # TODO cancel all other jobs in the pipeline with the status 'failed'
-    # TODO cancel tasks at job level
-    if was_last_task:
-      self._start_dependent_jobs()
-      if len(self.dependent_jobs) == 0:
-        self.pipeline._cancel_all_tasks()
+    self._cancel_job_tasks()
+    self._start_dependent_jobs()
+    if len(self.dependent_jobs) == 0:
+      self.pipeline._cancel_all_tasks()
 
   def assign_attributes(self, attributes):
     for key, value in attributes.iteritems():
