@@ -178,6 +178,23 @@ class TestPipelineWithJobs(utils.ModelTestCase):
     self.assertTrue(result)
     self.assertEqual(pipeline.status, models.Pipeline.STATUS.FAILED)
 
+  def test_pipeline_success_with_failed_condition_fulfilled(self):
+    pipeline = models.Pipeline.create(status=models.Pipeline.STATUS.RUNNING)
+    job1 = models.Job.create(pipeline_id=pipeline.id, status=models.Job.STATUS.SUCCEEDED)
+    job2 = models.Job.create(pipeline_id=pipeline.id, status=models.Job.STATUS.FAILED)
+    job3 = models.Job.create(pipeline_id=pipeline.id, status=models.Job.STATUS.SUCCEEDED)
+    models.StartCondition.create(
+        job_id=job3.id,
+        preceding_job_id=job2.id,
+        condition=models.StartCondition.CONDITION.FAIL)
+    result = pipeline.job_finished()
+    self.assertTrue(result)
+    self.assertEqual(pipeline.status, models.Pipeline.STATUS.SUCCEEDED)
+
+  def test_cancelled_tasks_on_pipeline_failure(self):
+    #TODO
+    pass
+
 
 class TestPipelineDestroy(utils.ModelTestCase):
   
@@ -338,7 +355,7 @@ class TestStartConditionWithJobs(utils.ModelTestCase):
     sc1 = models.StartCondition.create(
         job_id=job2.id,
         preceding_job_id=job1.id,
-        condition='success')
+        condition=models.StartCondition.CONDITION.SUCCESS)
     self.assertEqual(sc1.value, '%s,success' % job1.id)
 
   def test_preceding_job_name_succeeds(self):
@@ -348,7 +365,7 @@ class TestStartConditionWithJobs(utils.ModelTestCase):
     sc1 = models.StartCondition.create(
         job_id=job2.id,
         preceding_job_id=job1.id,
-        condition='success')
+        condition=models.StartCondition.CONDITION.SUCCESS)
     self.assertEqual(sc1.preceding_job_name, 'job1')
 
 
