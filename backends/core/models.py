@@ -380,11 +380,14 @@ class Job(BaseModel):
             Job.STATUS.FAILED]:
           return None
       else:
+        # pipeline failure
         self.set_failed_status()
+        self.pipeline.status = Pipeline.STATUS.FAILED
+        self._cancel_pipeline_tasks()
         self._start_dependent_jobs()
-        # TODO add a cancelling tasks method.
         return None
-
+    if self.pipeline.status == Pipeline.STATUS.FAILED:
+      return None
     # Run the job with a concurrent-safe lock.
     retries = 0
     key = self._get_prefixed_cache_key(CACHE_KEY_STATUS)
@@ -471,12 +474,17 @@ class Job(BaseModel):
     key = self._get_prefixed_cache_key(CACHE_KEY_STATUS)
     cache.get_memcache_client().set(key, Job.STATUS.FAILED)
     self.update(status=Job.STATUS.FAILED, status_changed_at=datetime.now())
-    self.pipeline.status = Pipeline.STATUS.FAILED
 
   def set_succeeded_status(self):
     key = self._get_prefixed_cache_key(CACHE_KEY_STATUS)
     cache.get_memcache_client().set(key, Job.STATUS.SUCCEEDED)
     self.update(status=Job.STATUS.SUCCEEDED, status_changed_at=datetime.now())
+
+  def _cancel_pipeline_tasks(self):
+    key = self._get_prefixed_cache_key(CACHE_KEY_LIST_OF_TASKS_ENQUEUED)
+    enqueued_tasks = cache.get_memcache_client().get(key)
+    for task_name in enqueued_tasks:
+      taskqueue.Queue().delete_task(taskqueue.Task(name=task_name))
 
   def _task_completed(self, task_name):
     """Completes task execution.
