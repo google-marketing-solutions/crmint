@@ -482,6 +482,7 @@ class TestJobStartConditions(utils.ModelTestCase):
     job1.worker_failed(task1.name)
     self.assertEqual(job1.get_status(), models.Job.STATUS.FAILED)
     self.assertEqual(job2.get_status(), models.Job.STATUS.RUNNING)
+    self.assertNotEqual(pipeline.status, models.Pipeline.STATUS.FAILED)
 
   def test_fails_with_start_condition_unfulfill_fail_with_succeeded(self):
     pipeline = models.Pipeline.create()
