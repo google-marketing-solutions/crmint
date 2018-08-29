@@ -192,7 +192,7 @@ class TestJob(utils.ModelTestCase):
     self.assertEqual(job.get_status(), models.Job.STATUS.WAITING)
     task = job.start()
     self.assertEqual(job.get_status(), models.Job.STATUS.RUNNING)
-    job.set_succeeded_status()
+    job.set_status(models.Job.STATUS.SUCCEEDED)
     self.assertEqual(job.get_status(), models.Job.STATUS.SUCCEEDED)
 
   def test_worker_succeeded_fails_with_failed_workers(self):
@@ -204,7 +204,7 @@ class TestJob(utils.ModelTestCase):
     self.assertEqual(job.get_status(), models.Job.STATUS.WAITING)
     task = job.start()
     self.assertEqual(job.get_status(), models.Job.STATUS.RUNNING)
-    job.set_failed_status()
+    job.set_status(models.Job.STATUS.FAILED)
     self.assertEqual(job.get_status(), models.Job.STATUS.FAILED)
     self.assertEqual(job.get_status(), models.Job.STATUS.FAILED)
 

@@ -160,15 +160,7 @@ class Pipeline(BaseModel):
 
   def _cancel_all_tasks(self):
     for job in self.jobs:
-      key = job._get_prefixed_cache_key(CACHE_KEY_LIST_OF_TASKS_ENQUEUED)
-      enqueued_tasks = cache.get_memcache_client().get(key)
-      taskqueue.Queue().delete_tasks([taskqueue.Task(name=task_name) for task_name in enqueued_tasks])
-      cache.get_memcache_client().set(key, [])
-      if job.get_status() not in [
-          Job.STATUS.SUCCEEDED,
-          Job.STATUS.FAILED,
-          Job.STATUS.IDLE]:
-        job.set_failed_status()
+      job.stop()
 
   def stop(self):
     if self.status != Pipeline.STATUS.RUNNING:
@@ -194,9 +186,12 @@ class Pipeline(BaseModel):
   def job_finished(self):
     for job in self.jobs:
       if job.get_status() not in [
-          Pipeline.STATUS.IDLE,
-          Pipeline.STATUS.FAILED,
-          Pipeline.STATUS.SUCCEEDED]:
+          Job.STATUS.IDLE,
+          Job.STATUS.FAILED,
+          Job.STATUS.SUCCEEDED,
+          Job.STATUS.STOPPING]:
+        if job.get_status() == Job.STATUS.STOPPING:
+          job.set_status(Job.STATUS.IDLE)
         return False
     self._finish()
     return True
@@ -369,8 +364,9 @@ class Job(BaseModel):
   def _cancel_job_tasks(self):
     key = self._get_prefixed_cache_key(CACHE_KEY_LIST_OF_TASKS_ENQUEUED)
     enqueued_tasks = cache.get_memcache_client().get(key)
-    taskqueue.Queue().delete_tasks([taskqueue.Task(name=task_name) for task_name in enqueued_tasks])
-    cache.get_memcache_client().set(key, [])
+    if enqueued_tasks:
+      taskqueue.Queue().delete_tasks([taskqueue.Task(name=task_name) for task_name in enqueued_tasks])
+      cache.get_memcache_client().set(key, [])
 
   def _running_task_names_count(self):
     key = self._get_prefixed_cache_key(CACHE_KEY_LIST_OF_TASKS_ENQUEUED)
@@ -399,7 +395,7 @@ class Job(BaseModel):
           return None
       else:
         # pipeline failure
-        self.set_failed_status()
+        self.set_status(Job.STATUS.FAILED)
         self.pipeline.status = Pipeline.STATUS.FAILED
         self.pipeline.save()
         self.pipeline._cancel_all_tasks()
@@ -440,11 +436,9 @@ class Job(BaseModel):
     return self.enqueue(self.worker_class, worker_params)
 
   def stop(self):
-    # TODO cancel all running tasks in a concurrently safe manner.
+    self._cancel_job_tasks()
     if self.get_status() == Job.STATUS.WAITING:
-      key = self._get_prefixed_cache_key(CACHE_KEY_STATUS)
-      cache.get_memcache_client().set(key, Job.STATUS.FAILED)
-      self.update(status=Job.STATUS.FAILED, status_changed_at=datetime.now())
+      self.set_status(Job.STATUS.FAILED)
       return True
     elif self.get_status() == Job.STATUS.RUNNING:
       key = self._get_prefixed_cache_key(CACHE_KEY_STATUS)
@@ -489,15 +483,10 @@ class Job(BaseModel):
         job.start()
     self.pipeline.job_finished()
 
-  def set_failed_status(self):
+  def set_status(self, status):
     key = self._get_prefixed_cache_key(CACHE_KEY_STATUS)
-    cache.get_memcache_client().set(key, Job.STATUS.FAILED)
-    self.update(status=Job.STATUS.FAILED, status_changed_at=datetime.now())
-
-  def set_succeeded_status(self):
-    key = self._get_prefixed_cache_key(CACHE_KEY_STATUS)
-    cache.get_memcache_client().set(key, Job.STATUS.SUCCEEDED)
-    self.update(status=Job.STATUS.SUCCEEDED, status_changed_at=datetime.now())
+    cache.get_memcache_client().set(key, status)
+    self.update(status=status, status_changed_at=datetime.now())
 
   def _task_completed(self, task_name):
     """Completes task execution.
@@ -516,17 +505,13 @@ class Job(BaseModel):
     # NB: `was_last_task` acts as a concurrent lock, only one task can
     #     validate this condition.
     if was_last_task:
-      if self.get_status() != Job.STATUS.FAILED:  # TODO is this check useful now?!
-        self.set_succeeded_status()
-      else:
-        self.set_failed_status()
+      self.set_status(Job.STATUS.SUCCEEDED)
       # We can safely start children jobs, because of our concurrent lock.
       self._start_dependent_jobs()
 
   def worker_failed(self, task_name):
     was_last_task = self._task_completed(task_name)
-    self.set_failed_status()
-    # TODO cancel all other jobs in the pipeline with the status 'failed'
+    self.set_status(Job.STATUS.FAILED)
     self._cancel_job_tasks()
     self._start_dependent_jobs()
     if len(self.dependent_jobs) == 0:
