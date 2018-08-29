@@ -28,10 +28,10 @@ from sqlalchemy import Boolean
 from sqlalchemy import ForeignKey
 from sqlalchemy.orm import relationship
 from sqlalchemy.orm import load_only
-from core.database import BaseModel
-from core import inline
-from core.mailers import NotificationMailer
 from core import cache
+from core import inline
+from core.database import BaseModel
+from core.mailers import NotificationMailer
 
 CACHE_KEY_ENQUEUED_TASKS = 'enqueued_tasks'
 CACHE_KEY_STATUS = 'status'
@@ -135,6 +135,9 @@ class Pipeline(BaseModel):
     Schedule.destroy(*ids_for_removing)
 
   def get_ready(self):
+    # Clear the memcache client, mainly to avoid memory overflow of
+    # the internal hashmap.
+    cache.clear_memcache_client()
     return True
 
   def start(self):
