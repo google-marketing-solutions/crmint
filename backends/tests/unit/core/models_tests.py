@@ -326,3 +326,18 @@ class TestStage(utils.ModelTestCase):
     self.assertNotEqual(st.sid, '123')
     st.assign_attributes(attrs)
     self.assertEqual(st.sid, '123')
+
+
+class TestRunningTasks(utils.ModelTestCase):
+
+  def test_count_is_zero(self):
+    self.assertEqual(models.RunningTask.count_in_namespace('xyz'), 0)
+
+  def test_count_is_zero_in_another_namespace(self):
+    models.RunningTask.create(task_namespace='abc')
+    self.assertEqual(models.RunningTask.count_in_namespace('xyz'), 0)
+
+  def test_count_is_zero_in_another_namespace(self):
+    models.RunningTask.create(task_namespace='xyz')
+    models.RunningTask.create(task_namespace='abc')
+    self.assertEqual(models.RunningTask.count_in_namespace('xyz'), 1)

@@ -367,40 +367,43 @@ class Job(BaseModel):
 
   def _add_task_name_cache(self, task_name, max_retries=cache.MEMCACHE_DEFAULT_MAX_RETRIES):
     key = self._get_prefixed_cache_key(CACHE_KEY_LIST_OF_TASKS_ENQUEUED)
-    retries = 0
-    while retries < max_retries:
-      curr_task_names = cache.get_memcache_client().get(key, for_cas=True)
-      logger.debug(
-         'Fetched list of current tasks for add to key#%s: `%s`',
-         key,
-         str(curr_task_names))
-      curr_task_names.append(task_name)
-      if cache.get_memcache_client().cas(key, curr_task_names,
-          time=cache.MEMCACHE_DEFAULT_EXPIRATION_TIME_SECONDS):
-        return True
-      else:
-        retries += 1
-    return False
+    # retries = 0
+    # while retries < max_retries:
+    #   curr_task_names = cache.get_memcache_client().get(key, for_cas=True)
+    #   logger.debug(
+    #      'Fetched list of current tasks for add to key#%s: `%s`',
+    #      key,
+    #      str(curr_task_names))
+    #   curr_task_names.append(task_name)
+    #   if cache.get_memcache_client().cas(key, curr_task_names,
+    #       time=cache.MEMCACHE_DEFAULT_EXPIRATION_TIME_SECONDS):
+    #     return True
+    #   else:
+    #     retries += 1
+    RunningTask.create(task_namespace=key, task_name=task_name)
+    return True
 
   def _delete_task_name_cache(self, task_name, max_retries=cache.MEMCACHE_DEFAULT_MAX_RETRIES):
     """
     Returns: Number of remaining tasks in the cache.
     """
     key = self._get_prefixed_cache_key(CACHE_KEY_LIST_OF_TASKS_ENQUEUED)
-    retries = 0
-    while retries < max_retries:
-      curr_task_names = cache.get_memcache_client().get(key, for_cas=True)
-      logger.debug(
-         'Fetched list of current tasks for remove to key#%s: `%s`',
-         key,
-         str(curr_task_names))
-      curr_task_names.remove(task_name)
-      if cache.get_memcache_client().cas(key, curr_task_names,
-          time=cache.MEMCACHE_DEFAULT_EXPIRATION_TIME_SECONDS):
-        return len(curr_task_names)
-      else:
-        retries += 1
-    return len(curr_task_names) + 1  # Failed to remove the task name
+    # retries = 0
+    # while retries < max_retries:
+    #   curr_task_names = cache.get_memcache_client().get(key, for_cas=True)
+    #   logger.debug(
+    #      'Fetched list of current tasks for remove to key#%s: `%s`',
+    #      key,
+    #      str(curr_task_names))
+    #   curr_task_names.remove(task_name)
+    #   if cache.get_memcache_client().cas(key, curr_task_names,
+    #       time=cache.MEMCACHE_DEFAULT_EXPIRATION_TIME_SECONDS):
+    #     return len(curr_task_names)
+    #   else:
+    #     retries += 1
+    # return len(curr_task_names) + 1  # Failed to remove the task name
+    RunningTask.query.filter(RunningTask.task_name == task_name).delete()
+    return self._running_task_names_count()
 
   def _cancel_job_tasks(self):
     key = self._get_prefixed_cache_key(CACHE_KEY_LIST_OF_TASKS_ENQUEUED)
@@ -411,7 +414,8 @@ class Job(BaseModel):
 
   def _running_task_names_count(self):
     key = self._get_prefixed_cache_key(CACHE_KEY_LIST_OF_TASKS_ENQUEUED)
-    return len(cache.get_memcache_client().get(key))
+    # return len(cache.get_memcache_client().get(key))
+    return RunningTask.count_in_namespace(key)
 
   def _start_condition_is_fulfilled(self, start_condition):
     preceding_job_status = start_condition.preceding_job.get_status()
@@ -768,3 +772,15 @@ class Stage(BaseModel):
   def assign_attributes(self, attributes):
     for key, value in attributes.iteritems():
       self.__setattr__(key, value)
+
+
+class RunningTask(BaseModel):
+  __tablename__ = 'running_tasks'
+  id = Column(Integer, primary_key=True, autoincrement=True)
+  task_namespace = Column(String(100), index=True)
+  task_name = Column(String(255), index=True, unique=True)
+
+  @classmethod
+  def count_in_namespace(cls, namespace):
+    count_query = cls.query.filter(cls.task_namespace == namespace)
+    return count_query.count()
