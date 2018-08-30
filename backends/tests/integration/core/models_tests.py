@@ -306,8 +306,32 @@ class TestPipelineImport(utils.ModelTestCase):
     self.assertEqual(pipeline.jobs[1].name, 'j2')
 
 
+class TestJobStartedStatus(utils.ModelTestCase):
+
+  def setUp(self):
+    super(TestJobStartedStatus, self).setUp()
+    self.testbed = testbed.Testbed()
+    self.testbed.activate()
+    # Activate which service we want to stub
+    self.testbed.init_memcache_stub()
+    self.testbed.init_app_identity_stub()
+    self.testbed.init_taskqueue_stub()
+
+  def tearDown(self):
+    super(TestJobStartedStatus, self).tearDown()
+    self.testbed.deactivate()
+
+  def test_succeeds_status_running(self):
+    pipeline = models.Pipeline.create()
+    job = models.Job.create(pipeline_id=pipeline.id)
+    self.assertTrue(job.get_ready())
+    self.assertEqual(job.status, models.Job.STATUS.WAITING)
+    self.assertTrue(job.start())
+    self.assertEqual(job.status, models.Job.STATUS.RUNNING)
+
+
 class TestJobDestroy(utils.ModelTestCase):
-  
+
   def setUp(self):
     super(TestJobDestroy, self).setUp()
     self.testbed = testbed.Testbed()
@@ -365,7 +389,7 @@ class TestStartConditionWithJobs(utils.ModelTestCase):
     # Activate which service we want to stub
     self.testbed.init_memcache_stub()
     self.testbed.init_app_identity_stub()
-    
+
   def tearDown(self):
     super(TestStartConditionWithJobs, self).tearDown()
     self.testbed.deactivate()

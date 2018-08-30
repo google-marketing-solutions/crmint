@@ -453,6 +453,8 @@ class Job(BaseModel):
         return None
       elif cache.get_memcache_client().cas(key, Job.STATUS.RUNNING,
           time=cache.MEMCACHE_DEFAULT_EXPIRATION_TIME_SECONDS):
+        # Update the database status.
+        self.update(status=Job.STATUS.RUNNING, status_changed_at=datetime.now())
         return self.run()
       else:
         retries += 1
