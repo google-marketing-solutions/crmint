@@ -370,6 +370,10 @@ class Job(BaseModel):
     retries = 0
     while retries < max_retries:
       curr_task_names = cache.get_memcache_client().get(key, for_cas=True)
+      logger.debug(
+         'Fetched list of current tasks for add to key#%s: `%s`',
+         key,
+         str(curr_task_names))
       curr_task_names.append(task_name)
       if cache.get_memcache_client().cas(key, curr_task_names,
           time=cache.MEMCACHE_DEFAULT_EXPIRATION_TIME_SECONDS):
@@ -386,6 +390,10 @@ class Job(BaseModel):
     retries = 0
     while retries < max_retries:
       curr_task_names = cache.get_memcache_client().get(key, for_cas=True)
+      logger.debug(
+         'Fetched list of current tasks for remove to key#%s: `%s`',
+         key,
+         str(curr_task_names))
       curr_task_names.remove(task_name)
       if cache.get_memcache_client().cas(key, curr_task_names,
           time=cache.MEMCACHE_DEFAULT_EXPIRATION_TIME_SECONDS):
