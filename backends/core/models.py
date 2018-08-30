@@ -81,7 +81,7 @@ class Pipeline(BaseModel):
     self.name = name
 
   def _get_prefixed_cache_key(self, key):
-    return '%s_%s' % (str(self.id), key)
+    return 'pipeline=%s_%s' % (str(self.id), key)
 
   @property
   def state(self):
@@ -293,6 +293,22 @@ class Job(BaseModel):
   def _get_prefixed_cache_key(self, key):
     return 'pipeline=%s_job=%s_%s' % (str(self.pipeline_id), str(self.id), key)
 
+  def _initialize_cache_values(self, max_retries=cache.MEMCACHE_DEFAULT_MAX_RETRIES):
+    retries = 0
+    mapping = {
+        self._get_prefixed_cache_key(CACHE_KEY_STATUS): self.status,
+        self._get_prefixed_cache_key(CACHE_KEY_LIST_OF_TASKS_ENQUEUED): []
+    }
+    while retries < max_retries:
+      keys_not_set = cache.get_memcache_client().set_multi(
+          mapping,
+          time=cache.MEMCACHE_DEFAULT_EXPIRATION_TIME_SECONDS)
+      if not keys_not_set:
+        # If empty, it means total success.
+        return True
+      retries += 1
+    return False
+
   def destroy(self):
     sc_ids = [sc.id for sc in self.start_conditions]
     if sc_ids:
@@ -333,12 +349,20 @@ class Job(BaseModel):
       return False
 
     self.update(status=Job.STATUS.WAITING, status_changed_at=datetime.now())
-    mapping = {
-      self._get_prefixed_cache_key(CACHE_KEY_STATUS): self.status,
-      self._get_prefixed_cache_key(CACHE_KEY_LIST_OF_TASKS_ENQUEUED): []
-    }
-    cache.get_memcache_client().set_multi(mapping,
-        time=cache.MEMCACHE_DEFAULT_EXPIRATION_TIME_SECONDS)
+    if not self._initialize_cache_values():
+      from core import cloud_logging
+      cloud_logging.logger.log_struct({
+          'labels': {
+              'pipeline_id': self.pipeline_id,
+              'job_id': self.id,
+              'worker_class': self.worker_class,
+          },
+          'log_level': 'ERROR',
+          'message': 'Failed to initialize cache values.',
+      })
+      return False
+
+    # All initialization steps succeeded.
     return True
 
   def _add_task_name_cache(self, task_name, max_retries=cache.MEMCACHE_DEFAULT_MAX_RETRIES):
@@ -451,7 +475,7 @@ class Job(BaseModel):
       return True
     elif self.get_status() == Job.STATUS.RUNNING:
       key = self._get_prefixed_cache_key(CACHE_KEY_STATUS)
-      cache.get_memcache_client().set(key, Job.STATUS.STOPPING)
+      cache.get_memcache_client().set(key, Job.STATUS.STOPPING, time=cache.MEMCACHE_DEFAULT_EXPIRATION_TIME_SECONDS)
       self.update(status=Job.STATUS.STOPPING, status_changed_at=datetime.now())
       return True
     return False
