@@ -141,7 +141,7 @@ class TestJob(utils.ModelTestCase):
     super(TestJob, self).tearDown()
     self.testbed.deactivate()
 
-  @mock.patch('core.logging.logger')
+  @mock.patch('core.cloud_logging.logger')
   def test_job_fails_get_ready_without_pipeline_param(self, patched_logger):
     patched_logger.log_struct.__name__ = 'foo'
     pipeline = models.Pipeline.create()

@@ -90,7 +90,7 @@ class TestPipelineWithJobs(utils.ModelTestCase):
     self.assertEqual(result, True)
     self.assertEqual(pipeline.status, models.Pipeline.STATUS.RUNNING)
 
-  @mock.patch('core.logging.logger')
+  @mock.patch('core.cloud_logging.logger')
   def test_start_fails_with_one_job_not_getting_ready(self, patched_logger):
     patched_logger.log_struct.__name__ = 'foo'
     pipeline = models.Pipeline.create()

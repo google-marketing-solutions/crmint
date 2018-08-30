@@ -87,8 +87,8 @@ class Worker(object):
     self._workers_to_enqueue = []
 
   def _log(self, level, message, *substs):
-    from core.logging import logger
-    self.retry(logger.log_struct)({
+    from core import cloud_logging
+    self.retry(cloud_logging.logger.log_struct)({
         'labels': {
             'pipeline_id': self._pipeline_id,
             'job_id': self._job_id,

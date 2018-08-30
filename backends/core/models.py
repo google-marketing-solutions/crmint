@@ -13,6 +13,7 @@
 # limitations under the License.
 
 from datetime import datetime
+import logging
 import json
 import re
 import uuid
@@ -33,11 +34,16 @@ from core import inline
 from core.database import BaseModel
 from core.mailers import NotificationMailer
 
+
+
 CACHE_KEY_ENQUEUED_TASKS = 'enqueued_tasks'
 CACHE_KEY_STATUS = 'status'
 CACHE_KEY_LIST_OF_TASKS_ENQUEUED = 'list_of_tasks_enqueued'
 CACHE_KEY_FAILED_JOBS = 'failed_jobs'
 CACHE_KEY_REMAINING_JOBS = 'remaining_jobs'
+
+logger = logging.getLogger(__name__)
+
 
 def _parse_num(s):
   try:
@@ -314,8 +320,8 @@ class Job(BaseModel):
       for param in self.params:
         _ = param.val  # NOQA
     except (InvalidExpression, TypeError) as e:
-      from core.logging import logger
-      logger.log_struct({
+      from core import cloud_logging
+      cloud_logging.logger.log_struct({
           'labels': {
               'pipeline_id': self.pipeline_id,
               'job_id': self.id,
@@ -420,8 +426,8 @@ class Job(BaseModel):
         retries += 1
 
     # Failed to start.
-    from core.logging import logger
-    logger.log_struct({
+    from core import cloud_logging
+    cloud_logging.logger.log_struct({
         'labels': {
             'pipeline_id': self.pipeline_id,
             'job_id': self.id,
