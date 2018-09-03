@@ -141,35 +141,42 @@ class Pipeline(BaseModel):
     Schedule.destroy(*ids_for_removing)
 
   def get_ready(self):
-    # Clear the memcache client, mainly to avoid memory overflow of
-    # the internal hashmap.
-    cache.clear_memcache_client()
+    for job in self.jobs.all():
+      if not job.get_ready():
+        return False
+
+    self.update(status=Pipeline.STATUS.RUNNING, status_changed_at=datetime.now())
     return True
 
   def start(self):
     if self.status not in [Pipeline.STATUS.IDLE, Pipeline.STATUS.FAILED, Pipeline.STATUS.SUCCEEDED]:
       return False
-    self.get_ready()
+
+    # Clear the memcache client, mainly to avoid memory overflow of
+    # the internal hashmap.
+    cache.clear_memcache_client()
+
     jobs = self.jobs.all()
     if len(jobs) < 1:
       return False
+
     for job in jobs:
       if job.get_status() not in [
           Pipeline.STATUS.IDLE,
           Pipeline.STATUS.FAILED,
           Pipeline.STATUS.SUCCEEDED]:
         return False
-    for job in jobs:
-      if not job.get_ready():
-        return False
-    self.update(status=Pipeline.STATUS.RUNNING, status_changed_at=datetime.now())
+
+    if not self.get_ready():
+      return False
+
     for job in jobs:
       job.start()
     return True
 
   def _cancel_all_tasks(self):
     for job in self.jobs:
-      job.stop()
+      job._cancel_tasks()
 
   def stop(self):
     if self.status != Pipeline.STATUS.RUNNING:
@@ -177,11 +184,10 @@ class Pipeline(BaseModel):
     for job in self.jobs:
       job.stop()
     for job in self.jobs:
-      if job.get_status() not in [Pipeline.STATUS.FAILED, Pipeline.STATUS.SUCCEEDED]:
-        self.update(status=Pipeline.STATUS.STOPPING, status_changed_at=datetime.now())
-        return True
-    self._finish()
-    return True
+      if job.get_status() not in [Job.STATUS.FAILED, Job.STATUS.SUCCEEDED]:
+        job.set_status(Job.STATUS.STOPPING)
+    self._cancel_all_tasks()
+    return self.job_finished()
 
   def start_single_job(self, job):
     if self.status not in [Pipeline.STATUS.IDLE, Pipeline.STATUS.FAILED, Pipeline.STATUS.SUCCEEDED]:
@@ -194,13 +200,15 @@ class Pipeline(BaseModel):
 
   def job_finished(self):
     for job in self.jobs:
-      if job.get_status() not in [
-          Job.STATUS.IDLE,
-          Job.STATUS.FAILED,
-          Job.STATUS.SUCCEEDED,
-          Job.STATUS.STOPPING]:
-        if job.get_status() == Job.STATUS.STOPPING:
-          job.set_status(Job.STATUS.IDLE)
+      if job.get_status() == Job.STATUS.STOPPING:
+        job.set_status(Job.STATUS.IDLE)
+    still_running_statuses = [
+        Job.STATUS.IDLE,
+        Job.STATUS.FAILED,
+        Job.STATUS.SUCCEEDED
+    ]
+    for job in self.jobs:
+      if job.get_status() not in still_running_statuses:
         return False
     self._finish()
     return True
@@ -374,16 +382,16 @@ class Job(BaseModel):
     Returns: Number of remaining tasks in the cache.
     """
     key = self._get_prefixed_cache_key(CACHE_KEY_LIST_OF_TASKS_ENQUEUED)
-    TaskEnqueued.query.filter(TaskEnqueued.task_name == task_name).delete()
+    TaskEnqueued.where(task_name=task_name).delete()
     return self._enqueued_task_count()
 
-  def _cancel_job_tasks(self):
+  def _cancel_tasks(self):
     key = self._get_prefixed_cache_key(CACHE_KEY_LIST_OF_TASKS_ENQUEUED)
-    enqueued_tasks = RunningTask.query.filter(RunningTask.task_namespace == key).all()
+    enqueued_tasks = TaskEnqueued.where(task_namespace=key)
     if enqueued_tasks:
-      taskqueue.Queue().delete_tasks(
-          [taskqueue.Task(name=task.task_name) for task in enqueued_tasks])
-      RunningTask.query.filter(RunningTask.task_namespace == key).delete()
+      tasks = [taskqueue.Task(name=t.task_name) for t in enqueued_tasks]
+      taskqueue.Queue().delete_tasks(tasks)
+      TaskEnqueued.where(task_namespace=key).delete()
 
   def _enqueued_task_count(self):
     key = self._get_prefixed_cache_key(CACHE_KEY_LIST_OF_TASKS_ENQUEUED)
@@ -413,13 +421,14 @@ class Job(BaseModel):
       else:
         # pipeline failure
         self.set_status(Job.STATUS.FAILED)
-        self.pipeline.status = Pipeline.STATUS.FAILED
-        self.pipeline.save()
-        self.pipeline._cancel_all_tasks()
-        self._start_dependent_jobs()
+        self.pipeline.update(status=Pipeline.STATUS.FAILED,
+                             status_changed_at=datetime.now())
+        self.pipeline.stop()
         return None
+
     if self.pipeline.status == Pipeline.STATUS.FAILED:
       return None
+
     # Run the job with a concurrent-safe lock.
     retries = 0
     key = self._get_prefixed_cache_key(CACHE_KEY_STATUS)
@@ -455,14 +464,12 @@ class Job(BaseModel):
     return self.enqueue(self.worker_class, worker_params)
 
   def stop(self):
-    self._cancel_job_tasks()
+    self._cancel_tasks()
     if self.get_status() == Job.STATUS.WAITING:
-      self.set_status(Job.STATUS.FAILED)
+      self.set_status(Job.STATUS.IDLE)
       return True
     elif self.get_status() == Job.STATUS.RUNNING:
-      key = self._get_prefixed_cache_key(CACHE_KEY_STATUS)
-      cache.get_memcache_client().set(key, Job.STATUS.STOPPING, time=cache.MEMCACHE_DEFAULT_EXPIRATION_TIME_SECONDS)
-      self.update(status=Job.STATUS.STOPPING, status_changed_at=datetime.now())
+      self.set_status(Job.STATUS.STOPPING)
       return True
     return False
 
@@ -500,7 +507,6 @@ class Job(BaseModel):
     if self.dependent_jobs:
       for job in self.dependent_jobs:
         job.start()
-    self.pipeline.job_finished()
 
   def set_status(self, status):
     key = self._get_prefixed_cache_key(CACHE_KEY_STATUS)
@@ -520,6 +526,18 @@ class Job(BaseModel):
     # a coherent naming convention.
     was_last_task = self._task_completed(task_name)
 
+    # Cancel all tasks if one condition doesn't match the success status.
+    for job in self.dependent_jobs:
+      for start_condition in job.start_conditions:
+        success_statuses = [
+            StartCondition.CONDITION.SUCCESS,
+            StartCondition.CONDITION.WHATEVER
+        ]
+        if (start_condition.preceding_job.id == self.id
+            and start_condition.condition not in success_statuses):
+          self.set_status(Job.STATUS.SUCCEEDED)
+          return self.pipeline.stop()
+
     # Updates the job database status if there is no more running tasks.
     # NB: `was_last_task` acts as a concurrent lock, only one task can
     #     validate this condition.
@@ -527,14 +545,33 @@ class Job(BaseModel):
       self.set_status(Job.STATUS.SUCCEEDED)
       # We can safely start children jobs, because of our concurrent lock.
       self._start_dependent_jobs()
+      self.pipeline.job_finished()
 
   def worker_failed(self, task_name):
     was_last_task = self._task_completed(task_name)
-    self.set_status(Job.STATUS.FAILED)
-    self._cancel_job_tasks()
-    self._start_dependent_jobs()
-    if len(self.dependent_jobs) == 0:
-      self.pipeline._cancel_all_tasks()
+
+    # If no dependent jobs then the pipeline failed
+    if not self.dependent_jobs:
+      self.set_status(Job.STATUS.FAILED)
+      return self.pipeline.stop()
+
+    # Cancel all tasks if one condition doesn't match the failed status.
+    for job in self.dependent_jobs:
+      for start_condition in job.start_conditions:
+        failed_statuses = [
+            StartCondition.CONDITION.FAIL,
+            StartCondition.CONDITION.WHATEVER
+        ]
+        if (start_condition.preceding_job.id == self.id
+            and start_condition.condition not in failed_statuses):
+          self.set_status(Job.STATUS.FAILED)
+          return self.pipeline.stop()
+
+    if was_last_task:
+      self.set_status(Job.STATUS.FAILED)
+      # We can safely start children jobs, because of our concurrent lock.
+      self._start_dependent_jobs()
+      self.pipeline.job_finished()
 
   def assign_attributes(self, attributes):
     for key, value in attributes.iteritems():
@@ -754,5 +791,5 @@ class TaskEnqueued(BaseModel):
 
   @classmethod
   def count_in_namespace(cls, namespace):
-    count_query = cls.query.filter(cls.task_namespace == namespace)
+    count_query = cls.where(task_namespace=namespace)
     return count_query.count()
