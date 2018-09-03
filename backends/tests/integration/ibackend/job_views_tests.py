@@ -19,6 +19,7 @@ from core import models
 from tests import utils
 
 class TestJobList(utils.IBackendBaseTest):
+
   def setUp(self):
     super(TestJobList, self).setUp()
     self.testbed = testbed.Testbed()

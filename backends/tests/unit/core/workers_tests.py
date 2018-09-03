@@ -50,7 +50,7 @@ class TestAbstractWorker(unittest.TestCase):
     self.assertIsInstance(worker._params['int_with_default'], int)
     self.assertEqual(worker._params['int_with_default'], 20)
 
-  @mock.patch('core.logging.logger')
+  @mock.patch('core.cloud_logging.logger')
   def test_log_info_succeeds(self, patched_logger):
     patched_logger.log_struct.__name__ = 'foo'
     worker = workers.Worker({}, 1, 1)
@@ -60,7 +60,7 @@ class TestAbstractWorker(unittest.TestCase):
     call_first_arg = patched_logger.log_struct.call_args[0][0]
     self.assertEqual(call_first_arg.get('log_level'), 'INFO')
 
-  @mock.patch('core.logging.logger')
+  @mock.patch('core.cloud_logging.logger')
   def test_log_warn_succeeds(self, patched_logger):
     patched_logger.log_struct.__name__ = 'foo'
     worker = workers.Worker({}, 1, 1)
@@ -70,7 +70,7 @@ class TestAbstractWorker(unittest.TestCase):
     call_first_arg = patched_logger.log_struct.call_args[0][0]
     self.assertEqual(call_first_arg.get('log_level'), 'WARNING')
 
-  @mock.patch('core.logging.logger')
+  @mock.patch('core.cloud_logging.logger')
   def test_log_error_succeeds(self, patched_logger):
     patched_logger.log_struct.__name__ = 'foo'
     worker = workers.Worker({}, 1, 1)
@@ -80,7 +80,7 @@ class TestAbstractWorker(unittest.TestCase):
     call_first_arg = patched_logger.log_struct.call_args[0][0]
     self.assertEqual(call_first_arg.get('log_level'), 'ERROR')
 
-  @mock.patch('core.logging.logger')
+  @mock.patch('core.cloud_logging.logger')
   def test_execute_client_error_raises_worker_exception(self, patched_logger):
     patched_logger.log_struct.__name__ = 'foo'
     class DummyWorker(workers.Worker):
@@ -99,7 +99,7 @@ class TestAbstractWorker(unittest.TestCase):
     self.assertEqual(worker._workers_to_enqueue[0][1], 'params')
 
   @mock.patch('time.sleep')
-  @mock.patch('core.logging.logger')
+  @mock.patch('core.cloud_logging.logger')
   def test_retry_until_a_finite_number_of_times(self, patched_logger,
       patched_time_sleep):
     patched_logger.log_struct.__name__ = 'foo'
@@ -376,7 +376,7 @@ class TestBQToMeasurementProtocolProcessor(TestBQToMeasurementProtocolMixin, uni
 cid=35009a79-1a05-49d7-b876-2b884d0f825b&ea=action&ec=category&el=%D0%BC%D0%B5%D1%82%D0%BA%D0%B0&ev=0.8&ni=1&t=event&tid=UA-12345-1&ua=User+Agent+%2F+1.0&v=1""",
         })
 
-  @mock.patch('core.logging.logger')
+  @mock.patch('core.cloud_logging.logger')
   @mock.patch('time.sleep')
   def test_log_exception_if_http_fails(self, patched_time_sleep, patched_logger):
     # Bypass the time.sleep wait

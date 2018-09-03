@@ -39,7 +39,7 @@ class TestTaskCreation(utils.JBackendBaseTest):
     response = self.client.get('/hello')
     self.assertEqual(response.status_code, 200)
 
-  @mock.patch('core.logging.logger')
+  @mock.patch('core.cloud_logging.logger')
   def test_submit_task_success(self, patched_logger):
     # NB: patching the StackDriver logger is needed because there is no
     #     testbed service available for now

@@ -13,6 +13,7 @@
 # limitations under the License.
 
 from datetime import datetime
+import logging
 import json
 import re
 import uuid
@@ -28,16 +29,21 @@ from sqlalchemy import Boolean
 from sqlalchemy import ForeignKey
 from sqlalchemy.orm import relationship
 from sqlalchemy.orm import load_only
-from core.database import BaseModel
-from core import inline
-from core.mailers import NotificationMailer
 from core import cache
+from core import inline
+from core.database import BaseModel
+from core.mailers import NotificationMailer
+
+
 
 CACHE_KEY_ENQUEUED_TASKS = 'enqueued_tasks'
 CACHE_KEY_STATUS = 'status'
 CACHE_KEY_LIST_OF_TASKS_ENQUEUED = 'list_of_tasks_enqueued'
 CACHE_KEY_FAILED_JOBS = 'failed_jobs'
 CACHE_KEY_REMAINING_JOBS = 'remaining_jobs'
+
+logger = logging.getLogger(__name__)
+
 
 def _parse_num(s):
   try:
@@ -75,7 +81,7 @@ class Pipeline(BaseModel):
     self.name = name
 
   def _get_prefixed_cache_key(self, key):
-    return '%s_%s' % (str(self.id), key)
+    return 'pipeline=%s_%s' % (str(self.id), key)
 
   @property
   def state(self):
@@ -135,6 +141,9 @@ class Pipeline(BaseModel):
     Schedule.destroy(*ids_for_removing)
 
   def get_ready(self):
+    # Clear the memcache client, mainly to avoid memory overflow of
+    # the internal hashmap.
+    cache.clear_memcache_client()
     return True
 
   def start(self):
@@ -284,6 +293,22 @@ class Job(BaseModel):
   def _get_prefixed_cache_key(self, key):
     return 'pipeline=%s_job=%s_%s' % (str(self.pipeline_id), str(self.id), key)
 
+  def _initialize_cache_values(self, max_retries=cache.MEMCACHE_DEFAULT_MAX_RETRIES):
+    retries = 0
+    mapping = {
+        self._get_prefixed_cache_key(CACHE_KEY_STATUS): self.status,
+        self._get_prefixed_cache_key(CACHE_KEY_LIST_OF_TASKS_ENQUEUED): []
+    }
+    while retries < max_retries:
+      keys_not_set = cache.get_memcache_client().set_multi(
+          mapping,
+          time=cache.MEMCACHE_DEFAULT_EXPIRATION_TIME_SECONDS)
+      if not keys_not_set:
+        # If empty, it means total success.
+        return True
+      retries += 1
+    return False
+
   def destroy(self):
     sc_ids = [sc.id for sc in self.start_conditions]
     if sc_ids:
@@ -311,8 +336,8 @@ class Job(BaseModel):
       for param in self.params:
         _ = param.val  # NOQA
     except (InvalidExpression, TypeError) as e:
-      from core.logging import logger
-      logger.log_struct({
+      from core import cloud_logging
+      cloud_logging.logger.log_struct({
           'labels': {
               'pipeline_id': self.pipeline_id,
               'job_id': self.id,
@@ -324,42 +349,61 @@ class Job(BaseModel):
       return False
 
     self.update(status=Job.STATUS.WAITING, status_changed_at=datetime.now())
-    mapping = {
-      self._get_prefixed_cache_key(CACHE_KEY_STATUS): self.status,
-      self._get_prefixed_cache_key(CACHE_KEY_LIST_OF_TASKS_ENQUEUED): []
-    }
-    cache.get_memcache_client().set_multi(mapping,
-        time=cache.MEMCACHE_DEFAULT_EXPIRATION_TIME_SECONDS)
+    if not self._initialize_cache_values():
+      from core import cloud_logging
+      cloud_logging.logger.log_struct({
+          'labels': {
+              'pipeline_id': self.pipeline_id,
+              'job_id': self.id,
+              'worker_class': self.worker_class,
+          },
+          'log_level': 'ERROR',
+          'message': 'Failed to initialize cache values.',
+      })
+      return False
+
+    # All initialization steps succeeded.
     return True
 
   def _add_task_name_cache(self, task_name, max_retries=cache.MEMCACHE_DEFAULT_MAX_RETRIES):
     key = self._get_prefixed_cache_key(CACHE_KEY_LIST_OF_TASKS_ENQUEUED)
-    retries = 0
-    while retries < max_retries:
-      curr_task_names = cache.get_memcache_client().get(key, for_cas=True)
-      curr_task_names.append(task_name)
-      if cache.get_memcache_client().cas(key, curr_task_names,
-          time=cache.MEMCACHE_DEFAULT_EXPIRATION_TIME_SECONDS):
-        return True
-      else:
-        retries += 1
-    return False
+    # retries = 0
+    # while retries < max_retries:
+    #   curr_task_names = cache.get_memcache_client().get(key, for_cas=True)
+    #   logger.debug(
+    #      'Fetched list of current tasks for add to key#%s: `%s`',
+    #      key,
+    #      str(curr_task_names))
+    #   curr_task_names.append(task_name)
+    #   if cache.get_memcache_client().cas(key, curr_task_names,
+    #       time=cache.MEMCACHE_DEFAULT_EXPIRATION_TIME_SECONDS):
+    #     return True
+    #   else:
+    #     retries += 1
+    RunningTask.create(task_namespace=key, task_name=task_name)
+    return True
 
   def _delete_task_name_cache(self, task_name, max_retries=cache.MEMCACHE_DEFAULT_MAX_RETRIES):
     """
     Returns: Number of remaining tasks in the cache.
     """
     key = self._get_prefixed_cache_key(CACHE_KEY_LIST_OF_TASKS_ENQUEUED)
-    retries = 0
-    while retries < max_retries:
-      curr_task_names = cache.get_memcache_client().get(key, for_cas=True)
-      curr_task_names.remove(task_name)
-      if cache.get_memcache_client().cas(key, curr_task_names,
-          time=cache.MEMCACHE_DEFAULT_EXPIRATION_TIME_SECONDS):
-        return len(curr_task_names)
-      else:
-        retries += 1
-    return len(curr_task_names) + 1  # Failed to remove the task name
+    # retries = 0
+    # while retries < max_retries:
+    #   curr_task_names = cache.get_memcache_client().get(key, for_cas=True)
+    #   logger.debug(
+    #      'Fetched list of current tasks for remove to key#%s: `%s`',
+    #      key,
+    #      str(curr_task_names))
+    #   curr_task_names.remove(task_name)
+    #   if cache.get_memcache_client().cas(key, curr_task_names,
+    #       time=cache.MEMCACHE_DEFAULT_EXPIRATION_TIME_SECONDS):
+    #     return len(curr_task_names)
+    #   else:
+    #     retries += 1
+    # return len(curr_task_names) + 1  # Failed to remove the task name
+    RunningTask.query.filter(RunningTask.task_name == task_name).delete()
+    return self._running_task_names_count()
 
   def _cancel_job_tasks(self):
     key = self._get_prefixed_cache_key(CACHE_KEY_LIST_OF_TASKS_ENQUEUED)
@@ -370,7 +414,8 @@ class Job(BaseModel):
 
   def _running_task_names_count(self):
     key = self._get_prefixed_cache_key(CACHE_KEY_LIST_OF_TASKS_ENQUEUED)
-    return len(cache.get_memcache_client().get(key))
+    # return len(cache.get_memcache_client().get(key))
+    return RunningTask.count_in_namespace(key)
 
   def _start_condition_is_fulfilled(self, start_condition):
     preceding_job_status = start_condition.preceding_job.get_status()
@@ -412,13 +457,15 @@ class Job(BaseModel):
         return None
       elif cache.get_memcache_client().cas(key, Job.STATUS.RUNNING,
           time=cache.MEMCACHE_DEFAULT_EXPIRATION_TIME_SECONDS):
+        # Update the database status.
+        self.update(status=Job.STATUS.RUNNING, status_changed_at=datetime.now())
         return self.run()
       else:
         retries += 1
 
     # Failed to start.
-    from core.logging import logger
-    logger.log_struct({
+    from core import cloud_logging
+    cloud_logging.logger.log_struct({
         'labels': {
             'pipeline_id': self.pipeline_id,
             'job_id': self.id,
@@ -442,7 +489,7 @@ class Job(BaseModel):
       return True
     elif self.get_status() == Job.STATUS.RUNNING:
       key = self._get_prefixed_cache_key(CACHE_KEY_STATUS)
-      cache.get_memcache_client().set(key, Job.STATUS.STOPPING)
+      cache.get_memcache_client().set(key, Job.STATUS.STOPPING, time=cache.MEMCACHE_DEFAULT_EXPIRATION_TIME_SECONDS)
       self.update(status=Job.STATUS.STOPPING, status_changed_at=datetime.now())
       return True
     return False
@@ -725,3 +772,15 @@ class Stage(BaseModel):
   def assign_attributes(self, attributes):
     for key, value in attributes.iteritems():
       self.__setattr__(key, value)
+
+
+class RunningTask(BaseModel):
+  __tablename__ = 'running_tasks'
+  id = Column(Integer, primary_key=True, autoincrement=True)
+  task_namespace = Column(String(100), index=True)
+  task_name = Column(String(255), index=True, unique=True)
+
+  @classmethod
+  def count_in_namespace(cls, namespace):
+    count_query = cls.query.filter(cls.task_namespace == namespace)
+    return count_query.count()

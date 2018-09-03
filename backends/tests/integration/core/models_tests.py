@@ -15,6 +15,7 @@
 from google.appengine.ext import testbed
 import mock
 
+from core import cache
 from core import models
 
 from tests import utils
@@ -89,7 +90,7 @@ class TestPipelineWithJobs(utils.ModelTestCase):
     self.assertEqual(result, True)
     self.assertEqual(pipeline.status, models.Pipeline.STATUS.RUNNING)
 
-  @mock.patch('core.logging.logger')
+  @mock.patch('core.cloud_logging.logger')
   def test_start_fails_with_one_job_not_getting_ready(self, patched_logger):
     patched_logger.log_struct.__name__ = 'foo'
     pipeline = models.Pipeline.create()
@@ -218,7 +219,7 @@ class TestPipelineWithJobs(utils.ModelTestCase):
 
 
 class TestPipelineDestroy(utils.ModelTestCase):
-  
+
   def setUp(self):
     super(TestPipelineDestroy, self).setUp()
     self.testbed = testbed.Testbed()
@@ -305,8 +306,32 @@ class TestPipelineImport(utils.ModelTestCase):
     self.assertEqual(pipeline.jobs[1].name, 'j2')
 
 
+class TestJobStartedStatus(utils.ModelTestCase):
+
+  def setUp(self):
+    super(TestJobStartedStatus, self).setUp()
+    self.testbed = testbed.Testbed()
+    self.testbed.activate()
+    # Activate which service we want to stub
+    self.testbed.init_memcache_stub()
+    self.testbed.init_app_identity_stub()
+    self.testbed.init_taskqueue_stub()
+
+  def tearDown(self):
+    super(TestJobStartedStatus, self).tearDown()
+    self.testbed.deactivate()
+
+  def test_succeeds_status_running(self):
+    pipeline = models.Pipeline.create()
+    job = models.Job.create(pipeline_id=pipeline.id)
+    self.assertTrue(job.get_ready())
+    self.assertEqual(job.status, models.Job.STATUS.WAITING)
+    self.assertTrue(job.start())
+    self.assertEqual(job.status, models.Job.STATUS.RUNNING)
+
+
 class TestJobDestroy(utils.ModelTestCase):
-  
+
   def setUp(self):
     super(TestJobDestroy, self).setUp()
     self.testbed = testbed.Testbed()
@@ -364,7 +389,7 @@ class TestStartConditionWithJobs(utils.ModelTestCase):
     # Activate which service we want to stub
     self.testbed.init_memcache_stub()
     self.testbed.init_app_identity_stub()
-    
+
   def tearDown(self):
     super(TestStartConditionWithJobs, self).tearDown()
     self.testbed.deactivate()
@@ -707,3 +732,90 @@ class TestJobStartWithDependentJobs(utils.ModelTestCase):
     self.assertIsNone(task2)
     self.assertEqual(job2.get_status(), models.Job.STATUS.FAILED)
     self.assertEqual(job3.get_status(), models.Job.STATUS.FAILED)
+
+
+class TestJobStartingMultipleTasks(utils.ModelTestCase):
+
+  def setUp(self):
+    super(TestJobStartingMultipleTasks, self).setUp()
+    self.testbed = testbed.Testbed()
+    self.testbed.activate()
+    # Activate which service we want to stub
+    self.testbed.init_memcache_stub()
+    self.testbed.init_app_identity_stub()
+    self.testbed.init_taskqueue_stub()
+
+  def tearDown(self):
+    super(TestJobStartingMultipleTasks, self).tearDown()
+    self.testbed.deactivate()
+
+  def test_succeeds_completing_tasks_in_series(self):
+    pipeline = models.Pipeline.create()
+    job = models.Job.create(pipeline_id=pipeline.id)
+    worker_params = dict([(p.name, p.val) for p in job.params])
+    self.assertTrue(job.get_ready())
+    self.assertEqual(job.get_status(), models.Job.STATUS.WAITING)
+    task1 = job.start()
+    self.assertIsNotNone(task1)
+    self.assertEqual(job.get_status(), models.Job.STATUS.RUNNING)
+    task2 = job.enqueue(job.worker_class, worker_params)
+    self.assertIsNotNone(task2)
+    job.worker_succeeded(task1.name)
+    self.assertEqual(job.get_status(), models.Job.STATUS.RUNNING)
+    job.worker_succeeded(task2.name)
+    self.assertEqual(job.get_status(), models.Job.STATUS.SUCCEEDED)
+
+  def test_succeeds_completing_tasks_in_parallel(self):
+    pipeline = models.Pipeline.create()
+    job = models.Job.create(pipeline_id=pipeline.id)
+    worker_params = dict([(p.name, p.val) for p in job.params])
+    self.assertTrue(job.get_ready())
+    self.assertEqual(job.get_status(), models.Job.STATUS.WAITING)
+    task1 = job.start()
+    self.assertIsNotNone(task1)
+    self.assertEqual(job.get_status(), models.Job.STATUS.RUNNING)
+    task2 = job.enqueue(job.worker_class, worker_params)
+    task3 = job.enqueue(job.worker_class, worker_params)
+    self.assertIsNotNone(task2)
+    self.assertIsNotNone(task3)
+    job.worker_succeeded(task1.name)
+    self.assertEqual(job.get_status(), models.Job.STATUS.RUNNING)
+    job.worker_succeeded(task3.name)
+    self.assertEqual(job.get_status(), models.Job.STATUS.RUNNING)
+    job.worker_succeeded(task2.name)
+    self.assertEqual(job.get_status(), models.Job.STATUS.SUCCEEDED)
+
+  def test_succeeds_completing_tasks_with_multiple_memcache_clients(self):
+    pipeline = models.Pipeline.create()
+    job = models.Job.create(pipeline_id=pipeline.id)
+    worker_params = dict([(p.name, p.val) for p in job.params])
+    self.assertTrue(job.get_ready())
+    self.assertEqual(job.get_status(), models.Job.STATUS.WAITING)
+    task1 = job.start()
+    self.assertIsNotNone(task1)
+    self.assertEqual(job.get_status(), models.Job.STATUS.RUNNING)
+
+    # Simulates that the task will complete from another process/machine.
+    cache.clear_memcache_client()
+    job = models.Job.find(job.id)  # refresh the job entity
+
+    task2 = job.enqueue(job.worker_class, worker_params)
+    task3 = job.enqueue(job.worker_class, worker_params)
+    self.assertIsNotNone(task2)
+    self.assertIsNotNone(task3)
+    job.worker_succeeded(task1.name)
+
+    # Simulates that the task will complete from another process/machine.
+    cache.clear_memcache_client()
+    job = models.Job.find(job.id)  # refresh the job entity
+
+    self.assertEqual(job.get_status(), models.Job.STATUS.RUNNING)
+    job.worker_succeeded(task3.name)
+    self.assertEqual(job.get_status(), models.Job.STATUS.RUNNING)
+
+    # Simulates that the task will complete from another process/machine.
+    cache.clear_memcache_client()
+    job = models.Job.find(job.id)  # refresh the job entity
+
+    job.worker_succeeded(task2.name)
+    self.assertEqual(job.get_status(), models.Job.STATUS.SUCCEEDED)
