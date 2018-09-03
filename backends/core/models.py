@@ -407,10 +407,11 @@ class Job(BaseModel):
 
   def _cancel_job_tasks(self):
     key = self._get_prefixed_cache_key(CACHE_KEY_LIST_OF_TASKS_ENQUEUED)
-    enqueued_tasks = cache.get_memcache_client().get(key)
+    enqueued_tasks = RunningTask.query.filter(RunningTask.task_namespace == key).all()
     if enqueued_tasks:
-      taskqueue.Queue().delete_tasks([taskqueue.Task(name=task_name) for task_name in enqueued_tasks])
-      cache.get_memcache_client().set(key, [])
+      taskqueue.Queue().delete_tasks(
+          [taskqueue.Task(name=task.task_name) for task in enqueued_tasks])
+      RunningTask.query.filter(RunningTask.task_namespace == key).delete()
 
   def _running_task_names_count(self):
     key = self._get_prefixed_cache_key(CACHE_KEY_LIST_OF_TASKS_ENQUEUED)
