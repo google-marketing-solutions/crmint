@@ -296,8 +296,7 @@ class Job(BaseModel):
   def _initialize_cache_values(self, max_retries=cache.MEMCACHE_DEFAULT_MAX_RETRIES):
     retries = 0
     mapping = {
-        self._get_prefixed_cache_key(CACHE_KEY_STATUS): self.status,
-        self._get_prefixed_cache_key(CACHE_KEY_LIST_OF_TASKS_ENQUEUED): []
+        self._get_prefixed_cache_key(CACHE_KEY_STATUS): self.status
     }
     while retries < max_retries:
       keys_not_set = cache.get_memcache_client().set_multi(
