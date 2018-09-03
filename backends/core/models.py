@@ -38,11 +38,11 @@ from core.mailers import NotificationMailer
 
 CACHE_KEY_ENQUEUED_TASKS = 'enqueued_tasks'
 CACHE_KEY_STATUS = 'status'
-CACHE_KEY_LIST_OF_TASKS_ENQUEUED = 'list_of_tasks_enqueued'
+CACHE_KEY_LIST_OF_TASKS_ENQUEUED = 'enqueued_tasks'
 CACHE_KEY_FAILED_JOBS = 'failed_jobs'
 CACHE_KEY_REMAINING_JOBS = 'remaining_jobs'
 
-logger = logging.getLogger(__name__)
+# logger = logging.getLogger(__name__)
 
 
 def _parse_num(s):
@@ -499,7 +499,7 @@ class Job(BaseModel):
       return None
 
     # Add a new task to the queue.
-    task_name = '%s_%s_%s' % (self.pipeline.name, self.name, self.worker_class)
+    task_name = '%s_%s' % (self.pipeline.id, self.id)
     escaped_task_name = re.sub(r'[^-_0-9a-zA-Z]', '-', task_name)
     unique_task_name = '%s_%s' % (escaped_task_name, str(uuid.uuid4()))
     task_params = {
@@ -777,8 +777,8 @@ class Stage(BaseModel):
 class RunningTask(BaseModel):
   __tablename__ = 'running_tasks'
   id = Column(Integer, primary_key=True, autoincrement=True)
-  task_namespace = Column(String(100), index=True)
-  task_name = Column(String(255), index=True, unique=True)
+  task_namespace = Column(String(60), index=True)
+  task_name = Column(String(100), index=True, unique=True)
 
   @classmethod
   def count_in_namespace(cls, namespace):
