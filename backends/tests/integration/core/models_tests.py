@@ -769,6 +769,21 @@ class TestJobStartingMultipleTasks(utils.ModelTestCase):
     job.worker_succeeded(task2.name)
     self.assertEqual(job.get_status(), models.Job.STATUS.SUCCEEDED)
 
+  def test_pipeline_fails_job_with_multiple_workers_and_start_condition(self):
+    pipeline = models.Pipeline.create(status=models.Pipeline.STATUS.RUNNING)
+    job1 = models.Job.create(pipeline_id=pipeline.id)
+    job2 = models.Job.create(pipeline_id=pipeline.id)
+    models.StartCondition.create(
+        job_id=job2.id,
+        preceding_job_id=job1.id,
+        condition=models.StartCondition.CONDITION.FAIL)
+    job1.get_ready()
+    task1 = job1.start()
+    task2 = job1.enqueue(job1.worker_class, {})
+    job1.worker_failed(task1.name)
+    job1.worker_succeeded(task2.name)
+    self.assertEqual(pipeline.status, models.Pipeline.STATUS.FAILED)
+
   def test_succeeds_completing_tasks_in_parallel(self):
     pipeline = models.Pipeline.create()
     job = models.Job.create(pipeline_id=pipeline.id)
