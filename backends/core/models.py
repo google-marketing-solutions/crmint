@@ -36,13 +36,8 @@ from core.mailers import NotificationMailer
 
 
 
-CACHE_KEY_ENQUEUED_TASKS = 'enqueued_tasks'
 CACHE_KEY_STATUS = 'status'
 CACHE_KEY_LIST_OF_TASKS_ENQUEUED = 'enqueued_tasks'
-CACHE_KEY_FAILED_JOBS = 'failed_jobs'
-CACHE_KEY_REMAINING_JOBS = 'remaining_jobs'
-
-# logger = logging.getLogger(__name__)
 
 
 def _parse_num(s):
