@@ -221,7 +221,8 @@ class Pipeline(BaseModel):
     jobs = jobs.options(load_only('status')).all()
     status = Pipeline.STATUS.SUCCEEDED
     for job in jobs:
-      if job.get_status() == Job.STATUS.FAILED:
+      # IDLE means the job has not run at all or it has been cancelled
+      if job.get_status() in [Job.STATUS.FAILED, Job.STATUS.IDLE]:
         status = Pipeline.STATUS.FAILED
         break
     self.update(status=status, status_changed_at=datetime.now())
