@@ -140,7 +140,12 @@ class Pipeline(BaseModel):
     return True
 
   def start(self):
-    if self.status not in [Pipeline.STATUS.IDLE, Pipeline.STATUS.FAILED, Pipeline.STATUS.SUCCEEDED]:
+    inactive_statuses = [
+        Pipeline.STATUS.IDLE,
+        Pipeline.STATUS.FAILED,
+        Pipeline.STATUS.SUCCEEDED
+    ]
+    if self.status not in inactive_statuses:
       return False
 
     # Clear the memcache client, mainly to avoid memory overflow of
@@ -152,10 +157,7 @@ class Pipeline(BaseModel):
       return False
 
     for job in jobs:
-      if job.get_status() not in [
-          Pipeline.STATUS.IDLE,
-          Pipeline.STATUS.FAILED,
-          Pipeline.STATUS.SUCCEEDED]:
+      if job.get_status() not in inactive_statuses:
         return False
 
     if not self.get_ready():
@@ -198,13 +200,13 @@ class Pipeline(BaseModel):
     for job in self.jobs:
       if job.get_status() == Job.STATUS.STOPPING:
         job.set_status(Job.STATUS.IDLE)
-    still_running_statuses = [
+    inactive_statuses = [
         Job.STATUS.IDLE,
         Job.STATUS.FAILED,
         Job.STATUS.SUCCEEDED
     ]
     for job in self.jobs:
-      if job.get_status() not in still_running_statuses:
+      if job.get_status() not in inactive_statuses:
         return False
     self._finish()
     return True
@@ -300,15 +302,12 @@ class Job(BaseModel):
 
   def _initialize_cache_values(self, max_retries=cache.MEMCACHE_DEFAULT_MAX_RETRIES):
     retries = 0
-    mapping = {
-        self._get_prefixed_cache_key(CACHE_KEY_STATUS): self.status
-    }
     while retries < max_retries:
-      keys_not_set = cache.get_memcache_client().set_multi(
-          mapping,
+      keys_set = cache.get_memcache_client().set(
+          self._get_prefixed_cache_key(CACHE_KEY_STATUS),
+          self.status,
           time=cache.MEMCACHE_DEFAULT_EXPIRATION_TIME_SECONDS)
-      if not keys_not_set:
-        # If empty, it means total success.
+      if keys_set:
         return True
       retries += 1
     return False
