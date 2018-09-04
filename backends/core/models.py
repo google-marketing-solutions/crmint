@@ -377,7 +377,7 @@ class Job(BaseModel):
     TaskEnqueued.create(task_namespace=key, task_name=task_name)
     return True
 
-  def _delete_task_name_cache(self, task_name, max_retries=cache.MEMCACHE_DEFAULT_MAX_RETRIES):
+  def _delete_task_name(self, task_name, max_retries=cache.MEMCACHE_DEFAULT_MAX_RETRIES):
     """
     Returns: Number of remaining tasks in the cache.
     """
@@ -518,7 +518,7 @@ class Job(BaseModel):
 
     Returns: True if it was the last tasks to be completed. False otherwise.
     """
-    remaining_tasks = self._delete_task_name_cache(task_name)
+    remaining_tasks = self._delete_task_name(task_name)
     return remaining_tasks == 0
 
   def worker_succeeded(self, task_name):
