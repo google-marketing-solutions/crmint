@@ -92,9 +92,6 @@ class Pipeline(BaseModel):
       return self.emails_for_notifications.split()
     return []
 
-  def _get_pipeline_prefix(self):
-    return '%s_' % (str(self.id))
-
   def assign_attributes(self, attributes):
     for key, value in attributes.iteritems():
       if key in ['schedules', 'jobs', 'params']:
@@ -139,7 +136,6 @@ class Pipeline(BaseModel):
     for job in self.jobs.all():
       if not job.get_ready():
         return False
-
     self.update(status=Pipeline.STATUS.RUNNING, status_changed_at=datetime.now())
     return True
 
@@ -185,7 +181,12 @@ class Pipeline(BaseModel):
     return self.job_finished()
 
   def start_single_job(self, job):
-    if self.status not in [Pipeline.STATUS.IDLE, Pipeline.STATUS.FAILED, Pipeline.STATUS.SUCCEEDED]:
+    inactive_statuses = [
+        Pipeline.STATUS.IDLE,
+        Pipeline.STATUS.FAILED,
+        Pipeline.STATUS.SUCCEEDED
+    ]
+    if self.status not in inactive_statuses:
       return False
     if not job.get_ready():
       return False
@@ -332,7 +333,12 @@ class Job(BaseModel):
     return cache.get_memcache_client().get(key) or self.status
 
   def get_ready(self):
-    if self.status not in [Job.STATUS.IDLE, Job.STATUS.SUCCEEDED, Job.STATUS.FAILED]:
+    inactive_statuses = [
+        Pipeline.STATUS.IDLE,
+        Pipeline.STATUS.FAILED,
+        Pipeline.STATUS.SUCCEEDED
+    ]
+    if self.status not in inactive_statuses:
       return False
 
     try:
