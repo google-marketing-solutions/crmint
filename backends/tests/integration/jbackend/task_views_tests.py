@@ -47,7 +47,6 @@ class TestTaskCreation(utils.JBackendBaseTest):
     patched_logger.log_struct.return_value = 'patched_log_struct'
     pipeline = models.Pipeline.create()
     job = models.Job.create(pipeline_id=pipeline.id)
-    self.assertTrue(pipeline.get_ready())
     self.assertTrue(job.get_ready())
     task = job.start()
     self.assertIsNotNone(task)
