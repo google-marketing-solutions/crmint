@@ -527,22 +527,22 @@ class Job(BaseModel):
     # a coherent naming convention.
     was_last_task = self._task_completed(task_name)
 
-    # Cancel all tasks if one condition doesn't match the success status.
-    for job in self.dependent_jobs:
-      for start_condition in job.start_conditions:
-        success_statuses = [
-            StartCondition.CONDITION.SUCCESS,
-            StartCondition.CONDITION.WHATEVER
-        ]
-        if (start_condition.preceding_job.id == self.id
-            and start_condition.condition not in success_statuses):
-          self.set_status(Job.STATUS.SUCCEEDED)
-          return self.pipeline.stop()
 
     # Updates the job database status if there is no more running tasks.
     # NB: `was_last_task` acts as a concurrent lock, only one task can
     #     validate this condition.
     if was_last_task:
+      # Cancel all tasks if one condition doesn't match the success status.
+      for job in self.dependent_jobs:
+        for start_condition in job.start_conditions:
+          success_statuses = [
+              StartCondition.CONDITION.SUCCESS,
+              StartCondition.CONDITION.WHATEVER
+          ]
+          if (start_condition.preceding_job.id == self.id
+              and start_condition.condition not in success_statuses):
+            self.set_status(Job.STATUS.SUCCEEDED)
+            return self.pipeline.stop()
       self.set_status(Job.STATUS.SUCCEEDED)
       # We can safely start children jobs, because of our concurrent lock.
       self._start_dependent_jobs()
