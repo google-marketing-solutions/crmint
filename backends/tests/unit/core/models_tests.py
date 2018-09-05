@@ -182,7 +182,7 @@ class TestJob(utils.ModelTestCase):
         value='abc')  # initialize with a non-boolean value
     self.assertTrue(job1.get_ready())
 
-  def test_worker_succeeded_succeeds(self):
+  def test_task_succeeded_succeeds(self):
     pipeline = models.Pipeline.create()
     job = models.Job.create(
         pipeline_id=pipeline.id,
@@ -195,7 +195,7 @@ class TestJob(utils.ModelTestCase):
     job.set_status(models.Job.STATUS.SUCCEEDED)
     self.assertEqual(job.get_status(), models.Job.STATUS.SUCCEEDED)
 
-  def test_worker_succeeded_fails_with_failed_workers(self):
+  def test_task_succeeded_fails_with_failed_workers(self):
     pipeline = models.Pipeline.create()
     job = models.Job.create(
         pipeline_id=pipeline.id,

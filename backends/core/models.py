@@ -522,9 +522,7 @@ class Job(BaseModel):
     remaining_tasks = self._delete_task_name(task_name)
     return remaining_tasks == 0
 
-  def worker_succeeded(self, task_name):
-    # TODO rename "worker_succeeded" in "tasks_succeeded" to have
-    # a coherent naming convention.
+  def task_succeeded(self, task_name):
     was_last_task = self._task_completed(task_name)
 
 
@@ -548,7 +546,7 @@ class Job(BaseModel):
       self._start_dependent_jobs()
       self.pipeline.job_finished()
 
-  def worker_failed(self, task_name):
+  def task_failed(self, task_name):
     was_last_task = self._task_completed(task_name)
 
     # If no dependent jobs then the pipeline failed
