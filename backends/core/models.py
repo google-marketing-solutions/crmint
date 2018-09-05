@@ -199,7 +199,7 @@ class Pipeline(BaseModel):
   def job_finished(self):
     for job in self.jobs:
       if job.get_status() == Job.STATUS.STOPPING:
-        job.set_status(Job.STATUS.IDLE)
+        job.set_status(Job.STATUS.FAILED)
     inactive_statuses = [
         Job.STATUS.IDLE,
         Job.STATUS.FAILED,
@@ -220,7 +220,7 @@ class Pipeline(BaseModel):
     status = Pipeline.STATUS.SUCCEEDED
     for job in jobs:
       # IDLE means the job has not run at all or it has been cancelled
-      if job.get_status() in [Job.STATUS.FAILED, Job.STATUS.IDLE]:
+      if job.get_status() == Job.STATUS.FAILED:
         status = Pipeline.STATUS.FAILED
         break
     self.update(status=status, status_changed_at=datetime.now())
