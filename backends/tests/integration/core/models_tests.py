@@ -737,6 +737,34 @@ class TestJobStartWithDependentJobs(utils.ModelTestCase):
     self.assertEqual(job2.get_status(), models.Job.STATUS.FAILED)
     self.assertEqual(job3.get_status(), models.Job.STATUS.FAILED)
 
+  def test_dependent_job_starts_after_multiple_workers_finish_with_fail(self):
+    pipeline = models.Pipeline.create()
+    job1 = models.Job.create(pipeline_id=pipeline.id)
+    job2 = models.Job.create(pipeline_id=pipeline.id)
+    job3 = models.Job.create(pipeline_id=pipeline.id)
+    models.StartCondition.create(
+        job_id=job2.id,
+        preceding_job_id=job1.id,
+        condition=models.StartCondition.CONDITION.FAIL)
+    models.StartCondition.create(
+        job_id=job3.id,
+        preceding_job_id=job2.id,
+        condition=models.StartCondition.CONDITION.SUCCESS)
+    self.assertTrue(pipeline.get_ready())
+    self.assertEqual(job1.get_status(), models.Job.STATUS.WAITING)
+    self.assertEqual(job2.get_status(), models.Job.STATUS.WAITING)
+    self.assertEqual(job3.get_status(), models.Job.STATUS.WAITING)
+    task1 = job1.start()
+    task2 = job1.enqueue(job1.worker_class, {})
+    self.assertIsNotNone(task1)
+    job1.worker_succeeded(task1.name)
+    job1.worker_failed(task2.name)
+    self.assertEqual(job1.get_status(), models.Job.STATUS.FAILED)
+    task3 = job2.start()
+    self.assertIsNone(task3)
+    self.assertEqual(job2.get_status(), models.Job.STATUS.RUNNING)
+    self.assertEqual(job3.get_status(), models.Job.STATUS.WAITING)
+
 
 class TestJobStartingMultipleTasks(utils.ModelTestCase):
 
