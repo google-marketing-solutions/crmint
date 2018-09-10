@@ -87,8 +87,8 @@ class Worker(object):
     self._workers_to_enqueue = []
 
   def _log(self, level, message, *substs):
-    from core.logging import logger
-    self.retry(logger.log_struct)({
+    from core import cloud_logging
+    self.retry(cloud_logging.logger.log_struct)({
         'labels': {
             'pipeline_id': self._pipeline_id,
             'job_id': self._job_id,
@@ -838,7 +838,7 @@ class BQToMeasurementProtocol(BQWorker):
   ]
 
   # BigQuery batch size for querying results. Default to 10,000.
-  BQ_BATCH_SIZE = int(1e4)
+  BQ_BATCH_SIZE = int(1e3)
 
   # Maximum number of jobs to enqueued before spawning a new scheduler.
   MAX_ENQUEUED_JOBS = 50
