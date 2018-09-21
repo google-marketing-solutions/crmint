@@ -117,11 +117,11 @@ class TestPipeline(utils.ModelTestCase):
     pipeline = models.Pipeline.create(status=models.Pipeline.STATUS.RUNNING)
     self.assertTrue(pipeline.is_blocked())
 
-  def test_is_not_blocked_if_finished(self):
+  def test_is_not_blocked_if_succeeded(self):
     pipeline = models.Pipeline.create(status=models.Pipeline.STATUS.SUCCEEDED)
     self.assertFalse(pipeline.is_blocked())
 
-  def test_is_not_blocked_if_finished(self):
+  def test_is_not_blocked_if_failed(self):
     pipeline = models.Pipeline.create(status=models.Pipeline.STATUS.FAILED)
     self.assertFalse(pipeline.is_blocked())
 
@@ -337,7 +337,7 @@ class TestTaskEnqueued(utils.ModelTestCase):
     models.TaskEnqueued.create(task_namespace='abc')
     self.assertEqual(models.TaskEnqueued.count_in_namespace('xyz'), 0)
 
-  def test_count_is_zero_in_another_namespace(self):
+  def test_count_is_not_zero_in_another_namespace(self):
     models.TaskEnqueued.create(task_namespace='xyz')
     models.TaskEnqueued.create(task_namespace='abc')
     self.assertEqual(models.TaskEnqueued.count_in_namespace('xyz'), 1)
