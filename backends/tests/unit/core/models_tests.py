@@ -206,7 +206,6 @@ class TestJob(utils.ModelTestCase):
     self.assertEqual(job.get_status(), models.Job.STATUS.RUNNING)
     job.set_status(models.Job.STATUS.FAILED)
     self.assertEqual(job.get_status(), models.Job.STATUS.FAILED)
-    self.assertEqual(job.get_status(), models.Job.STATUS.FAILED)
 
   def test_save_relations(self):
     pipeline = models.Pipeline.create()
