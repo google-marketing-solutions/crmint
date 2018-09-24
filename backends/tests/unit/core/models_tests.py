@@ -114,15 +114,15 @@ class TestPipeline(utils.ModelTestCase):
     self.assertTrue(pipeline.is_blocked())
 
   def test_is_blocked_if_running(self):
-    pipeline = models.Pipeline.create(status='running')
+    pipeline = models.Pipeline.create(status=models.Pipeline.STATUS.RUNNING)
     self.assertTrue(pipeline.is_blocked())
 
-  def test_is_not_blocked_if_finished(self):
-    pipeline = models.Pipeline.create(status='succeeded')
+  def test_is_not_blocked_if_succeeded(self):
+    pipeline = models.Pipeline.create(status=models.Pipeline.STATUS.SUCCEEDED)
     self.assertFalse(pipeline.is_blocked())
 
-  def test_is_not_blocked_if_finished(self):
-    pipeline = models.Pipeline.create(status='failed')
+  def test_is_not_blocked_if_failed(self):
+    pipeline = models.Pipeline.create(status=models.Pipeline.STATUS.FAILED)
     self.assertFalse(pipeline.is_blocked())
 
 
@@ -141,7 +141,7 @@ class TestJob(utils.ModelTestCase):
     super(TestJob, self).tearDown()
     self.testbed.deactivate()
 
-  @mock.patch('core.logging.logger')
+  @mock.patch('core.cloud_logging.logger')
   def test_job_fails_get_ready_without_pipeline_param(self, patched_logger):
     patched_logger.log_struct.__name__ = 'foo'
     pipeline = models.Pipeline.create()
@@ -182,34 +182,38 @@ class TestJob(utils.ModelTestCase):
         value='abc')  # initialize with a non-boolean value
     self.assertTrue(job1.get_ready())
 
-  def test_worker_succeeded_succeeds(self):
+  def test_task_succeeded_succeeds(self):
     pipeline = models.Pipeline.create()
     job = models.Job.create(
-        pipeline_id=pipeline.id,
-        enqueued_workers_count=1,
-        succeeded_workers_count=0,
-        failed_workers_count=0)
-    self.assertEqual(job.status, 'idle')
-    job.worker_succeeded()
-    self.assertEqual(job.status, 'succeeded')
+        pipeline_id=pipeline.id)
+    self.assertEqual(job.get_status(), models.Job.STATUS.IDLE)
+    self.assertTrue(job.get_ready())
+    self.assertEqual(job.get_status(), models.Job.STATUS.WAITING)
+    task = job.start()
+    self.assertEqual(job.get_status(), models.Job.STATUS.RUNNING)
+    job.task_succeeded(task.name)
+    self.assertEqual(job.get_status(), models.Job.STATUS.SUCCEEDED)
 
-  def test_worker_succeeded_fails_with_failed_workers(self):
+  def test_task_succeeded_fails_with_failed_task(self):
     pipeline = models.Pipeline.create()
     job = models.Job.create(
-        pipeline_id=pipeline.id,
-        enqueued_workers_count=2,
-        succeeded_workers_count=0,
-        failed_workers_count=1)
-    self.assertEqual(job.status, 'idle')
-    job.worker_succeeded()
-    self.assertEqual(job.status, 'failed')
+        pipeline_id=pipeline.id)
+    self.assertTrue(job.get_ready())
+    self.assertEqual(job.get_status(), models.Job.STATUS.WAITING)
+    task = job.start()
+    self.assertIsNotNone(task)
+    self.assertEqual(job.get_status(), models.Job.STATUS.RUNNING)
+    job.task_failed(task.name)
+    self.assertEqual(job.get_status(), models.Job.STATUS.FAILED)
 
   def test_save_relations(self):
     pipeline = models.Pipeline.create()
     job0 = models.Job.create(pipeline_id=pipeline.id)
     job1 = models.Job.create(pipeline_id=pipeline.id)
-    start_conditions = [
-        {'id': None, 'preceding_job_id': job0.id, 'condition': 'success'}
+    start_conditions = [{
+        'id': None,
+        'preceding_job_id': job0.id,
+        'condition': models.StartCondition.CONDITION.SUCCESS}
     ]
     params = [
         {'id': None, 'name': 'desc', 'type': 'text', 'value': 'Hello world!'}
@@ -320,3 +324,18 @@ class TestStage(utils.ModelTestCase):
     self.assertNotEqual(st.sid, '123')
     st.assign_attributes(attrs)
     self.assertEqual(st.sid, '123')
+
+
+class TestTaskEnqueued(utils.ModelTestCase):
+
+  def test_count_is_zero(self):
+    self.assertEqual(models.TaskEnqueued.count_in_namespace('xyz'), 0)
+
+  def test_count_is_zero_in_another_namespace(self):
+    models.TaskEnqueued.create(task_namespace='abc')
+    self.assertEqual(models.TaskEnqueued.count_in_namespace('xyz'), 0)
+
+  def test_count_is_not_zero_in_another_namespace(self):
+    models.TaskEnqueued.create(task_namespace='xyz')
+    models.TaskEnqueued.create(task_namespace='abc')
+    self.assertEqual(models.TaskEnqueued.count_in_namespace('xyz'), 1)

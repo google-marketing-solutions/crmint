@@ -13,6 +13,7 @@
 # limitations under the License.
 
 from datetime import datetime
+import logging
 import json
 import re
 import uuid
@@ -28,9 +29,15 @@ from sqlalchemy import Boolean
 from sqlalchemy import ForeignKey
 from sqlalchemy.orm import relationship
 from sqlalchemy.orm import load_only
-from core.database import BaseModel
+from core import cache
 from core import inline
+from core.database import BaseModel
 from core.mailers import NotificationMailer
+
+
+
+CACHE_KEY_STATUS = 'status'
+CACHE_KEY_LIST_OF_TASKS_ENQUEUED = 'enqueued_tasks'
 
 
 def _parse_num(s):
@@ -57,8 +64,20 @@ class Pipeline(BaseModel):
   schedules = relationship('Schedule', lazy='dynamic')
   params = relationship('Param', lazy='dynamic', order_by='asc(Param.name)')
 
+  class STATUS:
+    IDLE = 'idle'
+    FAILED = 'failed'
+    SUCCEEDED = 'succeeded'
+    STOPPING = 'stopping'
+    RUNNING = 'running'
+    INACTIVE_STATUSES = [IDLE, FAILED, SUCCEEDED]
+
   def __init__(self, name=None):
+    super(Pipeline, self).__init__()
     self.name = name
+
+  def _get_prefixed_cache_key(self, key):
+    return 'pipeline=%s_%s' % (str(self.id), key)
 
   @property
   def state(self):
@@ -114,45 +133,66 @@ class Pipeline(BaseModel):
         ids_for_removing.append(schedule.id)
     Schedule.destroy(*ids_for_removing)
 
+  def get_ready(self):
+    for job in self.jobs.all():
+      if not job.get_ready():
+        return False
+    self.update(status=Pipeline.STATUS.RUNNING, status_changed_at=datetime.now())
+    return True
+
   def start(self):
-    if self.status not in ['idle', 'finished', 'failed', 'succeeded']:
+    if self.status not in Pipeline.STATUS.INACTIVE_STATUSES:
       return False
+
+    # Clear the memcache client, mainly to avoid memory overflow of
+    # the internal hashmap.
+    cache.clear_memcache_client()
+
     jobs = self.jobs.all()
     if len(jobs) < 1:
       return False
+
     for job in jobs:
-      if job.status not in ['idle', 'succeeded', 'failed']:
+      if job.get_status() not in Job.STATUS.INACTIVE_STATUSES:
         return False
-    for job in jobs:
-      if not job.get_ready():
-        return False
+
+    if not self.get_ready():
+      return False
+
     for job in jobs:
       job.start()
-    self.update(status='running', status_changed_at=datetime.now())
     return True
 
+  def _cancel_all_tasks(self):
+    for job in self.jobs:
+      job._cancel_tasks()
+
   def stop(self):
-    if self.status != 'running':
+    if self.status != Pipeline.STATUS.RUNNING:
       return False
     for job in self.jobs:
       job.stop()
     for job in self.jobs:
-      if job.status not in ['succeeded', 'failed']:
-        self.update(status='stopping', status_changed_at=datetime.now())
-        return True
-    self._finish()
-    return True
+      if job.get_status() not in [Job.STATUS.FAILED, Job.STATUS.SUCCEEDED]:
+        job.set_status(Job.STATUS.STOPPING)
+    self._cancel_all_tasks()
+    return self.job_finished()
 
   def start_single_job(self, job):
-    if self.status not in ['idle', 'finished', 'failed', 'succeeded']:
+    if self.status not in Pipeline.STATUS.INACTIVE_STATUSES:
       return False
-    job.run()
-    self.update(status='running', status_changed_at=datetime.now())
+    if not job.get_ready():
+      return False
+    self.update(status=Pipeline.STATUS.RUNNING, status_changed_at=datetime.now())
+    job.start()
     return True
 
   def job_finished(self):
     for job in self.jobs:
-      if job.status not in ['succeeded', 'failed', 'idle']:
+      if job.get_status() == Job.STATUS.STOPPING:
+        job.set_status(Job.STATUS.FAILED)
+    for job in self.jobs:
+      if job.get_status() not in Job.STATUS.INACTIVE_STATUSES:
         return False
     self._finish()
     return True
@@ -163,10 +203,11 @@ class Pipeline(BaseModel):
     jobs = jobs.filter(Job.pipeline_id == self.id)
     jobs = jobs.filter(StartCondition.preceding_job_id == None)
     jobs = jobs.options(load_only('status')).all()
-    status = 'succeeded'
+    status = Pipeline.STATUS.SUCCEEDED
     for job in jobs:
-      if job.status == 'failed':
-        status = 'failed'
+      # IDLE means the job has not run at all or it has been cancelled
+      if job.get_status() == Job.STATUS.FAILED:
+        status = Pipeline.STATUS.FAILED
         break
     self.update(status=status, status_changed_at=datetime.now())
     NotificationMailer().finished_pipeline(self)
@@ -192,7 +233,8 @@ class Pipeline(BaseModel):
                                          job_mapping)
 
   def is_blocked(self):
-    return (self.run_on_schedule or self.status in ['running', 'stopping'])
+    return (self.run_on_schedule or
+        self.status in [Pipeline.STATUS.RUNNING, Pipeline.STATUS.STOPPING])
 
   def destroy(self):
     sc_ids = [sc.id for sc in self.schedules]
@@ -225,14 +267,36 @@ class Job(BaseModel):
       secondary='start_conditions',
       primaryjoin='Job.id==StartCondition.preceding_job_id',
       secondaryjoin='StartCondition.job_id==Job.id')
-  enqueued_workers_count = Column(Integer, default=0)
-  succeeded_workers_count = Column(Integer, default=0)
-  failed_workers_count = Column(Integer, default=0)
+
+  class STATUS:
+    IDLE = 'idle'
+    FAILED = 'failed'
+    SUCCEEDED = 'succeeded'
+    RUNNING = 'running'
+    WAITING = 'waiting'
+    STOPPING = 'stopping'
+    INACTIVE_STATUSES = [IDLE, FAILED, SUCCEEDED]
 
   def __init__(self, name=None, worker_class=None, pipeline_id=None):
+    super(Job, self).__init__()
     self.name = name
     self.worker_class = worker_class
     self.pipeline_id = pipeline_id
+
+  def _get_prefixed_cache_key(self, key):
+    return 'pipeline=%s_job=%s_%s' % (str(self.pipeline_id), str(self.id), key)
+
+  def _initialize_cache_values(self, max_retries=cache.MEMCACHE_DEFAULT_MAX_RETRIES):
+    retries = 0
+    while retries < max_retries:
+      keys_set = cache.get_memcache_client().set(
+          self._get_prefixed_cache_key(CACHE_KEY_STATUS),
+          self.status,
+          time=cache.MEMCACHE_DEFAULT_EXPIRATION_TIME_SECONDS)
+      if keys_set:
+        return True
+      retries += 1
+    return False
 
   def destroy(self):
     sc_ids = [sc.id for sc in self.start_conditions]
@@ -249,15 +313,20 @@ class Job(BaseModel):
       Param.destroy(*param_ids)
     self.delete()
 
+  def get_status(self):
+    key = self._get_prefixed_cache_key(CACHE_KEY_STATUS)
+    return cache.get_memcache_client().get(key) or self.status
+
   def get_ready(self):
-    if self.status not in ['idle', 'succeeded', 'failed']:
+    if self.status not in Job.STATUS.INACTIVE_STATUSES:
       return False
+
     try:
       for param in self.params:
         _ = param.val  # NOQA
     except (InvalidExpression, TypeError) as e:
-      from core.logging import logger
-      logger.log_struct({
+      from core import cloud_logging
+      cloud_logging.logger.log_struct({
           'labels': {
               'pipeline_id': self.pipeline_id,
               'job_id': self.id,
@@ -267,105 +336,217 @@ class Job(BaseModel):
           'message': 'Bad job param "%s": %s' % (param.label, e),
       })
       return False
-    self.update(status='waiting', status_changed_at=datetime.now())
+
+    self.update(status=Job.STATUS.WAITING, status_changed_at=datetime.now())
+    if not self._initialize_cache_values():
+      from core import cloud_logging
+      cloud_logging.logger.log_struct({
+          'labels': {
+              'pipeline_id': self.pipeline_id,
+              'job_id': self.id,
+              'worker_class': self.worker_class,
+          },
+          'log_level': 'ERROR',
+          'message': 'Failed to initialize cache values.',
+      })
+      return False
+
+    # All initialization steps succeeded.
     return True
 
-  def start(self):
-    """
-    TODO(dulacp): refactor this method, too complex branching logic
-    """
-    if self.status != 'waiting':
-      return False
-    for start_condition in self.start_conditions:
-      if start_condition.condition == 'success':
-        if start_condition.preceding_job.status != 'succeeded':
-          if start_condition.preceding_job.status == 'failed':
-            self.update(status='failed', status_changed_at=datetime.now())
-            self._start_dependent_jobs()
-          return False
-      elif start_condition.condition == 'fail':
-        if start_condition.preceding_job.status != 'failed':
-          if start_condition.preceding_job.status == 'succeeded':
-            self.update(status='failed', status_changed_at=datetime.now())
-            self._start_dependent_jobs()
-          return False
-      elif start_condition.condition == 'whatever':
-        if start_condition.preceding_job.status not in ['succeeded', 'failed']:
-          return False
-    self.run()
+  def _add_task_name_cache(self, task_name, max_retries=cache.MEMCACHE_DEFAULT_MAX_RETRIES):
+    key = self._get_prefixed_cache_key(CACHE_KEY_LIST_OF_TASKS_ENQUEUED)
+    TaskEnqueued.create(task_namespace=key, task_name=task_name)
     return True
+
+  def _delete_task_name(self, task_name, max_retries=cache.MEMCACHE_DEFAULT_MAX_RETRIES):
+    """
+    Returns: Number of remaining tasks in the cache.
+    """
+    key = self._get_prefixed_cache_key(CACHE_KEY_LIST_OF_TASKS_ENQUEUED)
+    TaskEnqueued.where(task_name=task_name).delete()
+    return self._enqueued_task_count()
+
+  def _cancel_tasks(self):
+    key = self._get_prefixed_cache_key(CACHE_KEY_LIST_OF_TASKS_ENQUEUED)
+    enqueued_tasks = TaskEnqueued.where(task_namespace=key)
+    if enqueued_tasks:
+      tasks = [taskqueue.Task(name=t.task_name) for t in enqueued_tasks]
+      taskqueue.Queue().delete_tasks(tasks)
+      TaskEnqueued.where(task_namespace=key).delete()
+
+  def _enqueued_task_count(self):
+    key = self._get_prefixed_cache_key(CACHE_KEY_LIST_OF_TASKS_ENQUEUED)
+    return TaskEnqueued.count_in_namespace(key)
+
+  def _start_condition_is_fulfilled(self, start_condition):
+    preceding_job_status = start_condition.preceding_job.get_status()
+    if start_condition.condition == StartCondition.CONDITION.SUCCESS:
+      if preceding_job_status == Job.STATUS.FAILED:
+        return False
+    elif start_condition.condition == StartCondition.CONDITION.FAIL:
+      if preceding_job_status == Job.STATUS.SUCCEEDED:
+        return False
+    return True
+
+  def start(self, max_retries=cache.MEMCACHE_DEFAULT_MAX_RETRIES):
+    """
+    Returns: Task object that was added to the task queue, otherwise None.
+    """
+    # Validates that preceding jobs fulfill the starting conditions.
+    for start_condition in self.start_conditions:
+      if self._start_condition_is_fulfilled(start_condition):
+        if start_condition.preceding_job.get_status() not in [
+            Job.STATUS.SUCCEEDED,
+            Job.STATUS.FAILED]:
+          return None
+      else:
+        # pipeline failure
+        self.set_status(Job.STATUS.FAILED)
+        self.pipeline.update(status=Pipeline.STATUS.FAILED,
+                             status_changed_at=datetime.now())
+        self.pipeline.stop()
+        return None
+
+    if self.pipeline.status == Pipeline.STATUS.FAILED:
+      return None
+
+    # Run the job with a concurrent-safe lock.
+    retries = 0
+    key = self._get_prefixed_cache_key(CACHE_KEY_STATUS)
+    while retries < max_retries:
+      curr_status = cache.get_memcache_client().get(key, for_cas=True)
+      if curr_status != Job.STATUS.WAITING:
+        return None
+      elif cache.get_memcache_client().cas(key, Job.STATUS.RUNNING,
+          time=cache.MEMCACHE_DEFAULT_EXPIRATION_TIME_SECONDS):
+        # Update the database status.
+        self.update(status=Job.STATUS.RUNNING, status_changed_at=datetime.now())
+        return self.run()
+      else:
+        retries += 1
+
+    # Failed to start.
+    from core import cloud_logging
+    cloud_logging.logger.log_struct({
+        'labels': {
+            'pipeline_id': self.pipeline_id,
+            'job_id': self.id,
+            'worker_class': self.worker_class,
+        },
+        'log_level': 'ERROR',
+        'message': 'Cannot start the job after multiple retries.',
+    })
+    return None
 
   def run(self):
-    self.enqueued_workers_count = 0
-    self.succeeded_workers_count = 0
-    self.failed_workers_count = 0
-    self.status = 'running'
-    self.status_changed_at = datetime.now()
     worker_params = dict([(p.name, p.val) for p in self.params])
-    self.enqueue(self.worker_class, worker_params)
+    return self.enqueue(self.worker_class, worker_params)
 
   def stop(self):
-    if self.status == 'waiting':
-      self.update(status='failed', status_changed_at=datetime.now())
+    self._cancel_tasks()
+    if self.get_status() == Job.STATUS.WAITING:
+      self.set_status(Job.STATUS.IDLE)
       return True
-    elif self.status == 'running':
-      self.update(status='stopping', status_changed_at=datetime.now())
+    elif self.get_status() == Job.STATUS.RUNNING:
+      self.set_status(Job.STATUS.STOPPING)
       return True
     return False
 
   def enqueue(self, worker_class, worker_params, delay=0):
-    if self.status != 'running':
-      return False
+    if self.get_status() != Job.STATUS.RUNNING:
+      return None
+
+    # Add a new task to the queue.
+    task_name = '%s_%s' % (self.pipeline.id, self.id)
+    escaped_task_name = re.sub(r'[^-_0-9a-zA-Z]', '-', task_name)
+    unique_task_name = '%s_%s' % (escaped_task_name, str(uuid.uuid4()))
     task_params = {
         'job_id': self.id,
         'worker_class': worker_class,
         'worker_params': json.dumps(worker_params),
+        'task_name': unique_task_name
     }
-    task_name = '%s_%s_%s' % (self.pipeline.name, self.name, self.worker_class)
-    escaped_task_name = re.sub(r'[^-_0-9a-zA-Z]', '-', task_name)
-    unique_task_name = '%s_%s' % (escaped_task_name, str(uuid.uuid4()))
     task = taskqueue.add(
         target='job-service',
         name=unique_task_name,
         url='/task',
         params=task_params,
         countdown=delay)
-    self.enqueued_workers_count += 1
-    self.save()
-    return task
 
-  @property
-  def finished_workers_count(self):
-    return self.succeeded_workers_count + self.failed_workers_count
+    # Keep track of the running task name.
+    self._add_task_name_cache(unique_task_name)
+    self.save()
+
+    return task
 
   def _start_dependent_jobs(self):
     if self.dependent_jobs:
       for job in self.dependent_jobs:
         job.start()
-    self.pipeline.job_finished()
 
-  def worker_succeeded(self):
-    self.succeeded_workers_count += 1
-    if self.finished_workers_count >= self.enqueued_workers_count:
-      if self.failed_workers_count < 1:
-        self.status = 'succeeded'
-      else:
-        self.status = 'failed'
-      self.status_changed_at = datetime.now()
-      self.save()
-      self._start_dependent_jobs()
-    else:
-      self.save()
+  def set_status(self, status):
+    key = self._get_prefixed_cache_key(CACHE_KEY_STATUS)
+    cache.get_memcache_client().set(key, status)
+    self.update(status=status, status_changed_at=datetime.now())
 
-  def worker_failed(self):
-    self.failed_workers_count += 1
-    if self.finished_workers_count >= self.enqueued_workers_count:
-      self.status = 'failed'
-      self.status_changed_at = datetime.now()
-      self.save()
+  def _task_completed(self, task_name):
+    """Completes task execution.
+
+    Returns: True if it was the last tasks to be completed. False otherwise.
+    """
+    remaining_tasks = self._delete_task_name(task_name)
+    return remaining_tasks == 0
+
+  def task_succeeded(self, task_name):
+    was_last_task = self._task_completed(task_name)
+
+
+    # Updates the job database status if there is no more running tasks.
+    # NB: `was_last_task` acts as a concurrent lock, only one task can
+    #     validate this condition.
+    if was_last_task:
+      # Cancel all tasks if one condition doesn't match the success status.
+      for job in self.dependent_jobs:
+        for start_condition in job.start_conditions:
+          success_statuses = [
+              StartCondition.CONDITION.SUCCESS,
+              StartCondition.CONDITION.WHATEVER
+          ]
+          if (start_condition.preceding_job.id == self.id
+              and start_condition.condition not in success_statuses):
+            self.set_status(Job.STATUS.SUCCEEDED)
+            return self.pipeline.stop()
+      self.set_status(Job.STATUS.SUCCEEDED)
+      # We can safely start children jobs, because of our concurrent lock.
       self._start_dependent_jobs()
-    else:
-      self.save()
+      self.pipeline.job_finished()
+
+  def task_failed(self, task_name):
+    was_last_task = self._task_completed(task_name)
+
+    # If no dependent jobs then the pipeline failed
+    if not self.dependent_jobs:
+      self.set_status(Job.STATUS.FAILED)
+      return self.pipeline.stop()
+
+    # Cancel all tasks if one condition doesn't match the failed status.
+    for job in self.dependent_jobs:
+      for start_condition in job.start_conditions:
+        failed_statuses = [
+            StartCondition.CONDITION.FAIL,
+            StartCondition.CONDITION.WHATEVER
+        ]
+        if (start_condition.preceding_job.id == self.id
+            and start_condition.condition not in failed_statuses):
+          self.set_status(Job.STATUS.FAILED)
+          return self.pipeline.stop()
+
+    if was_last_task:
+      self.set_status(Job.STATUS.FAILED)
+      # We can safely start children jobs, because of our concurrent lock.
+      self._start_dependent_jobs()
+      self.pipeline.job_finished()
 
   def assign_attributes(self, attributes):
     for key, value in attributes.iteritems():
@@ -522,8 +703,13 @@ class StartCondition(BaseModel):
   preceding_job_id = Column(Integer, ForeignKey('jobs.id'))
   condition = Column(String(255))
 
-  job = relationship("Job", foreign_keys=[job_id])
-  preceding_job = relationship("Job", foreign_keys=[preceding_job_id])
+  job = relationship('Job', foreign_keys=[job_id])
+  preceding_job = relationship('Job', foreign_keys=[preceding_job_id])
+
+  class CONDITION:
+    SUCCESS = 'success'
+    FAIL = 'fail'
+    WHATEVER = 'whatever'
 
   def __init__(self, job_id=None, preceding_job_id=None, condition=None):
     self.job_id = job_id
@@ -541,8 +727,8 @@ class StartCondition(BaseModel):
   @classmethod
   def parse_value(cls, value):
     return {
-        "id": int(value['preceding_job_id']),
-        "condition": value['condition']
+        'id': int(value['preceding_job_id']),
+        'condition': value['condition']
     }
 
 
@@ -570,3 +756,15 @@ class Stage(BaseModel):
   def assign_attributes(self, attributes):
     for key, value in attributes.iteritems():
       self.__setattr__(key, value)
+
+
+class TaskEnqueued(BaseModel):
+  __tablename__ = 'enqueued_tasks'
+  id = Column(Integer, primary_key=True, autoincrement=True)
+  task_namespace = Column(String(60), index=True)
+  task_name = Column(String(100), index=True, unique=True)
+
+  @classmethod
+  def count_in_namespace(cls, namespace):
+    count_query = cls.where(task_namespace=namespace)
+    return count_query.count()
