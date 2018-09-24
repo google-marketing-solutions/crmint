@@ -70,6 +70,7 @@ class Pipeline(BaseModel):
     SUCCEEDED = 'succeeded'
     STOPPING = 'stopping'
     RUNNING = 'running'
+    INACTIVE_STATUSES = [IDLE, FAILED, SUCCEEDED]
 
   def __init__(self, name=None):
     super(Pipeline, self).__init__()
@@ -140,12 +141,7 @@ class Pipeline(BaseModel):
     return True
 
   def start(self):
-    inactive_statuses = [
-        Pipeline.STATUS.IDLE,
-        Pipeline.STATUS.FAILED,
-        Pipeline.STATUS.SUCCEEDED
-    ]
-    if self.status not in inactive_statuses:
+    if self.status not in Pipeline.STATUS.INACTIVE_STATUSES:
       return False
 
     # Clear the memcache client, mainly to avoid memory overflow of
@@ -157,7 +153,7 @@ class Pipeline(BaseModel):
       return False
 
     for job in jobs:
-      if job.get_status() not in inactive_statuses:
+      if job.get_status() not in Job.STATUS.INACTIVE_STATUSES:
         return False
 
     if not self.get_ready():
@@ -183,12 +179,7 @@ class Pipeline(BaseModel):
     return self.job_finished()
 
   def start_single_job(self, job):
-    inactive_statuses = [
-        Pipeline.STATUS.IDLE,
-        Pipeline.STATUS.FAILED,
-        Pipeline.STATUS.SUCCEEDED
-    ]
-    if self.status not in inactive_statuses:
+    if self.status not in Pipeline.STATUS.INACTIVE_STATUSES:
       return False
     if not job.get_ready():
       return False
@@ -200,13 +191,8 @@ class Pipeline(BaseModel):
     for job in self.jobs:
       if job.get_status() == Job.STATUS.STOPPING:
         job.set_status(Job.STATUS.FAILED)
-    inactive_statuses = [
-        Job.STATUS.IDLE,
-        Job.STATUS.FAILED,
-        Job.STATUS.SUCCEEDED
-    ]
     for job in self.jobs:
-      if job.get_status() not in inactive_statuses:
+      if job.get_status() not in Job.STATUS.INACTIVE_STATUSES:
         return False
     self._finish()
     return True
@@ -290,6 +276,7 @@ class Job(BaseModel):
     RUNNING = 'running'
     WAITING = 'waiting'
     STOPPING = 'stopping'
+    INACTIVE_STATUSES = [IDLE, FAILED, SUCCEEDED]
 
   def __init__(self, name=None, worker_class=None, pipeline_id=None):
     super(Job, self).__init__()
@@ -332,12 +319,7 @@ class Job(BaseModel):
     return cache.get_memcache_client().get(key) or self.status
 
   def get_ready(self):
-    inactive_statuses = [
-        Pipeline.STATUS.IDLE,
-        Pipeline.STATUS.FAILED,
-        Pipeline.STATUS.SUCCEEDED
-    ]
-    if self.status not in inactive_statuses:
+    if self.status not in Job.STATUS.INACTIVE_STATUSES:
       return False
 
     try:
