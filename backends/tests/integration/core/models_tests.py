@@ -440,8 +440,8 @@ class TestJobStartConditions(utils.ModelTestCase):
     job2 = models.Job.create(pipeline_id=pipeline.id, status=models.Job.STATUS.IDLE)
     job3 = models.Job.create(pipeline_id=pipeline.id, status=models.Job.STATUS.IDLE)
     arg_start_conditions = [
-      {'preceding_job_id': job1.id, 'condition': models.StartCondition.CONDITION.SUCCESS},
-      {'preceding_job_id': job2.id, 'condition': models.StartCondition.CONDITION.SUCCESS},
+        {'preceding_job_id': job1.id, 'condition': models.StartCondition.CONDITION.SUCCESS},
+        {'preceding_job_id': job2.id, 'condition': models.StartCondition.CONDITION.SUCCESS},
     ]
     job3.assign_start_conditions(arg_start_conditions)
     self.assertEqual(len(job3.start_conditions), 2)
@@ -456,12 +456,12 @@ class TestJobStartConditions(utils.ModelTestCase):
         preceding_job_id=job2.id,
         condition=models.StartCondition.CONDITION.FAIL)
     arg_start_conditions = [
-      {
-      'preceding_job_id': job1.id,
-      'condition': models.StartCondition.CONDITION.SUCCESS},
-      {
-      'preceding_job_id': job2.id,
-      'condition': models.StartCondition.CONDITION.SUCCESS},
+        {
+        'preceding_job_id': job1.id,
+        'condition': models.StartCondition.CONDITION.SUCCESS},
+        {
+        'preceding_job_id': job2.id,
+        'condition': models.StartCondition.CONDITION.SUCCESS},
     ]
     self.assertEqual(len(job3.start_conditions), 1)
     self.assertEqual(job3.start_conditions[0].condition,
