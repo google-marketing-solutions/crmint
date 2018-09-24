@@ -267,7 +267,6 @@ class Job(BaseModel):
       secondary='start_conditions',
       primaryjoin='Job.id==StartCondition.preceding_job_id',
       secondaryjoin='StartCondition.job_id==Job.id')
-  enqueued_workers_count = Column(Integer, default=0)
 
   class STATUS:
     IDLE = 'idle'
@@ -441,8 +440,6 @@ class Job(BaseModel):
     return None
 
   def run(self):
-    # TODO remove the enqueued_workers_count field (since we use memcache for that purpuse)
-    self.enqueued_workers_count = 0
     worker_params = dict([(p.name, p.val) for p in self.params])
     return self.enqueue(self.worker_class, worker_params)
 
@@ -479,9 +476,6 @@ class Job(BaseModel):
 
     # Keep track of the running task name.
     self._add_task_name_cache(unique_task_name)
-
-    # TODO remove these two lines when we will remove the enqueued_workers_count field
-    self.enqueued_workers_count += 1
     self.save()
 
     return task
