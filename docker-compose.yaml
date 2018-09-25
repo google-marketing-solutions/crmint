@@ -24,7 +24,13 @@ services:
       DATABASE_URI: mysql+mysqldb://crmintapp:crmintapp@db:3306/crmintapp
       APPLICATION_ID: $APPLICATION_ID
     volumes:
-      -  ./backends:/app/backends
+      -  ./backends/core:/app/backends/core
+      -  ./backends/data:/app/backends/data
+      -  ./backends/ibackend:/app/backends/ibackend
+      -  ./backends/instance:/app/backends/instance
+      -  ./backends/jbackend:/app/backends/jbackend
+      -  ./backends/migrations:/app/backends/migrations
+      -  ./backends/tests:/app/backends/tests
     depends_on:
       - db
       - migrations
