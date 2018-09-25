@@ -4,6 +4,8 @@
 *.pyo
 *.swp
 frontend/node_modules
+frontend/.DS_Store
+frontend/.editorconfig
 backends/lib
 backends/lib_dev
 backends/htmlcov/
