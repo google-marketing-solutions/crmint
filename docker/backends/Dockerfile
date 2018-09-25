@@ -69,6 +69,6 @@ CMD /root/google-cloud-sdk/platform/google_appengine/dev_appserver.py \
       --admin_host 0.0.0.0 \
       --enable_sendmail yes \
       --enable_console yes \
-      --env_var APPLICATION_ID=crmint-dev-dulacp-2 \
+      --env_var APPLICATION_ID=$APPLICATION_ID \
       --env_var DATABASE_URI=$DATABASE_URI \
       /app/backends/gae_dev_ibackend.yaml /app/backends/gae_dev_jbackend.yaml
