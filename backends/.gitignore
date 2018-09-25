@@ -1,4 +1,3 @@
-instance/config.py
 lib
 config/dev.py
 data/*
