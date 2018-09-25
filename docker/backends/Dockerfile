@@ -66,9 +66,8 @@ COPY ./backends/data/app.json.example /app/backends/data/app.json
 COPY ./backends/data/service-account.json.example /app/backends/data/service-account.json
 #VOLUME ["/app/backends"]
 
-# START DEBUG with bash if needed
+# We need bash to run multiline commands in docker-compose.
 RUN apk add --no-cache bash
-# END DEBUG
 
 CMD /root/google-cloud-sdk/platform/google_appengine/dev_appserver.py \
       --skip_sdk_update_check \
