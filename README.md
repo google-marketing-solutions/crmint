@@ -32,3 +32,11 @@ build a data pipeline, and benefit from data integration and processing in
 [Google Cloud](https://cloud.google.com/).
 
 **This is not an official Google product.**
+
+
+## Run CRMint on your local machine
+
+```sh
+$ docker-compose build
+$ docker-compose up
+```
