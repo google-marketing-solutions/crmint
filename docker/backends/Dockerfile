@@ -59,12 +59,6 @@ RUN pip install Mysql-Python
 # Start
 WORKDIR /app
 COPY ./backends/ /app/backends
-COPY ./backends/instance/config.py.example /app/backends/instance/config.py
-COPY ./backends/gae_dev_ibackend.yaml.example /app/backends/gae_dev_ibackend.yaml
-COPY ./backends/gae_dev_jbackend.yaml.example /app/backends/gae_dev_jbackend.yaml
-COPY ./backends/data/app.json.example /app/backends/data/app.json
-COPY ./backends/data/service-account.json.example /app/backends/data/service-account.json
-#VOLUME ["/app/backends"]
 
 # We need bash to run multiline commands in docker-compose.
 RUN apk add --no-cache bash
