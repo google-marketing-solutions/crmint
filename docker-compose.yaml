@@ -26,6 +26,8 @@ services:
       -  ./backends:/app/backends
     depends_on:
       - db
+      - migrations
+      - seeds
 
   migrations:
     build:
