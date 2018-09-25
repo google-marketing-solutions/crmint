@@ -36,7 +36,25 @@ build a data pipeline, and benefit from data integration and processing in
 
 ## Run CRMint on your local machine
 
+**Create GCP project (if needed)**
 ```sh
+$ PROJECT_ID="my-crmint-${RANDOM:0:4}"
+$ gcloud projects create $PROJECT_ID --enable-cloud-apis --set-as-default
+```
+
+**Retrieve your GCP service account key (if needed)**
+```sh
+$ gcloud app create --region=europe-west
+$ gcloud iam service-accounts keys create \
+    "./backends/data/${PROJECT_ID}.json" \
+    --iam-account="${PROJECT_ID}@appspot.gserviceaccount.com" \
+    --key-file-type='json'
+$ cp ./backends/data/$PROJECT_ID.json ./backends/data/service-account.json
+```
+
+**Run local CRMint**
+```sh
+export APPLICATION_ID=$PROJECT_ID
 $ docker-compose build
 $ docker-compose up
 ```
