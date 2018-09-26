@@ -40,15 +40,15 @@ _KEY_FILE = os.path.join(os.path.dirname(__file__), '..', 'data',
                          'service-account.json')
 AVAILABLE = (
     'BQQueryLauncher',
-    'GAToBQImporter',
-    'StorageToBQImporter',
+    'BQToMeasurementProtocol',
     'BQToStorageExporter',
-    'GADataImporter',
+    'Commenter',
     'GAAudiencesUpdater',
+    'GADataImporter',
+    'GAToBQImporter',
     'MLPredictor',
     'StorageCleaner',
-    'Commenter',
-    'BQToMeasurementProtocol',
+    'StorageToBQImporter',
 )
 
 # Defines how many times to retry on failure, default to 5 times.
