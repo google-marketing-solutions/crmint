@@ -777,8 +777,25 @@ class MeasurementProtocolException(WorkerException):
 
 class MeasurementProtocolWorker(Worker):
   """Abstract Measurement Protocol worker."""
+  
+  def _flatten(self, data):
+    flat = False
+    while not flat:
+      flat = True
+      for k in data.keys():
+        if isinstance(data[k], list):
+          for i, v in enumerate(data[k]):
+            data['%s%i' % (k, i + 1)] = v
+          del data[k]
+          flat = False
+        elif isinstance(data[k], dict):
+          for l in data[k]:
+            data['%s%s' % (k, l)] = data[k][l]
+          del data[k]
+          flat = False
 
   def _get_payload_from_data(self, data):
+    self._flatten(data)
     payload = {'v': 1}  # Use version 1
     payload.update(data)
     return payload
