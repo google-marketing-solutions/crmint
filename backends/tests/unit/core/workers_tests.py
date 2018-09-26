@@ -292,6 +292,7 @@ class TestBQToMeasurementProtocolProcessor(TestBQToMeasurementProtocolMixin, uni
     patcher_requests_post = mock.patch('requests.post')
     self.addCleanup(patcher_requests_post.stop)
     self._patched_post = patcher_requests_post.start()
+    self.maxDiff = None
 
   @mock.patch('time.sleep')
   def test_success_with_one_post_request(self, patched_time_sleep):
@@ -374,6 +375,222 @@ class TestBQToMeasurementProtocolProcessor(TestBQToMeasurementProtocolMixin, uni
             'data':
 """cid=35009a79-1a05-49d7-b876-2b884d0f825b&ea=action&ec=category&el=label&ev=0.9&ni=1&t=event&tid=UA-12345-1&ua=User+Agent+%2F+1.0&v=1
 cid=35009a79-1a05-49d7-b876-2b884d0f825b&ea=action&ec=category&el=%D0%BC%D0%B5%D1%82%D0%BA%D0%B0&ev=0.8&ni=1&t=event&tid=UA-12345-1&ua=User+Agent+%2F+1.0&v=1""",
+        })
+
+  @mock.patch('time.sleep')
+  def test_success_with_enhanced_ecommerce_request(self, patched_time_sleep):
+    # Bypass the time.sleep wait
+    patched_time_sleep.return_value = 1
+    self._worker = workers.BQToMeasurementProtocolProcessor(
+        {
+            'bq_project_id': 'BQID',
+            'bq_dataset_id': 'DTID',
+            'bq_table_id': 'table_id',
+            'bq_page_token': None,
+            'bq_batch_size': 10,
+            'mp_batch_size': 20,
+        },
+        1,
+        1)
+    self._use_query_results({
+        'tableReference': {
+            'tableId': 'mock_table',
+        },
+        'jobReference': {
+            'jobId': 'one-row-with-array-of-structs-query',
+        },
+        'rows': [
+            {
+                'f': [
+                    {'v': 'UA-12345-6'},  # tid
+                    {'v': '123456789.1234567890'},  # cid
+                    {'v': 'pageview'},  # t
+                    {'v': 'purchase'},  # pa
+                    {'v': '987654321'},  # ti
+                    {'v': 'Moscow'},  # ta
+                    {'v': '1540.0'},  # tr
+                    {'v': 'RUB'},  # cu
+                    {
+                        'v': [  # pr
+                            {
+                                'v': {  # pr1
+                                    'f': [
+                                        {'v': 'SKU1'},  # pr1id
+                                        {'v': 'Product1'},  # pr1nm
+                                        {'v': 'Brand1'},  # pr1br
+                                        {'v': 'Cat1'},  # pr1ca
+                                        {'v': '110.0'},  # pr1pr
+                                        {'v': '1'}  # pr1qt
+                                    ]
+                                }
+                            },
+                            {
+                                'v': {  # pr2
+                                    'f': [
+                                        {'v': 'SKU2'},  # pr2id
+                                        {'v': 'Product2'},  # pr2nm
+                                        {'v': 'Brand2'},  # pr2br
+                                        {'v': 'Cat2'},  # pr2ca
+                                        {'v': '220.0'},  # pr2pr
+                                        {'v': '2'}  # pr2qt
+                                    ]
+                                }
+                            },
+                            {
+                                'v': {  # pr3
+                                    'f': [
+                                        {'v': 'SKU3'},  # pr3id
+                                        {'v': 'Product3'},  # pr3nm
+                                        {'v': 'Brand3'},  # pr3br
+                                        {'v': 'Cat3'},  # pr3ca
+                                        {'v': '330.0'},  # pr3pr
+                                        {'v': '3'}  # pr3qt
+                                    ]
+                                }
+                            }
+                        ]
+                    },
+                    {
+                        'v': [  # il
+                            {  # il1
+                                'v': {
+                                    'f': [
+                                        {'v': 'List1'},  # il1nm
+                                        {
+                                            'v': [  # il1pi
+                                                {
+                                                    'v': {  # il1pi1
+                                                        'f': [
+                                                            {'v': 'SKU11'},  # il1pi1id
+                                                            {'v': 'Product11'},  # il1pi1nm
+                                                            {'v': 'Brand11'},  # il1pi1br
+                                                            {'v': 'Cat11'},  # il1pi1ca
+                                                            {'v': '1110.0'}  # il1pi1pr
+                                                        ]
+                                                    }
+                                                },
+                                                {
+                                                    'v': {  # il1pi2
+                                                        'f': [
+                                                            {'v': 'SKU12'},  # il1pi2id
+                                                            {'v': 'Product12'},  # il1pi2nm
+                                                            {'v': 'Brand12'},  # il1pi2br
+                                                            {'v': 'Cat12'},  # il1pi2ca
+                                                            {'v': '1220.0'}  # il1pi2pr
+                                                        ]
+                                                    }
+                                                },
+                                                {
+                                                    'v': {  # il1pi3
+                                                        'f': [
+                                                            {'v': 'SKU13'},  # il1pi3id
+                                                            {'v': 'Product13'},  # il1pi3nm
+                                                            {'v': 'Brand13'},  # il1pi3br
+                                                            {'v': 'Cat13'},  # il1pi3ca
+                                                            {'v': '1330.0'}  # il1pi3pr
+                                                        ]
+                                                    }
+                                                }
+                                            ]
+                                        }
+                                    ]
+                                }
+                            },
+                            {  # il2
+                                'v': {
+                                    'f': [
+                                        {'v': 'List2'},  # il2nm
+                                        {
+                                            'v': [  # il2pi
+                                                {
+                                                    'v': {  # il2pi1
+                                                        'f': [
+                                                            {'v': 'SKU21'},  # il2pi1id
+                                                            {'v': 'Product21'},  # il2pi1nm
+                                                            {'v': 'Brand21'},  # il2pi1br
+                                                            {'v': 'Cat21'},  # il2pi1ca
+                                                            {'v': '2110.0'}  # il2pi1pr
+                                                        ]
+                                                    }
+                                                },
+                                                {
+                                                    'v': {  # il2pi2
+                                                        'f': [
+                                                            {'v': 'SKU22'},  # il2pi2id
+                                                            {'v': 'Product22'},  # il2pi2nm
+                                                            {'v': 'Brand22'},  # il2pi2br
+                                                            {'v': 'Cat22'},  # il2pi2ca
+                                                            {'v': '2220.0'}  # il2pi2pr
+                                                        ]
+                                                    }
+                                                },
+                                                {
+                                                    'v': {  # il2pi3
+                                                        'f': [
+                                                            {'v': 'SKU23'},  # il2pi3id
+                                                            {'v': 'Product23'},  # il2pi3nm
+                                                            {'v': 'Brand23'},  # il2pi3br
+                                                            {'v': 'Cat23'},  # il2pi3ca
+                                                            {'v': '2330.0'}  # il2pi3pr
+                                                        ]
+                                                    }
+                                                }
+                                            ]
+                                        }
+                                    ]
+                                }
+                            }
+                        ]
+                    }
+                ]
+            }
+        ],
+        'schema': {
+            'fields': [
+                {'name': 'tid', 'type': 'STRING', 'mode': 'NULLABLE'},
+                {'name': 'cid', 'type': 'STRING', 'mode': 'NULLABLE'},
+                {'name': 't', 'type': 'STRING', 'mode': 'NULLABLE'},
+                {'name': 'pa', 'type': 'STRING', 'mode': 'NULLABLE'},
+                {'name': 'ti', 'type': 'INTEGER', 'mode': 'NULLABLE'},
+                {'name': 'ta', 'type': 'STRING', 'mode': 'NULLABLE'},
+                {'name': 'tr', 'type': 'FLOAT', 'mode': 'NULLABLE'},
+                {'name': 'cu', 'type': 'STRING', 'mode': 'NULLABLE'},
+                {'name': 'pr', 'type': 'RECORD', 'mode': 'REPEATED', 'fields': [
+                    {'name': 'id', 'type': 'STRING', 'mode': 'NULLABLE'},
+                    {'name': 'nm', 'type': 'STRING', 'mode': 'NULLABLE'},
+                    {'name': 'br', 'type': 'STRING', 'mode': 'NULLABLE'},
+                    {'name': 'ca', 'type': 'STRING', 'mode': 'NULLABLE'},
+                    {'name': 'pr', 'type': 'FLOAT', 'mode': 'NULLABLE'},
+                    {'name': 'qt', 'type': 'INTEGER', 'mode': 'NULLABLE'}
+                ]},
+                {'name': 'il', 'type': 'RECORD', 'mode': 'REPEATED', 'fields': [
+                    {'name': 'nm', 'type': 'STRING', 'mode': 'NULLABLE'},
+		    {'name': 'pi', 'type': 'RECORD', 'mode': 'REPEATED', 'fields': [
+			{'name': 'id', 'type': 'STRING', 'mode': 'NULLABLE'},
+			{'name': 'nm', 'type': 'STRING', 'mode': 'NULLABLE'},
+			{'name': 'br', 'type': 'STRING', 'mode': 'NULLABLE'},
+			{'name': 'ca', 'type': 'STRING', 'mode': 'NULLABLE'},
+			{'name': 'pr', 'type': 'FLOAT', 'mode': 'NULLABLE'}
+		    ]},
+                ]}
+            ]
+        }
+    })
+
+    mock_response = mock.Mock()
+    mock_response.status_code = 200
+    self._patched_post.return_value = mock_response
+
+    self._worker._execute()
+    self._patched_post.assert_called_once()
+    self.assertEqual(
+        self._patched_post.call_args[0][0],
+        'https://www.google-analytics.com/batch')
+    self.assertEqual(
+        self._patched_post.call_args[1],
+        {
+            'headers': {'user-agent': 'CRMint / 0.1'},
+            'data': 'cid=123456789.1234567890&cu=RUB&il1nm=List1&il1pi1br=Brand11&il1pi1ca=Cat11&il1pi1id=SKU11&il1pi1nm=Product11&il1pi1pr=1110.0&il1pi2br=Brand12&il1pi2ca=Cat12&il1pi2id=SKU12&il1pi2nm=Product12&il1pi2pr=1220.0&il1pi3br=Brand13&il1pi3ca=Cat13&il1pi3id=SKU13&il1pi3nm=Product13&il1pi3pr=1330.0&il2nm=List2&il2pi1br=Brand21&il2pi1ca=Cat21&il2pi1id=SKU21&il2pi1nm=Product21&il2pi1pr=2110.0&il2pi2br=Brand22&il2pi2ca=Cat22&il2pi2id=SKU22&il2pi2nm=Product22&il2pi2pr=2220.0&il2pi3br=Brand23&il2pi3ca=Cat23&il2pi3id=SKU23&il2pi3nm=Product23&il2pi3pr=2330.0&pa=purchase&pr1br=Brand1&pr1ca=Cat1&pr1id=SKU1&pr1nm=Product1&pr1pr=110.0&pr1qt=1&pr2br=Brand2&pr2ca=Cat2&pr2id=SKU2&pr2nm=Product2&pr2pr=220.0&pr2qt=2&pr3br=Brand3&pr3ca=Cat3&pr3id=SKU3&pr3nm=Product3&pr3pr=330.0&pr3qt=3&t=pageview&ta=Moscow&ti=987654321&tid=UA-12345-6&tr=1540.0'
         })
 
   @mock.patch('core.cloud_logging.logger')
