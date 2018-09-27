@@ -68,7 +68,7 @@ seeds() {
   export FLASK_APP=run_ibackend.py
   export FLASK_DEBUG=1
   export APPLICATION_ID=$local_application_id
-  python -m flask db_seeds
+  python -m flask db-seeds
 }
 
 reset() {
@@ -77,7 +77,7 @@ reset() {
   export FLASK_APP=run_ibackend.py
   export FLASK_DEBUG=1
   export APPLICATION_ID=$local_application_id
-  python -m flask reset_pipelines
+  python -m flask reset-pipelines
 }
 
 ##########################################################################
