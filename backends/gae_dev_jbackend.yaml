@@ -1,0 +1,25 @@
+service: job-service
+
+runtime: python27
+api_version: 1
+threadsafe: true
+
+handlers:
+- url: /.*
+  script: run_jbackend.app
+
+libraries:
+  - name: MySQLdb
+    version: "latest"
+  - name: ssl
+    version: "latest"
+
+env_variables:
+  FLASK_DEBUG: 1
+  APPLICATION_ID: crmint-dev
+
+skip_files:
+  - \.pyc$
+  - ^ibackend$
+  - run_ibackend.py
+  - _ibackend.yaml$
