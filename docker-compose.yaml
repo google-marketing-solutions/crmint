@@ -89,6 +89,8 @@ services:
       dockerfile: docker/frontend/Dockerfile
     ports:
       - "4200:4200"
+    volumes:
+      - ./frontend/src:/app/frontend/src
     depends_on:
       - backends
 
