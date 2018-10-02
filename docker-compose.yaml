@@ -78,7 +78,7 @@ services:
                export FLASK_DEBUG=1 &&
                export APPLICATION_ID=crmintapp &&
                cd /app/backends &&
-               python -m flask db_seeds"
+               python -m flask db-seeds"
     depends_on:
       - db
       - migrations
