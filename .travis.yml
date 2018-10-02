@@ -32,8 +32,6 @@ before_install:
   - gcloud version
 
 install:
-  # Update the App Engine environment
-  - gcloud -q components update
   # Setup the CRMint project
   - bin/app dev setup
   - bin/app dev do requirements
