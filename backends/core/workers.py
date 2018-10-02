@@ -32,6 +32,7 @@ from apiclient.http import MediaIoBaseUpload
 import cloudstorage as gcs
 from oauth2client.service_account import ServiceAccountCredentials
 import requests
+from google.appengine.api import urlfetch
 from google.cloud import bigquery
 from google.cloud.exceptions import ClientError
 
@@ -49,6 +50,7 @@ AVAILABLE = (
     'StorageCleaner',
     'Commenter',
     'BQToMeasurementProtocol',
+    'WebhookStorageWorker',
 )
 
 # Defines how many times to retry on failure, default to 5 times.
@@ -909,3 +911,30 @@ class BQToMeasurementProtocolProcessor(BQWorker, MeasurementProtocolWorker):
         page_token=page_token)
     query_first_page = next(query_iterator.pages)
     self._process_query_results(query_first_page, query_iterator.schema)
+
+
+class WebhookStorageWorker(Worker):
+  """Worker to transform data from GCS to GCS."""
+
+  PARAMS = [
+      ('input_uri', 'string', True, '',
+       'Input CSV (e.g. gs://bucket/input.csv)'),
+      ('output_uri', 'string', True, '',
+       'Output CSV (e.g. gs://bucket/output.csv)'),
+      ('webhook_url', 'string', True, '',
+       'Your Webhook URL (e.g. https://example.com/webhook)'),
+  ]
+
+  def _execute(self):
+    # Increases the default timeout to the maximum allowed by Cloud Functions.
+    urlfetch.set_default_fetch_deadline(9 * 60)
+
+    headers = {'user-agent': 'CRMint / 0.1'}
+    payload = {
+        'input_uri': self._params['input_uri'],
+        'output_uri': self._params['output_uri'],
+    }
+    req = requests.post(self._params['webhook_url'],
+                        headers=headers,
+                        json=payload)
+    req.raise_for_status()
