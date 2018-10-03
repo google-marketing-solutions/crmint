@@ -1,0 +1,7 @@
+Metadata-Version: 1.0
+Name: crmint
+Version: 0.1
+Summary: CLI for CRMint project deployment
+Author: ldiana
+Author-email: ldiana@google.com
+License: Apache License, Version 2.0
