@@ -56,7 +56,7 @@ def migration():
   pass
 
 
-# [TODO] Make cm and ch options mutually exclusive
+# [TODO] Make cm and ch options mutual exclusiv
 @cli.command('cron')
 @click.argument('stage')
 @click.option('--cron-frequency-minutes', '-cm', default=None, show_default=True,
