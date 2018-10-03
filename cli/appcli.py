@@ -17,25 +17,30 @@ import click
 
 PLUGIN_FOLDER = os.path.join(os.path.dirname(__file__), 'commands')
 
+COMMAND_PREFIX = "command_"
+
 class CRMintCLI(click.MultiCommand):
     """App multi command CLI"""
     def list_commands(self, ctx):
         rv = []
         for filename in os.listdir(PLUGIN_FOLDER):
-            if filename[:-3] != "__init__":
-                rv.append(filename[:-3])
+            if filename.startswith(COMMAND_PREFIX):
+                rv.append(filename[len(COMMAND_PREFIX):-3])
         rv.sort()
         return rv
 
     def get_command(self, ctx, name):
         ns = {}
-        fn = os.path.join(PLUGIN_FOLDER, name + ".py")
+        fn = os.path.join(PLUGIN_FOLDER, "%s%s%s" % (COMMAND_PREFIX, name, ".py"))
         with open(fn) as f:
             code = compile(f.read(), fn, 'exec')
             eval(code, ns, ns)
         return ns['cli']
 
 CLI = CRMintCLI(help='CRMint commands:')
+
+def entry_point():
+    CLI()
 
 if __name__ == '__main__':
     CLI()
