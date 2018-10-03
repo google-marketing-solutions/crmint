@@ -12,24 +12,19 @@ services:
 
 env:
   # Make sure gcloud command is on our PATH and the App Engine SDK is in the Python path
-  - GAE_PYTHONPATH=${HOME}/.cache/google_appengine PATH=$PATH:${HOME}/google-cloud-sdk/bin PYTHONPATH=${PYTHONPATH}:${GAE_PYTHONPATH} CLOUDSDK_CORE_DISABLE_PROMPTS=1
+  - GAE_PYTHONPATH=${HOME}/.cache/google_appengine PATH=${HOME}/google-cloud-sdk/bin:$PATH PYTHONPATH=${PYTHONPATH}:${GAE_PYTHONPATH} CLOUDSDK_CORE_DISABLE_PROMPTS=1
 
 before_install:
   # Install additional libraries
   - sudo apt-get install -y realpath
-  # Install Google App Engine Python SDK
+  # Download App Engine SDK
   - if [ ! -d "${GAE_PYTHONPATH}" ]; then
       python scripts/fetch_gae_sdk.py $(dirname "${GAE_PYTHONPATH}");
     fi
+  # Install Google Cloud SDK
+  - rm -rf ${HOME}/google-cloud-sdk
+  - curl https://sdk.cloud.google.com | bash
   - gcloud version || true
-  - if [ ! -d "${HOME}/google-cloud-sdk/bin" ]; then
-      rm -rf ${HOME}/google-cloud-sdk;
-      export CLOUDSDK_CORE_DISABLE_PROMPTS=1;
-      curl https://sdk.cloud.google.com | bash;
-    fi
-  # Add gcloud to $PATH
-  - source ${HOME}/google-cloud-sdk/path.bash.inc
-  - gcloud version
 
 install:
   # Update the App Engine environment
