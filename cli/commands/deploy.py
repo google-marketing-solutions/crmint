@@ -20,6 +20,11 @@ def _get_stage_file(stage):
   stage_file = "{}/{}.sh".format(constants.STAGE_DIR, stage)
   return stage_file
 
+def _check_stage_file(stage_file):
+  if not os.path.isfile(stage_file):
+      click.echo("Stage file not found.")
+      exit(1)
+
 @click.group()
 def cli():
   """CRMint Deploy"""
@@ -27,9 +32,10 @@ def cli():
 
 @cli.command('all')
 @click.argument('stage')
-def all():
+@click.pass_context
+def all(context, stage):
   """Deploy all <stage>"""
-  pass
+  context.invoke(cron, stage=stage)
 
 @cli.command('frontend')
 @click.argument('stage')
@@ -58,44 +64,41 @@ def migration():
 # [TODO] Make cm and ch options mutual exclusiv
 @cli.command('cron')
 @click.argument('stage')
-@click.option('--cron-frequency-minutes', '-cm', default=None, show_default=True,
+@click.option('--cron-frequency-minutes', '-m', default=None, show_default=True,
               help='Cron job schedule in minutes')
-@click.option('--cron-frequency-hours', '-ch', default=None, show_default=True,
+@click.option('--cron-frequency-hours', '-h', default=None, show_default=True,
               help='Cron job schedule in hours')
 def cron(stage, cron_frequency_minutes, cron_frequency_hours):
   """Deploy cron file <stage>"""
   stage_file = _get_stage_file(stage)
-  if not os.path.isfile(stage_file):
-      click.echo("Stage file not found.")
-      exit(1)
-  else:
-      with open(constants.CRON_FILE, "w") as cron_file:
-          if cron_frequency_minutes is None and cron_frequency_hours is None:
-              cron_file.write(constants.EMPTY_CRON_TEMPLATE)
-          else:
-              if cron_frequency_minutes:
-                  cron_file.write(constants.CRON_TEMPLATE
-                                  .format(str(cron_frequency_minutes),
-                                          "minutes"))
-              if cron_frequency_hours:
-                  cron_file.write(constants.CRON_TEMPLATE
-                                  .format(str(cron_frequency_hours),
-                                          "hours"))
-      os.system("""source \"{}\"
-              source \"{}/deploy/before_hook.sh\"
-              source \"{}/deploy/cron.sh\""""
-                .format(stage_file, constants.SCRIPTS_DIR,
-                        constants.SCRIPTS_DIR))
+  _check_stage_file(stage_file)
+  with open(constants.CRON_FILE, "w") as cron_file:
+      if cron_frequency_minutes is None and cron_frequency_hours is None:
+          cron_file.write(constants.EMPTY_CRON_TEMPLATE)
+      else:
+          if cron_frequency_minutes:
+              cron_file.write(constants.CRON_TEMPLATE
+                              .format(str(cron_frequency_minutes),
+                                      "minutes"))
+          if cron_frequency_hours:
+              cron_file.write(constants.CRON_TEMPLATE
+                              .format(str(cron_frequency_hours),
+                                      "hours"))
+  os.system("""source \"{}\"
+          source \"{}/deploy/before_hook.sh\"
+          source \"{}/deploy/cron.sh\""""
+            .format(stage_file, constants.SCRIPTS_DIR,
+                    constants.SCRIPTS_DIR))
 
 @cli.command('db_seeds')
 @click.argument('stage')
-def migration():
+def db_seeds():
   """Add seeds to DB"""
   pass
 
 @cli.command('reset_pipeline')
 @click.argument('stage')
-def migration():
+def reset_pipeline():
   """Reset Job statuses in Pipeline"""
   pass
 
