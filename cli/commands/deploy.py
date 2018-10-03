@@ -25,6 +25,13 @@ def _check_stage_file(stage_file):
       click.echo("Stage file not found.")
       exit(1)
 
+def source_stage_file_and_command_script(stage_file, command):
+  os.system("""source \"{}\"
+        source \"{}/deploy/before_hook.sh\"
+        source \"{}/deploy/{}.sh\""""
+          .format(stage_file, constants.SCRIPTS_DIR,
+                  constants.SCRIPTS_DIR, command))
+
 @click.group()
 def cli():
   """CRMint Deploy"""
@@ -36,30 +43,42 @@ def cli():
 def all(context, stage):
   """Deploy all <stage>"""
   context.invoke(cron, stage=stage)
+  context.invoke(frontend, stage=stage)
+  context.invoke(ibackend, stage=stage)
+  context.invoke(jbackend, stage=stage)
+  context.invoke(migration, stage=stage)
 
 @cli.command('frontend')
 @click.argument('stage')
-def frontend():
+def frontend(stage):
   """Deploy frontend <stage>"""
-  pass
+  stage_file = _get_stage_file(stage)
+  _check_stage_file(stage_file)
+  source_stage_file_and_command_script(stage_file, 'frontend')
 
 @cli.command('ibackend')
 @click.argument('stage')
-def ibackend():
+def ibackend(stage):
   """Deploy ibackend <stage>"""
-  pass
+  stage_file = _get_stage_file(stage)
+  _check_stage_file(stage_file)
+  source_stage_file_and_command_script(stage_file, 'ibackend')
 
 @cli.command('jbackend')
 @click.argument('stage')
-def jbackend():
+def jbackend(stage):
   """Deploy jbackend <stage>"""
-  pass
+  stage_file = _get_stage_file(stage)
+  _check_stage_file(stage_file)
+  source_stage_file_and_command_script(stage_file, 'jbackend')
 
 @cli.command('migration')
 @click.argument('stage')
-def migration():
+def migration(stage):
   """Deploy migration <stage>"""
-  pass
+  stage_file = _get_stage_file(stage)
+  _check_stage_file(stage_file)
+  source_stage_file_and_command_script(stage_file, 'migration')
 
 # [TODO] Make cm and ch options mutual exclusiv
 @cli.command('cron')
@@ -84,11 +103,7 @@ def cron(stage, cron_frequency_minutes, cron_frequency_hours):
               cron_file.write(constants.CRON_TEMPLATE
                               .format(str(cron_frequency_hours),
                                       "hours"))
-  os.system("""source \"{}\"
-          source \"{}/deploy/before_hook.sh\"
-          source \"{}/deploy/cron.sh\""""
-            .format(stage_file, constants.SCRIPTS_DIR,
-                    constants.SCRIPTS_DIR))
+  source_stage_file_and_command_script(stage_file, 'cron')
 
 @cli.command('db_seeds')
 @click.argument('stage')
