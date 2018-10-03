@@ -22,10 +22,41 @@ def _get_stage_file(stage):
 
 @click.group()
 def cli():
-  """Deploy cli"""
+  """CRMint Deploy"""
   pass
 
-# [TODO] Make cm and ch options mutual exclusiv
+@cli.command('all')
+@click.argument('stage')
+def all():
+  """Deploy all <stage>"""
+  pass
+
+@cli.command('frontend')
+@click.argument('stage')
+def frontend():
+  """Deploy all"""
+  pass
+
+@cli.command('ibackend')
+@click.argument('stage')
+def ibackend():
+  """Deploy all"""
+  pass
+
+@cli.command('jbackend')
+@click.argument('stage')
+def jbackend():
+  """Deploy all"""
+  pass
+
+@cli.command('migration')
+@click.argument('stage')
+def migration():
+  """Deploy all"""
+  pass
+
+
+# [TODO] Make cm and ch options mutually exclusive
 @cli.command('cron')
 @click.argument('stage')
 @click.option('--cron-frequency-minutes', '-cm', default=None, show_default=True,
@@ -33,7 +64,7 @@ def cli():
 @click.option('--cron-frequency-hours', '-ch', default=None, show_default=True,
               help='Cron job schedule in hours')
 def cron(stage, cron_frequency_minutes, cron_frequency_hours):
-  """Deploy only the cron file for a STAGE"""
+  """Deploy cron file <stage>"""
   stage_file = _get_stage_file(stage)
   if not os.path.isfile(stage_file):
       click.echo("Stage file not found.")
