@@ -783,7 +783,9 @@ class MeasurementProtocolWorker(Worker):
     while not flat:
       flat = True
       for k in data.keys():
-        if isinstance(data[k], list):
+        if data[k] is None:
+          del data[k]
+        elif isinstance(data[k], list):
           for i, v in enumerate(data[k]):
             data['%s%i' % (k, i + 1)] = v
           del data[k]

@@ -328,6 +328,7 @@ class TestBQToMeasurementProtocolProcessor(TestBQToMeasurementProtocolMixin, uni
                     {'v': 'label'},
                     {'v': 0.9},
                     {'v': 'User Agent / 1.0'},
+                    {'v': None},
                 ]
             },
             {
@@ -341,6 +342,7 @@ class TestBQToMeasurementProtocolProcessor(TestBQToMeasurementProtocolMixin, uni
                     {'v': u'\u043c\u0435\u0442\u043a\u0430'},
                     {'v': 0.8},
                     {'v': 'User Agent / 1.0'},
+                    {'v': 'segment1'},
                 ]
             }
         ],
@@ -355,6 +357,7 @@ class TestBQToMeasurementProtocolProcessor(TestBQToMeasurementProtocolMixin, uni
                 {'name': 'el', 'type': 'STRING'},
                 {'name': 'ev', 'type': 'FLOAT'},
                 {'name': 'ua', 'type': 'STRING'},
+                {'name': 'cd1', 'type': 'STRING'},
             ]
         }
     })
@@ -374,7 +377,7 @@ class TestBQToMeasurementProtocolProcessor(TestBQToMeasurementProtocolMixin, uni
             'headers': {'user-agent': 'CRMint / 0.1'},
             'data':
 """cid=35009a79-1a05-49d7-b876-2b884d0f825b&ea=action&ec=category&el=label&ev=0.9&ni=1&t=event&tid=UA-12345-1&ua=User+Agent+%2F+1.0&v=1
-cid=35009a79-1a05-49d7-b876-2b884d0f825b&ea=action&ec=category&el=%D0%BC%D0%B5%D1%82%D0%BA%D0%B0&ev=0.8&ni=1&t=event&tid=UA-12345-1&ua=User+Agent+%2F+1.0&v=1""",
+cd1=segment1&cid=35009a79-1a05-49d7-b876-2b884d0f825b&ea=action&ec=category&el=%D0%BC%D0%B5%D1%82%D0%BA%D0%B0&ev=0.8&ni=1&t=event&tid=UA-12345-1&ua=User+Agent+%2F+1.0&v=1""",
         })
 
   @mock.patch('time.sleep')
@@ -519,7 +522,7 @@ cid=35009a79-1a05-49d7-b876-2b884d0f825b&ea=action&ec=category&el=%D0%BC%D0%B5%D
                                                             {'v': 'SKU22'},  # il2pi2id
                                                             {'v': 'Product22'},  # il2pi2nm
                                                             {'v': 'Brand22'},  # il2pi2br
-                                                            {'v': 'Cat22'},  # il2pi2ca
+                                                            {'v': None},  # il2pi2ca
                                                             {'v': '2220.0'}  # il2pi2pr
                                                         ]
                                                     }
@@ -590,7 +593,7 @@ cid=35009a79-1a05-49d7-b876-2b884d0f825b&ea=action&ec=category&el=%D0%BC%D0%B5%D
         self._patched_post.call_args[1],
         {
             'headers': {'user-agent': 'CRMint / 0.1'},
-            'data': 'cid=123456789.1234567890&cu=RUB&il1nm=List1&il1pi1br=Brand11&il1pi1ca=Cat11&il1pi1id=SKU11&il1pi1nm=Product11&il1pi1pr=1110.0&il1pi2br=Brand12&il1pi2ca=Cat12&il1pi2id=SKU12&il1pi2nm=Product12&il1pi2pr=1220.0&il1pi3br=Brand13&il1pi3ca=Cat13&il1pi3id=SKU13&il1pi3nm=Product13&il1pi3pr=1330.0&il2nm=List2&il2pi1br=Brand21&il2pi1ca=Cat21&il2pi1id=SKU21&il2pi1nm=Product21&il2pi1pr=2110.0&il2pi2br=Brand22&il2pi2ca=Cat22&il2pi2id=SKU22&il2pi2nm=Product22&il2pi2pr=2220.0&il2pi3br=Brand23&il2pi3ca=Cat23&il2pi3id=SKU23&il2pi3nm=Product23&il2pi3pr=2330.0&pa=purchase&pr1br=Brand1&pr1ca=Cat1&pr1id=SKU1&pr1nm=Product1&pr1pr=110.0&pr1qt=1&pr2br=Brand2&pr2ca=Cat2&pr2id=SKU2&pr2nm=Product2&pr2pr=220.0&pr2qt=2&pr3br=Brand3&pr3ca=Cat3&pr3id=SKU3&pr3nm=Product3&pr3pr=330.0&pr3qt=3&t=pageview&ta=Moscow&ti=987654321&tid=UA-12345-6&tr=1540.0&v=1'
+            'data': 'cid=123456789.1234567890&cu=RUB&il1nm=List1&il1pi1br=Brand11&il1pi1ca=Cat11&il1pi1id=SKU11&il1pi1nm=Product11&il1pi1pr=1110.0&il1pi2br=Brand12&il1pi2ca=Cat12&il1pi2id=SKU12&il1pi2nm=Product12&il1pi2pr=1220.0&il1pi3br=Brand13&il1pi3ca=Cat13&il1pi3id=SKU13&il1pi3nm=Product13&il1pi3pr=1330.0&il2nm=List2&il2pi1br=Brand21&il2pi1ca=Cat21&il2pi1id=SKU21&il2pi1nm=Product21&il2pi1pr=2110.0&il2pi2br=Brand22&il2pi2id=SKU22&il2pi2nm=Product22&il2pi2pr=2220.0&il2pi3br=Brand23&il2pi3ca=Cat23&il2pi3id=SKU23&il2pi3nm=Product23&il2pi3pr=2330.0&pa=purchase&pr1br=Brand1&pr1ca=Cat1&pr1id=SKU1&pr1nm=Product1&pr1pr=110.0&pr1qt=1&pr2br=Brand2&pr2ca=Cat2&pr2id=SKU2&pr2nm=Product2&pr2pr=220.0&pr2qt=2&pr3br=Brand3&pr3ca=Cat3&pr3id=SKU3&pr3nm=Product3&pr3pr=330.0&pr3qt=3&t=pageview&ta=Moscow&ti=987654321&tid=UA-12345-6&tr=1540.0&v=1'
         })
 
   @mock.patch('core.cloud_logging.logger')
