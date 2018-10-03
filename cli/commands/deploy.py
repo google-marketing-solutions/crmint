@@ -118,7 +118,9 @@ def db_seeds(stage):
 @click.argument('stage')
 def reset_pipeline(stage):
   """Reset Job statuses in Pipeline"""
-  pass
+  stage_file = _get_stage_file(stage)
+  _check_stage_file(stage_file)
+  source_stage_file_and_command_script(stage_file, 'reset_pipeline')
 
 if __name__ == '__main__':
   cli()
