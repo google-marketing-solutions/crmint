@@ -26,10 +26,11 @@ def _check_stage_file(stage_file):
       exit(1)
 
 def source_stage_file_and_command_script(stage_file, command):
-  os.system("""source \"{}\"
+  os.system("""SCRIPTS_DIR="{}"
+        source \"{}\"
         source \"{}/deploy/before_hook.sh\"
         source \"{}/deploy/{}.sh\""""
-          .format(stage_file, constants.SCRIPTS_DIR,
+          .format(constants.SCRIPTS_DIR,stage_file, constants.SCRIPTS_DIR,
                   constants.SCRIPTS_DIR, command))
 
 @click.group()
@@ -42,10 +43,10 @@ def cli():
 @click.pass_context
 def all(context, stage):
   """Deploy all <stage>"""
-  context.invoke(cron, stage=stage)
   context.invoke(frontend, stage=stage)
   context.invoke(ibackend, stage=stage)
   context.invoke(jbackend, stage=stage)
+  context.invoke(cron, stage=stage)
   context.invoke(migration, stage=stage)
 
 @cli.command('frontend')
@@ -107,13 +108,15 @@ def cron(stage, cron_frequency_minutes, cron_frequency_hours):
 
 @cli.command('db_seeds')
 @click.argument('stage')
-def db_seeds():
+def db_seeds(stage):
   """Add seeds to DB"""
-  pass
+  stage_file = _get_stage_file(stage)
+  _check_stage_file(stage_file)
+  source_stage_file_and_command_script(stage_file, 'db_seeds')
 
 @cli.command('reset_pipeline')
 @click.argument('stage')
-def reset_pipeline():
+def reset_pipeline(stage):
   """Reset Job statuses in Pipeline"""
   pass
 

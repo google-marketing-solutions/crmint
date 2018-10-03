@@ -19,6 +19,7 @@ echo
 echo -e "$BLUE==>$NONE$BOLD DB Migration is started$NONE"
 cd $workdir/backends
 
+source "$SCRIPTS_DIR/variables/common.sh"
 source "$SCRIPTS_DIR/deploy/before_task.sh"
 
 flask db upgrade
