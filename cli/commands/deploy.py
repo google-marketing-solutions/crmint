@@ -34,29 +34,28 @@ def all():
 @cli.command('frontend')
 @click.argument('stage')
 def frontend():
-  """Deploy all"""
+  """Deploy frontend <stage>"""
   pass
 
 @cli.command('ibackend')
 @click.argument('stage')
 def ibackend():
-  """Deploy all"""
+  """Deploy ibackend <stage>"""
   pass
 
 @cli.command('jbackend')
 @click.argument('stage')
 def jbackend():
-  """Deploy all"""
+  """Deploy jbackend <stage>"""
   pass
 
 @cli.command('migration')
 @click.argument('stage')
 def migration():
-  """Deploy all"""
+  """Deploy migration <stage>"""
   pass
 
-
-# [TODO] Make cm and ch options mutually exclusive
+# [TODO] Make cm and ch options mutual exclusiv
 @cli.command('cron')
 @click.argument('stage')
 @click.option('--cron-frequency-minutes', '-cm', default=None, show_default=True,
@@ -87,6 +86,18 @@ def cron(stage, cron_frequency_minutes, cron_frequency_hours):
               source \"{}/deploy/cron.sh\""""
                 .format(stage_file, constants.SCRIPTS_DIR,
                         constants.SCRIPTS_DIR))
+
+@cli.command('db_seeds')
+@click.argument('stage')
+def migration():
+  """Add seeds to DB"""
+  pass
+
+@cli.command('reset_pipeline')
+@click.argument('stage')
+def migration():
+  """Reset Job statuses in Pipeline"""
+  pass
 
 if __name__ == '__main__':
   cli()
