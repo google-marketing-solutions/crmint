@@ -13,10 +13,8 @@
 # limitations under the License.
 
 import os
-import sys
 import click
-sys.path.append(os.path.dirname(os.path.abspath("__file__")))
-from cli import constants
+import constants
 
 
 def _get_stage_file(stage):
@@ -36,7 +34,7 @@ def cli():
 @click.option('--cron-frequency-hours', '-ch', default=None, show_default=True,
               help='Cron job schedule in hours')
 def cron(stage, cron_frequency_minutes, cron_frequency_hours):
-    """Deploy only the cron file"""
+    """Deploy only the cron file for a STAGE"""
     stage_file = _get_stage_file(stage)
     if not os.path.isfile(stage_file):
         click.echo("Stage file not found.")

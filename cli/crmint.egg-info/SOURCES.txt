@@ -1,0 +1,6 @@
+appcli.py
+crmint.egg-info/PKG-INFO
+crmint.egg-info/SOURCES.txt
+crmint.egg-info/dependency_links.txt
+crmint.egg-info/entry_points.txt
+crmint.egg-info/top_level.txt
