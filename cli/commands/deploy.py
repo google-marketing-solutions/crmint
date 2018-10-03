@@ -30,18 +30,18 @@ def source_stage_file_and_command_script(stage_file, command):
         source \"{}\"
         source \"{}/deploy/before_hook.sh\"
         source \"{}/deploy/{}.sh\""""
-          .format(constants.SCRIPTS_DIR,stage_file, constants.SCRIPTS_DIR,
-                  constants.SCRIPTS_DIR, command))
+            .format(constants.SCRIPTS_DIR, stage_file, constants.SCRIPTS_DIR,
+                    constants.SCRIPTS_DIR, command))
 
 @click.group()
 def cli():
-  """CRMint Deploy"""
+  """CRMint Deploy application to Google App Engine"""
   pass
 
 @cli.command('all')
 @click.argument('stage')
 @click.pass_context
-def all(context, stage):
+def deploy_all(context, stage):
   """Deploy all <stage>"""
   context.invoke(frontend, stage=stage)
   context.invoke(ibackend, stage=stage)
