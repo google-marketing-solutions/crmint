@@ -292,7 +292,7 @@ class TestBQToMeasurementProtocolProcessor(TestBQToMeasurementProtocolMixin, uni
     patcher_requests_post = mock.patch('requests.post')
     self.addCleanup(patcher_requests_post.stop)
     self._patched_post = patcher_requests_post.start()
-    self.maxDiff = None
+    self.maxDiff = None  # This is to see full diff when self.assertEqual fails.
 
   @mock.patch('time.sleep')
   def test_success_with_one_post_request(self, patched_time_sleep):
