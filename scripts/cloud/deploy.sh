@@ -143,7 +143,7 @@ python -m flask db upgrade
 echo
 echo -e "$BLUE==>$NONE$BOLD Sowing DB seeds$NONE"
 echo
-python -m flask db_seeds
+python -m flask db-seeds
 
 # Stop Cloud SQL proxy.
 echo

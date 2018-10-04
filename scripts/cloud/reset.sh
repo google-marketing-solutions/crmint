@@ -116,7 +116,7 @@ echo "SQLALCHEMY_DATABASE_URI=\"$local_db_uri\"" > $workdir/backends/instance/co
 echo
 echo -e "$BLUE==>$NONE$BOLD Reseting statuses of jobs and pipelines.$NONE"
 echo
-python -m flask reset_pipelines
+python -m flask reset-pipelines
 
 # Stop Cloud SQL proxy.
 echo
