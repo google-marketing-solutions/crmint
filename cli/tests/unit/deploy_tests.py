@@ -13,13 +13,12 @@
 # limitations under the License.
 
 
-import os
 import unittest
-
-from click.testing import CliRunner
 
 import commands.deploy
 import commands._constants
+
+from click.testing import CliRunner
 
 
 class TestDeploy(unittest.TestCase):
