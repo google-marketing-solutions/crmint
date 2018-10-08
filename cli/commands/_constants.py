@@ -14,10 +14,12 @@
 
 import os
 
-PROJECT_DIR = os.path.join(os.path.dirname(__file__), '..')
+
+PROJECT_DIR = os.path.join(os.path.dirname(__file__), '../..')
 SCRIPTS_DIR = "{}/scripts".format(PROJECT_DIR)
 STAGE_DIR = "{}/scripts/variables/stages".format(PROJECT_DIR)
 CRON_FILE = "{}/backends/cron.yaml".format(PROJECT_DIR)
+
 
 CRON_TEMPLATE = """# Copyright 2018 Google Inc
 #
@@ -39,6 +41,7 @@ cron:
   schedule: every {} {}
   target: job-service
 """
+
 
 EMPTY_CRON_TEMPLATE = """# Copyright 2018 Google Inc
 #

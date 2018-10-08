@@ -36,10 +36,13 @@ class CRMintCLI(click.MultiCommand):
           eval(code, ns, ns)
       return ns['cli']
 
+
 CLI = CRMintCLI(help='CRMint commands:')
+
 
 def entry_point():
   CLI()
+
 
 if __name__ == '__main__':
   CLI()
