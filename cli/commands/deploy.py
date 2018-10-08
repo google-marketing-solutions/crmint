@@ -14,17 +14,21 @@
 
 import os
 import click
-import _constants
+import commands._constants
+import commands._utils
+import stage_variables
+import sys
 
 
 def _get_stage_file(stage):
-  stage_file = "{}/{}.sh".format(_constants.STAGE_DIR, stage)
+  stage_file = "{}/{}.py".format(commands._constants.STAGE_DIR, stage)
   return stage_file
 
 
-def _check_stage_file(stage_file):
+def _check_stage_file(stage):
+  stage_file = _get_stage_file(stage)
   if not os.path.isfile(stage_file):
-      click.echo("Stage file not found.")
+      click.echo("\nStage file '%s' not found." % stage)
       exit(1)
 
 
@@ -33,8 +37,21 @@ def source_stage_file_and_command_script(stage_file, command):
         source \"{}\"
         source \"{}/deploy/before_hook.sh\"
         source \"{}/deploy/{}.sh\""""
-            .format(_constants.SCRIPTS_DIR, stage_file, _constants.SCRIPTS_DIR,
-                    _constants.SCRIPTS_DIR, command))
+            .format(commands._constants.SCRIPTS_DIR, stage_file,
+                    commands._constants.SCRIPTS_DIR,
+                    commands._constants.SCRIPTS_DIR, command))
+
+
+def deploy_frontend(stage_name):
+  click.echo("\nDeploying frontend...")
+  stage = getattr(__import__("stage_variables.%s" % stage_name), stage_name)
+  try:
+    click.echo("Step 1 out of 2...")
+    commands._utils.before_hook(stage)
+    click.echo("Step 2 out of 2...")
+    click.echo("Frontend deployed successfully!")
+  except Exception as e:
+    click.echo("\nAn error occured. Details: %s" % e.message)
 
 
 @click.group()
@@ -48,21 +65,19 @@ def cli():
 @click.pass_context
 def deploy_all(context, stage):
   """Deploy all <stage>"""
-  context.invoke(frontend, stage=stage)
-  context.invoke(ibackend, stage=stage)
-  context.invoke(jbackend, stage=stage)
-  context.invoke(cron, stage=stage)
-  context.invoke(migration, stage=stage)
+  deploy_components = [frontend]
+  # , ibackend, jbackend, cron, migration]
+  with click.progressbar(deploy_components) as bar:
+    for component in bar:
+      context.invoke(component, stage=stage)
 
 
 @cli.command('frontend')
 @click.argument('stage')
 def frontend(stage):
   """Deploy frontend <stage>"""
-  stage_file = _get_stage_file(stage)
-  _check_stage_file(stage_file)
-  source_stage_file_and_command_script(stage_file, 'frontend')
-
+  _check_stage_file(stage)
+  deploy_frontend(stage)
 
 @cli.command('ibackend')
 @click.argument('stage')
@@ -77,8 +92,7 @@ def ibackend(stage):
 @click.argument('stage')
 def jbackend(stage):
   """Deploy jbackend <stage>"""
-  stage_file = _get_stage_file(stage)
-  _check_stage_file(stage_file)
+  _check_stage_file(stage)
   source_stage_file_and_command_script(stage_file, 'jbackend')
 
 
@@ -86,8 +100,7 @@ def jbackend(stage):
 @click.argument('stage')
 def migration(stage):
   """Deploy migration <stage>"""
-  stage_file = _get_stage_file(stage)
-  _check_stage_file(stage_file)
+  _check_stage_file(stage)
   source_stage_file_and_command_script(stage_file, 'migration')
 
 
@@ -100,8 +113,7 @@ def migration(stage):
               help='Cron job schedule in hours')
 def cron(stage, cron_frequency_minutes, cron_frequency_hours):
   """Deploy cron file <stage>"""
-  stage_file = _get_stage_file(stage)
-  _check_stage_file(stage_file)
+  _check_stage_file(stage)
   with open(_constants.CRON_FILE, "w") as cron_file:
       if cron_frequency_minutes is None and cron_frequency_hours is None:
           cron_file.write(_constants.EMPTY_CRON_TEMPLATE)
@@ -121,8 +133,7 @@ def cron(stage, cron_frequency_minutes, cron_frequency_hours):
 @click.argument('stage')
 def db_seeds(stage):
   """Add seeds to DB"""
-  stage_file = _get_stage_file(stage)
-  _check_stage_file(stage_file)
+  _check_stage_file(stage)
   source_stage_file_and_command_script(stage_file, 'db_seeds')
 
 

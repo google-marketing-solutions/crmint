@@ -17,7 +17,7 @@ import os
 
 PROJECT_DIR = os.path.join(os.path.dirname(__file__), '../..')
 SCRIPTS_DIR = "{}/scripts".format(PROJECT_DIR)
-STAGE_DIR = "{}/scripts/variables/stages".format(PROJECT_DIR)
+STAGE_DIR = "{}/cli/stage_variables".format(PROJECT_DIR)
 CRON_FILE = "{}/backends/cron.yaml".format(PROJECT_DIR)
 
 
