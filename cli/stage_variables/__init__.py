@@ -12,26 +12,4 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
-import unittest
-
-import commands.deploy
-import commands._constants
-
-from click.testing import CliRunner
-
-
-class TestDeploy(unittest.TestCase):
-
-  def setUp(self):
-    super(TestDeploy, self).setUp()
-
-  def tearDown(self):
-    super(TestDeploy, self).tearDown()
-
-  def test_cron_stage_not_found(self):
-    runner = CliRunner()
-    new_stage = 'stage'
-    result = runner.invoke(commands.deploy.cron, ['-m', '10', new_stage])
-    self.assertNotEqual(result.exit_code, 0)
-    self.assertEqual(result.output, "\nStage file '%s' not found.\n" % new_stage)
+"""CLI Stages package."""

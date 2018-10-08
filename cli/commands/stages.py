@@ -14,10 +14,10 @@
 
 import os
 import click
-import _constants
+import commands._constants
 
 
-STAGES_DIR = "{}/variables/stages".format(constants.SCRIPTS_DIR)
+STAGES_DIR = "{}/variables/stages".format(commands._constants.SCRIPTS_DIR)
 
 
 @click.group()
@@ -37,7 +37,7 @@ def setup(stage):
   os.system("""STAGE_NAME={}
             SCRIPTS_DIR={}
             source "{}/stages/setup_cli.sh" """
-            .format(stage, constants.SCRIPTS_DIR, constants.SCRIPTS_DIR))
+            .format(stage, _constants.SCRIPTS_DIR, commands._constants.SCRIPTS_DIR))
 
 
 @cli.command('check')
@@ -50,7 +50,8 @@ def check(stage):
   os.system("""stage={}
             SCRIPTS_DIR={}
             source "{}/stages/check_cli.sh" """
-            .format(stage, constants.SCRIPTS_DIR, constants.SCRIPTS_DIR))
+            .format(stage, commands._constants.SCRIPTS_DIR, 
+                    commands._constants.SCRIPTS_DIR))
 
 
 @cli.command('create')
@@ -58,7 +59,7 @@ def check(stage):
 def create(stage):
   """Create new project in Google Cloud and add instances"""
   os.system("""STAGE_NAME={}
-    source "{}/stages/create.sh" """.format(stage, constants.SCRIPTS_DIR))
+    source "{}/stages/create.sh" """.format(stage, commands._constants.SCRIPTS_DIR))
 
 
 @cli.command('list')
