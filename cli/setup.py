@@ -14,6 +14,7 @@
 
 from setuptools import setup
 
+
 setup(
     name="crmint",
     version='0.1',

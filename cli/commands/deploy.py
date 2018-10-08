@@ -14,29 +14,34 @@
 
 import os
 import click
-import constants
+import _constants
+
 
 def _get_stage_file(stage):
-  stage_file = "{}/{}.sh".format(constants.STAGE_DIR, stage)
+  stage_file = "{}/{}.sh".format(_constants.STAGE_DIR, stage)
   return stage_file
+
 
 def _check_stage_file(stage_file):
   if not os.path.isfile(stage_file):
       click.echo("Stage file not found.")
       exit(1)
 
+
 def source_stage_file_and_command_script(stage_file, command):
   os.system("""SCRIPTS_DIR="{}"
         source \"{}\"
         source \"{}/deploy/before_hook.sh\"
         source \"{}/deploy/{}.sh\""""
-            .format(constants.SCRIPTS_DIR, stage_file, constants.SCRIPTS_DIR,
-                    constants.SCRIPTS_DIR, command))
+            .format(_constants.SCRIPTS_DIR, stage_file, _constants.SCRIPTS_DIR,
+                    _constants.SCRIPTS_DIR, command))
+
 
 @click.group()
 def cli():
   """CRMint Deploy application to Google App Engine"""
   pass
+
 
 @cli.command('all')
 @click.argument('stage')
@@ -49,6 +54,7 @@ def deploy_all(context, stage):
   context.invoke(cron, stage=stage)
   context.invoke(migration, stage=stage)
 
+
 @cli.command('frontend')
 @click.argument('stage')
 def frontend(stage):
@@ -56,6 +62,7 @@ def frontend(stage):
   stage_file = _get_stage_file(stage)
   _check_stage_file(stage_file)
   source_stage_file_and_command_script(stage_file, 'frontend')
+
 
 @cli.command('ibackend')
 @click.argument('stage')
@@ -65,6 +72,7 @@ def ibackend(stage):
   _check_stage_file(stage_file)
   source_stage_file_and_command_script(stage_file, 'ibackend')
 
+
 @cli.command('jbackend')
 @click.argument('stage')
 def jbackend(stage):
@@ -73,6 +81,7 @@ def jbackend(stage):
   _check_stage_file(stage_file)
   source_stage_file_and_command_script(stage_file, 'jbackend')
 
+
 @cli.command('migration')
 @click.argument('stage')
 def migration(stage):
@@ -80,6 +89,7 @@ def migration(stage):
   stage_file = _get_stage_file(stage)
   _check_stage_file(stage_file)
   source_stage_file_and_command_script(stage_file, 'migration')
+
 
 # [TODO] Make cm and ch options mutual exclusiv
 @cli.command('cron')
@@ -92,19 +102,20 @@ def cron(stage, cron_frequency_minutes, cron_frequency_hours):
   """Deploy cron file <stage>"""
   stage_file = _get_stage_file(stage)
   _check_stage_file(stage_file)
-  with open(constants.CRON_FILE, "w") as cron_file:
+  with open(_constants.CRON_FILE, "w") as cron_file:
       if cron_frequency_minutes is None and cron_frequency_hours is None:
-          cron_file.write(constants.EMPTY_CRON_TEMPLATE)
+          cron_file.write(_constants.EMPTY_CRON_TEMPLATE)
       else:
           if cron_frequency_minutes:
-              cron_file.write(constants.CRON_TEMPLATE
+              cron_file.write(_constants.CRON_TEMPLATE
                               .format(str(cron_frequency_minutes),
                                       "minutes"))
           if cron_frequency_hours:
-              cron_file.write(constants.CRON_TEMPLATE
+              cron_file.write(_constants.CRON_TEMPLATE
                               .format(str(cron_frequency_hours),
                                       "hours"))
   source_stage_file_and_command_script(stage_file, 'cron')
+
 
 @cli.command('db_seeds')
 @click.argument('stage')
@@ -114,6 +125,7 @@ def db_seeds(stage):
   _check_stage_file(stage_file)
   source_stage_file_and_command_script(stage_file, 'db_seeds')
 
+
 @cli.command('reset_pipeline')
 @click.argument('stage')
 def reset_pipeline(stage):
@@ -121,6 +133,7 @@ def reset_pipeline(stage):
   stage_file = _get_stage_file(stage)
   _check_stage_file(stage_file)
   source_stage_file_and_command_script(stage_file, 'reset_pipeline')
+
 
 if __name__ == '__main__':
   cli()

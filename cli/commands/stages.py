@@ -14,14 +14,17 @@
 
 import os
 import click
-import constants
+import _constants
+
 
 STAGES_DIR = "{}/variables/stages".format(constants.SCRIPTS_DIR)
+
 
 @click.group()
 def cli():
   """CRMint manage stages"""
   pass
+
 
 # TODO rename cli_setup to replace the current setup once the migration is done
 @cli.command('setup')
@@ -36,6 +39,7 @@ def setup(stage):
             source "{}/stages/setup_cli.sh" """
             .format(stage, constants.SCRIPTS_DIR, constants.SCRIPTS_DIR))
 
+
 @cli.command('check')
 @click.argument('stage')
 def check(stage):
@@ -48,12 +52,14 @@ def check(stage):
             source "{}/stages/check_cli.sh" """
             .format(stage, constants.SCRIPTS_DIR, constants.SCRIPTS_DIR))
 
+
 @cli.command('create')
 @click.argument('stage')
 def create(stage):
   """Create new project in Google Cloud and add instances"""
   os.system("""STAGE_NAME={}
     source "{}/stages/create.sh" """.format(stage, constants.SCRIPTS_DIR))
+
 
 @cli.command('list')
 def list_stages():
