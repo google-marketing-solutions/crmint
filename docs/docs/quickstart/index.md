@@ -24,7 +24,7 @@ type: markdown
 
 1.  Once the spinner has stopped, click on the notification to select the newly-created project. Enter the project ID here:
 
-    <input id="project-id" placeholder="Insert Project ID here">
+    <input id="project-id" placeholder="Insert Project ID here, e.g. flying-tiger-112301">
 
 ## Run setup steps on Cloud Shell
 
@@ -39,9 +39,14 @@ type: markdown
 
 ## Verifying the installation
 
-1.  TBD
+1.  Launch the CRMint Application on your newly-created instance at: <a href="https://xxxxxx.appspot.com" id="crm-launch" target="_blank">&lt;Project ID not set&gt;</a>
+
+1.  You should see a CRMint control panel, showing no pipelines.
+
+1.  Congratulations, you're all set to start exploring CRMint!
 
 ## What's next
 
 - Read a full explanation of how CRMint works in [What is CRMint?](../guides/)
   and [CRMint Concepts](../guides/concepts.html)
+- Create your first CRMint pipeline

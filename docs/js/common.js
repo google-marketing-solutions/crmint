@@ -11,6 +11,7 @@ firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
 $('#project-id').on('input',  function() {
   var anchorTag = document.getElementById("cloudshell-url");
   var projectId = document.getElementById('project-id').value;
+  var launchTag = document.getElementById('crm-launch');
 
   var projRe = /^[a-z\-]+(\-\d+|)$/;
 
@@ -25,9 +26,13 @@ $('#project-id').on('input',  function() {
     ].join('');
     anchorTag.href = newUrl;
     anchorTag.classList.remove('gray-image');
+    launchTag.href = 'https://' + projectId + '.appspot.com';
+    launchTag.innerHTML = projectId + '.appspot.com';
   } else {
     anchorTag.removeAttribute('href');
+    launchTag.removeAttribute('href');
     anchorTag.classList.add('gray-image');
+    launchTag.innerHTML = '&lt;Project ID not set&gt;';
   }
 });
 
