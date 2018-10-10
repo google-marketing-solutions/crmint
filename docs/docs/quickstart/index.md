@@ -49,4 +49,5 @@ type: markdown
 
 - Read a full explanation of how CRMint works in [What is CRMint?](../guides/)
   and [CRMint Concepts](../guides/concepts.html)
+- CRMint pipeline concepts
 - Create your first CRMint pipeline
