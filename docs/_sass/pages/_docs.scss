@@ -136,6 +136,12 @@
     position: relative;
   }
 
+  .gray-image {
+    -webkit-filter: grayscale(100%);
+    filter: grayscale(100%);
+    filter: gray;
+  }
+
   .after-overlay{
     position: absolute;
     top: 0;
