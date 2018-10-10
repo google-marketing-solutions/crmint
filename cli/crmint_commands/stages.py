@@ -14,10 +14,7 @@
 
 import os
 import click
-import commands._constants
-
-
-STAGES_DIR = "{}/variables/stages".format(commands._constants.SCRIPTS_DIR)
+from crmint_commands import _constants
 
 
 @click.group()
@@ -31,27 +28,27 @@ def cli():
 @click.argument('stage')
 def setup(stage):
   """Setup a new stage"""
-  if "%s.sh" % stage in os.listdir(STAGES_DIR):
+  if "%s.sh" % stage in os.listdir(_constants.STAGE_DIR):
     click.echo("Stage {} already exists".format(stage))
     return
   os.system("""STAGE_NAME={}
             SCRIPTS_DIR={}
             source "{}/stages/setup_cli.sh" """
-            .format(stage, _constants.SCRIPTS_DIR, commands._constants.SCRIPTS_DIR))
+            .format(stage, _constants.SCRIPTS_DIR, _constants.SCRIPTS_DIR))
 
 
 @cli.command('check')
 @click.argument('stage')
 def check(stage):
   """Check stage"""
-  if "%s.sh" % stage not in os.listdir(STAGES_DIR):
+  if "%s.sh" % stage not in os.listdir(_constants.STAGE_DIR):
     click.echo("Stage not found")
     return
   os.system("""stage={}
             SCRIPTS_DIR={}
             source "{}/stages/check_cli.sh" """
-            .format(stage, commands._constants.SCRIPTS_DIR, 
-                    commands._constants.SCRIPTS_DIR))
+            .format(stage, _constants.SCRIPTS_DIR, 
+                    _constants.SCRIPTS_DIR))
 
 
 @cli.command('create')
@@ -59,12 +56,17 @@ def check(stage):
 def create(stage):
   """Create new project in Google Cloud and add instances"""
   os.system("""STAGE_NAME={}
-    source "{}/stages/create.sh" """.format(stage, commands._constants.SCRIPTS_DIR))
+    source "{}/stages/create.sh" """.format(stage, _constants.SCRIPTS_DIR))
 
+
+def _ignore_stage_file(file_name):
+  IGNORED_STAGE_FILES = ["__init__.py"]
+  ENDS_WITH = [".pyc", ".example"]
+  return file_name in IGNORED_STAGE_FILES or file_name.endswith(tuple(ENDS_WITH))
 
 @cli.command('list')
 def list_stages():
   """List your stages defined in scripts/variables/stages directory"""
-  for file_name in os.listdir(STAGES_DIR):
-    if not file_name.endswith(".example"):
+  for file_name in os.listdir(_constants.STAGE_DIR):
+    if not _ignore_stage_file(file_name):
       click.echo(file_name[:-3])

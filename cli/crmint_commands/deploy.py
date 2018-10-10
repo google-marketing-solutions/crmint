@@ -11,17 +11,17 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+# import sys
+# sys.path.append("/usr/local/google/home/ldiana/projects/crmint/cli")
 
 import os
 import click
-import commands._constants
-import commands._utils
-import stage_variables
-import sys
+from crmint_commands import _constants
+from crmint_commands import _utils
 
 
 def _get_stage_file(stage):
-  stage_file = "{}/{}.py".format(commands._constants.STAGE_DIR, stage)
+  stage_file = "{}/{}.py".format(_constants.STAGE_DIR, stage)
   return stage_file
 
 
@@ -37,9 +37,9 @@ def source_stage_file_and_command_script(stage_file, command):
         source \"{}\"
         source \"{}/deploy/before_hook.sh\"
         source \"{}/deploy/{}.sh\""""
-            .format(commands._constants.SCRIPTS_DIR, stage_file,
-                    commands._constants.SCRIPTS_DIR,
-                    commands._constants.SCRIPTS_DIR, command))
+            .format(_constants.SCRIPTS_DIR, stage_file,
+                    _constants.SCRIPTS_DIR,
+                    _constants.SCRIPTS_DIR, command))
 
 
 def deploy_frontend(stage_name):
@@ -47,11 +47,11 @@ def deploy_frontend(stage_name):
   stage = getattr(__import__("stage_variables.%s" % stage_name), stage_name)
   try:
     click.echo("Step 1 out of 2...")
-    commands._utils.before_hook(stage)
+    _utils.before_hook(stage)
     click.echo("Step 2 out of 2...")
     click.echo("Frontend deployed successfully!")
-  except Exception as e:
-    click.echo("\nAn error occured. Details: %s" % e.message)
+  except Exception as exception:
+    click.echo("\nAn error occured. Details: %s" % exception.message)
 
 
 @click.group()
@@ -67,8 +67,8 @@ def deploy_all(context, stage):
   """Deploy all <stage>"""
   deploy_components = [frontend]
   # , ibackend, jbackend, cron, migration]
-  with click.progressbar(deploy_components) as bar:
-    for component in bar:
+  with click.progressbar(deploy_components) as progress_bar:
+    for component in progress_bar:
       context.invoke(component, stage=stage)
 
 
@@ -92,6 +92,7 @@ def ibackend(stage):
 @click.argument('stage')
 def jbackend(stage):
   """Deploy jbackend <stage>"""
+  stage_file = _get_stage_file(stage)
   _check_stage_file(stage)
   source_stage_file_and_command_script(stage_file, 'jbackend')
 
@@ -100,6 +101,7 @@ def jbackend(stage):
 @click.argument('stage')
 def migration(stage):
   """Deploy migration <stage>"""
+  stage_file = _get_stage_file(stage)
   _check_stage_file(stage)
   source_stage_file_and_command_script(stage_file, 'migration')
 
@@ -114,18 +116,19 @@ def migration(stage):
 def cron(stage, cron_frequency_minutes, cron_frequency_hours):
   """Deploy cron file <stage>"""
   _check_stage_file(stage)
+  stage_file = _get_stage_file(stage)
   with open(_constants.CRON_FILE, "w") as cron_file:
-      if cron_frequency_minutes is None and cron_frequency_hours is None:
-          cron_file.write(_constants.EMPTY_CRON_TEMPLATE)
-      else:
-          if cron_frequency_minutes:
-              cron_file.write(_constants.CRON_TEMPLATE
-                              .format(str(cron_frequency_minutes),
-                                      "minutes"))
-          if cron_frequency_hours:
-              cron_file.write(_constants.CRON_TEMPLATE
-                              .format(str(cron_frequency_hours),
-                                      "hours"))
+    if cron_frequency_minutes is None and cron_frequency_hours is None:
+      cron_file.write(_constants.EMPTY_CRON_TEMPLATE)
+    else:
+      if cron_frequency_minutes:
+        cron_file.write(_constants.CRON_TEMPLATE
+                        .format(str(cron_frequency_minutes),
+                                "minutes"))
+      if cron_frequency_hours:
+        cron_file.write(_constants.CRON_TEMPLATE
+                        .format(str(cron_frequency_hours),
+                                "hours"))
   source_stage_file_and_command_script(stage_file, 'cron')
 
 
@@ -134,6 +137,7 @@ def cron(stage, cron_frequency_minutes, cron_frequency_hours):
 def db_seeds(stage):
   """Add seeds to DB"""
   _check_stage_file(stage)
+  stage_file = _get_stage_file(stage)
   source_stage_file_and_command_script(stage_file, 'db_seeds')
 
 
