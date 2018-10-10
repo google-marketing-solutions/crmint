@@ -15,8 +15,8 @@
 
 import unittest
 
-import commands.deploy
-import commands._constants
+import crmint_commands.deploy
+import crmint_commands._constants
 
 from click.testing import CliRunner
 
@@ -32,6 +32,6 @@ class TestDeploy(unittest.TestCase):
   def test_cron_stage_not_found(self):
     runner = CliRunner()
     new_stage = 'stage'
-    result = runner.invoke(commands.deploy.cron, ['-m', '10', new_stage])
+    result = runner.invoke(crmint_commands.deploy.cron, ['-m', '10', new_stage])
     self.assertNotEqual(result.exit_code, 0)
     self.assertEqual(result.output, "\nStage file '%s' not found.\n" % new_stage)
