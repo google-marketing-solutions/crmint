@@ -37,3 +37,7 @@ backends/lib_dev
 
 # Sphinx build folder
 docs/_build
+
+# Jekyll documentation
+**/_site
+**/.sass-cache
