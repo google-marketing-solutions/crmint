@@ -31,7 +31,7 @@ type: markdown
 1.  Open a Cloud Shell
 
     <a id='cloudshell-url' class="gray-image" target="_blank" data-href="https://console.cloud.google.com/cloudshell/editor?cloudshell_git_repo=https%3A%2F%2Fgithub.com%2Fgoogle%2Fcrmint&project=placeholder&cloudshell_git_branch=dev&cloudshell_tutorial=docs%2Fdocs%2Fquickstart%2Fcloudshell.md">
-    <img alt="Open in Cloud Shell" src ="http://gstatic.com/cloudssh/images/open-btn.svg" style="width:250px;"></a>
+    <img alt="Open in Cloud Shell" src ="https://gstatic.com/cloudssh/images/open-btn.svg" style="width:250px;"></a>
 
 1.  Follow the instructions which appear in the tutorial within the Cloud Shell environment.
 
