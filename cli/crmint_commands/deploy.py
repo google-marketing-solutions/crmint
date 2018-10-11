@@ -15,6 +15,7 @@
 # sys.path.append("/usr/local/google/home/ldiana/projects/crmint/cli")
 
 import os
+import subprocess
 import click
 from crmint_commands import _constants
 from crmint_commands import _utils
@@ -42,16 +43,18 @@ def source_stage_file_and_command_script(stage_file, command):
                     _constants.SCRIPTS_DIR, command))
 
 
-def deploy_frontend(stage_name):
-  click.echo("\nDeploying frontend...")
-  stage = getattr(__import__("stage_variables.%s" % stage_name), stage_name)
-  try:
-    click.echo("Step 1 out of 2...")
-    _utils.before_hook(stage)
-    click.echo("Step 2 out of 2...")
-    click.echo("Frontend deployed successfully!")
-  except Exception as exception:
-    click.echo("\nAn error occured. Details: %s" % exception.message)
+def deploy_frontend(stage):
+  gcloud_command = "$GOOGLE_CLOUD_SDK/bin/gcloud --quiet --project"
+  deploy_commands = ("npm install",
+                     "node_modules/@angular/cli/bin/ng build --prod",
+                     "{} {} app deploy gae.yaml --version=v1".format(gcloud_command,
+                                                                     stage.project_id_gae),
+                     "{} {} app deploy dispatch.yaml".format(gcloud_command,
+                                                             stage.project_id_gae))
+  frontend_dir = r"%s/frontend" % stage.workdir
+  subprocess.Popen(deploy_commands, cwd=frontend_dir,
+                   shell=True, stdout=subprocess.PIPE,
+                   stderr=subprocess.PIPE)
 
 
 @click.group()
@@ -61,62 +64,72 @@ def cli():
 
 
 @cli.command('all')
-@click.argument('stage')
+@click.argument('stage_name')
 @click.pass_context
-def deploy_all(context, stage):
+def deploy_all(context, stage_name):
   """Deploy all <stage>"""
   deploy_components = [frontend]
   # , ibackend, jbackend, cron, migration]
   with click.progressbar(deploy_components) as progress_bar:
     for component in progress_bar:
-      context.invoke(component, stage=stage)
+      context.invoke(component, stage_name=stage_name)
 
 
 @cli.command('frontend')
-@click.argument('stage')
-def frontend(stage):
+@click.argument('stage_name')
+def frontend(stage_name):
   """Deploy frontend <stage>"""
-  _check_stage_file(stage)
-  deploy_frontend(stage)
+  _check_stage_file(stage_name)
+  click.echo("\nDeploying frontend...")
+  stage = getattr(__import__("stage_variables.%s" % stage_name), stage_name)
+  try:
+    click.echo("\rStep 1 out of 2...", nl=False)
+    stage = _utils.before_hook(stage)
+    click.echo("\rStep 2 out of 2...", nl=False)
+    deploy_frontend(stage)
+    click.echo("\r\rFrontend deployed successfully!")
+  except Exception as exception:
+    click.echo("\nAn error occured. Details: %s" % exception.message)
+
 
 @cli.command('ibackend')
-@click.argument('stage')
-def ibackend(stage):
+@click.argument('stage_name')
+def ibackend(stage_name):
   """Deploy ibackend <stage>"""
-  stage_file = _get_stage_file(stage)
+  stage_file = _get_stage_file(stage_name)
   _check_stage_file(stage_file)
   source_stage_file_and_command_script(stage_file, 'ibackend')
 
 
 @cli.command('jbackend')
-@click.argument('stage')
-def jbackend(stage):
+@click.argument('stage_name')
+def jbackend(stage_name):
   """Deploy jbackend <stage>"""
-  stage_file = _get_stage_file(stage)
-  _check_stage_file(stage)
+  stage_file = _get_stage_file(stage_name)
+  _check_stage_file(stage_file)
   source_stage_file_and_command_script(stage_file, 'jbackend')
 
 
 @cli.command('migration')
-@click.argument('stage')
-def migration(stage):
+@click.argument('stage_name')
+def migration(stage_name):
   """Deploy migration <stage>"""
-  stage_file = _get_stage_file(stage)
-  _check_stage_file(stage)
+  stage_file = _get_stage_file(stage_name)
+  _check_stage_file(stage_name)
   source_stage_file_and_command_script(stage_file, 'migration')
 
 
 # [TODO] Make cm and ch options mutual exclusiv
 @cli.command('cron')
-@click.argument('stage')
+@click.argument('stage_name')
 @click.option('--cron-frequency-minutes', '-m', default=None, show_default=True,
               help='Cron job schedule in minutes')
 @click.option('--cron-frequency-hours', '-h', default=None, show_default=True,
               help='Cron job schedule in hours')
-def cron(stage, cron_frequency_minutes, cron_frequency_hours):
+def cron(stage_name, cron_frequency_minutes, cron_frequency_hours):
   """Deploy cron file <stage>"""
-  _check_stage_file(stage)
-  stage_file = _get_stage_file(stage)
+  _check_stage_file(stage_name)
+  stage_file = _get_stage_file(stage_name)
   with open(_constants.CRON_FILE, "w") as cron_file:
     if cron_frequency_minutes is None and cron_frequency_hours is None:
       cron_file.write(_constants.EMPTY_CRON_TEMPLATE)

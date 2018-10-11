@@ -1,1 +1,2 @@
 *.egg-info
+stage_variables/*.py
