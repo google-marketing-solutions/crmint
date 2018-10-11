@@ -16,10 +16,12 @@
 
 
 # ------------------------- CREATE DATABASE in Cloud SQL ------------------------
-echo
-echo -e "$BLUE==>$NONE$BOLD Creating MySQL database is started$NONE"
+if gcloud sql databases list --instance="$db_instance_name" 2>/dev/null | egrep -q "^$db_name\s"; then
+  echo -e "$BLUE==>$NONE$BOLD MySQL database $db_name exists $NONE"
+else
+  echo -e "$BLUE==>$NONE$BOLD Creating MySQL database$NONE"
 
-# Create sql database
-$gcloud_sdk_dir/bin/gcloud sql databases create $db_name --instance $db_instance_name --project $project_id_gae --quiet
-
+  gcloud sql databases create $db_name --instance $db_instance_name \
+    --project $project_id_gae --quiet
+fi
 # ------------------------- END CREATE DATABASE in Cloud SQL --------------------------

@@ -98,7 +98,7 @@ local_db_uri="mysql+mysqldb://$db_username:$db_password@/$db_name?unix_socket=$c
 echo -e "$BLUE==>$NONE$BOLD Starting Cloud SQL proxy$NONE"
 echo
 mkdir -p $cloudsql_dir
-$cloud_sql_proxy -projects=$project_id_gae -instances=$db_instance_conn_name -dir=$cloudsql_dir &
+$cloud_sql_proxy -projects=$project_id_gae -instances=$db_instance_conn_name -dir=$cloudsql_dir -credential_file=data/service-account.json &
 cloud_sql_proxy_pid=$!
 echo "cloud_sql_proxy pid: $cloud_sql_proxy_pid"
 sleep 5  # Wait for cloud_sql_proxy to start.
@@ -116,7 +116,7 @@ echo "SQLALCHEMY_DATABASE_URI=\"$local_db_uri\"" > $workdir/backends/instance/co
 echo
 echo -e "$BLUE==>$NONE$BOLD Reseting statuses of jobs and pipelines.$NONE"
 echo
-python -m flask reset_pipelines
+python -m flask reset-pipelines
 
 # Stop Cloud SQL proxy.
 echo

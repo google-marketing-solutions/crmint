@@ -1,3 +1,5 @@
+#!/usr/bin/env bash
+#
 # Copyright 2018 Google Inc
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,10 +14,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from google.appengine.api import app_identity
-from google.cloud.logging import Client
+CURRENT_DIR=$(pwd)
 
+# Clones the crmint repository in the home directory.
+cd "$HOME"
+git clone https://github.com/google/crmint.git
+cd crmint
 
-project_id = app_identity.get_application_id()
-logger_name = 'crmintapplogger'
-logger = Client(project=project_id).logger(logger_name)
+# Configures the GCP project with the resources needed.
+bin/app cloud setup
+
+# Deploy the App Engine services.
+bin/app cloud deploy
+
+# Restores initial directory.
+cd "$CURRENT_DIR"

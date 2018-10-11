@@ -27,9 +27,6 @@ scripts/variables/**/*.sh
 !.vscode/launch.json
 !.vscode/extensions.json
 
-# Dev app config
-backends/gae_dev_*.yaml
-
 # Dev libs
 backends/lib_dev
 
@@ -40,3 +37,7 @@ backends/lib_dev
 
 # Sphinx build folder
 docs/_build
+
+# Jekyll documentation
+**/_site
+**/.sass-cache

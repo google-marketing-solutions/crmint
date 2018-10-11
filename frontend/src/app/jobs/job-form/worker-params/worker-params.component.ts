@@ -86,7 +86,19 @@ export class WorkerParamsComponent implements OnInit {
     if (!this.cacheWorkerParams[worker_class].length) {
       for (const worker_param of worker_params) {
         const param = this.jobForm.get('paramsLairs').value.find(p => p.name === worker_param.name);
-        worker_param.value = param && param.value || '';
+        if (param) {
+          worker_param.value = param.value;
+        } else {
+          if (worker_param.type == 'boolean') {
+            worker_param.value = worker_param.default == 'True';
+          } else {
+            if (worker_param.default !== undefined) {
+              worker_param.value = worker_param.default;
+            } else {
+              worker_param.value = '';
+            }
+          }
+        }
       }
     }
     this.setParamsLairs(worker_params);

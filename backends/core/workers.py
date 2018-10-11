@@ -23,13 +23,15 @@ import json
 import os
 from random import random
 import time
+import urllib
 import uuid
+
 from apiclient.discovery import build
 from apiclient.errors import HttpError
 from apiclient.http import MediaIoBaseUpload
 import cloudstorage as gcs
-from core.logging import logger
 from oauth2client.service_account import ServiceAccountCredentials
+import requests
 from google.cloud import bigquery
 from google.cloud.exceptions import ClientError
 
@@ -46,7 +48,11 @@ AVAILABLE = (
     'MLPredictor',
     'StorageCleaner',
     'Commenter',
+    'BQToMeasurementProtocol',
 )
+
+# Defines how many times to retry on failure, default to 5 times.
+DEFAULT_MAX_RETRIES = os.environ.get('MAX_RETRIES', 5)
 
 
 # pylint: disable=too-few-public-methods
@@ -81,7 +87,8 @@ class Worker(object):
     self._workers_to_enqueue = []
 
   def _log(self, level, message, *substs):
-    logger.log_struct({
+    from core import cloud_logging
+    self.retry(cloud_logging.logger.log_struct)({
         'labels': {
             'pipeline_id': self._pipeline_id,
             'job_id': self._job_id,
@@ -118,13 +125,13 @@ class Worker(object):
   def _enqueue(self, worker_class, worker_params, delay=0):
     self._workers_to_enqueue.append((worker_class, worker_params, delay))
 
-  def retry(self, func):
+  def retry(self, func, max_retries=DEFAULT_MAX_RETRIES):
     """Decorator implementing retries with exponentially increasing delays."""
     @wraps(func)
     def func_with_retries(*args, **kwargs):
       """Retriable version of function being decorated."""
       tries = 0
-      while tries < 5:
+      while tries < max_retries:
         try:
           return func(*args, **kwargs)
         except HttpError as e:
@@ -134,7 +141,6 @@ class Worker(object):
         except Exception as e:  # pylint: disable=broad-except
           tries += 1
           delay = 5 * 2 ** (tries + random())
-          self.log_warn('%s, Retrying in %.1f seconds...', e, delay)
           time.sleep(delay)
       return func(*args, **kwargs)
     return func_with_retries
@@ -160,12 +166,13 @@ class BQWorker(Worker):
   """Abstract BigQuery worker."""
 
   def _get_client(self):
-    self._client = bigquery.Client.from_service_account_json(_KEY_FILE)
+    client = bigquery.Client.from_service_account_json(_KEY_FILE)
     if self._params['bq_project_id'].strip():
-      self._client.project = self._params['bq_project_id']
+      client.project = self._params['bq_project_id']
+    return client
 
   def _bq_setup(self):
-    self._get_client()
+    self._client = self._get_client()
     self._dataset = self._client.dataset(self._params['bq_dataset_id'])
     self._table = self._dataset.table(self._params['bq_table_id'])
     self._job_name = '%i_%i_%s_%s' % (self._pipeline_id, self._job_id,
@@ -203,10 +210,10 @@ class BQWaiter(BQWorker):
   """Worker that checks BQ job status and respawns itself if job is running."""
 
   def _execute(self):
-    self._get_client()
+    client = self._get_client()
     for job_name in self._params['job_names']:
       # pylint: disable=protected-access
-      job = bigquery.job._AsyncJob(job_name, self._client)
+      job = bigquery.job._AsyncJob(job_name, client)
       # pylint: enable=protected-access
       job.reload()
       if job.error_result is not None:
@@ -309,12 +316,15 @@ class StorageToBQImporter(StorageWorker, BQWorker):
       ('import_json', 'boolean', False, False, 'Source is in JSON format'),
   ]
 
+  def _get_source_uris(self):
+    stats = self._get_matching_stats(self._params['source_uris'])
+    return ['gs:/%s' % s.filename for s in stats]
+
   def _execute(self):
     self._bq_setup()
-    stats = self._get_matching_stats(self._params['source_uris'])
-    self._source_uris = ['gs:/%s' % s.filename for s in stats]
+    source_uris = self._get_source_uris()
     job = self._client.load_table_from_storage(
-        self._job_name, self._table, *self._source_uris)
+        self._job_name, self._table, *source_uris)
     if self._params['import_json']:
       job.source_format = 'NEWLINE_DELIMITED_JSON'
     else:
@@ -758,3 +768,144 @@ class MLPredictor(MLWorker):
     self.retry(request.execute)()
     job_name = '%s/jobs/%s' % (project_id, self._ml_job_id)
     self._enqueue('MLWaiter', {'job_name': job_name}, 60)
+
+
+class MeasurementProtocolException(WorkerException):
+  """Measurement Protocol execution exception."""
+  pass
+
+
+class MeasurementProtocolWorker(Worker):
+  """Abstract Measurement Protocol worker."""
+
+  def _get_payload_from_data(self, data):
+    payload = {'v': 1}  # Use version 1
+    payload.update(data)
+    return payload
+
+  def _prepare_payloads_for_batch_request(self, payloads):
+    """Merges payloads to send them in a batch request.
+
+    Arguments:
+      payloads list of payload, each payload being a dictionary.
+
+    Returns: concatenated url-encoded payloads.
+        For example:
+
+          param1=value10&param2=value20
+          param1=value11&param2=value21
+    """
+    assert isinstance(payloads, list) or isinstance(payloads, tuple)
+    payloads_utf8 = [sorted([(k, unicode(p[k]).encode('utf-8')) for k in p],
+                            key=lambda t: t[0]) for p in payloads]
+    return '\n'.join(map(lambda p: urllib.urlencode(p), payloads_utf8))
+
+  def _send_batch_hits(self, batch_payload, user_agent='CRMint / 0.1'):
+    """Sends a batch request to the Measurement Protocol endpoint.
+
+    NB: Use the the HitBuilder service to validate a Measurement Protocol
+        hit format with the Measurement Protocol Validation Server.
+
+        https://ga-dev-tools.appspot.com/hit-builder/
+
+    Arguments:
+      data list of payloads, each payload being a list of key/values tuples
+          to pass to the Measurement Protocol batch endpoint.
+      user_agent string representing the client User Agent.
+
+    Raises: MeasurementProtocolException if the HTTP request fails.
+    """
+    headers = {'user-agent': user_agent}
+    req = requests.post('https://www.google-analytics.com/batch',
+                        headers=headers,
+                        data=batch_payload)
+
+    if req.status_code != requests.codes.ok:
+      raise MeasurementProtocolException('Failed to send event hit with status '
+                                         'code (%s) and parameters: %s'
+                                         % (req.status_code, batch_payload))
+
+
+class BQToMeasurementProtocol(BQWorker):
+  """Worker to push data through Measurement Protocol"""
+
+  PARAMS = [
+      ('bq_project_id', 'string', False, '', 'BQ Project ID'),
+      ('bq_dataset_id', 'string', True, '', 'BQ Dataset ID'),
+      ('bq_table_id', 'string', True, '', 'BQ Table ID'),
+      ('mp_batch_size', 'number', True, 20, ('Measurement Protocol batch size '
+                                             '(https://goo.gl/7VeWuB)')),
+  ]
+
+  # BigQuery batch size for querying results. Default to 1000.
+  BQ_BATCH_SIZE = int(1e3)
+
+  # Maximum number of jobs to enqueued before spawning a new scheduler.
+  MAX_ENQUEUED_JOBS = 50
+
+  def _execute(self):
+    self._bq_setup()
+    self._table.reload()
+    page_token = self._params.get('bq_page_token', None)
+    batch_size = self.BQ_BATCH_SIZE
+    query_iterator = self.retry(self._table.fetch_data, max_retries=1)(
+        max_results=batch_size,
+        page_token=page_token)
+
+    enqueued_jobs_count = 0
+    for query_page in query_iterator.pages:  # pylint: disable=unused-variable
+      # Enqueue job for this page
+      worker_params = self._params.copy()
+      worker_params['bq_page_token'] = page_token
+      worker_params['bq_batch_size'] = self.BQ_BATCH_SIZE
+      self._enqueue('BQToMeasurementProtocolProcessor', worker_params, 0)
+      enqueued_jobs_count += 1
+
+      # Updates the page token reference for the next iteration.
+      page_token = query_iterator.next_page_token
+
+      # Spawns a new job to schedule the remaining pages.
+      if (enqueued_jobs_count >= self.MAX_ENQUEUED_JOBS
+          and page_token is not None):
+        worker_params = self._params.copy()
+        worker_params['bq_page_token'] = page_token
+        self._enqueue(self.__class__.__name__, worker_params, 0)
+        return
+
+
+class BQToMeasurementProtocolProcessor(BQWorker, MeasurementProtocolWorker):
+  """Worker pushing to Measurement Protocol the first page only of a query"""
+
+  def _send_payload_list(self, payload_list):
+    batch_payload = self._prepare_payloads_for_batch_request(payload_list)
+    try:
+      self.retry(self._send_batch_hits, max_retries=1)(batch_payload)
+    except MeasurementProtocolException as e:
+      escaped_message = e.message.replace('%', '%%')
+      self.log_error(escaped_message)
+
+  def _process_query_results(self, query_data, query_schema):
+    """Sends event hits from query data."""
+    fields = [f.name for f in query_schema]
+    payload_list = []
+    for row in query_data:
+      data = dict(zip(fields, row))
+      payload = self._get_payload_from_data(data)
+      payload_list.append(payload)
+      if len(payload_list) >= self._params['mp_batch_size']:
+        self._send_payload_list(payload_list)
+        payload_list = []
+    if payload_list:
+      # Sends remaining payloads.
+      self._send_payload_list(payload_list)
+
+  def _execute(self):
+    self._bq_setup()
+    self._table.reload()
+    page_token = self._params['bq_page_token'] or None
+    batch_size = self._params['bq_batch_size']
+    query_iterator = self.retry(self._table.fetch_data, max_retries=1)(
+        max_results=batch_size,
+        page_token=page_token)
+    query_first_page = next(query_iterator.pages)
+    self._process_query_results(query_first_page, query_iterator.schema)

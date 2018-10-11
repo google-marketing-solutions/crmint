@@ -18,7 +18,7 @@ from tests import utils
 class TestPipelineList(utils.IBackendBaseTest):
 
   def test_list_success(self):
-    response = self.client.get('/pipelines')
+    response = self.client.get('/api/pipelines')
     self.assertEqual(response.status_code, 200)
 
   def test_again_list_success(self):
@@ -26,5 +26,5 @@ class TestPipelineList(utils.IBackendBaseTest):
     This test ensure that the blueprint registration works with
     multiple tests.
     """
-    response = self.client.get('/pipelines')
+    response = self.client.get('/api/pipelines')
     self.assertEqual(response.status_code, 200)

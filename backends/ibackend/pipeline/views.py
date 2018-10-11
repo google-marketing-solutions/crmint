@@ -17,6 +17,7 @@ import time
 import datetime
 import uuid
 
+from google.appengine.api import app_identity
 from google.appengine.api import urlfetch
 from google.cloud.logging import DESCENDING
 
@@ -28,8 +29,8 @@ from flask_restful import marshal_with
 from flask_restful import Resource
 from flask_restful import reqparse
 
-from core.logging import project_id
-from core.logging import logger_name
+from core import cache
+from core import cloud_logging
 from core.models import Job
 from core.models import Pipeline
 
@@ -77,6 +78,7 @@ def abort_if_pipeline_doesnt_exist(pipeline, pipeline_id):
 
 class PipelineSingle(Resource):
   """Shows a single pipeline item and lets you delete a pipeline item"""
+
   @marshal_with(pipeline_fields)
   def get(self, pipeline_id):
     pipeline = Pipeline.find(pipeline_id)
@@ -116,6 +118,7 @@ class PipelineSingle(Resource):
 
 class PipelineList(Resource):
   """Shows a list of all pipelines, and lets you POST to add new pipelines"""
+
   @marshal_with(pipeline_fields)
   def get(self):
     pipelines = Pipeline.all()
@@ -282,6 +285,7 @@ logs_fields = {
 
 
 class PipelineLogs(Resource):
+
   def get(self, pipeline_id):
     args = log_parser.parse_args()
     entries = []
@@ -289,10 +293,10 @@ class PipelineLogs(Resource):
 
     next_page_token = args.get('next_page_token')
     page_size = 20
-    import google.cloud.logging
-    client = google.cloud.logging.Client(project=project_id)
+    from core import cloud_logging
 
-    filter_ = 'logName="projects/%s/logs/%s"' % (project_id, logger_name)
+    project_id = app_identity.get_application_id()
+    filter_ = 'logName="projects/%s/logs/%s"' % (project_id, cloud_logging.logger_name)
     filter_ += ' AND jsonPayload.labels.pipeline_id="%s"' % pipeline_id
     if args.get('worker_class'):
       filter_ += ' AND jsonPayload.labels.worker_class="%s"' \
@@ -307,7 +311,7 @@ class PipelineLogs(Resource):
       filter_ += ' AND timestamp>="%s"' % args.get('fromdate')
     if args.get('todate'):
       filter_ += ' AND timestamp<="%s"' % args.get('todate')
-    iterator = client.list_entries(
+    iterator = cloud_logging.client.list_entries(
         projects=[project_id],
         filter_=filter_,
         order_by=DESCENDING,

@@ -22,6 +22,7 @@ display_help() {
   echo "Usage: $0 stages [command] [options]"
   echo
   echo -e "${BOLD}COMMANDS${NONE}"
+  echo "   setup                      Setup a new stage"
   echo "   check                      Check stage"
   echo "   create                     Create new project in Google Cloud and add instances"
   echo "   list                       List your stages defined in scripts/variables/stages directory"
@@ -51,6 +52,10 @@ check() {
   source "$SCRIPTS_DIR/stages/check.sh" $@
 }
 
+setup() {
+  source "$SCRIPTS_DIR/stages/setup.sh" $@
+}
+
 ##########################################################################
 # READ PASSED ARGUMENTS                                                  #
 ##########################################################################
@@ -63,6 +68,9 @@ case $1 in
                           exit
                           ;;
   create )                create ${@:2}
+                          exit
+                          ;;
+  setup )                 setup ${@:2}
                           exit
                           ;;
   * )                     display_help

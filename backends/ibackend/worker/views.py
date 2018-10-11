@@ -25,7 +25,7 @@ param_fields = {
     'name': fields.String,
     'label': fields.String,
     # 'hint': fields.String,
-    # 'default_value': fields.String,
+    'default': fields.String,
     'required': fields.Boolean,
     'type': fields.String,
 }

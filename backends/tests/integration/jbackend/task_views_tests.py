@@ -29,6 +29,7 @@ class TestTaskCreation(utils.JBackendBaseTest):
     # Activate which service we want to stub
     self.testbed.init_memcache_stub()
     self.testbed.init_app_identity_stub()
+    self.testbed.init_taskqueue_stub()
 
   def tearDown(self):
     super(TestTaskCreation, self).tearDown()
@@ -38,22 +39,22 @@ class TestTaskCreation(utils.JBackendBaseTest):
     response = self.client.get('/hello')
     self.assertEqual(response.status_code, 200)
 
-  @mock.patch('core.logging.logger')
+  @mock.patch('core.cloud_logging.logger')
   def test_submit_task_success(self, patched_logger):
     # NB: patching the StackDriver logger is needed because there is no
     #     testbed service available for now
-    patched_logger.log_struct.return_value = "patched_log_struct"
-    pipeline = models.Pipeline()
-    pipeline.id = 1
-    pipeline.save()
-    job = models.Job()
-    job.id = 1
-    job.pipeline_id = pipeline.id
-    job.save()
+    patched_logger.log_struct.__name__ = 'foo'
+    patched_logger.log_struct.return_value = 'patched_log_struct'
+    pipeline = models.Pipeline.create()
+    job = models.Job.create(pipeline_id=pipeline.id)
+    self.assertTrue(job.get_ready())
+    task = job.start()
+    self.assertIsNotNone(task)
     data = dict(
         job_id=job.id,
         worker_class='Commenter',
-        worker_params='{"comment": "", "success": false}')
+        worker_params='{"comment": "", "success": false}',
+        task_name=task.name)
     headers = {
         'X-AppEngine-TaskExecutionCount': '0'}
     response = self.client.post('/task', headers=headers, data=data)

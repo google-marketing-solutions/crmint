@@ -131,6 +131,7 @@ gcloud services enable \
   logging.googleapis.com \
   storage-api.googleapis.com \
   storage-component.googleapis.com \
+  sqladmin.googleapis.com \
   --async
 # ------------------------- END ENABLE REQUIRED APIS -------------------------
 echo

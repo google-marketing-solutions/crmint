@@ -3,6 +3,11 @@
 **Make reliable data integration and data processing with Google easy for
 advertisers.**
 
+| Status | Coverage | Branch | Description |
+| :----- | :--------- | :----- | :---------- |
+| [![Build Status](https://travis-ci.org/google/crmint.svg?branch=dev)](https://travis-ci.org/google/crmint) | - | [dev](https://github.com/google/crmint/tree/dev) | Latest build, use it at your own risks  |
+| [![Build Status](https://travis-ci.org/google/crmint.svg?branch=master)](https://travis-ci.org/google/crmint) | - | [master](https://github.com/google/crmint/tree/master) | Production ready releases |
+
 > You can have data without information, but you cannot have information
 > without data.
 >
@@ -27,3 +32,29 @@ build a data pipeline, and benefit from data integration and processing in
 [Google Cloud](https://cloud.google.com/).
 
 **This is not an official Google product.**
+
+
+## Run CRMint on your local machine
+
+**Create GCP project (if needed)**
+```sh
+$ PROJECT_ID="my-crmint-${RANDOM:0:4}"
+$ gcloud projects create $PROJECT_ID --enable-cloud-apis --set-as-default
+```
+
+**Retrieve your GCP service account key (if needed)**
+```sh
+$ gcloud app create --region=europe-west
+$ gcloud iam service-accounts keys create \
+    "./backends/data/${PROJECT_ID}.json" \
+    --iam-account="${PROJECT_ID}@appspot.gserviceaccount.com" \
+    --key-file-type='json'
+$ cp ./backends/data/$PROJECT_ID.json ./backends/data/service-account.json
+```
+
+**Run local CRMint**
+```sh
+export APPLICATION_ID=$PROJECT_ID
+$ docker-compose build
+$ docker-compose up
+```

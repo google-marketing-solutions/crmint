@@ -1,8 +1,8 @@
-instance/config.py
 lib
 config/dev.py
 data/*
 !data/*.example
+!data/app.json
 *.swp
 .idea
 
