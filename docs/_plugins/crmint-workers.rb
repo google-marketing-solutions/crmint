@@ -16,18 +16,22 @@ module Workers
       workers = []
       worker_name = nil
       worker_description = nil
+      worker_detail = ""
       in_param = false
       in_available = false
+      in_detail = false
       params = ''
 
       pycode.each { |line|
         matches = /^\s*class\s+([^(\n]+).*:$/.match(line)
         if matches
-          if worker_name && worker_description
+          if worker_name && worker_description.length > 0
             worker = {
               "name" => worker_name,
-              "description" => worker_description
+              "description" => worker_description,
+              "detail" => worker_detail
             }
+            puts worker_description
             if params.length > 0
               worker["parameters"] = parse_params(params)
             end
@@ -36,14 +40,31 @@ module Workers
             end
             worker_name = nil
             worker_description = nil
+            worker_detail = ""
             params = ''
           end
           worker_name = matches[1]
         elsif worker_name
-          if !worker_description
-            matches = /^\s*\"\"\"(.*)\"\"\".*/.match(line)
+          if !worker_description && !in_detail
+            matches = /^\s*\"\"\"(.*)\"\"\"\s*$/.match(line)
             if matches
               worker_description = matches[1]
+            else
+              matches = /^\s*\"\"\"(.*)$/.match(line)
+              if matches
+                in_detail = true
+                worker_description = matches[1].lstrip
+              end
+            end
+          elsif in_detail
+            matches = /^(.*)\"\"\"\s*$/.match(line)
+            if matches
+              in_detail = false
+              worker_detail += matches[1].lstrip
+            elsif line.strip.length == 0 && worker_detail.length > 0
+              worker_detail += "\n"
+            else
+              worker_detail += line.lstrip
             end
           elsif worker_description && !in_param
             matches = /^\s*PARAMS\s=\s(.*)/.match(line)
@@ -76,10 +97,11 @@ module Workers
         end
       }
 
-      if worker_name && worker_description
+      if worker_name && worker_description.length > 0
         worker = {
           "name" => worker_name,
-          "description" => worker_description
+          "description" => worker_description,
+          "detail" => worker_detail
         }
         if params.length > 0
           worker["parameters"] = parse_params(params)

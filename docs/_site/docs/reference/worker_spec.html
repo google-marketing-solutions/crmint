@@ -227,7 +227,7 @@ options.</p>
   <h1>BQQueryLauncher</h1>
   <h3>Worker to run SQL queries in BigQuery.</h3>
 
-  <p>Parameters</p>
+  <p><strong>Parameters</strong></p>
   <table>
     <tr><th>Parameter name</th><th>Data type</th><th>Required</th><th>Default value</th><th>Description</th></tr>
     
@@ -249,7 +249,19 @@ options.</p>
   <h1>BQToMeasurementProtocol</h1>
   <h3>Worker to push data through Measurement Protocol</h3>
 
-  <p>Parameters</p>
+  <p>
+The BigQuery table should have fields with names corresponding to the Google<br />
+Analytics Measurement Protocol parameter names:<br />
+<br />
+See: https://developers.google.com/analytics/devguides/collection/protocol/v1/parameters<br />
+<br />
+NOTE: The presence of fields in the table with names that do not correspond<br />
+to Measurement Protocol parameter names will cause the Measurement Protocol<br />
+request to return an error.<br />
+
+</p>
+
+  <p><strong>Parameters</strong></p>
   <table>
     <tr><th>Parameter name</th><th>Data type</th><th>Required</th><th>Default value</th><th>Description</th></tr>
     
@@ -277,7 +289,7 @@ options.</p>
   <h1>BQToStorageExporter</h1>
   <h3>Worker to export a BigQuery table to a CSV file.</h3>
 
-  <p>Parameters</p>
+  <p><strong>Parameters</strong></p>
   <table>
     <tr><th>Parameter name</th><th>Data type</th><th>Required</th><th>Default value</th><th>Description</th></tr>
     
@@ -301,7 +313,7 @@ options.</p>
   <h1>Commenter</h1>
   <h3>Dummy worker that fails when checkbox is unchecked.</h3>
 
-  <p>Parameters</p>
+  <p><strong>Parameters</strong></p>
   <table>
     <tr><th>Parameter name</th><th>Data type</th><th>Required</th><th>Default value</th><th>Description</th></tr>
     
@@ -317,7 +329,7 @@ options.</p>
   <h1>GAAudiencesUpdater</h1>
   <h3>Worker to update GA audiences using values from a BQ table.</h3>
 
-  <p>Parameters</p>
+  <p><strong>Parameters</strong></p>
   <table>
     <tr><th>Parameter name</th><th>Data type</th><th>Required</th><th>Default value</th><th>Description</th></tr>
     
@@ -339,7 +351,7 @@ options.</p>
   <h1>GADataImporter</h1>
   <h3>Imports CSV data from Cloud Storage to GA using Data Import.</h3>
 
-  <p>Parameters</p>
+  <p><strong>Parameters</strong></p>
   <table>
     <tr><th>Parameter name</th><th>Data type</th><th>Required</th><th>Default value</th><th>Description</th></tr>
     
@@ -361,7 +373,7 @@ options.</p>
   <h1>GAToBQImporter</h1>
   <h3>Worker to load data into BQ from GA using Core Reporting API.</h3>
 
-  <p>Parameters</p>
+  <p><strong>Parameters</strong></p>
   <table>
     <tr><th>Parameter name</th><th>Data type</th><th>Required</th><th>Default value</th><th>Description</th></tr>
     
@@ -395,7 +407,7 @@ options.</p>
   <h1>MLPredictor</h1>
   <h3>Worker to create ML batch prediction jobs.</h3>
 
-  <p>Parameters</p>
+  <p><strong>Parameters</strong></p>
   <table>
     <tr><th>Parameter name</th><th>Data type</th><th>Required</th><th>Default value</th><th>Description</th></tr>
     
@@ -417,7 +429,7 @@ options.</p>
   <h1>StorageCleaner</h1>
   <h3>Worker to delete stale files in Cloud Storage.</h3>
 
-  <p>Parameters</p>
+  <p><strong>Parameters</strong></p>
   <table>
     <tr><th>Parameter name</th><th>Data type</th><th>Required</th><th>Default value</th><th>Description</th></tr>
     
@@ -433,7 +445,7 @@ options.</p>
   <h1>StorageToBQImporter</h1>
   <h3>Worker to import a CSV file into a BigQuery table.</h3>
 
-  <p>Parameters</p>
+  <p><strong>Parameters</strong></p>
   <table>
     <tr><th>Parameter name</th><th>Data type</th><th>Required</th><th>Default value</th><th>Description</th></tr>
     
