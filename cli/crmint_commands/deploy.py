@@ -33,6 +33,10 @@ def _check_stage_file(stage):
       exit(1)
 
 
+def _get_stage_object(stage_name):
+  return getattr(__import__("stage_variables.%s" % stage_name), stage_name)
+
+
 def source_stage_file_and_command_script(stage_file, command):
   os.system("""SCRIPTS_DIR="{}"
         source \"{}\"
@@ -80,14 +84,14 @@ def deploy_all(context, stage_name):
 def frontend(stage_name):
   """Deploy frontend <stage>"""
   _check_stage_file(stage_name)
-  click.echo("\nDeploying frontend...")
-  stage = getattr(__import__("stage_variables.%s" % stage_name), stage_name)
+  click.echo("\nDeploying frontend...", nl=False)
+  stage = _get_stage_object(stage_name)
   try:
-    click.echo("\rStep 1 out of 2...", nl=False)
+    click.echo("step 1 out of 2...", nl=False)
     stage = _utils.before_hook(stage)
-    click.echo("\rStep 2 out of 2...", nl=False)
+    click.echo("\rstep 2 out of 2...", nl=False)
     deploy_frontend(stage)
-    click.echo("\r\rFrontend deployed successfully!")
+    click.echo("\rFrontend deployed successfully!            ")
   except Exception as exception:
     click.echo("\nAn error occured. Details: %s" % exception.message)
 
