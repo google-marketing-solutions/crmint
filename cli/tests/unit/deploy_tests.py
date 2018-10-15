@@ -14,19 +14,15 @@
 
 
 import os
+import imp
 from unittest import TestCase
+from shutil import copyfile
 import mock
 from click.testing import CliRunner
 
 import crmint_commands.deploy
 import crmint_commands._constants
 
-
-
-def get_mocked_stage(mocked_path, example_path=crmint_commands._constants.STAGE_EXAMPLE_PATH):
-  mocked_stage = crmint_commands.deploy._get_stage_object(example_path)
-  mocked_stage["workdir"] = mocked_path
-  return mocked_stage
 
 class TestDeploy(TestCase):
 
@@ -42,7 +38,9 @@ class TestDeploy(TestCase):
     mocked_check_stage_file.return_value = True
     runner = CliRunner()
     with runner.isolated_filesystem():
-      mocked_stage = get_mocked_stage(os.getcwd())
+      copyfile(crmint_commands.deploy._constants.STAGE_EXAMPLE_PATH, "mocked_stage_file.py")
+      mocked_stage = imp.load_source("mocked_stage_file", os.path.join(os.getcwd(), "mocked_stage_file.py"))
+      mocked_stage.workdir = os.getcwd()
       mocked_get_stage_object.return_value = mocked_stage
     result = runner.invoke(crmint_commands.deploy.frontend, ['mocked_stage_name'])
     self.assertEqual(result.exit_code, 0)
