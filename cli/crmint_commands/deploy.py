@@ -21,6 +21,9 @@ from crmint_commands import _constants
 from crmint_commands import _utils
 
 
+FRONTEND_SUCCESS_MESSAGE = "\rFrontend deployed successfully!            "
+
+
 def _get_stage_file(stage):
   stage_file = "{}/{}.py".format(_constants.STAGE_DIR, stage)
   return stage_file
@@ -49,18 +52,20 @@ def source_stage_file_and_command_script(stage_file, command):
 
 
 def deploy_frontend(stage):
-  gcloud_command = "$GOOGLE_CLOUD_SDK/bin/gcloud --quiet --project"
-  deploy_commands = ("npm install",
-                     "node_modules/@angular/cli/bin/ng build --prod",
-                     "{} {} app deploy gae.yaml --version=v1".format(gcloud_command,
-                                                                     stage.project_id_gae),
-                     "{} {} app deploy dispatch.yaml".format(gcloud_command,
-                                                             stage.project_id_gae))
-  frontend_dir = r"%s/frontend" % stage.workdir
-  subprocess.Popen(deploy_commands, cwd=frontend_dir,
-                   shell=True, stdout=subprocess.PIPE,
-                   stderr=subprocess.PIPE)
-
+  try:
+    gcloud_command = "$GOOGLE_CLOUD_SDK/bin/gcloud --quiet --project"
+    deploy_commands = ("npm install",
+                       "node_modules/@angular/cli/bin/ng build --prod",
+                       "{} {} app deploy gae.yaml --version=v1".format(gcloud_command,
+                                                                       stage.project_id_gae),
+                       "{} {} app deploy dispatch.yaml".format(gcloud_command,
+                                                               stage.project_id_gae))
+    frontend_dir = r"%s/frontend" % stage.workdir
+    subprocess.Popen(deploy_commands, cwd=frontend_dir,
+                     shell=True, stdout=subprocess.PIPE,
+                     stderr=subprocess.PIPE)
+  except Exception as e:
+    raise Exception("Deploy frontend exception: %s" % e.message)
 
 @click.group()
 def cli():
@@ -93,9 +98,10 @@ def frontend(stage_name):
     stage = _utils.before_hook(stage)
     click.echo("\rstep 2 out of 2...", nl=False)
     deploy_frontend(stage)
-    click.echo("\rFrontend deployed successfully!            ")
+    click.echo(FRONTEND_SUCCESS_MESSAGE)
   except Exception as exception:
-    click.echo("\nAn error occured. Details: %s" % exception.message)
+    click.echo("\nAn error occured: %s" % exception.message)
+    exit(1)
 
 
 @cli.command('ibackend')

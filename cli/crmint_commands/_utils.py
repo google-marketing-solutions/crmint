@@ -40,45 +40,57 @@ def before_hook(stage):
       stage.db_username, stage.db_password, stage.db_name,
       stage.cloudsql_dir, stage.db_instance_conn_name)
   target_dir = stage.workdir
+  try:
+    if os.path.exists(target_dir):
+      shutil.rmtree(target_dir)
 
-  if os.path.exists(target_dir):
-    shutil.rmtree(target_dir)
+    # Copy source code to the working directory.
+    shutil.copytree(_constants.PROJECT_DIR, target_dir,
+                    ignore=shutil.ignore_patterns(IGNORE_PATTERNS))
+  except Exception as e:
+    raise Exception("Stage 1 error when copying to workdir: %s" % e.message)
 
-  # Copy source code to the working directory.
-  shutil.copytree(_constants.PROJECT_DIR, target_dir,
-                  ignore=shutil.ignore_patterns(IGNORE_PATTERNS))
+  try:
+    # Create DB config for App Engine application in the cloud.
+    db_config_path = "%s/backends/instance/config.py" % stage.workdir
+    with open(db_config_path, "w") as db_file:
+      db_file.write("SQLALCHEMY_DATABASE_URI=\"%s\"" % stage.cloud_db_uri)
+  except Exception as e:
+    raise Exception("Stage 1 error when writing db config: %s" % e.message)
+  try:
+    # Copy service account file for deployment.
+    account_file_path = "%s/backends/instance/config.py" % stage.workdir
+    if os.path.exists(account_file_path):
+      os.remove(account_file_path)
 
-  # Create DB config for App Engine application in the cloud.
-  db_config_path = "%s/backends/instance/config.py" % stage.workdir
-  with open(db_config_path, "w") as db_file:
-    db_file.write("SQLALCHEMY_DATABASE_URI=\"%s\"" % stage.cloud_db_uri)
-
-  # Copy service account file for deployment.
-  account_file_path = "%s/backends/instance/config.py" % stage.workdir
-  if os.path.exists(account_file_path):
-    os.remove(account_file_path)
-
-  shutil.copytree("%s/backends/data/%s" % (_constants.PROJECT_DIR,
-                                           stage.service_account_file),
-                  "%s/backends/instance/config.py" % stage.workdir)
-  for file_name in glob("%s/backends/data/service-account.json.*" % stage.workdir):
-    os.remove(file_name)
-
-  # Make app_data.json for backends.
-  with open("%s/backends/data/app.json" % stage.workdir, "w") as app_file:
-    app_file.write("""
-            {
-              "notification_sender_email": "$notification_sender_email",
-              "app_title": "$app_title"
-            }
-            """)
-  # Make environment.prod.ts for frontend
-  with open("%s/frontend/src/environments/environment.prod.ts" % stage.workdir, "w") as ts_file:
-    ts_file.write("""
-            export const environment = {
-              production: true,
-              app_title: "$app_title",
-              enabled_stages: $enabled_stages
-            }
-            """)
+    shutil.copytree("%s/backends/data/%s" % (_constants.PROJECT_DIR,
+                                             stage.service_account_file),
+                    "%s/backends/instance/config.py" % stage.workdir)
+    for file_name in glob("%s/backends/data/service-account.json.*" % stage.workdir):
+      os.remove(file_name)
+  except Exception as e:
+    raise Exception("Stage 1 error when copying service account file: %s" % e.message)
+  try:
+    # Make app_data.json for backends.
+    with open("%s/backends/data/app.json" % stage.workdir, "w") as app_file:
+      app_file.write("""
+              {
+                "notification_sender_email": "$notification_sender_email",
+                "app_title": "$app_title"
+              }
+              """)
+  except Exception as e:
+    raise Exception("Stage 1 error when writing app data for backend: %s" % e.message)
+  try:
+    # Make environment.prod.ts for frontend
+    with open("%s/frontend/src/environments/environment.prod.ts" % stage.workdir, "w") as ts_file:
+      ts_file.write("""
+              export const environment = {
+                production: true,
+                app_title: "$app_title",
+                enabled_stages: $enabled_stages
+              }
+              """)
+  except Exception as e:
+    raise Exception("Stage 1 error when writing env data for frontend: %s" % e.message)
   return stage
