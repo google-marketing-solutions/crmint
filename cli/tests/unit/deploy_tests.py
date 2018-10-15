@@ -13,15 +13,22 @@
 # limitations under the License.
 
 
-import unittest
+import os
+from unittest import TestCase
+import mock
+from click.testing import CliRunner
 
 import crmint_commands.deploy
 import crmint_commands._constants
 
-from click.testing import CliRunner
 
 
-class TestDeploy(unittest.TestCase):
+def get_mocked_stage(mocked_path, example_path=crmint_commands._constants.STAGE_EXAMPLE_PATH):
+  mocked_stage = crmint_commands.deploy._get_stage_object(example_path)
+  mocked_stage["workdir"] = mocked_path
+  return mocked_stage
+
+class TestDeploy(TestCase):
 
   def setUp(self):
     super(TestDeploy, self).setUp()
@@ -29,9 +36,20 @@ class TestDeploy(unittest.TestCase):
   def tearDown(self):
     super(TestDeploy, self).tearDown()
 
+  @mock.patch('crmint_commands.deploy._check_stage_file')
+  @mock.patch('crmint_commands.deploy._get_stage_object')
+  def test_frontend_succeeded(self, mocked_get_stage_object, mocked_check_stage_file):
+    mocked_check_stage_file.return_value = True
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+      mocked_stage = get_mocked_stage(os.getcwd())
+      mocked_get_stage_object.return_value = mocked_stage
+    result = runner.invoke(crmint_commands.deploy.frontend, ['mocked_stage_name'])
+    self.assertEqual(result.exit_code, 0)
+
   def test_cron_stage_not_found(self):
     runner = CliRunner()
-    new_stage = 'stage'
+    new_stage = 'random_stage'
     result = runner.invoke(crmint_commands.deploy.cron, ['-m', '10', new_stage])
     self.assertNotEqual(result.exit_code, 0)
     self.assertEqual(result.output, "\nStage file '%s' not found.\n" % new_stage)
