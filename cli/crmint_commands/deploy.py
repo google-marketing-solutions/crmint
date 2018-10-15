@@ -29,8 +29,9 @@ def _get_stage_file(stage):
 def _check_stage_file(stage):
   stage_file = _get_stage_file(stage)
   if not os.path.isfile(stage_file):
-      click.echo("\nStage file '%s' not found." % stage)
-      exit(1)
+    click.echo("\nStage file '%s' not found." % stage)
+    return False
+  return True
 
 
 def _get_stage_object(stage_name):
@@ -83,7 +84,8 @@ def deploy_all(context, stage_name):
 @click.argument('stage_name')
 def frontend(stage_name):
   """Deploy frontend <stage>"""
-  _check_stage_file(stage_name)
+  if not _check_stage_file(stage_name):
+    exit(1)
   click.echo("\nDeploying frontend...", nl=False)
   stage = _get_stage_object(stage_name)
   try:
@@ -101,7 +103,8 @@ def frontend(stage_name):
 def ibackend(stage_name):
   """Deploy ibackend <stage>"""
   stage_file = _get_stage_file(stage_name)
-  _check_stage_file(stage_file)
+  if not _check_stage_file(stage_name):
+    exit(1)
   source_stage_file_and_command_script(stage_file, 'ibackend')
 
 
@@ -110,7 +113,8 @@ def ibackend(stage_name):
 def jbackend(stage_name):
   """Deploy jbackend <stage>"""
   stage_file = _get_stage_file(stage_name)
-  _check_stage_file(stage_file)
+  if not _check_stage_file(stage_name):
+    exit(1)
   source_stage_file_and_command_script(stage_file, 'jbackend')
 
 
@@ -119,7 +123,8 @@ def jbackend(stage_name):
 def migration(stage_name):
   """Deploy migration <stage>"""
   stage_file = _get_stage_file(stage_name)
-  _check_stage_file(stage_name)
+  if not _check_stage_file(stage_name):
+    exit(1)
   source_stage_file_and_command_script(stage_file, 'migration')
 
 
@@ -132,7 +137,8 @@ def migration(stage_name):
               help='Cron job schedule in hours')
 def cron(stage_name, cron_frequency_minutes, cron_frequency_hours):
   """Deploy cron file <stage>"""
-  _check_stage_file(stage_name)
+  if not _check_stage_file(stage_name):
+    exit(1)
   stage_file = _get_stage_file(stage_name)
   with open(_constants.CRON_FILE, "w") as cron_file:
     if cron_frequency_minutes is None and cron_frequency_hours is None:
@@ -150,20 +156,22 @@ def cron(stage_name, cron_frequency_minutes, cron_frequency_hours):
 
 
 @cli.command('db_seeds')
-@click.argument('stage')
-def db_seeds(stage):
+@click.argument('stage_name')
+def db_seeds(stage_name):
   """Add seeds to DB"""
-  _check_stage_file(stage)
-  stage_file = _get_stage_file(stage)
+  if not _check_stage_file(stage_name):
+    exit(1)
+  stage_file = _get_stage_file(stage_name)
   source_stage_file_and_command_script(stage_file, 'db_seeds')
 
 
 @cli.command('reset_pipeline')
-@click.argument('stage')
-def reset_pipeline(stage):
+@click.argument('stage_name')
+def reset_pipeline(stage_name):
   """Reset Job statuses in Pipeline"""
-  stage_file = _get_stage_file(stage)
-  _check_stage_file(stage_file)
+  stage_file = _get_stage_file(stage_name)
+  if not _check_stage_file(stage_name):
+    exit(1)
   source_stage_file_and_command_script(stage_file, 'reset_pipeline')
 
 
