@@ -66,6 +66,18 @@ class TestDeploy(TestCase):
     result = runner.invoke(crmint_commands.deploy.ibackend, [mocked_stage_name])
     self.assertEqual(result.exit_code, 0)
 
+  @mock.patch('crmint_commands.deploy._check_stage_file')
+  @mock.patch('crmint_commands.deploy._get_stage_object')
+  def test_jbackend_succeeded(self, mocked_get_stage_object, mocked_check_stage_file):
+    mocked_stage_name = "mocked_stage"
+    mocked_check_stage_file.return_value = True
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+      mocked_get_stage_object.return_value = TestDeploy._get_mocked_stage(mocked_stage_name,
+                                                                          os.getcwd())
+    result = runner.invoke(crmint_commands.deploy.jbackend, [mocked_stage_name])
+    self.assertEqual(result.exit_code, 0)
+
   def test_cron_stage_not_found(self):
     runner = CliRunner()
     new_stage = 'random_stage'
