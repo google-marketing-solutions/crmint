@@ -77,16 +77,23 @@ def deploy_backend(stage, backend_prefix):
     for file_name in glob("{}/*.pyc".format(stage.workdir)):
       os.remove(file_name)
     subprocess.Popen(("pip install -r ibackend/requirements.txt -t lib -q",
-                      "{}/bin/gcloud --quiet --project {} \
+                      "$GOOGLE_CLOUD_SDK/bin/gcloud --quiet --project {} \
                       app deploy gae_{}backend.yaml --version=v1"
-                      .format(
-                          stage.cloudsql_dir, stage.project_id_gae, backend_prefix)
+                      .format(stage.project_id_gae, backend_prefix)
                      ),
                      cwd=backends_dir, shell=True,
                      stdout=subprocess.PIPE,
                      stderr=subprocess.PIPE)
   except Exception as e:
     raise Exception("Deploy {}backend exception: {}".format(backend_prefix, e.message))
+
+
+def deploy_cron(stage):
+  subprocess.Popen("$GOOGLE_CLOUD_SDK/bin/gcloud --quiet --project {} \
+                   app deploy cron.yaml".format(stage.project_id_gae),
+                   cwd=os.path.join(stage.workdir, "backends"),
+                   shell=True, stdout=subprocess.PIPE,
+                   stderr=subprocess.PIPE)
 
 
 @click.group()
@@ -100,7 +107,7 @@ def cli():
 @click.pass_context
 def deploy_all(context, stage_name):
   """Deploy all <stage>"""
-  deploy_components = [frontend, ibackend] #, jbackend, cron, migration]
+  deploy_components = [frontend, ibackend, jbackend, cron]#, migration]
   with click.progressbar(deploy_components) as progress_bar:
     for component in progress_bar:
       context.invoke(component, stage_name=stage_name)
@@ -129,10 +136,10 @@ def frontend(stage_name):
 @click.argument('stage_name')
 def ibackend(stage_name):
   """Deploy ibackend <stage>"""
-  click.echo("\nDeploying ibackend...", nl=False)
   stage = _get_stage_object(stage_name)
   if not _check_stage_file(stage_name):
     exit(1)
+  click.echo("\nDeploying ibackend...", nl=False)
   try:
     click.echo("step 1 out of 2...", nl=False)
     stage = _utils.before_hook(stage)
@@ -192,21 +199,36 @@ def cron(stage_name, cron_frequency_minutes, cron_frequency_hours):
   """Deploy cron file <stage>"""
   if not _check_stage_file(stage_name):
     exit(1)
-  stage_file = _get_stage_file(stage_name)
-  with open(_constants.CRON_FILE, "w") as cron_file:
+  stage = _get_stage_object(stage_name)
+  click.echo("\nDeploying cron...", nl=False)
+  with click.open_file(_constants.CRON_FILE, "w") as cron_file:
     if cron_frequency_minutes is None and cron_frequency_hours is None:
       cron_file.write(_constants.EMPTY_CRON_TEMPLATE)
     else:
-      if cron_frequency_minutes:
+      if cron_frequency_minutes and not cron_frequency_hours:
         cron_file.write(_constants.CRON_TEMPLATE
                         .format(str(cron_frequency_minutes),
                                 "minutes"))
-      if cron_frequency_hours:
+      elif cron_frequency_hours and not cron_frequency_minutes:
         cron_file.write(_constants.CRON_TEMPLATE
                         .format(str(cron_frequency_hours),
                                 "hours"))
-  source_stage_file_and_command_script(stage_file, 'cron')
-
+      else:
+        click.echo("Please choose only one of the two options: -m/-h")
+        exit(1)
+  try:
+    click.echo("step 1 out of 2...", nl=False)
+    stage = _utils.before_hook(stage)
+  except Exception as exception:
+    click.echo("\nAn error occured during step 1 of cron deployment: %s" % exception.message)
+    exit(1)
+  try:
+    click.echo("\rstep 2 out of 2...", nl=False)
+    deploy_cron(stage)
+    click.echo("\rCron deployed successfully              ")
+  except Exception as exception:
+    click.echo("\nAn error occured during step 2 of cron deployment: %s" % exception.message)
+    exit(1)
 
 @cli.command('db_seeds')
 @click.argument('stage_name')
