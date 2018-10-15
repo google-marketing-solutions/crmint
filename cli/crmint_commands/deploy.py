@@ -15,6 +15,7 @@
 # sys.path.append("/usr/local/google/home/ldiana/projects/crmint/cli")
 
 import os
+from glob import glob
 import subprocess
 import click
 from crmint_commands import _constants
@@ -67,6 +68,27 @@ def deploy_frontend(stage):
   except Exception as e:
     raise Exception("Deploy frontend exception: %s" % e.message)
 
+
+def deploy_ibackend(stage):
+  try:
+    backends_dir = os.path.join(stage.workdir, "backends")
+    # Applying patches required in GAE environment
+    # os.mkdir(os.path.join(backends_dir, "lib"))
+    for file_name in glob("{}/*.pyc".format(stage.workdir)):
+      os.remove(file_name)
+    subprocess.Popen(("pip install -r ibackend/requirements.txt -t lib -q",
+                      "{}/bin/gcloud --quiet --project {} app deploy gae_ibackend.yaml --version=v1"
+                      .format(
+                          stage.cloudsql_dir, stage.project_id_gae)
+                     ),
+                     cwd=backends_dir, shell=True,
+                     stdout=subprocess.PIPE,
+                     stderr=subprocess.PIPE)
+  except Exception as e:
+    raise Exception("Deploy ibackend exception: %s" % e.message)
+
+
+
 @click.group()
 def cli():
   """CRMint Deploy application to Google App Engine"""
@@ -78,8 +100,7 @@ def cli():
 @click.pass_context
 def deploy_all(context, stage_name):
   """Deploy all <stage>"""
-  deploy_components = [frontend]
-  # , ibackend, jbackend, cron, migration]
+  deploy_components = [frontend, ibackend] #, jbackend, cron, migration]
   with click.progressbar(deploy_components) as progress_bar:
     for component in progress_bar:
       context.invoke(component, stage_name=stage_name)
@@ -108,11 +129,23 @@ def frontend(stage_name):
 @click.argument('stage_name')
 def ibackend(stage_name):
   """Deploy ibackend <stage>"""
-  stage_file = _get_stage_file(stage_name)
+  click.echo("\nDeploying ibackend...", nl=False)
+  stage = _get_stage_object(stage_name)
   if not _check_stage_file(stage_name):
     exit(1)
-  source_stage_file_and_command_script(stage_file, 'ibackend')
-
+  try:
+    click.echo("step 1 out of 2...", nl=False)
+    stage = _utils.before_hook(stage)
+  except Exception as exception:
+    click.echo("\nAn error occured during step 1 of ibackend deployment: %s" % exception.message)
+    exit(1)
+  try:
+    click.echo("\rstep 2 out of 2...", nl=False)
+    deploy_ibackend(stage)
+    click.echo("\rIbackend deployed successfully              ")
+  except Exception as exception:
+    click.echo("\nAn error occured during step 2 of ibackend deployment: %s" % exception.message)
+    exit(1)
 
 @cli.command('jbackend')
 @click.argument('stage_name')
