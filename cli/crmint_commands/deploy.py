@@ -69,7 +69,7 @@ def deploy_frontend(stage):
     raise Exception("Deploy frontend exception: %s" % e.message)
 
 
-def deploy_ibackend(stage):
+def deploy_backend(stage, backend_prefix):
   try:
     backends_dir = os.path.join(stage.workdir, "backends")
     # Applying patches required in GAE environment
@@ -77,16 +77,16 @@ def deploy_ibackend(stage):
     for file_name in glob("{}/*.pyc".format(stage.workdir)):
       os.remove(file_name)
     subprocess.Popen(("pip install -r ibackend/requirements.txt -t lib -q",
-                      "{}/bin/gcloud --quiet --project {} app deploy gae_ibackend.yaml --version=v1"
+                      "{}/bin/gcloud --quiet --project {} \
+                      app deploy gae_{}backend.yaml --version=v1"
                       .format(
-                          stage.cloudsql_dir, stage.project_id_gae)
+                          stage.cloudsql_dir, stage.project_id_gae, backend_prefix)
                      ),
                      cwd=backends_dir, shell=True,
                      stdout=subprocess.PIPE,
                      stderr=subprocess.PIPE)
   except Exception as e:
-    raise Exception("Deploy ibackend exception: %s" % e.message)
-
+    raise Exception("Deploy {}backend exception: {}".format(backend_prefix, e.message))
 
 
 @click.group()
@@ -141,20 +141,34 @@ def ibackend(stage_name):
     exit(1)
   try:
     click.echo("\rstep 2 out of 2...", nl=False)
-    deploy_ibackend(stage)
+    deploy_backend(stage, "i")
     click.echo("\rIbackend deployed successfully              ")
   except Exception as exception:
     click.echo("\nAn error occured during step 2 of ibackend deployment: %s" % exception.message)
     exit(1)
 
+
 @cli.command('jbackend')
 @click.argument('stage_name')
 def jbackend(stage_name):
   """Deploy jbackend <stage>"""
-  stage_file = _get_stage_file(stage_name)
+  click.echo("\nDeploying jbackend...", nl=False)
+  stage = _get_stage_object(stage_name)
   if not _check_stage_file(stage_name):
     exit(1)
-  source_stage_file_and_command_script(stage_file, 'jbackend')
+  try:
+    click.echo("step 1 out of 2...", nl=False)
+    stage = _utils.before_hook(stage)
+  except Exception as exception:
+    click.echo("\nAn error occured during step 1 of jbackend deployment: %s" % exception.message)
+    exit(1)
+  try:
+    click.echo("\rstep 2 out of 2...", nl=False)
+    deploy_backend(stage, "j")
+    click.echo("\rJbackend deployed successfully              ")
+  except Exception as exception:
+    click.echo("\nAn error occured during step 2 of jbackend deployment: %s" % exception.message)
+    exit(1)
 
 
 @cli.command('migration')
