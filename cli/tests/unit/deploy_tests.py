@@ -37,8 +37,7 @@ class TestDeploy(TestCase):
                         stage_example_path=crmint_commands._constants.STAGE_EXAMPLE_PATH):
     copyfile(stage_example_path, "{}.py".format(mocked_stage_name))
     mocked_stage = imp.load_source(mocked_stage_name,
-                                   os.path.join(mocked_path,
-                                                "{}.py".format(mocked_stage_name)))
+                                   "{}.py".format(mocked_stage_name))
     mocked_stage.workdir = mocked_path
     return mocked_stage
 
@@ -83,17 +82,20 @@ class TestDeploy(TestCase):
   def test_cron_minutes_succeeded(self, mocked_get_stage_object,
                                   mocked_check_stage_file):
     mocked_stage_name = "mocked_stage"
-    mocked_cron_file_name = "mocked_cron"
+    mocked_cron_file_name = "mocked_cron.yaml"
     mocked_check_stage_file.return_value = True
     runner = CliRunner()
     with runner.isolated_filesystem():
       with mock.patch('crmint_commands._constants.CRON_FILE',
                       mocked_cron_file_name):
+        mocked_workdir = os.path.join(os.getcwd(), "workdir")
         mocked_stage = TestDeploy._get_mocked_stage(mocked_stage_name,
-                                                    os.getcwd())
+                                                    mocked_workdir)
         mocked_get_stage_object.return_value = mocked_stage
         result = runner.invoke(crmint_commands.deploy.cron, [mocked_stage_name, '-m 9'])
         self.assertEqual(result.exit_code, 0)
+        with open(mocked_cron_file_name, "r") as cron_file:
+          self.assertIn("9 minutes", cron_file.read())
 
   @mock.patch('crmint_commands.deploy._check_stage_file')
   @mock.patch('crmint_commands.deploy._get_stage_object')
@@ -106,12 +108,15 @@ class TestDeploy(TestCase):
     with runner.isolated_filesystem():
       with mock.patch('crmint_commands._constants.CRON_FILE',
                       mocked_cron_file_name):
+        mocked_workdir = os.path.join(os.getcwd(), "workdir")
         mocked_stage = TestDeploy._get_mocked_stage(mocked_stage_name,
-                                                    os.getcwd())
+                                                    mocked_workdir)
         mocked_get_stage_object.return_value = mocked_stage
         result = runner.invoke(crmint_commands.deploy.cron,
                                [mocked_stage_name, '-h 12'])
         self.assertEqual(result.exit_code, 0)
+        with open(mocked_cron_file_name, "r") as cron_file:
+          self.assertIn("12 hours", cron_file.read())
 
   @mock.patch('crmint_commands.deploy._check_stage_file')
   @mock.patch('crmint_commands.deploy._get_stage_object')
