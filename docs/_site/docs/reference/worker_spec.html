@@ -249,18 +249,6 @@ options.</p>
   <h1>BQToMeasurementProtocol</h1>
   <h3>Worker to push data through Measurement Protocol</h3>
 
-  <p>
-The BigQuery table should have fields with names corresponding to the Google<br />
-Analytics Measurement Protocol parameter names:<br />
-<br />
-See: https://developers.google.com/analytics/devguides/collection/protocol/v1/parameters<br />
-<br />
-NOTE: The presence of fields in the table with names that do not correspond<br />
-to Measurement Protocol parameter names will cause the Measurement Protocol<br />
-request to return an error.<br />
-
-</p>
-
   <p><strong>Parameters</strong></p>
   <table>
     <tr><th>Parameter name</th><th>Data type</th><th>Required</th><th>Default value</th><th>Description</th></tr>
@@ -328,6 +316,11 @@ request to return an error.<br />
 <div>
   <h1>GAAudiencesUpdater</h1>
   <h3>Worker to update GA audiences using values from a BQ table.</h3>
+
+  <p>
+See: https://developers.google.com/analytics/devguides/config/mgmt/v3/mgmtReference/management/remarketingAudience#resource<br />
+for more details on the required GA Audience JSON template format.
+</p>
 
   <p><strong>Parameters</strong></p>
   <table>

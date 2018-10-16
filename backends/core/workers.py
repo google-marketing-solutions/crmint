@@ -591,7 +591,10 @@ class GADataImporter(GAWorker):
 
 
 class GAAudiencesUpdater(BQWorker, GAWorker):
-  """Worker to update GA audiences using values from a BQ table."""
+  """Worker to update GA audiences using values from a BQ table.
+
+  See: https://developers.google.com/analytics/devguides/config/mgmt/v3/mgmtReference/management/remarketingAudience#resource
+  for more details on the required GA Audience JSON template format."""
 
   PARAMS = [
       ('property_id', 'string', True, '',
