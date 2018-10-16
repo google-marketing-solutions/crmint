@@ -17,6 +17,8 @@
 import os
 from glob import glob
 import subprocess
+import shutil
+import signal
 import click
 from crmint_commands import _constants
 from crmint_commands import _utils
@@ -33,7 +35,6 @@ def _get_stage_file(stage):
 def _check_stage_file(stage):
   stage_file = _get_stage_file(stage)
   if not os.path.isfile(stage_file):
-    click.echo("\nStage file '%s' not found." % stage)
     return False
   return True
 
@@ -65,8 +66,8 @@ def deploy_frontend(stage):
     subprocess.Popen(deploy_commands, cwd=frontend_dir,
                      shell=True, stdout=subprocess.PIPE,
                      stderr=subprocess.PIPE)
-  except Exception as e:
-    raise Exception("Deploy frontend exception: %s" % e.message)
+  except Exception as exception:
+    raise Exception("Deploy frontend exception: %s" % exception.message)
 
 
 def deploy_backend(stage, backend_prefix):
@@ -84,8 +85,8 @@ def deploy_backend(stage, backend_prefix):
                      cwd=backends_dir, shell=True,
                      stdout=subprocess.PIPE,
                      stderr=subprocess.PIPE)
-  except Exception as e:
-    raise Exception("Deploy {}backend exception: {}".format(backend_prefix, e.message))
+  except Exception as exception:
+    raise Exception("Deploy {}backend exception: {}".format(backend_prefix, exception.message))
 
 
 def deploy_cron(stage):
@@ -107,7 +108,7 @@ def cli():
 @click.pass_context
 def deploy_all(context, stage_name):
   """Deploy all <stage>"""
-  deploy_components = [frontend, ibackend, jbackend, cron]#, migration]
+  deploy_components = [frontend, ibackend, jbackend, cron, migration]
   with click.progressbar(deploy_components) as progress_bar:
     for component in progress_bar:
       context.invoke(component, stage_name=stage_name)
@@ -118,6 +119,7 @@ def deploy_all(context, stage_name):
 def frontend(stage_name):
   """Deploy frontend <stage>"""
   if not _check_stage_file(stage_name):
+    click.echo("\nStage file '%s' not found." % stage_name)
     exit(1)
   click.echo("\nDeploying frontend...", nl=False)
   stage = _get_stage_object(stage_name)
@@ -138,6 +140,7 @@ def ibackend(stage_name):
   """Deploy ibackend <stage>"""
   stage = _get_stage_object(stage_name)
   if not _check_stage_file(stage_name):
+    click.echo("\nStage file '%s' not found." % stage)
     exit(1)
   click.echo("\nDeploying ibackend...", nl=False)
   try:
@@ -162,6 +165,7 @@ def jbackend(stage_name):
   click.echo("\nDeploying jbackend...", nl=False)
   stage = _get_stage_object(stage_name)
   if not _check_stage_file(stage_name):
+    click.echo("\nStage file '%s' not found." % stage)
     exit(1)
   try:
     click.echo("step 1 out of 2...", nl=False)
@@ -178,17 +182,6 @@ def jbackend(stage_name):
     exit(1)
 
 
-@cli.command('migration')
-@click.argument('stage_name')
-def migration(stage_name):
-  """Deploy migration <stage>"""
-  stage_file = _get_stage_file(stage_name)
-  if not _check_stage_file(stage_name):
-    exit(1)
-  source_stage_file_and_command_script(stage_file, 'migration')
-
-
-# [TODO] Make cm and ch options mutual exclusiv
 @cli.command('cron')
 @click.argument('stage_name')
 @click.option('--cron-frequency-minutes', '-m', default=None, show_default=True,
@@ -198,6 +191,7 @@ def migration(stage_name):
 def cron(stage_name, cron_frequency_minutes, cron_frequency_hours):
   """Deploy cron file <stage>"""
   if not _check_stage_file(stage_name):
+    click.echo("\nStage file '{}' not found.".format(stage_name))
     exit(1)
   stage = _get_stage_object(stage_name)
   click.echo("\nDeploying cron...", nl=False)
@@ -230,11 +224,89 @@ def cron(stage_name, cron_frequency_minutes, cron_frequency_hours):
     click.echo("\nAn error occured during step 2 of cron deployment: %s" % exception.message)
     exit(1)
 
+
+def migration_db(stage, use_service_account):
+  if os.path.exists(stage.cloudsql_dir):
+    shutil.rmtree(stage.cloudsql_dir)
+  os.mkdir(stage.cloudsql_dir)
+  with open("{}/backends/instance/config.py".format(stage.workdir), "w") as config:
+    config.write("SQLALCHEMY_DATABASE_URI=\"{}\"".format(stage.local_db_uri))
+  db_command = ""
+  if use_service_account:
+    db_command = "{} -projects={} -instances={} -dir={} -credential_file={}".format(
+        os.environ["CLOUD_SQL_PROXY"], stage.project_id_gae, stage.db_instance_conn_name,
+        stage.cloudsql_dir, os.path.join(_constants.SERVICE_ACCOUNT_PATH,
+                                         _constants.SERVICE_ACCOUNT_DEFAULT_FILE_NAME))
+  else:
+    db_command = "{} -projects={} -instances={} -dir={} -credential_file={}".format(
+        os.environ["CLOUD_SQL_PROXY"], stage.project_id_gae, stage.db_instance_conn_name,
+        stage.cloudsql_dir, os.path.join(_constants.SERVICE_ACCOUNT_PATH,
+                                         stage.service_account_file))
+  return subprocess.Popen((db_command,
+                           "export FLASK_APP=\"{}/backends/run_ibackend.py\"".format(stage.workdir),
+                           "export PYTHONPATH=\"{}/platform/google_appengine:lib\"".format(
+                               os.environ["GOOGLE_CLOUD_SDK"]),
+                           "export APPLICATION_ID=\"{}\"".format(stage.project_id_gae)),
+                          preexec_fn=os.setsid, shell=True, stdout=subprocess.PIPE,
+                          stderr=subprocess.PIPE)
+
+
+@cli.command('migration')
+@click.argument('stage_name')
+@click.option('-use_service_account', is_flag=True, default=False)
+def migration(stage_name, use_service_account):
+  """Deploy migration <stage>"""
+  click.echo("\nDeploying migration...", nl=False)
+  if not _check_stage_file(stage_name):
+    click.echo("\nStage file '%s' not found." % stage_name)
+    exit(1)
+  stage = _get_stage_object(stage_name)
+  steps = "4"
+  # Step 1
+  try:
+    click.echo("step 1 out of {}...".format(steps), nl=False)
+    stage = _utils.before_hook(stage)
+  except Exception as exception:
+    click.echo("\nAn error occured during step 1 of migration deployment: {}".format(exception))
+    exit(1)
+  # Step 2
+  try:
+    click.echo("\rstep 2 out of {}...".format(steps), nl=False)
+    _utils.check_variables()
+    migration_subprocess = migration_db(stage, use_service_account)
+  except Exception as exception:
+    click.echo("\nAn error occured during step 2 of migration deployment: {}".format(exception))
+    exit(1)
+  # Step 3
+  try:
+    click.echo("\rstep 3 out of {}...".format(steps), nl=False)
+    subprocess.Popen(("flask db upgrade"
+                      "flask db_seeds"),
+                     cwd="{}/backends".format(stage.workdir),
+                     shell=True, stdout=subprocess.PIPE,
+                     stderr=subprocess.PIPE)
+  except Exception as exception:
+    click.echo("\nAn error occured during step 3 \
+               of migration deployment: {}".format(exception.message))
+    exit(1)
+  # Step 4 - cleanup
+  try:
+    click.echo("\rstep 4 out of {}...".format(steps), nl=False)
+    os.killpg(os.getpgid(migration_subprocess.pid), signal.SIGTERM)
+
+  except Exception as exception:
+    click.echo("\nAn error occured during step 3 \
+               of migration deployment: {}".format(exception.message))
+    exit(1)
+  click.echo("\rMigration deployed successfully              ")
+
+
 @cli.command('db_seeds')
 @click.argument('stage_name')
 def db_seeds(stage_name):
   """Add seeds to DB"""
   if not _check_stage_file(stage_name):
+    click.echo("\nStage file '%s' not found." % stage_name)
     exit(1)
   stage_file = _get_stage_file(stage_name)
   source_stage_file_and_command_script(stage_file, 'db_seeds')
@@ -246,6 +318,7 @@ def reset_pipeline(stage_name):
   """Reset Job statuses in Pipeline"""
   stage_file = _get_stage_file(stage_name)
   if not _check_stage_file(stage_name):
+    click.echo("\nStage file '%s' not found." % stage_name)
     exit(1)
   source_stage_file_and_command_script(stage_file, 'reset_pipeline')
 
