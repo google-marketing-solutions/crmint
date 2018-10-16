@@ -37,7 +37,7 @@ class TestDeploy(TestCase):
                         stage_example_path=crmint_commands._constants.STAGE_EXAMPLE_PATH):
     copyfile(stage_example_path, "{}.py".format(mocked_stage_name))
     mocked_stage = imp.load_source(mocked_stage_name,
-                                   os.path.join(os.getcwd(),
+                                   os.path.join(mocked_path,
                                                 "{}.py".format(mocked_stage_name)))
     mocked_stage.workdir = mocked_path
     return mocked_stage
@@ -100,7 +100,7 @@ class TestDeploy(TestCase):
   def test_cron_hours_succeeded(self, mocked_get_stage_object,
                                 mocked_check_stage_file):
     mocked_stage_name = "mocked_stage"
-    mocked_cron_file_name = "mocked_cron"
+    mocked_cron_file_name = "mocked_cron.yaml"
     mocked_check_stage_file.return_value = True
     runner = CliRunner()
     with runner.isolated_filesystem():
@@ -109,7 +109,8 @@ class TestDeploy(TestCase):
         mocked_stage = TestDeploy._get_mocked_stage(mocked_stage_name,
                                                     os.getcwd())
         mocked_get_stage_object.return_value = mocked_stage
-        result = runner.invoke(crmint_commands.deploy.cron, [mocked_stage_name, '-h 12'])
+        result = runner.invoke(crmint_commands.deploy.cron,
+                               [mocked_stage_name, '-h 12'])
         self.assertEqual(result.exit_code, 0)
 
   @mock.patch('crmint_commands.deploy._check_stage_file')
@@ -117,7 +118,7 @@ class TestDeploy(TestCase):
   def test_cron_with_minutes_and_hours_options_fails(self, mocked_get_stage_object,
                                                      mocked_check_stage_file):
     mocked_stage_name = "mocked_stage"
-    mocked_cron_file_name = "mocked_cron"
+    mocked_cron_file_name = "mocked_cron.yaml"
     mocked_check_stage_file.return_value = True
     runner = CliRunner()
     with runner.isolated_filesystem():
@@ -138,3 +139,49 @@ class TestDeploy(TestCase):
     result = runner.invoke(crmint_commands.deploy.cron, [mocked_stage, '-m 10'])
     self.assertEqual(result.exit_code, 1)
     self.assertEqual(result.output, "\nStage file '%s' not found.\n" % mocked_stage)
+
+  @mock.patch('crmint_commands.deploy._check_stage_file')
+  @mock.patch('crmint_commands.deploy._get_stage_object')
+  def test_migration_with_service_account_success(self, mocked_get_stage_object,
+                                mocked_check_stage_file):
+    mocked_stage_name = "mocked_stage"
+    mocked_service_account = "mocked.json"
+    mocked_check_stage_file.return_value = True
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+      mocked_path = os.getcwd()
+      mocked_service_account_file_name = "mocked_service_account"
+      with mock.patch('crmint_commands._constants.SERVICE_ACCOUNT_PATH',
+                      mocked_path):
+        with open(crmint_commands._constants.SERVICE_ACCOUNT_DEFAULT_FILE_NAME, "w+") as sa:
+          sa.write("")
+        mocked_stage = TestDeploy._get_mocked_stage(mocked_stage_name, mocked_path)
+        mocked_get_stage_object.return_value = mocked_stage
+        result = runner.invoke(crmint_commands.deploy.migration,
+                              [mocked_stage_name,
+                               '-use_service_account'])
+        self.assertEqual(result.exit_code, 0)
+
+  @mock.patch('crmint_commands.deploy._check_stage_file')
+  @mock.patch('crmint_commands.deploy._get_stage_object')
+  def test_migration_without_service_account_success(self, mocked_get_stage_object,
+                                mocked_check_stage_file):
+    mocked_stage_name = "mocked_stage"
+    mocked_service_account = "mocked.json"
+    mocked_check_stage_file.return_value = True
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+      mocked_path = os.getcwd()
+      mocked_service_account_file_name = "mocked_service_account.json"
+      with mock.patch('crmint_commands._constants.SERVICE_ACCOUNT_PATH',
+                      mocked_path),\
+          mock.patch('crmint_commands._constants.SERVICE_ACCOUNT_DEFAULT_FILE_NAME',
+                      mocked_service_account_file_name):
+        with open(mocked_service_account_file_name, "w+") as sa:
+          sa.write("")
+        mocked_stage = TestDeploy._get_mocked_stage(mocked_stage_name,
+                                                    mocked_path)
+        mocked_get_stage_object.return_value = mocked_stage
+        result = runner.invoke(crmint_commands.deploy.migration,
+                              [mocked_stage_name])
+        self.assertEqual(result.exit_code, 0)
