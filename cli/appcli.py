@@ -14,7 +14,7 @@
 
 import os
 import click
-
+from crmint_commands import _utils
 
 PLUGIN_FOLDER = os.path.join(os.path.dirname(__file__), 'crmint_commands')
 
@@ -45,33 +45,6 @@ class CRMintCLI(click.MultiCommand):
 CLI = CRMintCLI(help='CRMint commands:')
 
 
-def check_variables():
-  if not os.environ["GOOGLE_CLOUD_SDK"]:
-    print "not env"
-    import subprocess
-    gcloud_path = subprocess.Popen("gcloud --format='value(installation.sdk_root)' info",
-                                   shell=True, stdout=subprocess.PIPE)
-    os.environ["GOOGLE_CLOUD_SDK"] = gcloud_path.communicate()[0]
-  # Cloud sql proxy
-  cloud_sql_proxy_path = "/usr/bin/cloud_sql_proxy"
-  home_path = os.environ["HOME"]
-  if os.path.isfile(cloud_sql_proxy_path):
-    os.environ["CLOUD_SQL_PROXY"] = cloud_sql_proxy_path
-  else:
-    cloud_sql_proxy = "{}/bin/cloud_sql_proxy".format(home_path)
-    if not os.path.isfile(cloud_sql_proxy):
-      click.echo("\rDownloading cloud_sql_proxy to ~/bin/", nl=False)
-      os.mkdir("{}/bin".format(home_path), 0755)
-      cloud_sql_download_link = "https://dl.google.com/cloudsql/cloud_sql_proxy.linux.amd64"
-      download_command = "curl -L {} -o {}".format(cloud_sql_download_link,
-                                                   os.environ["CLOUD_SQL_PROXY"])
-      download_status = subprocess.Popen(download_command,
-                                         shell=True,
-                                         stdout=subprocess.PIPE).communicate()[0]
-      if download_status != 0:
-        click.echo("[w]Could not download cloud sql proxy")
-
-
 def entry_point():
-  check_variables()
+  _utils.check_variables()
   CLI()

@@ -21,6 +21,10 @@ PROJECT_DIR = os.path.join(os.path.dirname(__file__), '../..')
 SCRIPTS_DIR = "{}/scripts".format(PROJECT_DIR)
 STAGE_DIR = "{}/cli/stage_variables".format(PROJECT_DIR)
 STAGE_EXAMPLE_PATH = "{}/stage_name.py.example".format(STAGE_DIR)
+
+SERVICE_ACCOUNT_PATH = "{}/backends/data/".format(PROJECT_DIR)
+SERVICE_ACCOUNT_DEFAULT_FILE_NAME = "service-account.json"
+
 CRON_FILE = "{}/backends/cron.yaml".format(PROJECT_DIR)
 
 

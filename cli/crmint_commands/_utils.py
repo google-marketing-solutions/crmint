@@ -18,6 +18,7 @@
 import os
 import shutil
 from glob import glob
+import click
 from crmint_commands import _constants
 
 
@@ -47,29 +48,22 @@ def before_hook(stage):
     # Copy source code to the working directory.
     shutil.copytree(_constants.PROJECT_DIR, target_dir,
                     ignore=shutil.ignore_patterns(IGNORE_PATTERNS))
-  except Exception as e:
-    raise Exception("Stage 1 error when copying to workdir: %s" % e.message)
+  except Exception as exception:
+    raise Exception("Stage 1 error when copying to workdir: %s" % exception.message)
 
   try:
     # Create DB config for App Engine application in the cloud.
     db_config_path = "%s/backends/instance/config.py" % stage.workdir
     with open(db_config_path, "w") as db_file:
       db_file.write("SQLALCHEMY_DATABASE_URI=\"%s\"" % stage.cloud_db_uri)
-  except Exception as e:
-    raise Exception("Stage 1 error when writing db config: %s" % e.message)
+  except Exception as exception:
+    raise Exception("Stage 1 error when writing db config: %s" % exception.message)
   try:
-    # Copy service account file for deployment.
-    account_file_path = "%s/backends/instance/config.py" % stage.workdir
-    if os.path.exists(account_file_path):
-      os.remove(account_file_path)
-
-    shutil.copytree("%s/backends/data/%s" % (_constants.PROJECT_DIR,
-                                             stage.service_account_file),
-                    "%s/backends/instance/config.py" % stage.workdir)
+    # Delete service account example file.
     for file_name in glob("%s/backends/data/service-account.json.*" % stage.workdir):
       os.remove(file_name)
-  except Exception as e:
-    raise Exception("Stage 1 error when copying service account file: %s" % e.message)
+  except Exception as exception:
+    raise Exception("Stage 1 error when copying service account file: %s" % exception.message)
   try:
     # Make app_data.json for backends.
     with open("%s/backends/data/app.json" % stage.workdir, "w") as app_file:
@@ -79,8 +73,8 @@ def before_hook(stage):
                 "app_title": "$app_title"
               }
               """)
-  except Exception as e:
-    raise Exception("Stage 1 error when writing app data for backend: %s" % e.message)
+  except Exception as exception:
+    raise Exception("Stage 1 error when writing app data for backend: %s" % exception.message)
   try:
     # Make environment.prod.ts for frontend
     with open("%s/frontend/src/environments/environment.prod.ts" % stage.workdir, "w") as ts_file:
@@ -91,6 +85,33 @@ def before_hook(stage):
                 enabled_stages: $enabled_stages
               }
               """)
-  except Exception as e:
-    raise Exception("Stage 1 error when writing env data for frontend: %s" % e.message)
+  except Exception as exception:
+    raise Exception("Stage 1 error when writing env data for frontend: %s" % exception.message)
   return stage
+
+
+def check_variables():
+  if not os.environ["GOOGLE_CLOUD_SDK"]:
+    import subprocess
+    gcloud_path = subprocess.Popen("gcloud --format='value(installation.sdk_root)' info",
+                                   shell=True, stdout=subprocess.PIPE)
+    os.environ["GOOGLE_CLOUD_SDK"] = gcloud_path.communicate()[0]
+  # Cloud sql proxy
+  cloud_sql_proxy_path = "/usr/bin/cloud_sql_proxy"
+  home_path = os.environ["HOME"]
+  if os.path.isfile(cloud_sql_proxy_path):
+    os.environ["CLOUD_SQL_PROXY"] = cloud_sql_proxy_path
+  else:
+    cloud_sql_proxy = "{}/bin/cloud_sql_proxy".format(home_path)
+    if not os.path.isfile(cloud_sql_proxy):
+      click.echo("\rDownloading cloud_sql_proxy to ~/bin/", nl=False)
+      os.mkdir("{}/bin".format(home_path), 0755)
+      cloud_sql_download_link = "https://dl.google.com/cloudsql/cloud_sql_proxy.linux.amd64"
+      download_command = "curl -L {} -o {}".format(cloud_sql_download_link,
+                                                   os.environ["CLOUD_SQL_PROXY"])
+      download_status = subprocess.Popen(download_command,
+                                         shell=True,
+                                         stdout=subprocess.PIPE).communicate()[0]
+      if download_status != 0:
+        click.echo("[w]Could not download cloud sql proxy")
+    os.environ["CLOUD_SQL_PROXY"] = cloud_sql_proxy
