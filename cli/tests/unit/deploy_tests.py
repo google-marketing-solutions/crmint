@@ -130,9 +130,11 @@ class TestDeploy(TestCase):
                                [mocked_stage_name, '-m 10', '-h 12'])
         self.assertEqual(result.exit_code, 1)
 
-  def test_cron_stage_not_found(self):
+  @mock.patch('crmint_commands.deploy._check_stage_file')
+  def test_cron_stage_not_found(self, mocked_check_stage_file):
+    mocked_stage = 'random_stage'
+    mocked_check_stage_file.return_value = False
     runner = CliRunner()
-    new_stage = 'random_stage'
-    result = runner.invoke(crmint_commands.deploy.cron, [new_stage, '-m=10'])
-    self.assertNotEqual(result.exit_code, 0)
-    self.assertEqual(result.output, "\nStage file '%s' not found.\n" % new_stage)
+    result = runner.invoke(crmint_commands.deploy.cron, [mocked_stage, '-m 10'])
+    self.assertEqual(result.exit_code, 1)
+    self.assertEqual(result.output, "\nStage file '%s' not found.\n" % mocked_stage)

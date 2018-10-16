@@ -42,7 +42,6 @@ if __name__ == '__main__':
   parser = argparse.ArgumentParser(
       description=__doc__,
       formatter_class=argparse.RawDescriptionHelpFormatter)
-  print(os.getcwd())
   parser.add_argument(
       '--test-path',
       help='The path to look for tests, defaults to the current directory.',
