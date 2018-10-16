@@ -24,14 +24,14 @@ type: markdown
 
 1.  Once the spinner has stopped, click on the notification to select the newly-created project. Enter the project ID here:
 
-    <input id="project-id" placeholder="Insert Project ID here">
+    <input id="project-id" placeholder="Insert Project ID here, e.g. flying-tiger-112301">
 
 ## Run setup steps on Cloud Shell
 
 1.  Open a Cloud Shell
 
     <a id='cloudshell-url' class="gray-image" target="_blank" data-href="https://console.cloud.google.com/cloudshell/editor?cloudshell_git_repo=https%3A%2F%2Fgithub.com%2Fgoogle%2Fcrmint&project=placeholder&cloudshell_git_branch=dev&cloudshell_tutorial=docs%2Fdocs%2Fquickstart%2Fcloudshell.md">
-    <img alt="Open in Cloud Shell" src ="http://gstatic.com/cloudssh/images/open-btn.svg" style="width:250px;"></a>
+    <img alt="Open in Cloud Shell" src ="https://gstatic.com/cloudssh/images/open-btn.svg" style="width:250px;"></a>
 
 1.  Follow the instructions which appear in the tutorial within the Cloud Shell environment.
 
@@ -39,9 +39,15 @@ type: markdown
 
 ## Verifying the installation
 
-1.  TBD
+1.  Launch the CRMint Application on your newly-created instance at: <a href="https://xxxxxx.appspot.com" id="crm-launch" target="_blank">&lt;Project ID not set&gt;</a>
+
+1.  You should see a CRMint control panel, showing no pipelines.
+
+1.  Congratulations, you're all set to start exploring CRMint!
 
 ## What's next
 
 - Read a full explanation of how CRMint works in [What is CRMint?](../guides/)
   and [CRMint Concepts](../guides/concepts.html)
+- CRMint pipeline concepts
+- Create your first CRMint pipeline

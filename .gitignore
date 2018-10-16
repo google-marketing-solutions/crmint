@@ -39,5 +39,6 @@ backends/lib_dev
 docs/_build
 
 # Jekyll documentation
-**/_site
+# Generate _site locally now owing to custom plugins
+# **/_site
 **/.sass-cache

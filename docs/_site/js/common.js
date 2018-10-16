@@ -1,6 +1,3 @@
----
----
-
 // Youtube Player API
 // create script tag and add to DOM
 var tag = document.createElement('script');
@@ -262,7 +259,7 @@ $(document).ready(function() {
         $("#generalInstructions").hide();
         $("#continueEdit").show();
         $("#continueEditButton").text("Edit " + forwarding);
-        $("#continueEditButton").attr("href", "{{ site.githuburl }}edit/master/" + forwarding)
+        $("#continueEditButton").attr("href", "https://github.com/google/crmint/edit/master/" + forwarding)
     } else {
         $("#generalInstructions").show();
         $("#continueEdit").hide();
