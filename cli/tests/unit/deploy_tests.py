@@ -78,9 +78,61 @@ class TestDeploy(TestCase):
     result = runner.invoke(crmint_commands.deploy.jbackend, [mocked_stage_name])
     self.assertEqual(result.exit_code, 0)
 
+  @mock.patch('crmint_commands.deploy._check_stage_file')
+  @mock.patch('crmint_commands.deploy._get_stage_object')
+  def test_cron_minutes_succeeded(self, mocked_get_stage_object,
+                                  mocked_check_stage_file):
+    mocked_stage_name = "mocked_stage"
+    mocked_cron_file_name = "mocked_cron"
+    mocked_check_stage_file.return_value = True
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+      with mock.patch('crmint_commands._constants.CRON_FILE',
+                      mocked_cron_file_name):
+        mocked_stage = TestDeploy._get_mocked_stage(mocked_stage_name,
+                                                    os.getcwd())
+        mocked_get_stage_object.return_value = mocked_stage
+        result = runner.invoke(crmint_commands.deploy.cron, [mocked_stage_name, '-m 9'])
+        self.assertEqual(result.exit_code, 0)
+
+  @mock.patch('crmint_commands.deploy._check_stage_file')
+  @mock.patch('crmint_commands.deploy._get_stage_object')
+  def test_cron_hours_succeeded(self, mocked_get_stage_object,
+                                mocked_check_stage_file):
+    mocked_stage_name = "mocked_stage"
+    mocked_cron_file_name = "mocked_cron"
+    mocked_check_stage_file.return_value = True
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+      with mock.patch('crmint_commands._constants.CRON_FILE',
+                      mocked_cron_file_name):
+        mocked_stage = TestDeploy._get_mocked_stage(mocked_stage_name,
+                                                    os.getcwd())
+        mocked_get_stage_object.return_value = mocked_stage
+        result = runner.invoke(crmint_commands.deploy.cron, [mocked_stage_name, '-h 12'])
+        self.assertEqual(result.exit_code, 0)
+
+  @mock.patch('crmint_commands.deploy._check_stage_file')
+  @mock.patch('crmint_commands.deploy._get_stage_object')
+  def test_cron_with_minutes_and_hours_options_fails(self, mocked_get_stage_object,
+                                                     mocked_check_stage_file):
+    mocked_stage_name = "mocked_stage"
+    mocked_cron_file_name = "mocked_cron"
+    mocked_check_stage_file.return_value = True
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+      with mock.patch('crmint_commands._constants.CRON_FILE',
+                      mocked_cron_file_name):
+        mocked_stage = TestDeploy._get_mocked_stage(mocked_stage_name,
+                                                    os.getcwd())
+        mocked_get_stage_object.return_value = mocked_stage
+        result = runner.invoke(crmint_commands.deploy.cron,
+                               [mocked_stage_name, '-m 10', '-h 12'])
+        self.assertEqual(result.exit_code, 1)
+
   def test_cron_stage_not_found(self):
     runner = CliRunner()
     new_stage = 'random_stage'
-    result = runner.invoke(crmint_commands.deploy.cron, ['-m', '10', new_stage])
+    result = runner.invoke(crmint_commands.deploy.cron, [new_stage, '-m=10'])
     self.assertNotEqual(result.exit_code, 0)
     self.assertEqual(result.output, "\nStage file '%s' not found.\n" % new_stage)
