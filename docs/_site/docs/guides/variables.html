@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="title" content="CRMint">
     <meta name="description" content="Design and execute pipelines that enable data flow between CRM, Google Cloud, Google Analytics, AdWords, and DoubleClick.">
-    <title>Overview</title>
+    <title>Guides</title>
 
     <script>
       (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
@@ -59,7 +59,7 @@
     <![endif]-->
 
     <!-- metadata -->
-    <meta name="og:title" content="crmint / Overview"/>
+    <meta name="og:title" content="crmint / Guides"/>
     <!-- <meta name="og:image" content="...png"/> -->
     <meta name="og:description" content="Design and execute pipelines that enable data flow between CRM, Google Cloud, Google Analytics, AdWords, and DoubleClick.."/>
   </head>
@@ -104,9 +104,9 @@
     <li class="nav-item"><a href="/docs/" class='current'><p>Docs</p></a>
       <div class="nav-doc-toggle icon-caret"></div>
       <ul class="doc-list">
-        <a href="/docs" class='current'><li class="nav-doc-tab">Overview</li></a>
+        <a href="/docs" ><li class="nav-doc-tab">Overview</li></a>
         <a href="/docs/quickstart" ><li class="nav-doc-tab">Quick Start</li></a>
-        <a href="/docs/guides" ><li class="nav-doc-tab">Guides</li></a>
+        <a href="/docs/guides" class='current'><li class="nav-doc-tab">Guides</li></a>
         <a href="/docs/tutorials" ><li class="nav-doc-tab">Tutorials</li></a>
         <a href="/docs/reference" ><li class="nav-doc-tab">Reference</li></a>
         <a href="/docs/samples" ><li class="nav-doc-tab">Samples</li></a>
@@ -162,9 +162,9 @@
     <li class="nav-item"><a href="/docs/" class='current'><p>Docs</p></a>
       <div class="nav-doc-toggle icon-caret"></div>
       <ul class="doc-list">
-        <a href="/docs" class='current'><li class="nav-doc-tab">Overview</li></a>
+        <a href="/docs" ><li class="nav-doc-tab">Overview</li></a>
         <a href="/docs/quickstart" ><li class="nav-doc-tab">Quick Start</li></a>
-        <a href="/docs/guides" ><li class="nav-doc-tab">Guides</li></a>
+        <a href="/docs/guides" class='current'><li class="nav-doc-tab">Guides</li></a>
         <a href="/docs/reference" ><li class="nav-doc-tab">Reference</li></a>
       </ul>
     </li>
@@ -174,7 +174,7 @@
     <div class="row">
       <div class="col-md-11 nofloat center-block">
         <div class="col-xs-12">
-          <h1 class="page-headline">Documentation</h1> 
+          <h1 class="page-headline">Variables and expressions in CRMint</h1> 
         </div>
       </div>
     </div>
@@ -191,9 +191,9 @@
 				
 				<li class="tab docs-tab"><a href="/docs/">Docs</a></li>
 				<span class="doc-caret">></span>
-				<li class="tab"><a href="/docs/" class='current'>Overview</a></li>
+				<li class="tab"><a href="/docs/" >Overview</a></li>
 				<li class="tab"><a href="/docs/quickstart" >Quick Start</a></li>
-				<li class="tab"><a href="/docs/guides" >Guides</a></li>
+				<li class="tab"><a href="/docs/guides" class='current'>Guides</a></li>
 				<li class="tab"><a href="/docs/custom" >Customize</a></li>
 				<li class="tab"><a href="/docs/solutions" >Solutions</a></li>
 				<li class="tab"><a href="/docs/reference" >Reference</a></li>
@@ -202,8 +202,8 @@
 			
 
 <div class="contribute-links">
-	<a href="/contribute#docs/index.html">Contribution Guidelines</a>
-	<a href="https://github.com/google/crmint//edit/master/docs/index.html"><p class="github">Edit <span class="file-name">index.html</span></p></a>
+	<a href="/contribute#docs/guides/variables.md">Contribution Guidelines</a>
+	<a href="https://github.com/google/crmint//edit/master/docs/guides/variables.md"><p class="github">Edit <span class="file-name">variables.md</span></p></a>
 </div>
 		</div>
 	</div>
@@ -213,53 +213,139 @@
 
         
             
-                <div class="container">
-  <div class="row">
-    <div class="col-md-11 nofloat center-block">
-      <p class="lead col-sm-8">Welcome to the technical documentation for CRMint.
-      Here you can learn about key CRMint concepts, find quick starts, reference
-      material, and more. If you’re new to CRMint we recommend that you read <a href="guides/"><b>What is
-      CRMint?</b></a> to find out more about our system and how it works. Or, if you want to see CRMint in action first, visit the <a href="quickstart/">QuickStart</a>. </p>
+            <div class="container markdown">
+                <div class="row">
+                    <div class="col-md-11 nofloat center-block ">
+                        <div class="col-sm-12">
+                            <h2 id="variables-and-expressions-in-crmint">Variables and expressions in CRMint</h2>
 
-      <h2 class="col-sm-8 doc-header">What do you want to do?</h2>
-      <div class="lang-card-selector col-xs-12">
-        <div class="lang-card">
-          <div class="lang-card-title">Quick starts</div>
-          <a class="lang-card-link" href="quickstart/index.html">Try deploying CRMint</a>
-          <a class="lang-card-link" href="quickstart/xyz.html">Deploy for &lt;xyz&gt;</a>
-        </div>
-        <div class="lang-card">
-          <div class="lang-card-title">Guides</div>
-          <a class="lang-card-link" href="guides/index.html">What is CRMint?</a>
-          <a class="lang-card-link" href="guides/concepts.html">CRMint concepts</a>
-          <a class="lang-card-link" href="guides/variables.html">Variables &amp; expressions</a>
-          <a class="lang-card-link" href="guides/concepts.html">CRMint workers in-depth</a>
-        </div>
-        <div class="lang-card">
-          <div class="lang-card-title">Customizing CRMint</div>
-          <a class="lang-card-link" href="custom/overview.html">Architecture overview</a>
-          <a class="lang-card-link" href="custom/pipeline.html">Designing a custom pipeline</a>
-        </div>
-        <div class="lang-card">
-          <div class="lang-card-title">Solutions</div>
-          <a class="lang-card-link" href="solutions/template1.html">Template 1</a>
-          <a class="lang-card-link" href="solutions/template2.html">Template 2</a>
-          <a class="lang-card-link" href="solutions/template3.html">Template 3</a>
-        </div>
-        <div class="lang-card">
-          <div class="lang-card-title">Reference</div>
-          <a class="lang-card-link" href="reference/api.html#">API Reference</a>
-          <a class="lang-card-link" href="reference/worker_spec.html#">Worker Reference</a>
-        </div>
-        <div class="lang-card">
-          <div class="lang-card-title">Presentations</div>
-          <a class="lang-card-link" href="presentations/index.html#">Presentation xyz...</a>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
+<p>CRMint can use dynamically generated parameters throughout a project or pipeline. This allows you to :</p>
 
+<ul>
+  <li><strong>Define once, use many times</strong>: A project ID or table name for example, can be used in many places throughout your pipeline(s). Reuse is highly simplified by having this defined in just one place</li>
+  <li><strong>Adjust to relative changes</strong>: You may want data from a time relative to the time of execution, for example, “4 hours ago”.</li>
+</ul>
+
+<h3 id="defining-variables">Defining variables</h3>
+
+<p>Variables in CRMint can be defined either globally or per-pipeline. Where a variable is defined with the same name both globally <em>and</em> in a pipeline, the pipeline version will take precedence.</p>
+
+<p>To add varlables to a pipeline:</p>
+
+<ol>
+  <li>In the pipelines view, click on the pipeline, then click <strong>Edit</strong>.</li>
+  <li>Click <strong>Add variable</strong>, then enter the name by which the variable should be referenced, and the value required.</li>
+</ol>
+
+<p>To add a global variable:</p>
+
+<ol>
+  <li>Click on the <strong>Settings</strong> button in the top navigation bar</li>
+  <li>Click <strong>Add global variable</strong>, and add your variable as per a pipeline</li>
+</ol>
+
+<h3 id="using-variables">Using variables</h3>
+
+<p>To use your variable simply enclose the variable name in any parameter in your pipeline with <code class="highlighter-rouge">{%</code> and <code class="highlighter-rouge">%}</code></p>
+
+<p>For example, if you have many pipelines, all working with BigQuery, you can set a global variable for the project as follows</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>Name: PROJECT_ID
+Value: my-project-123456
+</code></pre></div></div>
+
+<p>In your <code class="highlighter-rouge">BQToMeasurementProtocol</code> worker, you can then set <strong>Project ID</strong> to:</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>{% PROJECT_ID %}
+</code></pre></div></div>
+
+<p>On execution, the value <em>my-project-123456</em> from the global variable is substituted into the worker Project ID.</p>
+
+<p>A more complex example might be setting the comment parameter for a <code class="highlighter-rouge">Commenter</code> worker:</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>Finished execution using project {% PROJECT_ID %}
+</code></pre></div></div>
+
+<p>This would lead to a log message: <em>Finished execution using project my-project-123456</em></p>
+
+<h3 id="evaluation">Evaluation</h3>
+
+<p>Not only do the <code class="highlighter-rouge">{%%}</code> tags enable variables to be substituted into parameters, as shown above, but they also allow evaluation, for example, setting a parameter <strong>Number of Days</strong> to:</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>{% 4 * 7 %}
+</code></pre></div></div>
+
+<p>Would use a value of <code class="highlighter-rouge">28</code>.</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>{% NUM_WEEKS * 7 %}
+</code></pre></div></div>
+
+<p>Would use the value of variable <code class="highlighter-rouge">NUM_WEEKS</code> - <em>assuming it has been defined</em> - multiplied by 7.</p>
+
+<p>The full detail of what can be achieved using expressions can be seen in the <a href="https://github.com/danthedeckie/simpleeval">Simple Eval reference</a>.</p>
+
+<h3 id="built-in-functions">Built-in functions</h3>
+
+<p>To make evaluation more useful when working with time-based and analytical data, the following built in functions can be used in expressions:</p>
+
+<p><em>All examples given at 2018-10-16 12:00:00 UTC</em></p>
+
+<table>
+  <thead>
+    <tr>
+      <th style="text-align: left"><strong>Built-in function</strong></th>
+      <th style="text-align: left"><strong>Purpose</strong></th>
+      <th style="text-align: left"><strong>Details</strong></th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="text-align: left"><strong>today(format)</strong></td>
+      <td style="text-align: left">Returns today’s date in the specified format</td>
+      <td style="text-align: left"><code class="highlighter-rouge">format</code> - The desired format, in python date formatting syntax.<br /><br />Example:<br /><br /><code class="highlighter-rouge">{% today("%Y-%m-%d") %}</code>  <em>=&gt; 2018-10-16</em></td>
+    </tr>
+  </tbody>
+  <tbody>
+    <tr>
+      <td style="text-align: left"><strong>days_ago(n_days, format)</strong></td>
+      <td style="text-align: left">Returns the formatted date for n days ago</td>
+      <td style="text-align: left"><code class="highlighter-rouge">n_days</code> - The number of days ago, where yesterday is 1<br /><code class="highlighter-rouge">format</code> - The desired format, in <a href="http://strftime.org/">python date formatting syntax</a>.<br /><br />Example:<br /><br /><code class="highlighter-rouge">{% days_ago(1, "%Y-%m-%d") %}</code> <em>=&gt; 2018-10-15</em></td>
+    </tr>
+  </tbody>
+  <tbody>
+    <tr>
+      <td style="text-align: left"><strong>hours_ago(n_hours, format)</strong></td>
+      <td style="text-align: left">Returns the formatted date for n hours ago</td>
+      <td style="text-align: left"><code class="highlighter-rouge">n_hours</code> - The number of hours ago<br /><code class="highlighter-rouge">format</code> - The desired format, in <a href="http://strftime.org/">python date formatting syntax</a>.<br /><br />Example:<br /><br /><code class="highlighter-rouge">{% hours_ago(1, "%Y-%m-%d %H:%M:%S") %}</code> <em>=&gt; 2018-10-16 11:00:00</em></td>
+    </tr>
+  </tbody>
+  <tbody>
+    <tr>
+      <td style="text-align: left"><strong>days_since(date, format)</strong></td>
+      <td style="text-align: left">Returns the number of days since given date</td>
+      <td style="text-align: left"><code class="highlighter-rouge">date</code> - A string date<br /><code class="highlighter-rouge">format</code> - The format of the date, in <a href="http://strftime.org/">python date formatting syntax</a>.<br /><br />Example:<br /><br /><code class="highlighter-rouge">{% days_since("2018-10-14", "%Y-%m-%d") %}</code> <em>=&gt; 2</em></td>
+    </tr>
+  </tbody>
+  <tbody>
+    <tr>
+      <td style="text-align: left"><strong>randint(x)</strong></td>
+      <td style="text-align: left">Returns a random int below x</td>
+      <td style="text-align: left"> </td>
+    </tr>
+  </tbody>
+  <tbody>
+    <tr>
+      <td style="text-align: left"><strong>rand()</strong></td>
+      <td style="text-align: left">Returns a random float between 0 and 1</td>
+      <td style="text-align: left"> </td>
+    </tr>
+  </tbody>
+</table>
+  
+                        </div>
+                    </div>
+                </div>
+            </div>
             
         
 
