@@ -47,7 +47,7 @@ In this process of bringing your business data to Google products, CRMint can pe
 
 ### What's next
 
--  Understand the CRMint architecture
+-  [Understand the CRMint concepts](concepts.html)
 -  Deploy an existing CRMint pipeline
 -  Building a custom CRMint pipeline
 

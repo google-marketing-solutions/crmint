@@ -202,8 +202,8 @@
 			
 
 <div class="contribute-links">
-	<a href="/contribute#docs/guides/index.md">Contribution Guidelines</a>
-	<a href="https://github.com/google/crmint//edit/master/docs/guides/index.md"><p class="github">Edit <span class="file-name">index.md</span></p></a>
+	<a href="/contribute#docs/guides/concepts.md">Contribution Guidelines</a>
+	<a href="https://github.com/google/crmint//edit/master/docs/guides/concepts.md"><p class="github">Edit <span class="file-name">concepts.md</span></p></a>
 </div>
 		</div>
 	</div>
@@ -220,65 +220,63 @@
     
     <li><h5 class="doc-side-nav-title">Guides</h5></li>
     <li class="doc-side-nav-list-item"><a href="/docs/guides/index.html" >What is CRMint?</a></li>
-    <li class="doc-side-nav-list-item"><a href="/docs/guides/concepts.html" >CRMint Concepts</a></li>
+    <li class="doc-side-nav-list-item"><a href="/docs/guides/concepts.html" class='current'>CRMint Concepts</a></li>
     <li class="doc-side-nav-list-item"><a href="/docs/guides/architecture.html" >CRMint Architecture</a></li>
  </ul>
 
                     </div>
                     <div class="col-sm-7 markdown">
-                        <p>This document introduces you to CRMint, a general overview of use cases and key features of the product.</p>
+                        <h2 id="crmint-concepts">CRMint Concepts</h2>
 
-<h2 id="overview">Overview</h2>
-<p>CRMint is a platform to help you bring your business data into Google Products. These products may generally be marketing-related products such as Google Ads and the Google Marketing Platform, but could also include Cloud products, for example.</p>
+<p>The <a href="index.html">overview guide</a> describes the purpose and general capabilities of CRMint. This document breaks CRMint down into its conceptual parts.</p>
 
-<p><img src="../../img/overview.svg" alt="Overview" /></p>
+<h3 id="pipelines">Pipelines</h3>
 
-<h3 id="example-use-cases">Example use cases</h3>
+<p>At the heart of CRMint are pipelines. A pipeline is the largest component within CRMint, and is the end-to-end process by which a business task is achieved.</p>
 
-<p>Typical use cases for the CRMint platform include:</p>
-
-<ul>
-  <li>Importing, transforming and building models from your CRM data for use in retargeting.</li>
-  <li>Automating the importing of offline conversions</li>
-</ul>
-
-<h2 id="the-role-of-crmint">The role of CRMint</h2>
-
-<p>In this process of bringing your business data to Google products, CRMint can perform the following roles:</p>
+<p>For example, a pipeline could be created to load conversion data into Google Analytics. The pipeline might perform many actions for example:</p>
 
 <ul>
-  <li><strong>Automation</strong>: Often data could be imported manually from sources such as your CRM or Google Analytics, however, CRMint enables you to automate this process, with flexible scheduling options.</li>
-  <li>
-    <p><strong>Transformation and pre-processing</strong>: Your business data may not be in the format or in the location required for your objectives.</p>
-
-    <p>CRMint allows you to define and run pipelines on your business data with reusable modules - there are many predefined modules for common actions such as exporting Google Analytics reports to BigQuery.</p>
-  </li>
-  <li>
-    <p><strong>Integration of multiple systems</strong>: Your business data may reside in multiple systems (CRM, Google Analytics) and you may with to combine it with other data (for example, performance statistics from BigQuery, reference data from Cloud Storage) before using this as an input to a Google Cloud ML</p>
-
-    <p>CRMint removes the complexity of integrating with these varied APIs, leaving you to concentrate on the actions taken on the data itself.</p>
-  </li>
+  <li>Load data from a CSV on Cloud Storage into BigQuery</li>
+  <li>Perform some transformations, using BigQuery</li>
+  <li>Send the resulting data to Google Analytics using the Measurement Protocol.</li>
 </ul>
 
-<h2 id="key-features-of-crmint">Key features of CRMint</h2>
+<p>Pipelines can be executed manually, or more commonly run on a schedule.</p>
+
+<h3 id="jobs">Jobs</h3>
+
+<p>Pipelines are divided into <em>jobs</em>. A job is a single discrete task performed by a <em>worker</em>.  Workers are re-usable building blocks that perform common actions such as loading data from one source to another, which can be composed into pipelines.</p>
+
+<p>In the above example pipeline, the job of loading data into BigQuery would be performed by worker with <em>worker class</em> <strong>StorageToBQImporter</strong>.</p>
+
+<p>Once the data is loaded into BigQuery, then the job for transforming the data can start. This secondary job therefore has a <em>job dependency</em> on the previous <strong>StorageToBQImporter</strong>-based job.</p>
+
+<p>By defining jobs to perform each of the necessary tasks in the pipeline, and defining the job dependencies of each, the result is a graph that defines the execution path of the pipeline as a whole.</p>
+
+<p>The full range of Workers can be seen in the <a href="../reference/worker_spec.html">workers reference</a></p>
+
+<h3 id="creating-pipelines-using-the-editor">Creating pipelines using the editor</h3>
+
+<p>The easiest way to create a pipeline is through the user interface on your CRMint instance.</p>
+
+<p>Through the user interface, each component job can be defined in the pipeline, and a graph created by defining job dependencies.</p>
+
+<p>The pipeline is customised by then defining variables and expressions as discussed <a href="variables.html">in the separate guide</a>.</p>
+
+<h3 id="json-pipeline-configuration">JSON pipeline configuration</h3>
+
+<p>In addition to creating pipelines using the editor, it is possible to work with pipelines in a JSON format.</p>
+
+<p>This allows pipelines to be:</p>
 
 <ul>
-  <li><strong>Easy to deploy</strong>: CRMint runs on Google Cloud and can be deployed quickly - see the <a href="../quickstart/">Quick start guide for details</a>.</li>
-  <li><strong>Cloud-based</strong>: CRMint requires no infrastructure on your part, with all aspects of the platform running in Google Cloud.</li>
-  <li><strong>Visual pipeline designer</strong>: Once deployed, pipelines can be designed and configured with CRMint’s easy-to-use user interface. All aspects of
-pipeline design, configuration and scheduling can be seen and modified in this way.</li>
-  <li><strong>Reusable pipelines</strong>: Pipeline can be exported and imported in JSON format, allowing for advanced editing, sharing and reuse.</li>
-  <li><strong>Reusable components</strong>: CRMint pipelines are built from re-usable <a href="../reference/worker_spec.html">worker components</a>, making it easy to plug-and-play as required.</li>
-  <li><strong>Open source</strong>: CRMint is open source. Users are encouraged to contribute components and pipelines which may be of valuable to others, and CRMint will continue to grow in functionality though this shared contribution!</li>
+  <li><strong>Easily exported or imported</strong>: The user interface provides the means to create a new pipeline from JSON, using the Import by template button. Equally, an existing pipeline can be exported using the Export button, to dowload as JSON.</li>
+  <li><strong>Replicated</strong>: An exported pipeline could be imported to create a replica, then modified as required. Alternatively, advanced editing could be performed on the JSON prior to re-importing, for example, if all references to Acme Corp needed changing to Example Inc, in every part of the pipeline, this could be done with a search and replace in a text editor.</li>
+  <li><strong>Shared</strong>, for example as an open-source template.</li>
 </ul>
 
-<h3 id="whats-next">What’s next</h3>
-
-<ul>
-  <li><a href="concepts.html">Understand the CRMint concepts</a></li>
-  <li>Deploy an existing CRMint pipeline</li>
-  <li>Building a custom CRMint pipeline</li>
-</ul>
+<p>For details on the format of the pipeline JSON, see the <a href="../reference/pipeline.html">Pipeline JSON reference</a></p>
 
 
                     </div>
