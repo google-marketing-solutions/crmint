@@ -190,3 +190,27 @@ class TestDeploy(TestCase):
         result = runner.invoke(crmint_commands.deploy.migration,
                               [mocked_stage_name])
         self.assertEqual(result.exit_code, 0)
+
+  @mock.patch('crmint_commands.deploy._check_stage_file')
+  @mock.patch('crmint_commands.deploy._get_stage_object')
+  def test_reset_pipeline_succeeds(self, mocked_get_stage_object,
+                                mocked_check_stage_file):
+    mocked_stage_name = "mocked_stage"
+    mocked_check_stage_file.return_value = True
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+      mocked_path = os.getcwd()
+      mocked_workdir = os.path.join(os.getcwd(), "workdir")
+      mocked_task_name = "mocked_reset_pipeline.py"
+      mocked_service_account_file_name = "mocked_service_account.json"
+      with mock.patch('crmint_commands._constants.TASKS_PATH',
+                      mocked_path),\
+           mock.patch('crmint_commands._constants.RESET_PIPELINE_TASK', mocked_task_name):
+        with open(mocked_task_name, "w+") as mocked_task:
+          mocked_task.write("")
+        mocked_stage = TestDeploy._get_mocked_stage(mocked_stage_name,
+                                                    mocked_workdir)
+        mocked_get_stage_object.return_value = mocked_stage
+        result = runner.invoke(crmint_commands.deploy.reset_pipeline,
+                              [mocked_stage_name, '-v'])
+        self.assertEqual(result.exit_code, 0)
