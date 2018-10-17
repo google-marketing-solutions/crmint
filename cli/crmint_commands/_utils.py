@@ -17,6 +17,7 @@
 
 import os
 import shutil
+import subprocess
 from glob import glob
 import click
 from crmint_commands import _constants
@@ -92,7 +93,6 @@ def before_hook(stage):
 
 def check_variables():
   if not os.environ["GOOGLE_CLOUD_SDK"]:
-    import subprocess
     gcloud_path = subprocess.Popen("gcloud --format='value(installation.sdk_root)' info",
                                    shell=True, stdout=subprocess.PIPE)
     os.environ["GOOGLE_CLOUD_SDK"] = gcloud_path.communicate()[0]
@@ -115,3 +115,29 @@ def check_variables():
       if download_status != 0:
         click.echo("[w]Could not download cloud sql proxy")
     os.environ["CLOUD_SQL_PROXY"] = cloud_sql_proxy
+
+
+def before_task(stage, use_service_account):
+  if os.path.exists(stage.cloudsql_dir):
+    shutil.rmtree(stage.cloudsql_dir)
+  os.mkdir(stage.cloudsql_dir)
+  with open("{}/backends/instance/config.py".format(stage.workdir), "w") as config:
+    config.write("SQLALCHEMY_DATABASE_URI=\"{}\"".format(stage.local_db_uri))
+  db_command = ""
+  if use_service_account:
+    db_command = "{} -projects={} -instances={} -dir={} -credential_file={}".format(
+        os.environ["CLOUD_SQL_PROXY"], stage.project_id_gae, stage.db_instance_conn_name,
+        stage.cloudsql_dir, os.path.join(_constants.SERVICE_ACCOUNT_PATH,
+                                         _constants.SERVICE_ACCOUNT_DEFAULT_FILE_NAME))
+  else:
+    db_command = "{} -projects={} -instances={} -dir={} -credential_file={}".format(
+        os.environ["CLOUD_SQL_PROXY"], stage.project_id_gae, stage.db_instance_conn_name,
+        stage.cloudsql_dir, os.path.join(_constants.SERVICE_ACCOUNT_PATH,
+                                         stage.service_account_file))
+  return subprocess.Popen((db_command,
+                           "export FLASK_APP=\"{}/backends/run_ibackend.py\"".format(stage.workdir),
+                           "export PYTHONPATH=\"{}/platform/google_appengine:lib\"".format(
+                               os.environ["GOOGLE_CLOUD_SDK"]),
+                           "export APPLICATION_ID=\"{}\"".format(stage.project_id_gae)),
+                          preexec_fn=os.setsid, shell=True, stdout=subprocess.PIPE,
+                          stderr=subprocess.PIPE)
