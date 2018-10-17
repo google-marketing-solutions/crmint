@@ -273,15 +273,66 @@ def migration(stage_name, use_service_account):
   click.echo("\rMigration deployed successfully              ")
 
 
+def _execute_task(stage, use_service_account, task_path, task_name):
+  steps = 4
+  try:
+    click.echo("step 1 out of {}...".format(steps), nl=False)
+    stage = _utils.before_hook(stage)
+  except Exception as exception:
+    click.echo("\nAn error occured during step 1 of the task: {}"
+               .format(exception.message))
+    return False
+  try:
+    click.echo("\rstep 2 out of {}...".format(steps), nl=False)
+    _utils.check_variables()
+    before_task_subprocess = _utils.before_task(stage, use_service_account)
+  except Exception as exception:
+    click.echo("\nAn error occured during step 2 of the task: {}"
+               .format(exception.message))
+    return False
+  try:
+    click.echo("\rstep 3 out of {}...".format(steps), nl=False)
+    backends_dir = os.path.join(stage.workdir, "backends/")
+    task_path = os.path.join(task_path, task_name)
+    from shutil import copy
+    copy(task_path, backends_dir)
+
+    subprocess.Popen("python {}".format(task_path),
+                     cwd=backends_dir,
+                     shell=True, stdout=subprocess.PIPE,
+                     stderr=subprocess.PIPE)
+  except Exception as exception:
+    click.echo("\nAn error occured during step 3 of the task: {}"
+               .format(exception.message))
+    return False
+  # Step 4 - cleanup
+  try:
+    click.echo("\rstep 4 out of {}...".format(steps), nl=False)
+    os.killpg(os.getpgid(before_task_subprocess.pid), signal.SIGTERM)
+  except Exception as exception:
+    click.echo("\nAn error occured during step 4 of reseting pipeline: {}"
+               .format(exception.message))
+    return False
+  return True
+
+
 @cli.command('db_seeds')
 @click.argument('stage_name')
-def db_seeds(stage_name):
+@click.option('-use_service_account', is_flag=True, default=False)
+@click.option('--verbose', '-v', is_flag=True, default=False)
+def db_seeds(verbose, stage_name, use_service_account):
   """Add seeds to DB"""
+  click.echo("\nDB seeds...", nl=False)
   if not _check_stage_file(stage_name):
     click.echo("\nStage file '%s' not found." % stage_name)
     exit(1)
-  stage_file = _get_stage_file(stage_name)
-  source_stage_file_and_command_script(stage_file, 'db_seeds')
+  stage = _get_stage_object(stage_name)
+  succeeded = _execute_task(stage, use_service_account,
+                            _constants.TASKS_PATH, _constants.SEEDS_TASK)
+  if succeeded:
+    click.echo("\rDB seeds succeeded               ")
+  else:
+    exit(1)
 
 
 @cli.command('reset_pipeline')
@@ -295,47 +346,12 @@ def reset_pipeline(verbose, stage_name, use_service_account):
     click.echo("\nStage file '%s' not found." % stage_name)
     exit(1)
   stage = _get_stage_object(stage_name)
-  steps = 4
-  try:
-    click.echo("step 1 out of {}...".format(steps), nl=False)
-    stage = _utils.before_hook(stage)
-  except Exception as exception:
-    click.echo("\nAn error occured during step 1 of reseting pipeline: {}"
-               .format(exception.message))
+  succeeded = _execute_task(stage, use_service_account, 
+                            _constants.TASKS_PATH, _constants.RESET_PIPELINE_TASK)
+  if succeeded:
+    click.echo("\rReset pipeline succeeded               ")
+  else:
     exit(1)
-  try:
-    click.echo("\rstep 2 out of {}...".format(steps), nl=False)
-    _utils.check_variables()
-    before_task_subprocess = _utils.before_task(stage, use_service_account)
-  except Exception as exception:
-    click.echo("\nAn error occured during step 2 of reseting pipeline: {}"
-               .format(exception.message))
-    exit(1)
-  try:
-    click.echo("\rstep 3 out of {}...".format(steps), nl=False)
-    backends_dir = os.path.join(stage.workdir, "backends/")
-    task_path = os.path.join(_constants.TASKS_PATH, _constants.RESET_PIPELINE_TASK)
-    from shutil import copy
-    copy(task_path, backends_dir)
-
-    subprocess.Popen("python {}".format(task_path),
-                     cwd=backends_dir,
-                     shell=True, stdout=subprocess.PIPE,
-                     stderr=subprocess.PIPE)
-  except Exception as exception:
-    click.echo("\nAn error occured during step 3 of reseting pipeline: {}"
-               .format(exception.message))
-    exit(1)
-  # Step 4 - cleanup
-  try:
-    click.echo("\rstep 4 out of {}...".format(steps), nl=False)
-    os.killpg(os.getpgid(before_task_subprocess.pid), signal.SIGTERM)
-  except Exception as exception:
-    click.echo("\nAn error occured during step 4 of reseting pipeline: {}"
-               .format(exception.message))
-    exit(1)
-  click.echo("\rReset pipeline succeeded               ")
-
 
 if __name__ == '__main__':
   cli()
