@@ -11,8 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# import sys
-# sys.path.append("/usr/local/google/home/ldiana/projects/crmint/cli")
+
 
 import os
 from glob import glob
