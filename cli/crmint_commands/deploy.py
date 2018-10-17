@@ -17,7 +17,6 @@
 import os
 from glob import glob
 import subprocess
-import shutil
 import signal
 import click
 from crmint_commands import _constants
@@ -225,32 +224,6 @@ def cron(stage_name, cron_frequency_minutes, cron_frequency_hours):
     exit(1)
 
 
-def migration_db(stage, use_service_account):
-  if os.path.exists(stage.cloudsql_dir):
-    shutil.rmtree(stage.cloudsql_dir)
-  os.mkdir(stage.cloudsql_dir)
-  with open("{}/backends/instance/config.py".format(stage.workdir), "w") as config:
-    config.write("SQLALCHEMY_DATABASE_URI=\"{}\"".format(stage.local_db_uri))
-  db_command = ""
-  if use_service_account:
-    db_command = "{} -projects={} -instances={} -dir={} -credential_file={}".format(
-        os.environ["CLOUD_SQL_PROXY"], stage.project_id_gae, stage.db_instance_conn_name,
-        stage.cloudsql_dir, os.path.join(_constants.SERVICE_ACCOUNT_PATH,
-                                         _constants.SERVICE_ACCOUNT_DEFAULT_FILE_NAME))
-  else:
-    db_command = "{} -projects={} -instances={} -dir={} -credential_file={}".format(
-        os.environ["CLOUD_SQL_PROXY"], stage.project_id_gae, stage.db_instance_conn_name,
-        stage.cloudsql_dir, os.path.join(_constants.SERVICE_ACCOUNT_PATH,
-                                         stage.service_account_file))
-  return subprocess.Popen((db_command,
-                           "export FLASK_APP=\"{}/backends/run_ibackend.py\"".format(stage.workdir),
-                           "export PYTHONPATH=\"{}/platform/google_appengine:lib\"".format(
-                               os.environ["GOOGLE_CLOUD_SDK"]),
-                           "export APPLICATION_ID=\"{}\"".format(stage.project_id_gae)),
-                          preexec_fn=os.setsid, shell=True, stdout=subprocess.PIPE,
-                          stderr=subprocess.PIPE)
-
-
 @cli.command('migration')
 @click.argument('stage_name')
 @click.option('-use_service_account', is_flag=True, default=False)
@@ -273,7 +246,7 @@ def migration(stage_name, use_service_account):
   try:
     click.echo("\rstep 2 out of {}...".format(steps), nl=False)
     _utils.check_variables()
-    migration_subprocess = migration_db(stage, use_service_account)
+    migration_subprocess = _utils.before_task(stage, use_service_account)
   except Exception as exception:
     click.echo("\nAn error occured during step 2 of migration deployment: {}".format(exception))
     exit(1)
@@ -293,7 +266,6 @@ def migration(stage_name, use_service_account):
   try:
     click.echo("\rstep 4 out of {}...".format(steps), nl=False)
     os.killpg(os.getpgid(migration_subprocess.pid), signal.SIGTERM)
-
   except Exception as exception:
     click.echo("\nAn error occured during step 3 \
                of migration deployment: {}".format(exception.message))
@@ -314,13 +286,55 @@ def db_seeds(stage_name):
 
 @cli.command('reset_pipeline')
 @click.argument('stage_name')
-def reset_pipeline(stage_name):
+@click.option('-use_service_account', is_flag=True, default=False)
+@click.option('--verbose', '-v', is_flag=True, default=False)
+def reset_pipeline(verbose, stage_name, use_service_account):
   """Reset Job statuses in Pipeline"""
-  stage_file = _get_stage_file(stage_name)
+  click.echo("\nReseting pipeline...", nl=False)
   if not _check_stage_file(stage_name):
     click.echo("\nStage file '%s' not found." % stage_name)
     exit(1)
-  source_stage_file_and_command_script(stage_file, 'reset_pipeline')
+  stage = _get_stage_object(stage_name)
+  steps = 4
+  try:
+    click.echo("step 1 out of {}...".format(steps), nl=False)
+    stage = _utils.before_hook(stage)
+  except Exception as exception:
+    click.echo("\nAn error occured during step 1 of reseting pipeline: {}"
+               .format(exception.message))
+    exit(1)
+  try:
+    click.echo("\rstep 2 out of {}...".format(steps), nl=False)
+    _utils.check_variables()
+    before_task_subprocess = _utils.before_task(stage, use_service_account)
+  except Exception as exception:
+    click.echo("\nAn error occured during step 2 of reseting pipeline: {}"
+               .format(exception.message))
+    exit(1)
+  try:
+    click.echo("\rstep 3 out of {}...".format(steps), nl=False)
+    backends_dir = os.path.join(stage.workdir, "backends/")
+    task_path = os.path.join(_constants.TASKS_PATH, _constants.RESET_PIPELINE_TASK)
+    from shutil import copy
+    copy(task_path, backends_dir)
+
+    subprocess.Popen("python {}".format(task_path),
+                     cwd=backends_dir,
+                     shell=True, stdout=subprocess.PIPE,
+                     stderr=subprocess.PIPE)
+  except Exception as exception:
+    click.echo("\nAn error occured during step 3 of reseting pipeline: {}"
+               .format(exception.message))
+    exit(1)
+  # Step 4 - cleanup
+  try:
+    click.echo("\rstep 4 out of {}...".format(steps), nl=False)
+    os.killpg(os.getpgid(before_task_subprocess.pid), signal.SIGTERM)
+  except Exception as exception:
+    click.echo("\nAn error occured during step 4 of reseting pipeline: {}"
+               .format(exception.message))
+    exit(1)
+  click.echo("\rReset pipeline succeeded               ")
 
 
 if __name__ == '__main__':

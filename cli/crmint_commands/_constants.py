@@ -25,8 +25,11 @@ STAGE_EXAMPLE_PATH = "{}/stage_name.py.example".format(STAGE_DIR)
 SERVICE_ACCOUNT_PATH = "{}/backends/data/".format(PROJECT_DIR)
 SERVICE_ACCOUNT_DEFAULT_FILE_NAME = "service-account.json"
 
-CRON_FILE = "{}/backends/cron.yaml".format(PROJECT_DIR)
+RESET_PIPELINE_TASK = "_task_reset_pipeline.py"
+TASKS_PATH = "{}/cli/crmint_commands/".format(PROJECT_DIR)
 
+
+CRON_FILE = "{}/backends/cron.yaml".format(PROJECT_DIR)
 
 CRON_TEMPLATE = """# Copyright 2018 Google Inc
 #

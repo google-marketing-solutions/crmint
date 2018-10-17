@@ -47,7 +47,7 @@ def check(stage):
   os.system("""stage={}
             SCRIPTS_DIR={}
             source "{}/stages/check_cli.sh" """
-            .format(stage, _constants.SCRIPTS_DIR, 
+            .format(stage, _constants.SCRIPTS_DIR,
                     _constants.SCRIPTS_DIR))
 
 
