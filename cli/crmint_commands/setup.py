@@ -33,7 +33,7 @@ CONFIG_FILES = [
 ]
 
 
-REQUIREMENTS_DIR = os.path.join(_constants.PROJECT_DIR, "scripts/dev/requirements.txt")
+REQUIREMENTS_DIR = os.path.join(_constants.PROJECT_DIR, "cli/requirements.txt")
 LIB_DEV_PATH = os.path.join(_constants.PROJECT_DIR, "backends/lib_dev")
 
 
