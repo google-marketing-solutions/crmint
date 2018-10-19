@@ -20,7 +20,7 @@ import shutil
 import subprocess
 from glob import glob
 import click
-from crmint_commands import _constants
+from crmint_commands.utils import constants
 
 
 IGNORE_PATTERNS = ("^.idea", "^.git", "*.pyc", "frontend/node_modules",
@@ -47,7 +47,7 @@ def before_hook(stage):
       shutil.rmtree(target_dir)
 
     # Copy source code to the working directory.
-    shutil.copytree(_constants.PROJECT_DIR, target_dir,
+    shutil.copytree(constants.PROJECT_DIR, target_dir,
                     ignore=shutil.ignore_patterns(IGNORE_PATTERNS))
   except Exception as exception:
     raise Exception("Stage 1 error when copying to workdir: %s" % exception.message)
@@ -127,12 +127,12 @@ def before_task(stage, use_service_account):
   if use_service_account:
     db_command = "{} -projects={} -instances={} -dir={} -credential_file={}".format(
         os.environ["CLOUD_SQL_PROXY"], stage.project_id_gae, stage.db_instance_conn_name,
-        stage.cloudsql_dir, os.path.join(_constants.SERVICE_ACCOUNT_PATH,
-                                         _constants.SERVICE_ACCOUNT_DEFAULT_FILE_NAME))
+        stage.cloudsql_dir, os.path.join(constants.SERVICE_ACCOUNT_PATH,
+                                         constants.SERVICE_ACCOUNT_DEFAULT_FILE_NAME))
   else:
     db_command = "{} -projects={} -instances={} -dir={} -credential_file={}".format(
         os.environ["CLOUD_SQL_PROXY"], stage.project_id_gae, stage.db_instance_conn_name,
-        stage.cloudsql_dir, os.path.join(_constants.SERVICE_ACCOUNT_PATH,
+        stage.cloudsql_dir, os.path.join(constants.SERVICE_ACCOUNT_PATH,
                                          stage.service_account_file))
   return subprocess.Popen((db_command,
                            "export FLASK_APP=\"{}/backends/run_ibackend.py\"".format(stage.workdir),
