@@ -20,8 +20,9 @@ DATABASE_USER = "crmintapp"
 
 
 def create_database():
+
   db_setup = subprocess.Popen("mysqlshow -u{} -p{} 2>/dev/null | grep {};"
-                              .format(DATABASE_NAME, DATABASE_USER, DATABASE_NAME),
+                              .format(DATABASE_USER, DATABASE_USER, DATABASE_NAME),
                               stdout=subprocess.PIPE,
                               shell=True)
   if not db_setup.stdout.read():
@@ -30,12 +31,13 @@ CREATE DATABASE {} CHARACTER SET utf8;
 GRANT ALL PRIVILEGES ON {}.* TO '{}'@'localhost' IDENTIFIED BY '{}';
 FLUSH PRIVILEGES;
 quit
-EOF | service mysql stop
+EOF
 """
-    res = subprocess.Popen(db_command.format(DATABASE_NAME,
+    res = subprocess.Popen((db_command.format(DATABASE_NAME,
                                              DATABASE_USER,
                                              DATABASE_USER,
                                              DATABASE_USER),
+                            "service mysql stop"),
                            stdout=subprocess.PIPE,
                            stderr=subprocess.PIPE,
                            shell=True)
