@@ -15,8 +15,15 @@ options.
 <div>
 <h1>{{ worker.name | textualize }}</h1>
 <h3>{{ worker.description | textualize }}</h3>
+
+{% if worker.detail.size > 1 %}
+<p>
+{{ worker.detail | newline_to_br }}
+</p>
+{% endif %}
+
 {% if worker.parameters %}
-  <p>Parameters</p>
+  <strong>Parameters</strong>
   <table>
     <tr><th>Parameter name</th><th>Data type</th><th>Required</th><th>Default value</th><th>Description</th></tr>
     {% for row in worker.parameters %}

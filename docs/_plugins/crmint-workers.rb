@@ -1,3 +1,17 @@
+# Copyright 2018 Google Inc
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 module Workers
   class Generator < Jekyll::Generator
     WORKER_PATH = "../backends/core/workers.py"
@@ -16,17 +30,20 @@ module Workers
       workers = []
       worker_name = nil
       worker_description = nil
+      worker_detail = ""
       in_param = false
       in_available = false
+      in_detail = false
       params = ''
 
       pycode.each { |line|
         matches = /^\s*class\s+([^(\n]+).*:$/.match(line)
         if matches
-          if worker_name && worker_description
+          if worker_name && worker_description.length > 0
             worker = {
               "name" => worker_name,
-              "description" => worker_description
+              "description" => worker_description,
+              "detail" => worker_detail
             }
             if params.length > 0
               worker["parameters"] = parse_params(params)
@@ -36,14 +53,31 @@ module Workers
             end
             worker_name = nil
             worker_description = nil
+            worker_detail = ""
             params = ''
           end
           worker_name = matches[1]
         elsif worker_name
-          if !worker_description
-            matches = /^\s*\"\"\"(.*)\"\"\".*/.match(line)
+          if !worker_description && !in_detail
+            matches = /^\s*\"\"\"(.*)\"\"\"\s*$/.match(line)
             if matches
               worker_description = matches[1]
+            else
+              matches = /^\s*\"\"\"(.*)$/.match(line)
+              if matches
+                in_detail = true
+                worker_description = matches[1].lstrip
+              end
+            end
+          elsif in_detail
+            matches = /^(.*)\"\"\"\s*$/.match(line)
+            if matches
+              in_detail = false
+              worker_detail += matches[1].lstrip
+            elsif line.strip.length == 0 && worker_detail.length > 0
+              worker_detail += "\n"
+            else
+              worker_detail += line.lstrip
             end
           elsif worker_description && !in_param
             matches = /^\s*PARAMS\s=\s(.*)/.match(line)
@@ -76,10 +110,11 @@ module Workers
         end
       }
 
-      if worker_name && worker_description
+      if worker_name && worker_description.length > 0
         worker = {
           "name" => worker_name,
-          "description" => worker_description
+          "description" => worker_description,
+          "detail" => worker_detail
         }
         if params.length > 0
           worker["parameters"] = parse_params(params)
