@@ -21,46 +21,28 @@ from crmint_commands.utils import constants
 from crmint_commands.utils import database
 
 
-CONFIG_FILES = [
-    ("backends/instance/config.py.example", "backends/instance/config.py"),
-    ("backends/gae_dev_ibackend.yaml.example", "backends/gae_dev_ibackend.yaml"),
-    ("backends/gae_dev_jbackend.yaml.example", "backends/gae_dev_jbackend.yaml"),
-    ("backends/data/app.json.example", "backends/data/app.json"),
-    ("backends/data/service-account.json.example", "backends/data/service-account.json")
-]
-
-REQUIREMENTS_DIR = os.path.join(constants.PROJECT_DIR, "cli/requirements.txt")
-LIB_DEV_PATH = os.path.join(constants.PROJECT_DIR, "backends/lib_dev")
-
-
-def _create_config_file(example_path, dest):
-  if not os.path.exists(dest):
-    print dest
-    copyfile(example_path, dest)
-
-
-def _create_all_configs():
-  for config in CONFIG_FILES:
-    full_src_path = os.path.join(constants.PROJECT_DIR, config[0])
-    full_dest_path = os.path.join(constants.PROJECT_DIR, config[1])
-    _create_config_file(full_src_path, full_dest_path)
-
-
-def _pip_install():
+def brew_check():
   try:
-    subprocess.Popen("pip install -r {} -t {}".format(REQUIREMENTS_DIR, LIB_DEV_PATH),
-                     stdout=subprocess.PIPE,
-                     stderr=subprocess.PIPE,
-                     shell=True)
+    result = subprocess.Popen("$(command -v brew)",
+                     shell=True, stdout=subprocess.PIPE,
+                     stderr=subprocess.PIPE).communicate()[0]
+    if not result:
+      click.echo("\rInstalling brew...", nl=False)
+      brew = "sudo -S /usr/bin/ruby -e \"$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)\""
+      subprocess.Popen(brew,
+                     shell=True, stdout=subprocess.PIPE,
+                     stderr=subprocess.PIPE)
   except:
-    raise Exception("Requirements could not be installed")
+    raise Exception("Brew installation failed")
+
+
 
 @click.command()
 def cli():
   """Prepare local machine to work"""
   click.echo("Setup in progress...")
   try:
-    components = [database.create_database, _create_all_configs, _pip_install]
+    components = [brew_check]
     with click.progressbar(components) as progress_bar:
       for component in progress_bar:
         component()
