@@ -6,7 +6,7 @@ kramdown:
 markdown:
   kramdown
 
-baseurl:
+baseurl: /crmint
 
 githuburl: https://github.com/google/crmint/
 
