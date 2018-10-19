@@ -13,8 +13,9 @@
 # limitations under the License.
 
 import click
-from crmint_commands.utils import database
 from crmint_commands.utils import constants
+from crmint_commands.utils import database
+from crmint_commands.utils import shared
 import os
 import subprocess
 
@@ -34,9 +35,6 @@ CONFIG_FILES = [
     ("backends/data/service-account.json.example", "backends/data/service-account.json")
 ]
 
-REQUIREMENTS_DIR = os.path.join(constants.PROJECT_DIR, "cli/requirements.txt")
-LIB_DEV_PATH = os.path.join(constants.PROJECT_DIR, "backends/lib_dev")
-
 
 def _create_config_file(example_path, dest):
   if not os.path.exists(dest):
@@ -50,22 +48,14 @@ def _create_all_configs():
     _create_config_file(full_src_path, full_dest_path)
 
 
-def _pip_install():
-  try:
-    resp = subprocess.Popen("pip install -r {} -t {}".format(REQUIREMENTS_DIR, LIB_DEV_PATH),
-                     stdout=subprocess.PIPE,
-                     stderr=subprocess.PIPE,
-                     shell=True)
-  except:
-    raise Exception("Requirements could not be installed")
-
 
 @cli.command('setup')
 def setup():
   """Setup DB and config files required for local development."""  
   click.echo("Setup in progress...")
   try:
-    components = [database.create_database, _create_all_configs, _pip_install]
+    components = [database.create_database, _create_all_configs,
+                  shared.install_requirements]
     with click.progressbar(components) as progress_bar:
       for component in progress_bar:
         component()

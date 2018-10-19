@@ -141,3 +141,14 @@ def before_task(stage, use_service_account):
                            "export APPLICATION_ID=\"{}\"".format(stage.project_id_gae)),
                           preexec_fn=os.setsid, shell=True, stdout=subprocess.PIPE,
                           stderr=subprocess.PIPE)
+
+
+def install_requirements():
+  try:
+    resp = subprocess.Popen("pip install -r {} -t {}".format(constants.REQUIREMENTS_DIR,
+                                                             constants.LIB_DEV_PATH),
+                     stdout=subprocess.PIPE,
+                     stderr=subprocess.PIPE,
+                     shell=True)
+  except:
+    raise Exception("Requirements could not be installed")
