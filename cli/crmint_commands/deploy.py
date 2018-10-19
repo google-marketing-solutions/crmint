@@ -18,15 +18,15 @@ from glob import glob
 import subprocess
 import signal
 import click
-from crmint_commands import _constants
-from crmint_commands import _utils
+from crmint_commands.utils import constants
+from crmint_commands.utils import shared
 
 
 FRONTEND_SUCCESS_MESSAGE = "\rFrontend deployed successfully!            "
 
 
 def _get_stage_file(stage):
-  stage_file = "{}/{}.py".format(_constants.STAGE_DIR, stage)
+  stage_file = "{}/{}.py".format(constants.STAGE_DIR, stage)
   return stage_file
 
 
@@ -46,9 +46,9 @@ def source_stage_file_and_command_script(stage_file, command):
         source \"{}\"
         source \"{}/deploy/before_hook.sh\"
         source \"{}/deploy/{}.sh\""""
-            .format(_constants.SCRIPTS_DIR, stage_file,
-                    _constants.SCRIPTS_DIR,
-                    _constants.SCRIPTS_DIR, command))
+            .format(constants.SCRIPTS_DIR, stage_file,
+                    constants.SCRIPTS_DIR,
+                    constants.SCRIPTS_DIR, command))
 
 
 def deploy_frontend(stage):
@@ -123,7 +123,7 @@ def frontend(stage_name):
   stage = _get_stage_object(stage_name)
   try:
     click.echo("step 1 out of 2...", nl=False)
-    stage = _utils.before_hook(stage)
+    stage = shared.before_hook(stage)
     click.echo("\rstep 2 out of 2...", nl=False)
     deploy_frontend(stage)
     click.echo(FRONTEND_SUCCESS_MESSAGE)
@@ -143,7 +143,7 @@ def ibackend(stage_name):
   click.echo("\nDeploying ibackend...", nl=False)
   try:
     click.echo("step 1 out of 2...", nl=False)
-    stage = _utils.before_hook(stage)
+    stage = shared.before_hook(stage)
   except Exception as exception:
     click.echo("\nAn error occured during step 1 of ibackend deployment: %s" % exception.message)
     exit(1)
@@ -167,7 +167,7 @@ def jbackend(stage_name):
     exit(1)
   try:
     click.echo("step 1 out of 2...", nl=False)
-    stage = _utils.before_hook(stage)
+    stage = shared.before_hook(stage)
   except Exception as exception:
     click.echo("\nAn error occured during step 1 of jbackend deployment: %s" % exception.message)
     exit(1)
@@ -193,16 +193,16 @@ def cron(stage_name, cron_frequency_minutes, cron_frequency_hours):
     exit(1)
   stage = _get_stage_object(stage_name)
   click.echo("\nDeploying cron...", nl=False)
-  with click.open_file(_constants.CRON_FILE, "w") as cron_file:
+  with click.open_file(constants.CRON_FILE, "w") as cron_file:
     if cron_frequency_minutes is None and cron_frequency_hours is None:
-      cron_file.write(_constants.EMPTY_CRON_TEMPLATE)
+      cron_file.write(constants.EMPTY_CRON_TEMPLATE)
     else:
       if cron_frequency_minutes and not cron_frequency_hours:
-        cron_file.write(_constants.CRON_TEMPLATE
+        cron_file.write(constants.CRON_TEMPLATE
                         .format(str(cron_frequency_minutes),
                                 "minutes"))
       elif cron_frequency_hours and not cron_frequency_minutes:
-        cron_file.write(_constants.CRON_TEMPLATE
+        cron_file.write(constants.CRON_TEMPLATE
                         .format(str(cron_frequency_hours),
                                 "hours"))
       else:
@@ -210,7 +210,7 @@ def cron(stage_name, cron_frequency_minutes, cron_frequency_hours):
         exit(1)
   try:
     click.echo("step 1 out of 2...", nl=False)
-    stage = _utils.before_hook(stage)
+    stage = shared.before_hook(stage)
   except Exception as exception:
     click.echo("\nAn error occured during step 1 of cron deployment: %s" % exception.message)
     exit(1)
@@ -237,15 +237,15 @@ def migration(stage_name, use_service_account):
   # Step 1
   try:
     click.echo("step 1 out of {}...".format(steps), nl=False)
-    stage = _utils.before_hook(stage)
+    stage = shared.before_hook(stage)
   except Exception as exception:
     click.echo("\nAn error occured during step 1 of migration deployment: {}".format(exception))
     exit(1)
   # Step 2
   try:
     click.echo("\rstep 2 out of {}...".format(steps), nl=False)
-    _utils.check_variables()
-    migration_subprocess = _utils.before_task(stage, use_service_account)
+    shared.check_variables()
+    migration_subprocess = shared.before_task(stage, use_service_account)
   except Exception as exception:
     click.echo("\nAn error occured during step 2 of migration deployment: {}".format(exception))
     exit(1)
@@ -276,15 +276,15 @@ def _execute_task(stage, use_service_account, task_path, task_name):
   steps = 4
   try:
     click.echo("step 1 out of {}...".format(steps), nl=False)
-    stage = _utils.before_hook(stage)
+    stage = shared.before_hook(stage)
   except Exception as exception:
     click.echo("\nAn error occured during step 1 of the task: {}"
                .format(exception.message))
     return False
   try:
     click.echo("\rstep 2 out of {}...".format(steps), nl=False)
-    _utils.check_variables()
-    before_task_subprocess = _utils.before_task(stage, use_service_account)
+    shared.check_variables()
+    before_task_subprocess = shared.before_task(stage, use_service_account)
   except Exception as exception:
     click.echo("\nAn error occured during step 2 of the task: {}"
                .format(exception.message))
@@ -327,7 +327,7 @@ def db_seeds(verbose, stage_name, use_service_account):
     exit(1)
   stage = _get_stage_object(stage_name)
   succeeded = _execute_task(stage, use_service_account,
-                            _constants.TASKS_PATH, _constants.SEEDS_TASK)
+                            constants.TASKS_PATH, constants.SEEDS_TASK)
   if succeeded:
     click.echo("\rDB seeds succeeded               ")
   else:
@@ -346,7 +346,7 @@ def reset_pipeline(verbose, stage_name, use_service_account):
     exit(1)
   stage = _get_stage_object(stage_name)
   succeeded = _execute_task(stage, use_service_account, 
-                            _constants.TASKS_PATH, _constants.RESET_PIPELINE_TASK)
+                            constants.TASKS_PATH, constants.RESET_PIPELINE_TASK)
   if succeeded:
     click.echo("\rReset pipeline succeeded               ")
   else:

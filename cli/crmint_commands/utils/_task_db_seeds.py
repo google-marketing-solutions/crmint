@@ -16,8 +16,8 @@ import run_ibackend
 from core.models import GeneralSetting
 
 # SETUP SETTINGS
-settings = ['emails_for_notifications']
-for setting in settings:
+SETTINGS = ['emails_for_notifications']
+for setting in SETTINGS:
   gsetting = GeneralSetting.where(name=setting).first()
   if not gsetting:
     gsetting = GeneralSetting()

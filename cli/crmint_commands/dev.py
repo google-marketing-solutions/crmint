@@ -13,7 +13,7 @@
 # limitations under the License.
 
 import click
-
+from crmint_commands.utils import database
 
 @click.group()
 def cli():
@@ -24,7 +24,7 @@ def cli():
 @cli.command('setup')
 def setup():
   """Setup DB and config files required for local development."""
-  # TODO
+  database.create_database()
   pass
 
 @cli.command('run')
