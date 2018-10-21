@@ -15,9 +15,12 @@
 	Constants used in the crmint_commands package
 """
 import os
-import subprocess
+
 
 PROJECT_DIR = os.path.join(os.path.dirname(__file__), '../../..')
+FRONTEND_DIR = os.path.join(PROJECT_DIR, "frontend")
+BACKENDS_DIR = os.path.join(PROJECT_DIR, "backends")
+
 SCRIPTS_DIR = "{}/scripts".format(PROJECT_DIR)
 STAGE_DIR = "{}/cli/stage_variables".format(PROJECT_DIR)
 STAGE_EXAMPLE_PATH = "{}/stage_name.py.example".format(STAGE_DIR)
