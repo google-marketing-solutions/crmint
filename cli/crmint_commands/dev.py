@@ -169,8 +169,19 @@ def do_add_migration(args):
 @do.command('migrations')
 def do_migrations():
   """Run new DB migrations."""
-  # TODO
-  pass
+  migrations_command = """
+  export PYTHONPATH="$gcloud_sdk_dir/platform/google_appengine:lib"
+  export FLASK_APP=run_ibackend.py
+  export FLASK_DEBUG=1
+  export APPLICATION_ID=$local_application_id
+  python -m flask db upgrade"
+  """
+  click.echo("Doing migrations...", nl=False)
+  proc = subprocess.Popen(migrations_command, cwd=constants.BACKENDS_DIR,
+                          shell=True, stdout=subprocess.PIPE,
+                          stderr=subprocess.PIPE)
+  proc.communicate()
+  click.echo("\rDone.                    ")
 
 
 @do.command('seeds')
