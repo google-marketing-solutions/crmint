@@ -133,8 +133,16 @@ def do():
 @do.command('requirements')
 def do_requirements():
   """Install required Python packages."""
-  # TODO
-  pass
+  do_req = """
+  pip install -r ibackend/requirements.txt -t lib
+  pip install -r jbackend/requirements.txt -t lib
+  pip install "sphinx==1.7.2" "sphinx-autobuild==0.7.1"
+  """
+  click.echo("Doing requirements...")
+  proc = subprocess.Popen(do_req, cwd=constants.BACKENDS_DIR,
+                          shell=True, stdout=subprocess.PIPE,
+                          stderr=subprocess.PIPE)
+  proc.communicate()
 
 
 @do.command('add_migration')
