@@ -14,7 +14,7 @@
 
 import os
 import click
-from crmint_commands import _utils
+from crmint_commands.utils import shared
 
 PLUGIN_FOLDER = os.path.join(os.path.dirname(__file__), 'crmint_commands')
 
@@ -46,5 +46,5 @@ CLI = CRMintCLI(help='CRMint commands:')
 
 
 def entry_point():
-  _utils.check_variables()
+  shared.check_variables()
   CLI()
