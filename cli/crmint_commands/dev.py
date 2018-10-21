@@ -146,10 +146,24 @@ def do_requirements():
 
 
 @do.command('add_migration')
-def do_add_migration():
+@click.option('--args')
+def do_add_migration(args):
   """Create a new DB migration."""
-  # TODO
-  pass
+  if not args:
+    args = ""
+  add_migration = """
+  export PYTHONPATH="$gcloud_sdk_dir/platform/google_appengine:lib"
+  export FLASK_APP=run_ibackend.py
+  export FLASK_DEBUG=1
+  export APPLICATION_ID=$local_application_id
+  python -m flask db revision -m "{}"
+  """.format(args)
+  click.echo("Adding migration...")
+  proc = subprocess.Popen(add_migration, cwd=constants.BACKENDS_DIR,
+                          shell=True, stdout=subprocess.PIPE,
+                          stderr=subprocess.PIPE)
+  click.echo(proc.stdout.readline())
+  proc.communicate()
 
 
 @do.command('migrations')
