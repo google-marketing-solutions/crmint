@@ -176,7 +176,7 @@ def do_migrations():
   export APPLICATION_ID=$local_application_id
   python -m flask db upgrade"
   """
-  click.echo("Doing migrations...", nl=False)
+  click.echo("Running new DB migrations...", nl=False)
   proc = subprocess.Popen(migrations_command, cwd=constants.BACKENDS_DIR,
                           shell=True, stdout=subprocess.PIPE,
                           stderr=subprocess.PIPE)
@@ -194,7 +194,7 @@ def do_seeds():
   export APPLICATION_ID=$local_application_id
   python -m flask db_seeds
   """
-  click.echo("Doing seeds...", nl=False)
+  click.echo("Running DB seeds script...", nl=False)
   proc = subprocess.Popen(seeds_command, cwd=constants.BACKENDS_DIR,
                           shell=True, stdout=subprocess.PIPE,
                           stderr=subprocess.PIPE)
@@ -223,11 +223,31 @@ def do_reset():
 @cli.command('console')
 def console():
   """Run shell console for backend."""
-  # TODO
-  pass
+  console_command = """
+  export PYTHONPATH="$gcloud_sdk_dir/platform/google_appengine:lib"
+  export FLASK_APP=run_ibackend.py
+  export FLASK_DEBUG=1
+  export APPLICATION_ID=$local_application_id
+  python -m flask shell
+  """
+  try:
+    click.echo("Running shell console for backend...", nl=False)
+    proc = subprocess.Popen(console_command, cwd=constants.BACKENDS_DIR,
+                            shell=True)
+    proc.wait()
+  except KeyboardInterrupt:
+    proc.kill()
+    click.echo("[w] You will need to reset your shell.")
 
 @cli.command('dbconsole')
 def dbconsole():
   """Run DB console for development environment."""
-  # TODO
-  pass
+  click.echo("Running DB console for development environment (with default values- crmintapp)...",
+             nl=False)
+  try:
+    proc = subprocess.Popen("mysql --user=crmintapp --password=crmintapp crmintapp",
+                            cwd=constants.BACKENDS_DIR,
+                            shell=True)
+    proc.wait()
+  except KeyboardInterrupt:
+    proc.kill()
