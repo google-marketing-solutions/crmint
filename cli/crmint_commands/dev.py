@@ -187,8 +187,19 @@ def do_migrations():
 @do.command('seeds')
 def do_seeds():
   """Run DB seeds script."""
-  # TODO
-  pass
+  seeds_command = """
+  export PYTHONPATH="$gcloud_sdk_dir/platform/google_appengine:lib"
+  export FLASK_APP=run_ibackend.py
+  export FLASK_DEBUG=1
+  export APPLICATION_ID=$local_application_id
+  python -m flask db_seeds
+  """
+  click.echo("Doing seeds...", nl=False)
+  proc = subprocess.Popen(seeds_command, cwd=constants.BACKENDS_DIR,
+                          shell=True, stdout=subprocess.PIPE,
+                          stderr=subprocess.PIPE)
+  proc.communicate()
+  click.echo("\rDone.                    ")
 
 
 @do.command('reset')
