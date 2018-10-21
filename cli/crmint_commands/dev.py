@@ -12,12 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import os
+import subprocess
+from shutil import copyfile
 import click
+
 from crmint_commands.utils import constants
 from crmint_commands.utils import database
 from crmint_commands.utils import shared
-import os
-import subprocess
 
 
 @click.group()
@@ -48,7 +50,6 @@ def _create_all_configs():
     _create_config_file(full_src_path, full_dest_path)
 
 
-
 @cli.command('setup')
 def setup():
   """Setup DB and config files required for local development."""
@@ -67,14 +68,60 @@ def setup():
 ####################### RUN #######################
 
 
-@cli.command('run')
-@click.argument('component')
-def run(component):
-  """Run backend or frontend services\n
-  COMPONENT: frontend/backend
-  """
-  # TODO
+@cli.group()
+def run():
+  """Do local development tasks."""
   pass
+
+
+@run.command('frontend')
+def run_frontend():
+  """Run frontend services
+  """
+  frontend = """
+  export PYTHONPATH="lib"
+  npm install
+  node_modules/@angular/cli/bin/ng serve"""
+  click.echo("Running frontend...")
+  try:
+    proc = subprocess.Popen(frontend, cwd=constants.FRONTEND_DIR,
+                            shell=True, stdout=subprocess.PIPE,
+                            stderr=subprocess.PIPE)
+    proc.stdout.readline()
+    click.echo("Server is listening on localhost:4200, open your browser on http://localhost:4200/")
+    proc.communicate()
+  except KeyboardInterrupt:
+    proc.kill()
+
+
+
+@run.command('backend')
+@click.argument("gcp_app_id")
+def run_backend(gcp_app_id):
+  """Run backend or frontend services\n
+  ARGUMENT: GCP App ID
+  """
+  run_command = """export PYTHONPATH="lib"
+      dev_appserver.py \
+        --enable_sendmail=yes \
+        --enable_console=yes \
+        --env_var APPLICATION_ID={} \
+        gae_dev_ibackend.yaml gae_dev_jbackend.yaml
+      """.format(gcp_app_id)
+  click.echo("Running backend...")
+  try:
+    proc = subprocess.Popen(run_command, cwd=constants.BACKENDS_DIR,
+                            shell=True, stdout=subprocess.PIPE,
+                            stderr=subprocess.PIPE)
+    click.echo("Starting module \"api-service\" running at: http://localhost:8080")
+    click.echo("Starting module \"job-service\" running at: http://localhost:8081")
+    click.echo("Starting admin server at: http://localhost:8000")
+    proc.communicate()
+  except KeyboardInterrupt:
+    proc.kill()
+
+
+####################### DO ########################
 
 
 @cli.group()
