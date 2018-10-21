@@ -205,8 +205,19 @@ def do_seeds():
 @do.command('reset')
 def do_reset():
   """Reset jobs and pipelines to status 'idle'"""
-  # TODO
-  pass
+  reset_command = """
+  export PYTHONPATH="$gcloud_sdk_dir/platform/google_appengine:lib"
+  export FLASK_APP=run_ibackend.py
+  export FLASK_DEBUG=1
+  export APPLICATION_ID=$local_application_id
+  python -m flask reset_pipelines
+  """
+  click.echo("Resetting...", nl=False)
+  proc = subprocess.Popen(reset_command, cwd=constants.BACKENDS_DIR,
+                          shell=True, stdout=subprocess.PIPE,
+                          stderr=subprocess.PIPE)
+  proc.communicate()
+  click.echo("\rDone.                    ")
 
 
 @cli.command('console')
