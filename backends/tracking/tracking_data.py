@@ -16,6 +16,7 @@ Tracking request parameters
 """
 # TODO ? to be replaced with a gcs file
 
-TRACKING_ID = ""
+TRACKING_ID = "None"
 
-ANONYMUS_CLIENT_ID = 555
+"""Anonymus client id"""
+CLIENT_ID = 555

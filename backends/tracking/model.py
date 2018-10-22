@@ -14,13 +14,20 @@
 
 """Tracking package."""
 import requests
+from tracking_data import TRACKING_ID
+from tracking_data import CLIENT_ID
+
 
 TRACKER = None
 
-def init_tracking(enabled=True):
+
+def init_tracking(enabled=None):
   global TRACKER
+  if enabled is None:
+    with open("tracking/enabled", "r") as enabled_option:
+      enabled = bool(enabled_option.read())
   if enabled:
-    TRACKER = GATracker()
+    TRACKER = GATracker(TRACKING_ID, CLIENT_ID)
   else:
     TRACKER = EmptyTracker()
 
@@ -33,15 +40,11 @@ class EmptyTrackingIDException(Exception):
 
 
 class EmptyTracker(object):
-  """Abstract tracking class."""
-  URL = "https://www.google-analytics.com/collect"
+  """Tracking class with no implementations for tracking."""
 
   def __init__(self, tracking_id=None, client_id="555"):
     self.tid = tracking_id
     self.client_id = client_id
-
-  def send_request(self, data):
-    requests.post(self.URL, data)
 
   def track_run_pipeline(self):
     pass
@@ -49,11 +52,16 @@ class EmptyTracker(object):
 
 
 class GATracker(EmptyTracker):
+  """GA Tracking model"""
+  URL = "https://www.google-analytics.com/collect"
 
   def __init__(self, tracking_id=None, client_id="555"):
     if not tracking_id:
       raise EmptyTrackingIDException("TrackingId for GATracker not set")
     EmptyTracker.__init__(self, tracking_id, client_id)
+
+  def send_request(self, data):
+    requests.post(self.URL, data)
 
   def track_run_pipeline(self):
     data = {
