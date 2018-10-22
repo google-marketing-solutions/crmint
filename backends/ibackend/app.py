@@ -18,6 +18,7 @@ import os.path
 
 from flask import Flask
 
+from tracking.model import init_tracking
 from core.database import init_engine
 from core.extensions import db, cors, migrate
 from ibackend.config import ProdConfig
@@ -28,6 +29,7 @@ def create_app(api_blueprint, config_object=ProdConfig):
   """An application factory."""
   app = Flask(__name__.split('.')[1], instance_relative_config=True)
   app.config.from_object(config_object)
+  init_tracking()
   app.config.from_pyfile(
       os.path.join(os.path.dirname(__file__), '..', 'instance', 'config.py'))
   # NB: set the global api blueprint before registering all the blueprints

@@ -35,7 +35,6 @@ from core.database import BaseModel
 from core.mailers import NotificationMailer
 
 
-
 CACHE_KEY_STATUS = 'status'
 CACHE_KEY_LIST_OF_TASKS_ENQUEUED = 'enqueued_tasks'
 
@@ -143,7 +142,8 @@ class Pipeline(BaseModel):
   def start(self):
     if self.status not in Pipeline.STATUS.INACTIVE_STATUSES:
       return False
-
+    from tracking.model import TRACKER
+    TRACKER.track_run_pipeline()
     # Clear the memcache client, mainly to avoid memory overflow of
     # the internal hashmap.
     cache.clear_memcache_client()

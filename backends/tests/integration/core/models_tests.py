@@ -19,8 +19,9 @@ import mock
 from core import cache
 from core import models
 
-from tests import utils
+from tracking.model import init_tracking
 
+from tests import utils
 
 class TestPipelineWithJobs(utils.ModelTestCase):
 
@@ -32,6 +33,8 @@ class TestPipelineWithJobs(utils.ModelTestCase):
     self.testbed.init_taskqueue_stub()
     self.testbed.init_memcache_stub()
     self.testbed.init_app_identity_stub()
+    init_tracking(False)
+
 
   def tearDown(self):
     super(TestPipelineWithJobs, self).tearDown()

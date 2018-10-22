@@ -1,0 +1,1 @@
+SQLALCHEMY_DATABASE_URI="mysql+mysqldb://crmint:crmint@localhost:3306/crmintapp_test"

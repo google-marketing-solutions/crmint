@@ -22,6 +22,8 @@ from core import extensions
 from ibackend.app import create_app as ibackend_create_app
 from jbackend.app import create_app as jbackend_create_app
 
+from tracking.model import init_tracking
+
 
 class ModelTestCase(unittest.TestCase):
 
@@ -34,6 +36,7 @@ class ModelTestCase(unittest.TestCase):
     # Load tables schema & seed data
     database.init_db()
     database.load_fixtures()
+    init_tracking(False)
 
   def tearDown(self):
     # Ensure next test is in a clean state
@@ -56,6 +59,7 @@ class BaseTestCase(TestCase):
     # Load tables schema & seed data
     database.init_db()
     database.load_fixtures()
+    init_tracking(False)
 
   def tearDown(self):
     # Ensure next test is in a clean state
@@ -66,6 +70,7 @@ class BaseTestCase(TestCase):
 class IBackendBaseTest(BaseTestCase):
 
   def create_app(self):
+    init_tracking(False)
     api_blueprint = Api()
     app = ibackend_create_app(api_blueprint, config_object=self)
     app.config['TESTING'] = True
@@ -76,6 +81,7 @@ class IBackendBaseTest(BaseTestCase):
 class JBackendBaseTest(BaseTestCase):
 
   def create_app(self):
+    init_tracking(False)
     api_blueprint = Api()
     app = jbackend_create_app(api_blueprint, config_object=self)
     app.config['TESTING'] = True
