@@ -19,7 +19,7 @@ CRMint is a [Google App Engine](https://cloud.google.com/appengine/) application
 
 *   **Web application** - service name: `default`. The `default` service serves the static components that make up the CRMint user interface.
 *   **[CRMint interface API](#crmint-interface-api)** - service name: `api-service`: This provides the means for the CRMint user interface to interact with the core CRMint application.
-*   **CRMint Core** - service name `job-service`: This service performs the core actions of executing pipelines.
+*   **[CRMint Core](#crmint-core)** - service name `job-service`: This service performs the core actions of executing pipelines.
 
 ## Web application
 

@@ -31,9 +31,9 @@ This solution requires the following:
 
 1.  If you have not already, create a CRMint instance using the [quickstart](../quickstart/) guide.
 
-1.  Click **Import by template** and select the JSON file to create the new pipeline.
+1.  Click **Import from template** and select the JSON file to create the new pipeline.
 
-## CRMint configuration
+## Data pipeline configuration
 
 The following variables must be configured for this solution. Click on the newly-created pipeline
 then click **Edit** to access the variable configuration.
