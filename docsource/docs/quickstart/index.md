@@ -1,6 +1,7 @@
 ---
 bodyclass: docs
 layout: docs
+title: Deploy CRMint Quickstart
 headline: Deploy CRMint Quickstart
 sidenav: doc-side-quickstart-nav.html
 type: markdown
