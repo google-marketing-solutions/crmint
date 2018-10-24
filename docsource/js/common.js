@@ -48,6 +48,11 @@ $('#project-id').on('input',  function() {
   }
 });
 
+$('#cloudshell-url').on('click',  function() {
+  var cloudshellButton = document.getElementById('cloudshell-url');
+  ga('send', 'event', 'docs', 'deployment', 'quickstart');
+});
+
 // Array of videoIds
 // The key corresponds to the data attributes in docs/talks/index.html
 // TODO(jtattermusch): is there a way to not require editing this when adding new videos?
