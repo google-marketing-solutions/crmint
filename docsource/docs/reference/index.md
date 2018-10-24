@@ -2,6 +2,7 @@
 bodyclass: docs
 headline: CRMint workers reference
 layout: docs
+sidenav: doc-side-reference-nav.html
 type: markdown
 ---
 

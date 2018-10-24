@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="title" content="CRMint">
     <meta name="description" content="Design and execute pipelines that enable data flow between CRM, Google Cloud, Google Analytics, AdWords, and DoubleClick.">
-    <title>Guides</title>
+    <title>Customize</title>
 
     <script>
       (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
@@ -59,7 +59,7 @@
     <![endif]-->
 
     <!-- metadata -->
-    <meta name="og:title" content="crmint / Guides"/>
+    <meta name="og:title" content="crmint / Customize"/>
     <!-- <meta name="og:image" content="...png"/> -->
     <meta name="og:description" content="Design and execute pipelines that enable data flow between CRM, Google Cloud, Google Analytics, AdWords, and DoubleClick.."/>
   </head>
@@ -106,7 +106,7 @@
       <ul class="doc-list">
         <a href="/crmint/docs" ><li class="nav-doc-tab">Overview</li></a>
         <a href="/crmint/docs/quickstart" ><li class="nav-doc-tab">Quick Start</li></a>
-        <a href="/crmint/docs/guides" class='current'><li class="nav-doc-tab">Guides</li></a>
+        <a href="/crmint/docs/guides" ><li class="nav-doc-tab">Guides</li></a>
         <a href="/crmint/docs/tutorials" ><li class="nav-doc-tab">Tutorials</li></a>
         <a href="/crmint/docs/reference" ><li class="nav-doc-tab">Reference</li></a>
         <a href="/crmint/docs/samples" ><li class="nav-doc-tab">Samples</li></a>
@@ -164,7 +164,7 @@
       <ul class="doc-list">
         <a href="/crmint/docs" ><li class="nav-doc-tab">Overview</li></a>
         <a href="/crmint/docs/quickstart" ><li class="nav-doc-tab">Quick Start</li></a>
-        <a href="/crmint/docs/guides" class='current'><li class="nav-doc-tab">Guides</li></a>
+        <a href="/crmint/docs/guides" ><li class="nav-doc-tab">Guides</li></a>
         <a href="/crmint/docs/reference" ><li class="nav-doc-tab">Reference</li></a>
       </ul>
     </li>
@@ -174,7 +174,7 @@
     <div class="row">
       <div class="col-md-11 nofloat center-block">
         <div class="col-xs-12">
-          <h1 class="page-headline">What is CRMint?</h1> 
+          <h1 class="page-headline">CRMint architecture</h1> 
         </div>
       </div>
     </div>
@@ -193,8 +193,8 @@
 				<span class="doc-caret">></span>
 				<li class="tab"><a href="/crmint/docs/" >Overview</a></li>
 				<li class="tab"><a href="/crmint/docs/quickstart" >Quick Start</a></li>
-				<li class="tab"><a href="/crmint/docs/guides" class='current'>Guides</a></li>
-				<li class="tab"><a href="/crmint/docs/custom" >Customize</a></li>
+				<li class="tab"><a href="/crmint/docs/guides" >Guides</a></li>
+				<li class="tab"><a href="/crmint/docs/custom" class='current'>Customize</a></li>
 				<li class="tab"><a href="/crmint/docs/solutions" >Solutions</a></li>
 				<li class="tab"><a href="/crmint/docs/reference" >Reference</a></li>
 				<li class="tab"><a href="/crmint/docs/presentations" >Presentations &amp; Talks</a></li>
@@ -202,8 +202,8 @@
 			
 
 <div class="contribute-links">
-	<a href="/crmint/contribute#docs/guides/index.md">Contribution Guidelines</a>
-	<a href="https://github.com/google/crmint//edit/master/docs/guides/index.md"><p class="github">Edit <span class="file-name">index.md</span></p></a>
+	<a href="/crmint/contribute#docs/custom/index.md">Contribution Guidelines</a>
+	<a href="https://github.com/google/crmint//edit/master/docs/custom/index.md"><p class="github">Edit <span class="file-name">index.md</span></p></a>
 </div>
 		</div>
 	</div>
@@ -218,66 +218,57 @@
                     <div class="col-sm-3">
                         <ul class="doc-side-nav">
     
-    <li><h5 class="doc-side-nav-title">Guides</h5></li>
-    <li class="doc-side-nav-list-item"><a href="/crmint/docs/guides/index.html" >What is CRMint?</a></li>
-    <li class="doc-side-nav-list-item"><a href="/crmint/docs/guides/concepts.html" >CRMint Concepts</a></li>
-    <li class="doc-side-nav-list-item"><a href="/crmint/docs/guides/variables.html" >Variables and expressions</a></li>
+    <li><h5 class="doc-side-nav-title">Customize</h5></li>
+    <li class="doc-side-nav-list-item"><a href="/crmint/docs/custom/index.html" >Architecture overview</a></li>
+    <li class="doc-side-nav-list-item"><a href="/crmint/docs/custom/worker.html" >Writing a worker</a></li>
  </ul>
                     </div>
                     <div class="col-sm-7 markdown">
-                        <p>This document introduces you to CRMint, a general overview of use cases and key features of the product.</p>
+                        <p>This document describes the CRMint architecture, to enable a better understanding of how it works, and also as a start point for customizing and contributing to the code base.</p>
+
+<p>For more detail on pipelines, jobs, workers, and key concepts of what CRMint does, see the <a href="../guides/concepts.html">Concepts</a> guide.</p>
 
 <h2 id="overview">Overview</h2>
-<p>CRMint is a platform to help you bring your business data into Google Products. These products may generally be marketing-related products such as Google Ads and the Google Marketing Platform, but could also include Cloud products, for example.</p>
 
-<p><img src="../../img/overview.svg" alt="Overview" /></p>
+<p><img src="../../img/architecture.svg" alt="Overview" /></p>
 
-<h3 id="example-use-cases">Example use cases</h3>
-
-<p>Typical use cases for the CRMint platform include:</p>
+<p>CRMint is a <a href="https://cloud.google.com/appengine/">Google App Engine</a> application, comprising of 3 <em>services</em>:</p>
 
 <ul>
-  <li>Importing, transforming and building models from your CRM data for use in retargeting.</li>
-  <li>Automating the importing of offline conversions</li>
+  <li><strong>Web application</strong> - service name: <code class="highlighter-rouge">default</code>. The <code class="highlighter-rouge">default</code> service serves the static components that make up the CRMint user interface.</li>
+  <li><strong><a href="#crmint-interface-api">CRMint interface API</a></strong> - service name: <code class="highlighter-rouge">api-service</code>: This provides the means for the CRMint user interface to interact with the core CRMint application.</li>
+  <li><strong>CRMint Core</strong> - service name <code class="highlighter-rouge">job-service</code>: This service performs the core actions of executing pipelines.</li>
 </ul>
 
-<h2 id="the-role-of-crmint">The role of CRMint</h2>
+<h2 id="web-application">Web application</h2>
 
-<p>In this process of bringing your business data to Google products, CRMint can perform the following roles:</p>
+<p>The CRMint user interface is an Angular project, and can be found <a href="https://github.com/google/crmint/tree/master/frontend">here</a>.</p>
+
+<h2 id="crmint-interface-api">CRMint interface API</h2>
+
+<p>This service provides the means for the UI to interact with the CRMint core.</p>
+
+<p>This includes:</p>
 
 <ul>
-  <li><strong>Automation</strong>: Often data could be imported manually from sources such as your CRM or Google Analytics, however, CRMint enables you to automate this process, with flexible scheduling options.</li>
-  <li>
-    <p><strong>Transformation and pre-processing</strong>: Your business data may not be in the format or in the location required for your objectives.</p>
-
-    <p>CRMint allows you to define and run pipelines on your business data with reusable modules - there are many predefined modules for common actions such as exporting Google Analytics reports to BigQuery.</p>
-  </li>
-  <li>
-    <p><strong>Integration of multiple systems</strong>: Your business data may reside in multiple systems (CRM, Google Analytics) and you may with to combine it with other data (for example, performance statistics from BigQuery, reference data from Cloud Storage) before using this as an input to a Google Cloud ML</p>
-
-    <p>CRMint removes the complexity of integrating with these varied APIs, leaving you to concentrate on the actions taken on the data itself.</p>
-  </li>
+  <li>General settings</li>
+  <li>Global variables</li>
+  <li>Pipeline definitions</li>
+  <li>Job definitions</li>
+  <li>Worker definitions</li>
+  <li>Task execution</li>
 </ul>
 
-<h2 id="key-features-of-crmint">Key features of CRMint</h2>
+<p>The API is defined <a href="https://github.com/google/crmint/tree/master/backends/ibackend">here</a>.</p>
 
-<ul>
-  <li><strong>Easy to deploy</strong>: CRMint runs on Google Cloud and can be deployed quickly - see the <a href="../quickstart/">Quick start guide for details</a>.</li>
-  <li><strong>Cloud-based</strong>: CRMint requires no infrastructure on your part, with all aspects of the platform running in Google Cloud.</li>
-  <li><strong>Visual pipeline designer</strong>: Once deployed, pipelines can be designed and configured with CRMint’s easy-to-use user interface. All aspects of
-pipeline design, configuration and scheduling can be seen and modified in this way.</li>
-  <li><strong>Reusable pipelines</strong>: Pipeline can be exported and imported in JSON format, allowing for advanced editing, sharing and reuse.</li>
-  <li><strong>Reusable components</strong>: CRMint pipelines are built from re-usable <a href="../reference/worker_spec.html">worker components</a>, making it easy to plug-and-play as required.</li>
-  <li><strong>Open source</strong>: CRMint is open source. Users are encouraged to contribute components and pipelines which may be of valuable to others, and CRMint will continue to grow in functionality though this shared contribution!</li>
-</ul>
+<h2 id="crmint-core">CRMint Core</h2>
 
-<h3 id="whats-next">What’s next</h3>
+<p>The core CRMint service is defined <a href="https://github.com/google/crmint/tree/master/backends/jbackend">here</a>.
+Through use of the Task Queue and Cron, the execution of pipelines is controlled.</p>
 
-<ul>
-  <li><a href="concepts.html">Understand the CRMint concepts</a></li>
-  <li>Deploy an existing CRMint pipeline</li>
-  <li>Building a custom CRMint pipeline</li>
-</ul>
+<p>Individual tasks, invoked from the Task Queue, interact with the relevant APIs e.g. Google Analytics, Cloud Storage etc.</p>
+
+<p>Pipeline definitions and other settings are stored in the associated Cloud SQL instance.</p>
 
 
                     </div>

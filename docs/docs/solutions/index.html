@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="title" content="CRMint">
     <meta name="description" content="Design and execute pipelines that enable data flow between CRM, Google Cloud, Google Analytics, AdWords, and DoubleClick.">
-    <title></title>
+    <title>CRMint solution</title>
 
     <script>
       (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
@@ -59,7 +59,7 @@
     <![endif]-->
 
     <!-- metadata -->
-    <meta name="og:title" content="crmint / "/>
+    <meta name="og:title" content="crmint / CRMint solution"/>
     <!-- <meta name="og:image" content="...png"/> -->
     <meta name="og:description" content="Design and execute pipelines that enable data flow between CRM, Google Cloud, Google Analytics, AdWords, and DoubleClick.."/>
   </head>
@@ -108,7 +108,7 @@
         <a href="/crmint/docs/quickstart" ><li class="nav-doc-tab">Quick Start</li></a>
         <a href="/crmint/docs/guides" ><li class="nav-doc-tab">Guides</li></a>
         <a href="/crmint/docs/tutorials" ><li class="nav-doc-tab">Tutorials</li></a>
-        <a href="/crmint/docs/reference" class='current'><li class="nav-doc-tab">Reference</li></a>
+        <a href="/crmint/docs/reference" ><li class="nav-doc-tab">Reference</li></a>
         <a href="/crmint/docs/samples" ><li class="nav-doc-tab">Samples</li></a>
       </ul>
     </li>
@@ -165,7 +165,7 @@
         <a href="/crmint/docs" ><li class="nav-doc-tab">Overview</li></a>
         <a href="/crmint/docs/quickstart" ><li class="nav-doc-tab">Quick Start</li></a>
         <a href="/crmint/docs/guides" ><li class="nav-doc-tab">Guides</li></a>
-        <a href="/crmint/docs/reference" class='current'><li class="nav-doc-tab">Reference</li></a>
+        <a href="/crmint/docs/reference" ><li class="nav-doc-tab">Reference</li></a>
       </ul>
     </li>
     <li class="nav-item"><a href="/crmint/faq/" ><p>FAQ</p></a></li>
@@ -174,7 +174,7 @@
     <div class="row">
       <div class="col-md-11 nofloat center-block">
         <div class="col-xs-12">
-          <h1 class="page-headline">CRMint workers reference</h1> 
+          <h1 class="page-headline">CRMint solution</h1> 
         </div>
       </div>
     </div>
@@ -195,15 +195,15 @@
 				<li class="tab"><a href="/crmint/docs/quickstart" >Quick Start</a></li>
 				<li class="tab"><a href="/crmint/docs/guides" >Guides</a></li>
 				<li class="tab"><a href="/crmint/docs/custom" >Customize</a></li>
-				<li class="tab"><a href="/crmint/docs/solutions" >Solutions</a></li>
-				<li class="tab"><a href="/crmint/docs/reference" class='current'>Reference</a></li>
-				<li class="tab"><a href="/crmint/docs/talks" >Presentations &amp; Talks</a></li>
+				<li class="tab"><a href="/crmint/docs/solutions" class='current'>Solutions</a></li>
+				<li class="tab"><a href="/crmint/docs/reference" >Reference</a></li>
+				<li class="tab"><a href="/crmint/docs/presentations" >Presentations &amp; Talks</a></li>
 			</ul>
 			
 
 <div class="contribute-links">
-	<a href="/crmint/contribute#docs/reference/pipeline.md">Contribution Guidelines</a>
-	<a href="https://github.com/google/crmint//edit/master/docs/reference/pipeline.md"><p class="github">Edit <span class="file-name">pipeline.md</span></p></a>
+	<a href="/crmint/contribute#docs/solutions/index.md">Contribution Guidelines</a>
+	<a href="https://github.com/google/crmint//edit/master/docs/solutions/index.md"><p class="github">Edit <span class="file-name">index.md</span></p></a>
 </div>
 		</div>
 	</div>
@@ -212,369 +212,72 @@
 
 
         
-            
-            <div class="container markdown">
-                <div class="row">
-                    <div class="col-md-11 nofloat center-block ">
-                        <div class="col-sm-12">
-                            <p>Pipelines can be imported and exported in JSON format. This reference provides detail of the JSON document structure.</p>
+        <div class="container">
+            <div class="row">
+                <div class="col-md-11 nofloat center-block ">
+                    <div class="col-sm-3">
+                        <ul class="doc-side-nav doc-side-nav-solutions">
+    
+    <h5 class="doc-side-nav-title">Solutions</h5>
+    <li class="submenu">
+        <h6 class="arrow-r">General templates</h6>
+        <div class="submenu-content">
+            <a class="submenu-link " href="/crmint/docs/solutions/template.html">Example</a>
+        </div>
+    </li>
+    <li class="submenu">
+        <h6 class="arrow-r">Remarketing</h6>
+        <div class="submenu-content">
+            <a class="submenu-link " href="/crmint/docs/solutions/template.html">Example</a>
+        </div>
+    </li>
+    <li class="submenu">
+        <h6 class="arrow-r">Offline conversions</h6>
+        <div class="submenu-content">
+            <a class="submenu-link " href="/crmint/docs/solutions/template.html">Example</a>
+        </div>
+    </li>
+ </ul>
 
-<h3 id="pipeline">Pipeline</h3>
+                    </div>
+                    <div class="col-sm-7 markdown">
+                        <p>This following pipeline JSON configurations are provided to both:</p>
 
-<p>Defines a CRMint pipeline. This is the root object of a document for import.</p>
+<ul>
+  <li>Offer end-to-end solutions which may be used out of the box.</li>
+  <li>Demonstrate and inspire with examples of how CRMint can be used.</li>
+</ul>
 
-<table>
-  <tr>
-   <th><strong>Property</strong>
-   </th>
-   <th><strong>Type</strong>
-   </th>
-   <th><strong>Required</strong>
-   </th>
-   <th><strong>Description</strong>
-   </th>
-  </tr>
-  <tr>
-   <td>name
-   </td>
-   <td>string
-   </td>
-   <td>True
-   </td>
-   <td>The name of the pipeline.
-   </td>
-  </tr>
-  <tr>
-   <td>jobs
-   </td>
-   <td>
-    <a href="#job">Job</a>[]
-   </td>
-   <td>False
-   </td>
-   <td>A list of Job nodes which make up the execution graph of the pipeline.
-   </td>
-  </tr>
-  <tr>
-   <td>params
-   </td>
-   <td>
-    <a href="#variable">Variable</a>[]
-   </td>
-   <td>True
-   </td>
-   <td>A list of pipeline-level variables.
-   </td>
-  </tr>
-  <tr>
-   <td>run_on_schedule
-   </td>
-   <td>boolean
-   </td>
-   <td>False
-   </td>
-   <td>Whether the pipeline is scheduled
-   </td>
-  </tr>
-  <tr>
-   <td>schedules
-   </td>
-   <td>
-    <a href="#schedule">Schedule</a>[]
-   </td>
-   <td>True
-   </td>
-   <td>A list of Schedule definitions, for automated pipeline execution.
-   </td>
-  </tr>
-  <tr>
-   <td>emails_for_notifications
-   </td>
-   <td>string
-   </td>
-   <td>False
-   </td>
-   <td>A whitespace-delimited string of email addresses
-   </td>
-  </tr>
-</table>
+<p>The solutions are listed by category</p>
 
-<h3 id="job">Job</h3>
+<h2 id="general-pipelines">General pipelines</h2>
 
-<p>Defines a single worker node in the execution graph.</p>
+<ul>
+  <li><a href="template.html"><strong>A general data transformation pipeline</strong></a> - Demonstrates the key concepts of
+using CRMint to transfer and transform data.</li>
+</ul>
 
-<table>
-  <tr>
-   <th><strong>Property</strong>
-   </th>
-   <th><strong>Type</strong>
-   </th>
-   <th><strong>Required</strong>
-   </th>
-   <th><strong>Description</strong>
-   </th>
-  </tr>
-  <tr>
-   <td>id
-   </td>
-   <td>string
-   </td>
-   <td>True
-   </td>
-   <td>An ID to uniquely identify this node in the execution graph, such as a UUID.
-   </td>
-  </tr>
-  <tr>
-   <td>name
-   </td>
-   <td>string
-   </td>
-   <td>True
-   </td>
-   <td>A name to describe the purpose of this Job node.
-   </td>
-  </tr>
-  <tr>
-   <td>worker_class
-   </td>
-   <td>string
-   </td>
-   <td>True
-   </td>
-   <td>The node type for this job, for example: <code>BQQueryLauncher</code>
-    <br /><br />
-    See <a href="worker_spec.html">Worker specification</a>
-   </td>
-  </tr>
-  <tr>
-   <td>params
-   </td>
-   <td>
-    <a href="#param">Param</a>[]
-   </td>
-   <td>True
-   </td>
-   <td>A list of job-level parameters.
-   </td>
-  </tr>
-  <tr>
-   <td>hash_start_conditions
-   </td>
-   <td>
-    <a href="#startcondition">StartCondition</a>[]
-   </td>
-   <td>True
-   </td>
-   <td>A list of conditions for the job node to start execution, for example, successful execution of previous jobs in the graph. All must evaluate to true.
-   </td>
-  </tr>
-</table>
+<h2 id="remarketing">Remarketing</h2>
 
-<h3 id="variable">Variable</h3>
+<ul>
+  <li><a href="template.html"><strong>Remarketing using XYZ</strong></a> - An example of using data from XYZ combined with
+advertiser data to create an effective remarketing strategy.</li>
+</ul>
 
-<p>Defines a pipeline-level variable</p>
+<h2 id="offline-conversions">Offline conversions</h2>
 
-<table>
-  <tr>
-   <th><strong>Property</strong>
-   </th>
-   <th><strong>Type</strong>
-   </th>
-   <th><strong>Required</strong>
-   </th>
-   <th><strong>Description</strong>
-   </th>
-  </tr>
-  <tr>
-   <td>name
-   </td>
-   <td>string
-   </td>
-   <td>True
-   </td>
-   <td>The variable name.
-   </td>
-  </tr>
-  <tr>
-   <td>type
-   </td>
-   <td>string
-   </td>
-   <td>True
-   </td>
-   <td>The type. This should be set to <code>text</code>
-   </td>
-  </tr>
-  <tr>
-   <td>value
-   </td>
-   <td>string
-   </td>
-   <td>True
-   </td>
-   <td>The variable value.
-   </td>
-  </tr>
-</table>
+<ul>
+  <li><a href="template.html"><strong>Basic offline conversion import</strong></a> - Demonstrates how to use Google Analytics
+within CRMint to automate the importing of offline conversions.</li>
+</ul>
 
-<h3 id="schedule">Schedule</h3>
+                    </div>
 
-<p>Defines a frequency for automated execution</p>
-
-<table>
-  <tr>
-   <th><strong>Property</strong>
-   </th>
-   <th><strong>Type</strong>
-   </th>
-   <th><strong>Required</strong>
-   </th>
-   <th><strong>Description</strong>
-   </th>
-  </tr>
-  <tr>
-   <td>cron
-   </td>
-   <td>string
-   </td>
-   <td>True
-   </td>
-   <td>The <a href="https://crontab.guru/">cron specification</a>
-   </td>
-  </tr>
-</table>
-
-<h3 id="param">Param</h3>
-
-<p>A setting used as an input to a <a href="#job">Job</a> node.</p>
-
-<table>
-  <tr>
-   <th><strong>Property</strong>
-   </th>
-   <th><strong>Type</strong>
-   </th>
-   <th><strong>Required</strong>
-   </th>
-   <th><strong>Description</strong>
-   </th>
-  </tr>
-  <tr>
-   <td>name
-   </td>
-   <td>string
-   </td>
-   <td>True
-   </td>
-   <td>The variable name.
-   </td>
-  </tr>
-  <tr>
-   <td>type
-   </td>
-   <td>string
-   </td>
-   <td>True
-   </td>
-   <td>The type. Valid options include:<ul>
-
-<li><code>string</code></li>
-<li><code>sql</code></li>
-<li><code>number</code></li>
-<li><code>boolean</code></li></ul>
-
-   </td>
-  </tr>
-  <tr>
-   <td>value
-   </td>
-   <td>string
-   </td>
-   <td>True
-   </td>
-   <td>The variable value.
-   </td>
-  </tr>
-  <tr>
-   <td>description
-   </td>
-   <td>string
-   </td>
-   <td>False
-   </td>
-   <td>?
-   </td>
-  </tr>
-  <tr>
-   <td>label
-   </td>
-   <td>string
-   </td>
-   <td>False
-   </td>
-   <td>?
-   </td>
-  </tr>
-  <tr>
-   <td>is_required
-   </td>
-   <td>boolean
-   </td>
-   <td>False
-   </td>
-   <td>Whether the parameter is mandatory: Defaults to <code>false</code>.
-   </td>
-  </tr>
-</table>
-
-<h3 id="startcondition">StartCondition</h3>
-
-<p>Used to define the conditions under which a <a href="#job">Job</a> will start</p>
-
-<table>
-  <tr>
-   <th><strong>Property</strong>
-   </th>
-   <th><strong>Type</strong>
-   </th>
-   <th><strong>Required</strong>
-   </th>
-   <th><strong>Description</strong>
-   </th>
-  </tr>
-  <tr>
-   <td>preceding_job_id
-   </td>
-   <td>string
-   </td>
-   <td>True
-   </td>
-   <td>The ID of the job on which this condition depends
-   </td>
-  </tr>
-  <tr>
-   <td>condition
-   </td>
-   <td>string
-   </td>
-   <td>True
-   </td>
-   <td>Possible values are:<ul>
-
-<li><code>success</code></li>
-<li><code>fail</code></li>
-<li><code>whatever</code> - implies outcome is not important but the job referred to by <code>preceding_job_id</code> must have executed.</li></ul>
-
-   </td>
-  </tr>
-</table>
-
-  
-                        </div>
+                    <div id="toc" class="toc col-sm-2">
                     </div>
                 </div>
             </div>
-            
+        </div>
         
 
 
@@ -594,7 +297,7 @@
                     <li><a href="/crmint/docs/quickstart"><p>Quick Start</p></a></li>
                     <li><a href="/crmint/docs/guides"><p>Guides</p></a></li>
                     <li><a href="/crmint/docs/solutions"><p>Solutions</p></a></li>
-                    <li><a href="/crmint/docs/reference"><p>API Reference</p></a></li>
+                    <li><a href="/crmint/docs/reference"><p>Reference</p></a></li>
                 </ul>
             </div>
             <hr class="footer-sections" />
@@ -609,7 +312,7 @@
             <div class="col-md-5 col-sm-5 col-xs-12 footer-community">
                 <ul class="toggle">
                     <p class="right-link-headers">Community</p>
-                    <li><a href="https://github.com/grpc/" target="_blank"><p class="github community-links">Github</p></a></li>
+                    <li><a href="https://github.com/google/crmint" target="_blank"><p class="github community-links">Github</p></a></li>
                 </ul>
             </div>
         </div>

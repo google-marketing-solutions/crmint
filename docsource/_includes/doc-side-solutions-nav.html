@@ -1,0 +1,22 @@
+<ul class="doc-side-nav doc-side-nav-solutions">
+    {% assign current = page.url | downcase | split: '/' %}
+    <h5 class="doc-side-nav-title">Solutions</h5>
+    <li class="submenu">
+        <h6 class="arrow-r">General templates</h6>
+        <div class="submenu-content">
+            <a class="submenu-link {% if current[4] == 'template.html' %}active{% endif %}" href="{{ site.baseurl }}/docs/solutions/template.html">Example</a>
+        </div>
+    </li>
+    <li class="submenu">
+        <h6 class="arrow-r">Remarketing</h6>
+        <div class="submenu-content">
+            <a class="submenu-link {% if current[4] == 'remarketing.html' %}active{% endif %}" href="{{ site.baseurl }}/docs/solutions/template.html">Example</a>
+        </div>
+    </li>
+    <li class="submenu">
+        <h6 class="arrow-r">Offline conversions</h6>
+        <div class="submenu-content">
+            <a class="submenu-link {% if current[4] == 'offline.html' %}active{% endif %}" href="{{ site.baseurl }}/docs/solutions/template.html">Example</a>
+        </div>
+    </li>
+ </ul>

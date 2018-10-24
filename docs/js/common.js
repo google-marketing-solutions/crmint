@@ -53,42 +53,16 @@ $('#cloudshell-url').on('click',  function() {
   ga('send', 'event', 'docs', 'deployment', 'quickstart');
 });
 
-// Array of videoIds
-// The key corresponds to the data attributes in docs/talks/index.html
-// TODO(jtattermusch): is there a way to not require editing this when adding new videos?
-var playerInfoList = [
-    {type: 'yt', key: '5QH67PXNbaI'},
-    {type: 'yt', key: 'F2znfxn_5Hg'},
-    {type: 'yt', key: 'rf5fw_O4tnU'},
-    {type: 'yt', key: 'F2WYEFLTKEw'},
-    {type: 'yt', key: 'UZcvnApm81U'},
-    {type: 'yt', key: 'UOIJNygDNlE'}, 
-    {type: 'yt', key: 'nz-LcdoMYWA'}, 
-    {type: 'yt', key: 'sZx3oZt7LVg'}, 
-    {type: 'yt', key: 'RvUP7vX2P4s'}, 
-    {type: 'slideshare', key: 'https://www.slideshare.net/sujatatibre/g-rpc-talk-with-intel-3'}, 
-    {type: 'slideshare', key: 'https://www.slideshare.net/VarunTalwar4/grpc-design-and-implementation'},
-    {type: 'slideshare', key: 'https://www.slideshare.net/VarunTalwar4/grpc-overview'},
-    {type: 'slideshare', key: 'https://www.ustream.tv/recorded/86187859'}
-];  
-
 function createPlayer(key) {
   $('#player').append('<iframe id="ytplayer" type="text/html" width="640" height="390" src="https://www.youtube.com/embed/'+key+'" frameborder="0" allowfullscreen>');
 }
 
 // click event for presentations/talks in docs/talks
 $('.pt').on('click', function() {
-  var self = this,
-      video = playerInfoList.filter(function(obj) {
-        return obj.key == $(self).data('key'); 
-      })[0];
+  var self = this;
+  var video = $(self).data('key'); 
 
-
-  if (video.type == 'yt') {
-    createPlayer(video.key);
-  } else {
-    window.open(video.key);
-  }
+  createPlayer(video);
 
   resizePlayer();
   $('#player iframe').on('load', function() {

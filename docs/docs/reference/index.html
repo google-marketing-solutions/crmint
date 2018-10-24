@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="title" content="CRMint">
     <meta name="description" content="Design and execute pipelines that enable data flow between CRM, Google Cloud, Google Analytics, AdWords, and DoubleClick.">
-    <title>Guides</title>
+    <title></title>
 
     <script>
       (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
@@ -59,7 +59,7 @@
     <![endif]-->
 
     <!-- metadata -->
-    <meta name="og:title" content="crmint / Guides"/>
+    <meta name="og:title" content="crmint / "/>
     <!-- <meta name="og:image" content="...png"/> -->
     <meta name="og:description" content="Design and execute pipelines that enable data flow between CRM, Google Cloud, Google Analytics, AdWords, and DoubleClick.."/>
   </head>
@@ -106,9 +106,9 @@
       <ul class="doc-list">
         <a href="/crmint/docs" ><li class="nav-doc-tab">Overview</li></a>
         <a href="/crmint/docs/quickstart" ><li class="nav-doc-tab">Quick Start</li></a>
-        <a href="/crmint/docs/guides" class='current'><li class="nav-doc-tab">Guides</li></a>
+        <a href="/crmint/docs/guides" ><li class="nav-doc-tab">Guides</li></a>
         <a href="/crmint/docs/tutorials" ><li class="nav-doc-tab">Tutorials</li></a>
-        <a href="/crmint/docs/reference" ><li class="nav-doc-tab">Reference</li></a>
+        <a href="/crmint/docs/reference" class='current'><li class="nav-doc-tab">Reference</li></a>
         <a href="/crmint/docs/samples" ><li class="nav-doc-tab">Samples</li></a>
       </ul>
     </li>
@@ -164,8 +164,8 @@
       <ul class="doc-list">
         <a href="/crmint/docs" ><li class="nav-doc-tab">Overview</li></a>
         <a href="/crmint/docs/quickstart" ><li class="nav-doc-tab">Quick Start</li></a>
-        <a href="/crmint/docs/guides" class='current'><li class="nav-doc-tab">Guides</li></a>
-        <a href="/crmint/docs/reference" ><li class="nav-doc-tab">Reference</li></a>
+        <a href="/crmint/docs/guides" ><li class="nav-doc-tab">Guides</li></a>
+        <a href="/crmint/docs/reference" class='current'><li class="nav-doc-tab">Reference</li></a>
       </ul>
     </li>
     <li class="nav-item"><a href="/crmint/faq/" ><p>FAQ</p></a></li>
@@ -174,7 +174,7 @@
     <div class="row">
       <div class="col-md-11 nofloat center-block">
         <div class="col-xs-12">
-          <h1 class="page-headline">What is CRMint?</h1> 
+          <h1 class="page-headline">CRMint workers reference</h1> 
         </div>
       </div>
     </div>
@@ -193,17 +193,17 @@
 				<span class="doc-caret">></span>
 				<li class="tab"><a href="/crmint/docs/" >Overview</a></li>
 				<li class="tab"><a href="/crmint/docs/quickstart" >Quick Start</a></li>
-				<li class="tab"><a href="/crmint/docs/guides" class='current'>Guides</a></li>
+				<li class="tab"><a href="/crmint/docs/guides" >Guides</a></li>
 				<li class="tab"><a href="/crmint/docs/custom" >Customize</a></li>
 				<li class="tab"><a href="/crmint/docs/solutions" >Solutions</a></li>
-				<li class="tab"><a href="/crmint/docs/reference" >Reference</a></li>
+				<li class="tab"><a href="/crmint/docs/reference" class='current'>Reference</a></li>
 				<li class="tab"><a href="/crmint/docs/presentations" >Presentations &amp; Talks</a></li>
 			</ul>
 			
 
 <div class="contribute-links">
-	<a href="/crmint/contribute#docs/guides/index.md">Contribution Guidelines</a>
-	<a href="https://github.com/google/crmint//edit/master/docs/guides/index.md"><p class="github">Edit <span class="file-name">index.md</span></p></a>
+	<a href="/crmint/contribute#docs/reference/index.md">Contribution Guidelines</a>
+	<a href="https://github.com/google/crmint//edit/master/docs/reference/index.md"><p class="github">Edit <span class="file-name">index.md</span></p></a>
 </div>
 		</div>
 	</div>
@@ -218,66 +218,363 @@
                     <div class="col-sm-3">
                         <ul class="doc-side-nav">
     
-    <li><h5 class="doc-side-nav-title">Guides</h5></li>
-    <li class="doc-side-nav-list-item"><a href="/crmint/docs/guides/index.html" >What is CRMint?</a></li>
-    <li class="doc-side-nav-list-item"><a href="/crmint/docs/guides/concepts.html" >CRMint Concepts</a></li>
-    <li class="doc-side-nav-list-item"><a href="/crmint/docs/guides/variables.html" >Variables and expressions</a></li>
+    <li><h5 class="doc-side-nav-title">Reference</h5></li>
+    <li class="doc-side-nav-list-item"><a href="/crmint/docs/reference/index.html" >Pipeline reference</a></li>
+    <li class="doc-side-nav-list-item"><a href="/crmint/docs/reference/worker_spec.html" >Worker reference</a></li>
  </ul>
                     </div>
                     <div class="col-sm-7 markdown">
-                        <p>This document introduces you to CRMint, a general overview of use cases and key features of the product.</p>
+                        <p>Pipelines can be imported and exported in JSON format. This reference provides detail of the JSON document structure.</p>
 
-<h2 id="overview">Overview</h2>
-<p>CRMint is a platform to help you bring your business data into Google Products. These products may generally be marketing-related products such as Google Ads and the Google Marketing Platform, but could also include Cloud products, for example.</p>
+<h3 id="pipeline">Pipeline</h3>
 
-<p><img src="../../img/overview.svg" alt="Overview" /></p>
+<p>Defines a CRMint pipeline. This is the root object of a document for import.</p>
 
-<h3 id="example-use-cases">Example use cases</h3>
+<table>
+  <tr>
+   <th><strong>Property</strong>
+   </th>
+   <th><strong>Type</strong>
+   </th>
+   <th><strong>Required</strong>
+   </th>
+   <th><strong>Description</strong>
+   </th>
+  </tr>
+  <tr>
+   <td>name
+   </td>
+   <td>string
+   </td>
+   <td>True
+   </td>
+   <td>The name of the pipeline.
+   </td>
+  </tr>
+  <tr>
+   <td>jobs
+   </td>
+   <td>
+    <a href="#job">Job</a>[]
+   </td>
+   <td>False
+   </td>
+   <td>A list of Job nodes which make up the execution graph of the pipeline.
+   </td>
+  </tr>
+  <tr>
+   <td>params
+   </td>
+   <td>
+    <a href="#variable">Variable</a>[]
+   </td>
+   <td>True
+   </td>
+   <td>A list of pipeline-level variables.
+   </td>
+  </tr>
+  <tr>
+   <td>run_on_schedule
+   </td>
+   <td>boolean
+   </td>
+   <td>False
+   </td>
+   <td>Whether the pipeline is scheduled
+   </td>
+  </tr>
+  <tr>
+   <td>schedules
+   </td>
+   <td>
+    <a href="#schedule">Schedule</a>[]
+   </td>
+   <td>True
+   </td>
+   <td>A list of Schedule definitions, for automated pipeline execution.
+   </td>
+  </tr>
+  <tr>
+   <td>emails_for_notifications
+   </td>
+   <td>string
+   </td>
+   <td>False
+   </td>
+   <td>A whitespace-delimited string of email addresses
+   </td>
+  </tr>
+</table>
 
-<p>Typical use cases for the CRMint platform include:</p>
+<h3 id="job">Job</h3>
 
-<ul>
-  <li>Importing, transforming and building models from your CRM data for use in retargeting.</li>
-  <li>Automating the importing of offline conversions</li>
-</ul>
+<p>Defines a single worker node in the execution graph.</p>
 
-<h2 id="the-role-of-crmint">The role of CRMint</h2>
+<table>
+  <tr>
+   <th><strong>Property</strong>
+   </th>
+   <th><strong>Type</strong>
+   </th>
+   <th><strong>Required</strong>
+   </th>
+   <th><strong>Description</strong>
+   </th>
+  </tr>
+  <tr>
+   <td>id
+   </td>
+   <td>string
+   </td>
+   <td>True
+   </td>
+   <td>An ID to uniquely identify this node in the execution graph, such as a UUID.
+   </td>
+  </tr>
+  <tr>
+   <td>name
+   </td>
+   <td>string
+   </td>
+   <td>True
+   </td>
+   <td>A name to describe the purpose of this Job node.
+   </td>
+  </tr>
+  <tr>
+   <td>worker_class
+   </td>
+   <td>string
+   </td>
+   <td>True
+   </td>
+   <td>The node type for this job, for example: <code>BQQueryLauncher</code>
+    <br /><br />
+    See <a href="worker_spec.html">Worker specification</a>
+   </td>
+  </tr>
+  <tr>
+   <td>params
+   </td>
+   <td>
+    <a href="#param">Param</a>[]
+   </td>
+   <td>True
+   </td>
+   <td>A list of job-level parameters.
+   </td>
+  </tr>
+  <tr>
+   <td>hash_start_conditions
+   </td>
+   <td>
+    <a href="#startcondition">StartCondition</a>[]
+   </td>
+   <td>True
+   </td>
+   <td>A list of conditions for the job node to start execution, for example, successful execution of previous jobs in the graph. All must evaluate to true.
+   </td>
+  </tr>
+</table>
 
-<p>In this process of bringing your business data to Google products, CRMint can perform the following roles:</p>
+<h3 id="variable">Variable</h3>
 
-<ul>
-  <li><strong>Automation</strong>: Often data could be imported manually from sources such as your CRM or Google Analytics, however, CRMint enables you to automate this process, with flexible scheduling options.</li>
-  <li>
-    <p><strong>Transformation and pre-processing</strong>: Your business data may not be in the format or in the location required for your objectives.</p>
+<p>Defines a pipeline-level variable</p>
 
-    <p>CRMint allows you to define and run pipelines on your business data with reusable modules - there are many predefined modules for common actions such as exporting Google Analytics reports to BigQuery.</p>
-  </li>
-  <li>
-    <p><strong>Integration of multiple systems</strong>: Your business data may reside in multiple systems (CRM, Google Analytics) and you may with to combine it with other data (for example, performance statistics from BigQuery, reference data from Cloud Storage) before using this as an input to a Google Cloud ML</p>
+<table>
+  <tr>
+   <th><strong>Property</strong>
+   </th>
+   <th><strong>Type</strong>
+   </th>
+   <th><strong>Required</strong>
+   </th>
+   <th><strong>Description</strong>
+   </th>
+  </tr>
+  <tr>
+   <td>name
+   </td>
+   <td>string
+   </td>
+   <td>True
+   </td>
+   <td>The variable name.
+   </td>
+  </tr>
+  <tr>
+   <td>type
+   </td>
+   <td>string
+   </td>
+   <td>True
+   </td>
+   <td>The type. This should be set to <code>text</code>
+   </td>
+  </tr>
+  <tr>
+   <td>value
+   </td>
+   <td>string
+   </td>
+   <td>True
+   </td>
+   <td>The variable value.
+   </td>
+  </tr>
+</table>
 
-    <p>CRMint removes the complexity of integrating with these varied APIs, leaving you to concentrate on the actions taken on the data itself.</p>
-  </li>
-</ul>
+<h3 id="schedule">Schedule</h3>
 
-<h2 id="key-features-of-crmint">Key features of CRMint</h2>
+<p>Defines a frequency for automated execution</p>
 
-<ul>
-  <li><strong>Easy to deploy</strong>: CRMint runs on Google Cloud and can be deployed quickly - see the <a href="../quickstart/">Quick start guide for details</a>.</li>
-  <li><strong>Cloud-based</strong>: CRMint requires no infrastructure on your part, with all aspects of the platform running in Google Cloud.</li>
-  <li><strong>Visual pipeline designer</strong>: Once deployed, pipelines can be designed and configured with CRMint’s easy-to-use user interface. All aspects of
-pipeline design, configuration and scheduling can be seen and modified in this way.</li>
-  <li><strong>Reusable pipelines</strong>: Pipeline can be exported and imported in JSON format, allowing for advanced editing, sharing and reuse.</li>
-  <li><strong>Reusable components</strong>: CRMint pipelines are built from re-usable <a href="../reference/worker_spec.html">worker components</a>, making it easy to plug-and-play as required.</li>
-  <li><strong>Open source</strong>: CRMint is open source. Users are encouraged to contribute components and pipelines which may be of valuable to others, and CRMint will continue to grow in functionality though this shared contribution!</li>
-</ul>
+<table>
+  <tr>
+   <th><strong>Property</strong>
+   </th>
+   <th><strong>Type</strong>
+   </th>
+   <th><strong>Required</strong>
+   </th>
+   <th><strong>Description</strong>
+   </th>
+  </tr>
+  <tr>
+   <td>cron
+   </td>
+   <td>string
+   </td>
+   <td>True
+   </td>
+   <td>The <a href="https://crontab.guru/">cron specification</a>
+   </td>
+  </tr>
+</table>
 
-<h3 id="whats-next">What’s next</h3>
+<h3 id="param">Param</h3>
 
-<ul>
-  <li><a href="concepts.html">Understand the CRMint concepts</a></li>
-  <li>Deploy an existing CRMint pipeline</li>
-  <li>Building a custom CRMint pipeline</li>
-</ul>
+<p>A setting used as an input to a <a href="#job">Job</a> node.</p>
+
+<table>
+  <tr>
+   <th><strong>Property</strong>
+   </th>
+   <th><strong>Type</strong>
+   </th>
+   <th><strong>Required</strong>
+   </th>
+   <th><strong>Description</strong>
+   </th>
+  </tr>
+  <tr>
+   <td>name
+   </td>
+   <td>string
+   </td>
+   <td>True
+   </td>
+   <td>The variable name.
+   </td>
+  </tr>
+  <tr>
+   <td>type
+   </td>
+   <td>string
+   </td>
+   <td>True
+   </td>
+   <td>The type. Valid options include:<ul>
+
+<li><code>string</code></li>
+<li><code>sql</code></li>
+<li><code>number</code></li>
+<li><code>boolean</code></li></ul>
+
+   </td>
+  </tr>
+  <tr>
+   <td>value
+   </td>
+   <td>string
+   </td>
+   <td>True
+   </td>
+   <td>The variable value.
+   </td>
+  </tr>
+  <tr>
+   <td>description
+   </td>
+   <td>string
+   </td>
+   <td>False
+   </td>
+   <td>?
+   </td>
+  </tr>
+  <tr>
+   <td>label
+   </td>
+   <td>string
+   </td>
+   <td>False
+   </td>
+   <td>?
+   </td>
+  </tr>
+  <tr>
+   <td>is_required
+   </td>
+   <td>boolean
+   </td>
+   <td>False
+   </td>
+   <td>Whether the parameter is mandatory: Defaults to <code>false</code>.
+   </td>
+  </tr>
+</table>
+
+<h3 id="startcondition">StartCondition</h3>
+
+<p>Used to define the conditions under which a <a href="#job">Job</a> will start</p>
+
+<table>
+  <tr>
+   <th><strong>Property</strong>
+   </th>
+   <th><strong>Type</strong>
+   </th>
+   <th><strong>Required</strong>
+   </th>
+   <th><strong>Description</strong>
+   </th>
+  </tr>
+  <tr>
+   <td>preceding_job_id
+   </td>
+   <td>string
+   </td>
+   <td>True
+   </td>
+   <td>The ID of the job on which this condition depends
+   </td>
+  </tr>
+  <tr>
+   <td>condition
+   </td>
+   <td>string
+   </td>
+   <td>True
+   </td>
+   <td>Possible values are:<ul>
+
+<li><code>success</code></li>
+<li><code>fail</code></li>
+<li><code>whatever</code> - implies outcome is not important but the job referred to by <code>preceding_job_id</code> must have executed.</li></ul>
+
+   </td>
+  </tr>
+</table>
 
 
                     </div>
