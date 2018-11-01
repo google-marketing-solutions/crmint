@@ -1,0 +1,47 @@
+// Background for nav and hero
+.nav-hero-container {
+  //background: url('../img/hero-bg.png') no-repeat center/cover; 
+  z-index: 9010;
+  position: relative;
+  background-color: #33ccccff;
+}
+
+// Landing page hero
+.hero {
+  padding-bottom: 60px;
+  position: relative;
+  text-align: center;
+
+  @media (min-width: $tablet) {
+    padding-bottom: 75px;
+  }
+
+  .logo-text {
+    font-size: $font-size--uber;
+    color: white;
+    margin: $spacing--xl 0;
+    font-weight: 500;
+    vertical-align: middle;
+    padding-left: $spacing--xl;
+    padding-right: $spacing--xl;
+  }
+
+  .logo-container {
+    border-radius: 1px;
+    border: 0px solid $white;
+    margin-bottom: $spacing--l;
+    margin-top: $spacing--l;
+    padding: $spacing--xl;
+    display:inline-block;
+    text-align:center;
+  }
+
+  .hero-lead {
+    color: $white;
+    display: block;
+    font-size: 18px;
+    margin-top: 0;
+    margin-bottom: $spacing--l;
+    font-weight: 700;
+  }
+}

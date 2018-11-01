@@ -1,0 +1,7 @@
+<ul class="doc-side-nav">
+    {% assign current = page.url | downcase | split: '/' %}
+    <li><h5 class="doc-side-nav-title">Guides</h5></li>
+    <li class="doc-side-nav-list-item"><a href="{{ site.baseurl }}/docs/guides/index.html" {% if current[3] == 'index.html' %}class='current'{% endif %}>What is CRMint?</a></li>
+    <li class="doc-side-nav-list-item"><a href="{{ site.baseurl }}/docs/guides/concepts.html" {% if current[3] == 'concepts.html' %}class='current'{% endif %}>CRMint Concepts</a></li>
+    <li class="doc-side-nav-list-item"><a href="{{ site.baseurl }}/docs/guides/variables.html" {% if current[3] == 'variables.html' %}class='current'{% endif %}>Variables and expressions</a></li>
+ </ul>

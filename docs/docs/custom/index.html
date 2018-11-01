@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="title" content="CRMint">
     <meta name="description" content="Design and execute pipelines that enable data flow between CRM, Google Cloud, Google Analytics, AdWords, and DoubleClick.">
-    <title>Overview</title>
+    <title>Customize</title>
 
     <script>
       (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
@@ -59,7 +59,7 @@
     <![endif]-->
 
     <!-- metadata -->
-    <meta name="og:title" content="crmint / Overview"/>
+    <meta name="og:title" content="crmint / Customize"/>
     <!-- <meta name="og:image" content="...png"/> -->
     <meta name="og:description" content="Design and execute pipelines that enable data flow between CRM, Google Cloud, Google Analytics, AdWords, and DoubleClick.."/>
   </head>
@@ -104,7 +104,7 @@
     <li class="nav-item"><a href="/crmint/docs/" class='current'><p>Docs</p></a>
       <div class="nav-doc-toggle icon-caret"></div>
       <ul class="doc-list">
-        <a href="/crmint/docs" class='current'><li class="nav-doc-tab">Overview</li></a>
+        <a href="/crmint/docs" ><li class="nav-doc-tab">Overview</li></a>
         <a href="/crmint/docs/quickstart" ><li class="nav-doc-tab">Quick Start</li></a>
         <a href="/crmint/docs/guides" ><li class="nav-doc-tab">Guides</li></a>
         <a href="/crmint/docs/tutorials" ><li class="nav-doc-tab">Tutorials</li></a>
@@ -162,7 +162,7 @@
     <li class="nav-item"><a href="/crmint/docs/" class='current'><p>Docs</p></a>
       <div class="nav-doc-toggle icon-caret"></div>
       <ul class="doc-list">
-        <a href="/crmint/docs" class='current'><li class="nav-doc-tab">Overview</li></a>
+        <a href="/crmint/docs" ><li class="nav-doc-tab">Overview</li></a>
         <a href="/crmint/docs/quickstart" ><li class="nav-doc-tab">Quick Start</li></a>
         <a href="/crmint/docs/guides" ><li class="nav-doc-tab">Guides</li></a>
         <a href="/crmint/docs/reference" ><li class="nav-doc-tab">Reference</li></a>
@@ -174,7 +174,7 @@
     <div class="row">
       <div class="col-md-11 nofloat center-block">
         <div class="col-xs-12">
-          <h1 class="page-headline">Documentation</h1> 
+          <h1 class="page-headline">CRMint architecture</h1> 
         </div>
       </div>
     </div>
@@ -191,10 +191,10 @@
 				
 				<li class="tab docs-tab"><a href="/crmint/docs/">Docs</a></li>
 				<span class="doc-caret">></span>
-				<li class="tab"><a href="/crmint/docs/" class='current'>Overview</a></li>
+				<li class="tab"><a href="/crmint/docs/" >Overview</a></li>
 				<li class="tab"><a href="/crmint/docs/quickstart" >Quick Start</a></li>
 				<li class="tab"><a href="/crmint/docs/guides" >Guides</a></li>
-				<li class="tab"><a href="/crmint/docs/custom" >Customize</a></li>
+				<li class="tab"><a href="/crmint/docs/custom" class='current'>Customize</a></li>
 				<li class="tab"><a href="/crmint/docs/solutions" >Solutions</a></li>
 				<li class="tab"><a href="/crmint/docs/reference" >Reference</a></li>
 				<li class="tab"><a href="/crmint/docs/presentations" >Presentations &amp; Talks</a></li>
@@ -202,8 +202,8 @@
 			
 
 <div class="contribute-links">
-	<a href="/crmint/contribute#docs/index.html">Contribution Guidelines</a>
-	<a href="https://github.com/google/crmint//edit/master/docs/index.html"><p class="github">Edit <span class="file-name">index.html</span></p></a>
+	<a href="/crmint/contribute#docs/custom/index.md">Contribution Guidelines</a>
+	<a href="https://github.com/google/crmint//edit/master/docs/custom/index.md"><p class="github">Edit <span class="file-name">index.md</span></p></a>
 </div>
 		</div>
 	</div>
@@ -212,54 +212,72 @@
 
 
         
-            
-                <div class="container">
-  <div class="row">
-    <div class="col-md-11 nofloat center-block">
-      <p class="lead col-sm-8">Welcome to the technical documentation for CRMint.
-      Here you can learn about key CRMint concepts, find quick starts, reference
-      material, and more.</p>
-      <p class="lead col-sm-8">If you’re new to CRMint we recommend that you read <a href="guides/"><b>What is
-      CRMint?</b></a> to find out more about our system and how it works. Or, if you want to see CRMint in action first, visit the <a href="quickstart/">QuickStart</a>. </p>
+        <div class="container">
+            <div class="row">
+                <div class="col-md-11 nofloat center-block ">
+                    <div class="col-sm-3">
+                        <ul class="doc-side-nav">
+    
+    <li><h5 class="doc-side-nav-title">Customize</h5></li>
+    <li class="doc-side-nav-list-item"><a href="/crmint/docs/custom/index.html" >Architecture overview</a></li>
+    <li class="doc-side-nav-list-item"><a href="/crmint/docs/custom/worker.html" >Writing a worker</a></li>
+ </ul>
+                    </div>
+                    <div class="col-sm-7 markdown">
+                        <p>This document describes the CRMint architecture, to enable a better understanding of how it works, and also as a start point for customizing and contributing to the code base.</p>
 
-      <h2 class="col-sm-8 doc-header">What do you want to do?</h2>
-      <div class="lang-card-selector col-xs-12">
-        <div class="lang-card">
-          <div class="lang-card-title">Quick starts</div>
-          <a class="lang-card-link" href="quickstart/index.html">Try deploying CRMint</a>
-        </div>
-        <div class="lang-card">
-          <div class="lang-card-title">Guides</div>
-          <a class="lang-card-link" href="guides/index.html">What is CRMint?</a>
-          <a class="lang-card-link" href="guides/concepts.html">CRMint concepts</a>
-          <a class="lang-card-link" href="guides/variables.html">Variables &amp; expressions</a>
-        </div>
-        <div class="lang-card">
-          <div class="lang-card-title">Customizing CRMint</div>
-          <a class="lang-card-link" href="custom/index.html">Architecture overview</a>
-          <a class="lang-card-link" href="custom/worker.html">Writing a CRMint worker</a>
-        </div>
-        <div class="lang-card">
-          <div class="lang-card-title">Solutions</div>
-          <a class="lang-card-link" href="solutions/index.html#general-pipelines">General pipelines</a>
-          <a class="lang-card-link" href="solutions/index.html#remarketing">Remarketing</a>
-          <a class="lang-card-link" href="solutions/index.html#offline-conversions">Offline conversions</a>
-        </div>
-        <div class="lang-card">
-          <div class="lang-card-title">Reference</div>
-          <a class="lang-card-link" href="reference/index.html">Pipeline JSON Reference</a>
-          <a class="lang-card-link" href="reference/worker_spec.html">Worker Reference</a>
-        </div>
-        <div class="lang-card">
-          <div class="lang-card-title">Presentations &amp; case-studies</div>
-          <a class="lang-card-link" href="presentations/index.html">Case studies</a>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
+<p>For more detail on pipelines, jobs, workers, and key concepts of what CRMint does, see the <a href="../guides/concepts.html">Concepts</a> guide.</p>
 
-            
+<h2 id="overview">Overview</h2>
+
+<p><img src="../../img/architecture.svg" alt="Overview" /></p>
+
+<p>CRMint is a <a href="https://cloud.google.com/appengine/">Google App Engine</a> application, comprising of 3 <em>services</em>:</p>
+
+<ul>
+  <li><strong>Web application</strong> - service name: <code class="highlighter-rouge">default</code>. The <code class="highlighter-rouge">default</code> service serves the static components that make up the CRMint user interface.</li>
+  <li><strong><a href="#crmint-interface-api">CRMint interface API</a></strong> - service name: <code class="highlighter-rouge">api-service</code>: This provides the means for the CRMint user interface to interact with the core CRMint application.</li>
+  <li><strong><a href="#crmint-core">CRMint Core</a></strong> - service name <code class="highlighter-rouge">job-service</code>: This service performs the core actions of executing pipelines.</li>
+</ul>
+
+<h2 id="web-application">Web application</h2>
+
+<p>The CRMint user interface is an Angular project, and can be found <a href="https://github.com/google/crmint/tree/master/frontend">here</a>.</p>
+
+<h2 id="crmint-interface-api">CRMint interface API</h2>
+
+<p>This service provides the means for the UI to interact with the CRMint core.</p>
+
+<p>This includes:</p>
+
+<ul>
+  <li>General settings</li>
+  <li>Global variables</li>
+  <li>Pipeline definitions</li>
+  <li>Job definitions</li>
+  <li>Worker definitions</li>
+  <li>Task execution</li>
+</ul>
+
+<p>The API is defined <a href="https://github.com/google/crmint/tree/master/backends/ibackend">here</a>.</p>
+
+<h2 id="crmint-core">CRMint Core</h2>
+
+<p>The core CRMint service is defined <a href="https://github.com/google/crmint/tree/master/backends/jbackend">here</a>.
+Through use of the Task Queue and Cron, the execution of pipelines is controlled.</p>
+
+<p>Individual tasks, invoked from the Task Queue, interact with the relevant APIs e.g. Google Analytics, Cloud Storage etc.</p>
+
+<p>Pipeline definitions and other settings are stored in the associated Cloud SQL instance.</p>
+
+
+                    </div>
+
+                    <div id="toc" class="toc col-sm-2">
+                    </div>
+                </div>
+            </div>
+        </div>
         
 
 

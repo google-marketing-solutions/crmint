@@ -1,0 +1,16 @@
+kramdown:
+  input: GFM
+  hard_wrap: false
+  parse_block_html: true
+
+markdown:
+  kramdown
+
+baseurl: /crmint
+
+githuburl: https://github.com/google/crmint/
+
+googleanalytics: UA-127959147-1
+
+sass:
+  style: compressed
