@@ -240,7 +240,7 @@
 
 <p>If the table has a column with a name not matching a valid Measurement Protocol parameter, it will be sent as a non-existing parameter, resulting in an invalid Measurement Protocol hit. The idea behind this is to not interfere with what a user wants to send as Measurement Protocol hit: we’re neither validating, nor transforming parameters and their names.</p>
 
-<p>The only exception is made for the names of repeated parameters: for those we <em>unfold</em> array fields to params named like <code class="highlighter-rouge">&lt;field_name&gt;&lt;array_element_idex&gt;</code>.</p>
+<p>The only exception is made for the names of repeated parameters: for those we <em>unfold</em> array fields to params named like <code class="highlighter-rouge">&lt;field_name&gt;&lt;array_element_index&gt;</code>.</p>
 
 <p>For example, for multiple <a href="https://developers.google.com/analytics/devguides/collection/protocol/v1/parameters#cg_">Content Groups</a> you can either:</p>
 
@@ -251,7 +251,7 @@
 
 <p>All of this is to support Enhanced E-Commerce <a href="https://developers.google.com/analytics/devguides/collection/protocol/v1/parameters#il_nm">Product Impressions lists</a> and <a href="https://developers.google.com/analytics/devguides/collection/protocol/v1/parameters#pr_id">Product Lists</a>.</p>
 
-<p>Structures are  unfolded the same way as arrays are, but using structure keys instead of array indices.</p>
+<p>Structures are  unfolded the same way as arrays are, but using structure keys instead of array indices. Arrays and structures are unfolded recursively to the full nesting depth.</p>
 
 <p>Consider this example data row from a BigQuery table represented in JSON:</p>
 

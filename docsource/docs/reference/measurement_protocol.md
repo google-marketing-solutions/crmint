@@ -19,7 +19,7 @@ The only parameter that can be omitted is `v` — the Measurement Protocol versi
 
 If the table has a column with a name not matching a valid Measurement Protocol parameter, it will be sent as a non-existing parameter, resulting in an invalid Measurement Protocol hit. The idea behind this is to not interfere with what a user wants to send as Measurement Protocol hit: we're neither validating, nor transforming parameters and their names.
 
-The only exception is made for the names of repeated parameters: for those we *unfold* array fields to params named like `<field_name><array_element_idex>`.
+The only exception is made for the names of repeated parameters: for those we *unfold* array fields to params named like `<field_name><array_element_index>`.
 
 For example, for multiple [Content Groups](https://developers.google.com/analytics/devguides/collection/protocol/v1/parameters#cg_) you can either:
 
@@ -28,7 +28,7 @@ For example, for multiple [Content Groups](https://developers.google.com/analyti
 
 All of this is to support Enhanced E-Commerce [Product Impressions lists](https://developers.google.com/analytics/devguides/collection/protocol/v1/parameters#il_nm) and [Product Lists](https://developers.google.com/analytics/devguides/collection/protocol/v1/parameters#pr_id).
 
-Structures are  unfolded the same way as arrays are, but using structure keys instead of array indices.
+Structures are  unfolded the same way as arrays are, but using structure keys instead of array indices. Arrays and structures are unfolded recursively to the full nesting depth.
 
 Consider this example data row from a BigQuery table represented in JSON:
 
