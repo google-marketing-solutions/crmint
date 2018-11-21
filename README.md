@@ -20,6 +20,9 @@ CRMint has simple and intuitive web UI that allows users to create, edit, run,
 and schedule data pipelines consisting of data transfer and data processing
 jobs.
 
+> This README is for building and extending CRMint as a developer. For guidance
+> on using CRMint, refer to the [User documentation](https://google.github.io/crmint)
+
 CRMint is a [Google App Engine](https://cloud.google.com/appengine/) application
 written in Python for [Google App Engine Python Standard
 Environment](https://cloud.google.com/appengine/docs/standard/python/). CRMint
