@@ -104,7 +104,7 @@ if gcloud sql users list --instance="$db_instance_name" 2>/dev/null | egrep -q "
 else
   echo -e "$BLUE==>$NONE$BOLD Creating MySQL user$NONE"
 
-  gcloud sql users create $db_username % --instance $db_instance_name \
+  gcloud sql users create $db_username --host % --instance $db_instance_name \
     --password $db_password --project $project_id_gae --quiet
 fi
 # ------------------------- END CREATE MYSQL USER ----------------------------
