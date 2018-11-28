@@ -942,13 +942,10 @@ class BQMLTrainer(BQWorker):
       ('bq_project_id', 'string', False, '', 'BQ Project ID'),
   ]
 
-  def _bq_setup(self):
-    self._client = self._get_client()
-    self._job_name = '%i_%i_%s_%s' % (self._pipeline_id, self._job_id,
-                                      self.__class__.__name__, uuid.uuid4())
-
   def _execute(self):
-    self._bq_setup()
-    job = self._client.run_async_query(self._job_name, self._params['query'])
+    client = self._get_client()
+    job_name = '%i_%i_%s_%s' % (self._pipeline_id, self._job_id,
+                                self.__class__.__name__, uuid.uuid4())
+    job = client.run_async_query(job_name, self._params['query'])
     job.use_legacy_sql = False
     self._begin_and_wait(job)
