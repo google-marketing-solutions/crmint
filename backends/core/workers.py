@@ -39,6 +39,7 @@ from google.cloud.exceptions import ClientError
 _KEY_FILE = os.path.join(os.path.dirname(__file__), '..', 'data',
                          'service-account.json')
 AVAILABLE = (
+    'BQMLTrainer',
     'BQQueryLauncher',
     'BQToMeasurementProtocol',
     'BQToStorageExporter',
@@ -931,3 +932,20 @@ class BQToMeasurementProtocolProcessor(BQWorker, MeasurementProtocolWorker):
         page_token=page_token)
     query_first_page = next(query_iterator.pages)
     self._process_query_results(query_first_page, query_iterator.schema)
+
+
+class BQMLTrainer(BQWorker):
+  """Worker to run BQML SQL queries in BigQuery."""
+
+  PARAMS = [
+      ('query', 'sql', True, '', 'Query'),
+      ('bq_project_id', 'string', False, '', 'BQ Project ID'),
+  ]
+
+  def _execute(self):
+    client = self._get_client()
+    job_name = '%i_%i_%s_%s' % (self._pipeline_id, self._job_id,
+                                self.__class__.__name__, uuid.uuid4())
+    job = client.run_async_query(job_name, self._params['query'])
+    job.use_legacy_sql = False
+    self._begin_and_wait(job)
