@@ -39,6 +39,7 @@ from google.cloud.exceptions import ClientError
 _KEY_FILE = os.path.join(os.path.dirname(__file__), '..', 'data',
                          'service-account.json')
 AVAILABLE = (
+    'BQMLTrainer',
     'BQQueryLauncher',
     'BQToMeasurementProtocol',
     'BQToStorageExporter',
@@ -49,9 +50,6 @@ AVAILABLE = (
     'MLPredictor',
     'StorageCleaner',
     'StorageToBQImporter',
-    'Commenter',
-    'BQToMeasurementProtocol',
-    'BQMLTrainer',
 )
 
 # Defines how many times to retry on failure, default to 5 times.
