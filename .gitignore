@@ -42,3 +42,6 @@ docs/_build
 # Generate _site locally now owing to custom plugins
 # **/_site
 **/.sass-cache
+
+# Python modules
+*.egg-info
