@@ -92,7 +92,7 @@ class TestPipelineWithJobs(utils.ModelTestCase):
     self.assertEqual(pipeline.status, models.Pipeline.STATUS.RUNNING)
 
   @mock.patch('core.cloud_logging.logger')
-  def test_start_fails_with_one_job_not_getting_ready(self, patched_logger):
+  def test_start_fails_with_pipeline_not_getting_ready(self, patched_logger):
     patched_logger.log_struct.__name__ = 'foo'
     pipeline = models.Pipeline.create()
     job1 = models.Job.create(pipeline_id=pipeline.id)
@@ -101,6 +101,19 @@ class TestPipelineWithJobs(utils.ModelTestCase):
         name='field1',
         type='number',
         value='{% ABC %}')  # initialize with a non-boolean value
+    self.assertEqual(pipeline.status, models.Pipeline.STATUS.IDLE)
+    result = pipeline.start()
+    self.assertEqual(result, False)
+    self.assertEqual(pipeline.status, models.Pipeline.STATUS.IDLE)
+
+  @mock.patch('core.cloud_logging.logger')
+  def test_start_fails_with_one_job_not_getting_ready(self, patched_logger):
+    patched_logger.log_struct.__name__ = 'foo'
+    pipeline = models.Pipeline.create()
+    # initialize a job with a non-active status
+    job1 = models.Job.create(pipeline_id=pipeline.id,
+                             status=models.Job.STATUS.RUNNING)
+    models.Param.create(job_id=job1.id, name='field1', type='number', value='3')
     self.assertEqual(pipeline.status, models.Pipeline.STATUS.IDLE)
     result = pipeline.start()
     self.assertEqual(result, False)

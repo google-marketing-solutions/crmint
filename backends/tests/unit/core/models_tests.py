@@ -125,6 +125,20 @@ class TestPipeline(utils.ModelTestCase):
     pipeline = models.Pipeline.create(status=models.Pipeline.STATUS.FAILED)
     self.assertFalse(pipeline.is_blocked())
 
+  def test_params_runtime_values_are_populated_successfully(self):
+    pipeline = models.Pipeline.create(name='pipeline1')
+    job = models.Job.create(name='job1', pipeline_id=pipeline.id)
+    p1 = models.Param.create(name='P1', type='string', value='foo')
+    p2 = models.Param.create(name='P2', type='string', value='bar')
+    p3 = models.Param.create(pipeline_id=pipeline.id, name='P2', type='string',
+                             value='baz')
+    p4 = models.Param.create(pipeline_id=pipeline.id, name='P3', type='string',
+                             value='goo')
+    p5 = models.Param.create(job_id=job.id, name='P3', type='string',
+                             value='{% P1 %} {% P2 %} {% P3 %} zaz')
+    success = pipeline.populate_params_runtime_values()
+    self.assertEqual(success, True)
+    self.assertEqual(p5.runtime_value, 'foo baz goo zaz')
 
 class TestJob(utils.ModelTestCase):
 
@@ -140,18 +154,6 @@ class TestJob(utils.ModelTestCase):
   def tearDown(self):
     super(TestJob, self).tearDown()
     self.testbed.deactivate()
-
-  @mock.patch('core.cloud_logging.logger')
-  def test_job_fails_get_ready_without_pipeline_param(self, patched_logger):
-    patched_logger.log_struct.__name__ = 'foo'
-    pipeline = models.Pipeline.create()
-    job1 = models.Job.create(pipeline_id=pipeline.id)
-    models.Param.create(
-        job_id=job1.id,
-        name='field1',
-        type='number',
-        value='{% ABC %}')  # initialize with a non-number value
-    self.assertFalse(job1.get_ready())
 
   def test_job_succeeds_get_ready_with_pipeline_parameter(self):
     pipeline = models.Pipeline.create()
@@ -233,87 +235,152 @@ class TestParam(utils.ModelTestCase):
     pass
 
 
-class TestParamSupportsTypeBoolean(utils.ModelTestCase):
+class TestParamSupportsType(utils.ModelTestCase):
 
-    def test_val_succeeds_true(self):
-      param = models.Param.create(name='p1', type='boolean', value='1')
-      self.assertEqual(param.val, True)
+  def _setup_parent_job(self):
+    pipeline = models.Pipeline.create(name='pipeline1')
+    self.job = models.Job.create(name='job1', pipeline_id=pipeline.id)
 
-    def test_val_succeeds_false(self):
-      param = models.Param.create(name='p1', type='boolean', value='0')
-      self.assertEqual(param.val, False)
+class TestParamSupportsTypeBoolean(TestParamSupportsType):
 
-    def test_val_fails_random_string(self):
-      param = models.Param.create(name='p1', type='boolean', value='abc')
-      self.assertEqual(param.val, False)
+  def test_worker_value_succeeds_true(self):
+    self._setup_parent_job()
+    param = models.Param.create(
+        job_id=self.job.id, name='p1', type='boolean', value='1')
+    param.populate_runtime_value()
+    self.assertEqual(param.worker_value, True)
 
-    def test_api_val_succeeds_true(self):
-      param = models.Param.create(name='p1', type='boolean', value='1')
-      self.assertEqual(param.api_val, True)
+  def test_worker_value_succeeds_false(self):
+    self._setup_parent_job()
+    param = models.Param.create(
+        job_id=self.job.id, name='p1', type='boolean', value='0')
+    param.populate_runtime_value()
+    self.assertEqual(param.worker_value, False)
 
-    def test_api_val_succeeds_false(self):
-      param = models.Param.create(name='p1', type='boolean', value='0')
-      self.assertEqual(param.api_val, False)
+  def test_worker_value_fails_random_string(self):
+    self._setup_parent_job()
+    param = models.Param.create(
+        job_id=self.job.id, name='p1', type='boolean', value='abc')
+    param.populate_runtime_value()
+    self.assertEqual(param.worker_value, False)
 
+  def test_api_value_succeeds_true(self):
+    self._setup_parent_job()
+    param = models.Param.create(
+        job_id=self.job.id, name='p1', type='boolean', value='1')
+    self.assertEqual(param.api_value, True)
 
-class TestParamSupportsTypeString(utils.ModelTestCase):
-
-    def test_val_succeeds_with_regular_string(self):
-      param = models.Param.create(
-          name='p1',
-          type='string',
-          value='hello world!')
-      self.assertIsInstance(param.val, str)
-      self.assertEqual(param.val, 'hello world!')
-
-    def test_api_val_succeeds_with_string(self):
-      param = models.Param.create(name='p1', type='string', value='john here')
-      self.assertEqual(param.api_val, 'john here')
-
-
-class TestParamSupportsTypeNumber(utils.ModelTestCase):
-
-    def test_val_succeeds_integer(self):
-      param = models.Param.create(name='p1', type='number', value='3')
-      self.assertIsInstance(param.val, int)
-      self.assertEqual(param.val, 3)
-
-    def test_val_succeeds_float(self):
-      param = models.Param.create(name='p1', type='number', value='5.1')
-      self.assertIsInstance(param.val, float)
-      self.assertEqual(param.val, 5.1)
-
-    def test_val_fails_with_random_string(self):
-      param = models.Param.create(name='p1', type='number', value='abc')
-      self.assertEqual(param.val, 0)
+  def test_api_value_succeeds_false(self):
+    self._setup_parent_job()
+    param = models.Param.create(
+        job_id=self.job.id, name='p1', type='boolean', value='0')
+    self.assertEqual(param.api_value, False)
 
 
-class TestParamSupportsTypeStringList(utils.ModelTestCase):
+class TestParamSupportsTypeString(TestParamSupportsType):
 
-    def test_val_succeeds_with_list_of_str(self):
-      param = models.Param.create(
-          name='p1',
-          type='string_list',
-          value='foo\nbar\njohn')
-      self.assertIsInstance(param.val, list)
-      self.assertEqual(len(param.val), 3)
-      self.assertEqual(param.val[0], 'foo')
-      self.assertEqual(param.val[1], 'bar')
-      self.assertEqual(param.val[2], 'john')
+  def test_worker_value_succeeds_with_regular_string(self):
+    self._setup_parent_job()
+    param = models.Param.create(
+        job_id=self.job.id, name='p1', type='string', value='hello world!')
+    param.populate_runtime_value()
+    self.assertIsInstance(param.worker_value, str)
+    self.assertEqual(param.worker_value, 'hello world!')
+
+  def test_api_value_succeeds_with_string(self):
+    self._setup_parent_job()
+    param = models.Param.create(
+        job_id=self.job.id, name='p1', type='string', value='john here')
+    self.assertEqual(param.api_value, 'john here')
 
 
-class TestParamSupportsTypeNumberList(utils.ModelTestCase):
+class TestParamSupportsTypeNumber(TestParamSupportsType):
 
-    def test_val_succeeds_with_list_of_str(self):
-      param = models.Param.create(
-          name='p1',
-          type='number_list',
-          value='1\n3\n2.8')
-      self.assertIsInstance(param.val, list)
-      self.assertEqual(len(param.val), 3)
-      self.assertEqual(param.val[0], 1)
-      self.assertEqual(param.val[1], 3)
-      self.assertEqual(param.val[2], 2.8)
+  def test_worker_value_succeeds_with_integer(self):
+    self._setup_parent_job()
+    param = models.Param.create(
+        job_id=self.job.id, name='p1', type='number', value='3')
+    param.populate_runtime_value()
+    self.assertIsInstance(param.worker_value, int)
+    self.assertEqual(param.worker_value, 3)
+
+  def test_worker_value_succeeds_with_float(self):
+    self._setup_parent_job()
+    param = models.Param.create(
+        job_id=self.job.id, name='p1', type='number', value='5.1')
+    param.populate_runtime_value()
+    self.assertIsInstance(param.worker_value, float)
+    self.assertEqual(param.worker_value, 5.1)
+
+  def test_worker_value_fails_with_random_string(self):
+    self._setup_parent_job()
+    param = models.Param.create(
+        job_id=self.job.id, name='p1', type='number', value='abc')
+    param.populate_runtime_value()
+    self.assertEqual(param.worker_value, 0)
+
+  def test_api_value_succeeds_with_integer(self):
+    self._setup_parent_job()
+    param = models.Param.create(
+        job_id=self.job.id, name='p1', type='number', value='3')
+    self.assertEqual(param.api_value, '3')
+
+  def test_api_value_succeeds_with_float(self):
+    self._setup_parent_job()
+    param = models.Param.create(
+        job_id=self.job.id, name='p1', type='number', value='5.1')
+    self.assertEqual(param.api_value, '5.1')
+
+
+class TestParamSupportsTypeStringList(TestParamSupportsType):
+
+  def test_worker_value_succeeds_with_list_of_str(self):
+    self._setup_parent_job()
+    param = models.Param.create(job_id=self.job.id, name='p1',
+                                type='string_list', value='foo\nbar\njohn')
+    param.populate_runtime_value()
+    self.assertIsInstance(param.worker_value, list)
+    self.assertEqual(len(param.worker_value), 3)
+    self.assertEqual(param.worker_value[0], 'foo')
+    self.assertEqual(param.worker_value[1], 'bar')
+    self.assertEqual(param.worker_value[2], 'john')
+
+
+class TestParamSupportsTypeNumberList(TestParamSupportsType):
+
+  def test_worker_value_succeeds_with_list_of_str(self):
+    self._setup_parent_job()
+    param = models.Param.create(job_id=self.job.id, name='p1',
+                                type='number_list', value='1\n3\n2.8')
+    param.populate_runtime_value()
+    self.assertIsInstance(param.worker_value, list)
+    self.assertEqual(len(param.worker_value), 3)
+    self.assertEqual(param.worker_value[0], 1)
+    self.assertEqual(param.worker_value[1], 3)
+    self.assertEqual(param.worker_value[2], 2.8)
+
+
+class TestParamRuntimeValues(utils.ModelTestCase):
+
+  def test_global_param_runtime_value_is_populated_with_null(self):
+    param = models.Param.create(name='p1', type='number', value='42')
+    param.populate_runtime_value()
+    self.assertEqual(param.runtime_value, None)
+
+  def test_pipeline_param_runtime_value_is_populated_with_null(self):
+    pipeline = models.Pipeline.create(name='pipeline1')
+    param = models.Param.create(pipeline_id=pipeline.id, name='p1',
+                                type='number', value='42')
+    param.populate_runtime_value()
+    self.assertEqual(param.runtime_value, None)
+
+  def test_job_param_runtime_value_is_populated_with_value(self):
+    pipeline = models.Pipeline.create(name='pipeline1')
+    job = models.Job.create(name='job1', pipeline_id=pipeline.id)
+    param = models.Param.create(job_id=job.id, name='p1',
+                                type='number', value='42')
+    param.populate_runtime_value()
+    self.assertEqual(param.runtime_value, '42')
 
 
 class TestStage(utils.ModelTestCase):
