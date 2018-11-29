@@ -21,26 +21,14 @@ DATABASE_USER = "crmintapp"
 
 def create_database():
 
-  db_setup = subprocess.Popen("mysqlshow -u{} -p{} 2>/dev/null | grep {};"
-                              .format(DATABASE_USER, DATABASE_USER, DATABASE_NAME),
-                              stdout=subprocess.PIPE,
-                              shell=True)
-  if not db_setup.stdout.read():
-    db_command = """sudo service mysql start | sudo -S mysql << EOF
-CREATE DATABASE {} CHARACTER SET utf8;
-GRANT ALL PRIVILEGES ON {}.* TO '{}'@'localhost' IDENTIFIED BY '{}';
-FLUSH PRIVILEGES;
-quit
-EOF
-"""
-    res = subprocess.Popen((db_command.format(DATABASE_NAME,
-                                             DATABASE_USER,
-                                             DATABASE_USER,
-                                             DATABASE_USER),
-                            "service mysql stop"),
-                           stdout=subprocess.PIPE,
-                           stderr=subprocess.PIPE,
-                           shell=True)
-    error_message = res.communicate()[1]
-    if error_message:
-      raise Exception(error_message)
+  db_command = "echo \"CREATE DATABASE IF NOT EXISTS {db_name} CHARACTER SET utf8;"\
+               "GRANT ALL PRIVILEGES ON {db_user}.* TO '{db_user}'@'localhost' IDENTIFIED BY '{db_user}';" \
+               "FLUSH PRIVILEGES;\" | mysql -u root"
+  res = subprocess.Popen(
+      db_command.format(db_name=DATABASE_NAME, db_user=DATABASE_USER),
+      stdout=subprocess.PIPE,
+      stderr=subprocess.PIPE,
+      shell=True)
+  error_message = res.communicate()[1]
+  if error_message:
+    raise Exception(error_message)

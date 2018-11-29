@@ -24,8 +24,9 @@ from crmint_commands.utils import shared
 
 @click.group()
 def cli():
-  """CRMint Local Dev CLI"""
+  """Local development utilities"""
   pass
+
 
 ####################### SETUP #######################
 
@@ -55,8 +56,11 @@ def setup():
   """Setup DB and config files required for local development."""
   click.echo("Setup in progress...")
   try:
-    components = [database.create_database, _create_all_configs,
-                  shared.install_requirements]
+    components = [
+        database.create_database,
+        _create_all_configs,
+        shared.install_requirements
+    ]
     with click.progressbar(components) as progress_bar:
       for component in progress_bar:
         component()
@@ -238,6 +242,7 @@ def console():
   except KeyboardInterrupt:
     proc.kill()
     click.echo("[w] You will need to reset your shell.")
+
 
 @cli.command('dbconsole')
 def dbconsole():

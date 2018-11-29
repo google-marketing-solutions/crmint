@@ -13,10 +13,14 @@
 # limitations under the License.
 
 import os
-import click
-from crmint_commands.utils import shared
+import sys
 
 PLUGIN_FOLDER = os.path.join(os.path.dirname(__file__), 'crmint_commands')
+CLI_DIR = os.path.dirname(__file__)
+sys.path.insert(0, CLI_DIR)
+
+import click
+from crmint_commands.utils import shared
 
 
 class CRMintCLI(click.MultiCommand):
@@ -39,10 +43,10 @@ class CRMintCLI(click.MultiCommand):
     with open(full_name) as f:
       code = compile(f.read(), full_name, 'exec')
       eval(code, ns, ns)
-    return ns['cli']
+    return ns.get('cli', None)
 
 
-CLI = CRMintCLI(help='CRMint commands:')
+CLI = CRMintCLI(help='Manage your CRMint instances on GCP or locally.')
 
 
 def entry_point():

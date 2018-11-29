@@ -97,7 +97,7 @@ def deploy_cron(stage):
 
 @click.group()
 def cli():
-  """CRMint Deploy application to Google App Engine"""
+  """Deploy your CRMint instance on GCP"""
   pass
 
 

@@ -21,6 +21,6 @@ setup(
     py_modules=['appcli'],
     entry_points='''
         [console_scripts]
-        crmint=appcli:entry_point
+        crmint=cli.appcli:entry_point
     ''',
 )

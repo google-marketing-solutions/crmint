@@ -52,7 +52,7 @@ def install_component(component_name, check_command, install_command, check_func
 
 @click.command()
 def cli():
-  """Prepare local machine to work"""
+  """Prepare the environment before deployment"""
   click.echo("Setup in progress...")
   try:
     gcloud_install_command = """
