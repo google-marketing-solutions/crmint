@@ -2,7 +2,8 @@
 .DS_Store
 Thumbs.db
 
-env/*
+env
+venv
 
 package-lock.json
 *.pyc
