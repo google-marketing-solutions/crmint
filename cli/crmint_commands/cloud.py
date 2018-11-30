@@ -24,35 +24,6 @@ from crmint_commands.utils import constants
 from crmint_commands.utils import shared
 
 
-def _get_stage_file(stage):
-  stage_file = "{}/{}.py".format(constants.STAGE_DIR, stage)
-  return stage_file
-
-
-def _check_stage_file(stage):
-  stage_file = _get_stage_file(stage)
-  if not os.path.isfile(stage_file):
-    return False
-  return True
-
-
-def _get_stage_object(stage_name):
-  return getattr(__import__("stage_variables.%s" % stage_name), stage_name)
-
-
-def _get_service_account_file(stage):
-  filename = stage.service_account_file
-  service_account_file = os.path.join(constants.SERVICE_ACCOUNT_PATH, filename)
-  return service_account_file
-
-
-def _check_service_account_file(stage):
-  service_account_file = _get_service_account_file(stage)
-  if not os.path.isfile(service_account_file):
-    return False
-  return True
-
-
 def source_stage_file_and_command_script(stage_file, command):
   os.system("""SCRIPTS_DIR="{}"
         source \"{}\"

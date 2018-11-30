@@ -20,7 +20,6 @@ DATABASE_USER = "crmintapp"
 
 
 def create_database():
-
   db_command = "echo \"CREATE DATABASE IF NOT EXISTS {db_name} CHARACTER SET utf8;"\
                "GRANT ALL PRIVILEGES ON {db_user}.* TO '{db_user}'@'localhost' IDENTIFIED BY '{db_user}';" \
                "FLUSH PRIVILEGES;\" | mysql -u root"

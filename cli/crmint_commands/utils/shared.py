@@ -19,20 +19,89 @@ import os
 import shutil
 import subprocess
 from glob import glob
-import click
-from crmint_commands.utils import constants
 
+import click
+
+from crmint_commands.utils import constants
 
 IGNORE_PATTERNS = ("^.idea", "^.git", "*.pyc", "frontend/node_modules",
                    "backends/data/*.json")
 
 
-def before_hook(stage):
+def execute_command(step_name, commands, cwd='.', report_empty_err=True):
+  click.echo(click.style("---> %s" % step_name, fg='blue', bold=True))
+  pipe = subprocess.Popen(commands,
+                   cwd=cwd,
+                   shell=True,
+                   stdout=subprocess.PIPE,
+                   stderr=subprocess.PIPE)
+  out, err = pipe.communicate()
+  if pipe.returncode != 0 and (len(err) > 0 or report_empty_err):
+    msg = "\n%s: %s %s" % (step_name, err, ("({})".format(out) if out else ''))
+    click.echo(click.style(msg, fg="red", bold=True))
+    click.echo(click.style("Command: %s\n" % commands, bold=False))
+  return pipe.returncode, out, err
+
+
+def get_default_stage_name():
+  gcloud_command = "$GOOGLE_CLOUD_SDK/bin/gcloud --quiet"
+  commands = [
+      "{gcloud_bin} config get-value project 2>/dev/null".format(
+          gcloud_bin=gcloud_command)
+  ]
+  status, out, err = execute_command("Get current project identifier", commands)
+  if status != 0:
+    exit(1)
+  stage_name = out.strip()
+  return stage_name
+
+
+def get_stage_file(stage_name):
+  stage_file = "{}/{}.py".format(constants.STAGE_DIR, stage_name)
+  return stage_file
+
+
+def check_stage_file(stage_name):
+  stage_file = get_stage_file(stage_name)
+  if not os.path.isfile(stage_file):
+    return False
+  return True
+
+
+def get_stage_object(stage_name):
+  return getattr(__import__("stage_variables.%s" % stage_name), stage_name)
+
+
+def get_service_account_file(stage):
+  filename = stage.service_account_file
+  service_account_file = os.path.join(constants.SERVICE_ACCOUNT_PATH, filename)
+  return service_account_file
+
+
+def check_service_account_file(stage):
+  service_account_file = get_service_account_file(stage)
+  if not os.path.isfile(service_account_file):
+    return False
+  return True
+
+
+def before_hook(stage, stage_name):
   """
     Method that adds variables to the stage object
     and prepares the working directory
   """
+  stage.stage_name = stage_name
+
+  # Working directory to prepare deployment files.
+  if not stage.workdir:
+    stage.workdir = "/tmp/{}".format(stage.project_id_gae)
+
   # Set DB connection variables.
+  stage.db_instance_conn_name = "{}:{}:{}".format(
+      stage.project_id_gae,
+      stage.project_region,
+      stage.db_instance_name)
+
   stage.cloudsql_dir = "/tmp/cloudsql"
   stage.cloud_db_uri = "mysql+mysqldb://{}:{}@/{}?unix_socket=/cloudsql/{}".format(
       stage.db_username, stage.db_password,
