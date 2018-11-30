@@ -161,10 +161,10 @@ def before_hook(stage, stage_name):
 
 
 def check_variables():
-  if not os.environ["GOOGLE_CLOUD_SDK"]:
+  if not os.environ.get("GOOGLE_CLOUD_SDK", None):
     gcloud_path = subprocess.Popen("gcloud --format='value(installation.sdk_root)' info",
                                    shell=True, stdout=subprocess.PIPE)
-    os.environ["GOOGLE_CLOUD_SDK"] = gcloud_path.communicate()[0]
+    os.environ["GOOGLE_CLOUD_SDK"] = gcloud_path.communicate()[0].strip()
   # Cloud sql proxy
   cloud_sql_proxy_path = "/usr/bin/cloud_sql_proxy"
   home_path = os.environ["HOME"]
