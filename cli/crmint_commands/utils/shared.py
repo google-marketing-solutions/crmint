@@ -28,28 +28,34 @@ IGNORE_PATTERNS = ("^.idea", "^.git", "*.pyc", "frontend/node_modules",
                    "backends/data/*.json")
 
 
-def execute_command(step_name, commands, cwd='.', report_empty_err=True):
+def execute_command(step_name, command, cwd='.', report_empty_err=True, debug=False, stream_output_in_debug=True):
+  assert isinstance(command, str)
+  pipe_output = (None if (debug and stream_output_in_debug) else subprocess.PIPE)
   click.echo(click.style("---> %s" % step_name, fg='blue', bold=True))
-  pipe = subprocess.Popen(commands,
-                   cwd=cwd,
-                   shell=True,
-                   stdout=subprocess.PIPE,
-                   stderr=subprocess.PIPE)
+  if debug:
+    click.echo(click.style("cwd: %s" % cwd, bg='blue', bold=False))
+    click.echo(click.style("$ %s" % command, bg='blue', bold=False))
+  pipe = subprocess.Popen(
+      command,
+      cwd=cwd,
+      shell=True,
+      stdout=pipe_output,
+      stderr=pipe_output)
   out, err = pipe.communicate()
+  if debug and not stream_output_in_debug:
+    click.echo(out)
   if pipe.returncode != 0 and (len(err) > 0 or report_empty_err):
     msg = "\n%s: %s %s" % (step_name, err, ("({})".format(out) if out else ''))
     click.echo(click.style(msg, fg="red", bold=True))
-    click.echo(click.style("Command: %s\n" % commands, bold=False))
+    click.echo(click.style("Command: %s\n" % command, bold=False))
   return pipe.returncode, out, err
 
 
-def get_default_stage_name():
+def get_default_stage_name(debug=False):
   gcloud_command = "$GOOGLE_CLOUD_SDK/bin/gcloud --quiet"
-  commands = [
-      "{gcloud_bin} config get-value project 2>/dev/null".format(
-          gcloud_bin=gcloud_command)
-  ]
-  status, out, err = execute_command("Get current project identifier", commands)
+  command = "{gcloud_bin} config get-value project 2>/dev/null".format(
+      gcloud_bin=gcloud_command)
+  status, out, err = execute_command("Get current project identifier", command, debug=debug, stream_output_in_debug=False)
   if status != 0:
     exit(1)
   stage_name = out.strip()
@@ -110,53 +116,15 @@ def before_hook(stage, stage_name):
   stage.local_db_uri = "mysql+mysqldb://{}:{}@/{}?unix_socket={}/{}".format(
       stage.db_username, stage.db_password, stage.db_name,
       stage.cloudsql_dir, stage.db_instance_conn_name)
+
+  # Cleans the working directory.
   target_dir = stage.workdir
   try:
     if os.path.exists(target_dir):
       shutil.rmtree(target_dir)
-
-    # Copy source code to the working directory.
-    shutil.copytree(constants.PROJECT_DIR, target_dir,
-                    ignore=shutil.ignore_patterns(IGNORE_PATTERNS))
   except Exception as exception:
     raise Exception("Stage 1 error when copying to workdir: %s" % exception.message)
 
-  try:
-    # Create DB config for App Engine application in the cloud.
-    db_config_path = "%s/backends/instance/config.py" % stage.workdir
-    with open(db_config_path, "w") as db_file:
-      db_file.write("SQLALCHEMY_DATABASE_URI=\"%s\"" % stage.cloud_db_uri)
-  except Exception as exception:
-    raise Exception("Stage 1 error when writing db config: %s" % exception.message)
-  try:
-    # Delete service account example file.
-    for file_name in glob("%s/backends/data/service-account.json.*" % stage.workdir):
-      os.remove(file_name)
-  except Exception as exception:
-    raise Exception("Stage 1 error when copying service account file: %s" % exception.message)
-  try:
-    # Make app_data.json for backends.
-    with open("%s/backends/data/app.json" % stage.workdir, "w") as app_file:
-      app_file.write("""
-              {
-                "notification_sender_email": "$notification_sender_email",
-                "app_title": "$app_title"
-              }
-              """)
-  except Exception as exception:
-    raise Exception("Stage 1 error when writing app data for backend: %s" % exception.message)
-  try:
-    # Make environment.prod.ts for frontend
-    with open("%s/frontend/src/environments/environment.prod.ts" % stage.workdir, "w") as ts_file:
-      ts_file.write("""
-              export const environment = {
-                production: true,
-                app_title: "$app_title",
-                enabled_stages: $enabled_stages
-              }
-              """)
-  except Exception as exception:
-    raise Exception("Stage 1 error when writing env data for frontend: %s" % exception.message)
   return stage
 
 
