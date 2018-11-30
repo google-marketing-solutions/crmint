@@ -34,36 +34,16 @@ def source_stage_file_and_command_script(stage_file, command):
                     constants.SCRIPTS_DIR, command))
 
 
-def execute_command(step_name, commands, cwd='.'):
-  pipe = subprocess.Popen(commands,
-                   cwd=cwd,
-                   shell=True,
-                   stdout=subprocess.PIPE,
-                   stderr=subprocess.PIPE)
-  out, err = pipe.communicate()
-  if pipe.returncode != 0:
-    msg = "\n%s: %s %s" % (step_name, err, ("({})".format(out) if out else ''))
-    click.echo(click.style(msg, fg="red", bold=True))
-    click.echo(click.style("Command: %s" % commands, bold=True))
-  return pipe.returncode, out, err
-
-
 def fetch_stage_or_default(stage_name=None):
   if not stage_name:
-    gcloud_command = "$GOOGLE_CLOUD_SDK/bin/gcloud --quiet"
-    commands = [
-      "{gcloud_bin} config get-value project 2>/dev/null".format(
-          gcloud_bin=gcloud_command)
-    ]
-    status, out, err = execute_command("Get current project identifier", commands)
-    stage_name = out.strip()
+    stage_name = shared.get_default_stage_name()
 
-  if not _check_stage_file(stage_name):
-    click.echo(click.style("\nStage file '%s' not found." % stage_name, fg='red', bold=True))
-    exit(1)
+  if not shared.check_stage_file(stage_name):
+    click.echo(click.style("Stage file '%s' not found." % stage_name, fg='red', bold=True))
+    return None
 
-  stage = _get_stage_object(stage_name)
-  return stage
+  stage = shared.get_stage_object(stage_name)
+  return stage_name, stage
 
 
 @click.group()
@@ -82,13 +62,13 @@ def _check_if_appengine_instance_exists(stage):
           gcloud_bin=gcloud_command,
           project_id=stage.project_id_gae)
   ]
-  status, out, err = execute_command("Check if App Engine already exists", commands)
+  status, out, err = shared.execute_command("Check if App Engine already exists", commands, report_empty_err=False)
   return status == 0
 
 
 def create_appengine(stage):
   if _check_if_appengine_instance_exists(stage):
-    click.echo("\nApp Engine already exists.")
+    click.echo("App Engine already exists.")
     return
 
   gcloud_command = "$GOOGLE_CLOUD_SDK/bin/gcloud --quiet"
@@ -98,15 +78,15 @@ def create_appengine(stage):
           project_id=stage.project_id_gae,
           region=stage.project_region)
   ]
-  execute_command("Create the App Engine instance", commands)
+  shared.execute_command("Create the App Engine instance", commands)
 
 
 def create_service_account_key_if_needed(stage):
-  if _check_service_account_file(stage):
-    click.echo("\nService account key already exists.")
+  if shared.check_service_account_file(stage):
+    click.echo("Service account key already exists.")
     return
 
-  service_account_file = _get_service_account_file(stage)
+  service_account_file = shared.get_service_account_file(stage)
   gcloud_command = "$GOOGLE_CLOUD_SDK/bin/gcloud --quiet"
   commands = [
       "{gcloud_bin} iam service-accounts keys create \"{service_account_file}\" \
@@ -117,7 +97,7 @@ def create_service_account_key_if_needed(stage):
           project_id=stage.project_id_gae,
           service_account_file=service_account_file)
   ]
-  execute_command("Create the service account key", commands)
+  shared.execute_command("Create the service account key", commands)
 
 
 def _check_if_mysql_instance_exists(stage):
@@ -130,29 +110,30 @@ def _check_if_mysql_instance_exists(stage):
           project_id=stage.project_id_gae,
           db_instance_name=stage.db_instance_name)
   ]
-  status, out, err = execute_command("Check if MySQL instance already exists", commands)
+  status, out, err = shared.execute_command("Check if MySQL instance already exists", commands, report_empty_err=False)
   return status == 0
 
 
 def create_mysql_instance_if_needed(stage):
   if _check_if_mysql_instance_exists(stage):
-    click.echo("\nMySQL instance already exists.")
+    click.echo("MySQL instance already exists.")
     return
 
   gcloud_command = "$GOOGLE_CLOUD_SDK/bin/gcloud --quiet"
   commands = [
-      "{gcloud_bin} sql instances create $db_instance_name \
+      "{gcloud_bin} sql instances create {db_instance_name} \
         --tier={project_sql_tier} \
         --region={project_sql_region} \
         --project={project_id} \
         --database-version MYSQL_5_7 \
         --storage-auto-increase".format(
           gcloud_bin=gcloud_command,
+          db_instance_name=stage.db_instance_name,
           project_id=stage.project_id_gae,
           project_sql_region=stage.project_sql_region,
           project_sql_tier=stage.project_sql_tier)
   ]
-  execute_command("Creating MySQL instance", commands)
+  shared.execute_command("Creating MySQL instance", commands)
 
 
 def _check_if_mysql_user_exists(stage):
@@ -167,27 +148,29 @@ def _check_if_mysql_user_exists(stage):
           db_instance_name=stage.db_instance_name,
           db_username=stage.db_username)
   ]
-  status, out, err = execute_command("Check if MySQL user already exists", commands)
+  status, out, err = shared.execute_command("Check if MySQL user already exists", commands, report_empty_err=False)
   return status == 0
 
 
 def create_mysql_user_if_needed(stage):
   if _check_if_mysql_user_exists(stage):
-    click.echo("\nMySQL user already exists.")
+    click.echo("MySQL user already exists.")
     return
 
   gcloud_command = "$GOOGLE_CLOUD_SDK/bin/gcloud --quiet"
   commands = [
-      "{gcloud_bin} sql users create $db_username % \
+      "{gcloud_bin} sql users create {db_username} \
+        --host % \
         --instance={db_instance_name} \
         --password={db_password} \
         --project={project_id}".format(
           gcloud_bin=gcloud_command,
           project_id=stage.project_id_gae,
           db_instance_name=stage.db_instance_name,
+          db_username=stage.db_username,
           db_password=stage.db_password)
   ]
-  execute_command("Creating MySQL user", commands)
+  shared.execute_command("Creating MySQL user", commands)
 
 
 def _check_if_mysql_database_exists(stage):
@@ -202,13 +185,13 @@ def _check_if_mysql_database_exists(stage):
           db_instance_name=stage.db_instance_name,
           db_name=stage.db_name)
   ]
-  status, out, err = execute_command("Check if MySQL database already exists", commands)
+  status, out, err = shared.execute_command("Check if MySQL database already exists", commands, report_empty_err=False)
   return status == 0
 
 
 def create_mysql_database_if_needed(stage):
   if _check_if_mysql_database_exists(stage):
-    click.echo("\nMySQL database already exists.")
+    click.echo("MySQL database already exists.")
     return
 
   gcloud_command = "$GOOGLE_CLOUD_SDK/bin/gcloud --quiet"
@@ -221,7 +204,7 @@ def create_mysql_database_if_needed(stage):
           db_instance_name=stage.db_instance_name,
           db_name=stage.db_name)
   ]
-  execute_command("Creating MySQL database", commands)
+  shared.execute_command("Creating MySQL database", commands)
 
 
 def activate_services(stage):
@@ -241,12 +224,12 @@ def activate_services(stage):
           gcloud_bin=gcloud_command,
           project_id=stage.project_id_gae)
   ]
-  execute_command("Activate services", commands)
+  shared.execute_command("Activate services", commands)
 
 
 def download_config_files(stage):
-  stage_file_path = _get_stage_file(stage)
-  service_account_file_path = _get_service_account_file(stage)
+  stage_file_path = shared.get_stage_file(stage.stage_name)
+  service_account_file_path = shared.get_service_account_file(stage)
   commands = [
       "cloudshell download-files \
         \"{stage_file}\" \
@@ -254,7 +237,7 @@ def download_config_files(stage):
           stage_file=stage_file_path,
           service_account_file=service_account_file_path)
   ]
-  execute_command("Download configuration files", commands)
+  shared.execute_command("Download configuration files", commands)
 
 
 ####################### DEPLOY #######################
@@ -266,7 +249,7 @@ def install_required_packages(stage):
       "> ~/.cloudshell/no-apt-get-warning",
       "sudo apt-get install -y rsync libmysqlclient-dev",
   ]
-  execute_command("Install required packages", commands)
+  shared.execute_command("Install required packages", commands)
 
 
 def display_workdir(stage):
@@ -315,7 +298,7 @@ EOL""".format(
       copy_app_data,
       copy_prod_env,
   ]
-  execute_command("Copy source code to working directory", commands, cwd=constants.PROJECT_DIR)
+  shared.execute_command("Copy source code to working directory", commands, cwd=constants.PROJECT_DIR)
 
 
 def deploy_frontend(stage):
@@ -330,7 +313,7 @@ def deploy_frontend(stage):
           gcloud_bin=gcloud_command,
           project_id=stage.project_id_gae)
   ]
-  execute_command("Deploy frontend service", commands, cwd=constants.FRONTEND_DIR)
+  shared.execute_command("Deploy frontend service", commands, cwd=constants.FRONTEND_DIR)
 
 
 def deploy_backends(stage):
@@ -354,7 +337,7 @@ def deploy_backends(stage):
           gcloud_bin=gcloud_command,
           workdir=stage.workdir),
   ]
-  execute_command("Deploy backend services", commands, cwd=constants.BACKENDS_DIR)
+  shared.execute_command("Deploy backend services", commands, cwd=constants.BACKENDS_DIR)
 
 
 def start_cloud_sql_proxy(stage):
@@ -365,12 +348,12 @@ def start_cloud_sql_proxy(stage):
           project_id=stage.project_id_gae,
           cloud_sql_proxy=stage.cloud_sql_proxy,
           cloudsql_dir=stage.cloudsql_dir,
-          db_instance_conn_name=stage.db_instance_conn_name)
+          db_instance_conn_name=stage.db_instance_conn_name),
       "cloud_sql_proxy_pid=$!",
       "echo \"cloud_sql_proxy pid: $cloud_sql_proxy_pid\"",
       "sleep 5",  # Wait for cloud_sql_proxy to start.
   ]
-  execute_command("Start CloudSQL proxy", commands, cwd=constants.BACKENDS_DIR)
+  shared.execute_command("Start CloudSQL proxy", commands, cwd=constants.BACKENDS_DIR)
 
 
 ####################### SUB-COMMANDS #################
@@ -380,47 +363,56 @@ def start_cloud_sql_proxy(stage):
 @click.option('--stage_name', type=str, default=None)
 def setup(stage_name):
   """Setup the GCP environment for deploying CRMint."""
-  stage = fetch_stage_or_default(stage_name)
-  click.echo("Setup in progress...")
-  try:
-    components = [
-        create_appengine,
-        create_service_account_key_if_needed,
-        create_mysql_instance_if_needed,
-        create_mysql_user_if_needed,
-        create_mysql_database_if_needed,
-        activate_services,
-        download_config_files,
-    ]
-    with click.progressbar(components) as progress_bar:
-      for component in progress_bar:
-        component(stage)
-  except Exception as exception:
-    click.echo("Setup failed: {}".format(exception))
+  click.echo(click.style(">>>> Setup", fg='magenta', bold=True))
+
+  stage_name, stage = fetch_stage_or_default(stage_name)
+  if stage is None:
     exit(1)
+
+  # Enriches stage with other variables.
+  stage = shared.before_hook(stage, stage_name)
+
+  # Runs setup stages.
+  components = [
+      create_appengine,
+      create_service_account_key_if_needed,
+      create_mysql_instance_if_needed,
+      create_mysql_user_if_needed,
+      create_mysql_database_if_needed,
+      activate_services,
+      download_config_files,
+  ]
+  for component in components:
+    component(stage)
+  click.echo(click.style("Done.", fg='magenta', bold=True))
 
 
 @cli.command('deploy')
 @click.option('--stage_name', type=str, default=None)
 def deploy(stage_name):
   """Deploy CRMint on GCP."""
-  stage = fetch_stage_or_default(stage_name)
-  click.echo("Deploy in progress...")
-  try:
-    components = [
-        install_required_packages,
-        display_workdir,
-        copy_src_to_workdir,
-        deploy_frontend,
-        deploy_backends,
-        start_cloud_sql_proxy,
-    ]
-    with click.progressbar(components) as progress_bar:
-      for component in progress_bar:
-        component(stage)
-  except Exception as exception:
-    click.echo("Deploy failed: {}".format(exception))
+  click.echo(click.style(">>>> Deploy", fg='magenta', bold=True))
+
+  stage_name, stage = fetch_stage_or_default(stage_name)
+  if stage is None:
+    click.echo(click.style("Fix that issue by running: $ crmint cloud setup", fg='green'))
     exit(1)
+
+  # Enriches stage with other variables.
+  stage = shared.before_hook(stage, stage_name)
+
+  # Runs setup stages.
+  components = [
+      install_required_packages,
+      display_workdir,
+      copy_src_to_workdir,
+      deploy_frontend,
+      deploy_backends,
+      start_cloud_sql_proxy,
+  ]
+  for component in components:
+    component(stage)
+  click.echo(click.style("Done.", fg='magenta', bold=True))
 
 
 if __name__ == '__main__':
