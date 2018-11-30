@@ -318,12 +318,13 @@ def deploy_frontend(stage, debug=False):
           gcloud_bin=gcloud_command,
           project_id=stage.project_id_gae)
   ]
+  cmd_workdir = os.path.join(stage.workdir, 'frontend')
   total = len(commands)
   idx = 1
   for cmd in commands:
     shared.execute_command("Deploy frontend service (%d/%d)" % (idx, total),
         cmd,
-        cwd=constants.FRONTEND_DIR,
+        cwd=cmd_workdir,
         debug=debug)
     idx += 1
 
@@ -349,12 +350,13 @@ def deploy_backends(stage, debug=False):
           gcloud_bin=gcloud_command,
           workdir=stage.workdir),
   ]
+  cmd_workdir = os.path.join(stage.workdir, 'backends')
   total = len(commands)
   idx = 1
   for cmd in commands:
     shared.execute_command("Deploy backend services (%d/%d)" % (idx, total),
         cmd,
-        cwd=constants.BACKENDS_DIR,
+        cwd=cmd_workdir,
         debug=debug)
     idx += 1
 
