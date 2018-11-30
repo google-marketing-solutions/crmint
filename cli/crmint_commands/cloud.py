@@ -287,7 +287,7 @@ export const environment = {
 EOL""".strip() % dict(
     workdir=stage.workdir,
     app_title=stage.app_title,
-    enabled_stages=stage.enabled_stages)
+    enabled_stages="true" if stage.enabled_stages else "false")
 
   commands = [
       copy_src_cmd,
