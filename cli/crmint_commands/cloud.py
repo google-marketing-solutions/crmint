@@ -263,7 +263,7 @@ def copy_src_to_workdir(stage, debug=False):
 
   copy_db_conf = "echo \'SQLALCHEMY_DATABASE_URI=\"{cloud_db_uri}\"\' > {workdir}/backends/instance/config.py".format(
       workdir=stage.workdir,
-      cloud_db_uri=stage.cloud_db_uri)
+      cloud_db_uri=stage.local_db_uri)
 
   copy_app_data = """
 cat > %(workdir)s/backends/data/app.json <<EOL
@@ -329,27 +329,40 @@ def deploy_frontend(stage, debug=False):
     idx += 1
 
 
-def deploy_backends(stage, debug=False):
-  gcloud_command = "$GOOGLE_CLOUD_SDK/bin/gcloud --quiet"
+def install_backends_dependencies(stage, debug=False):
   commands = [
       "virtualenv --python=python2 env",
-      ". env/bin/activate",
       "mkdir -p lib",
       "pip install -r ibackend/requirements.txt -t lib -q",
       "pip install -r jbackend/requirements.txt -t lib -q",
       # Applying patches requered in GAE environment (alas!).
-      "cp -r \"$SCRIPTS_DIR\"/patches/lib/* lib/",
+      "cp -r \"%(script_dir)s\"/patches/lib/* lib/" % dict(script_dir=constants.SCRIPTS_DIR),
       "find \"%(workdir)s\" -name '*.pyc' -exec rm {} \;" % dict(workdir=stage.workdir),
-      "{gcloud_bin} --project={project_id} app deploy gae_ibackend.yaml --version=v1".format(
+  ]
+  cmd_workdir = os.path.join(stage.workdir, 'backends')
+  total = len(commands)
+  idx = 1
+  for cmd in commands:
+    shared.execute_command("Install backends dependencies (%d/%d)" % (idx, total),
+        cmd,
+        cwd=cmd_workdir,
+        debug=debug)
+    idx += 1
+
+
+def deploy_backends(stage, debug=False):
+  gcloud_command = "$GOOGLE_CLOUD_SDK/bin/gcloud --quiet"
+  commands = [
+      ". env/bin/activate && {gcloud_bin} --project={project_id} app deploy gae_ibackend.yaml --version=v1".format(
           gcloud_bin=gcloud_command,
           project_id=stage.project_id_gae),
-      "{gcloud_bin} --project={project_id} app deploy gae_jbackend.yaml --version=v1".format(
+      ". env/bin/activate && {gcloud_bin} --project={project_id} app deploy gae_jbackend.yaml --version=v1".format(
           gcloud_bin=gcloud_command,
           project_id=stage.project_id_gae),
-      "{gcloud_bin} --project={project_id} app deploy cron.yaml".format(
+      ". env/bin/activate && {gcloud_bin} --project={project_id} app deploy cron.yaml".format(
           gcloud_bin=gcloud_command,
           project_id=stage.project_id_gae),
-      "{gcloud_bin} --project={project_id} app deploy \"{workdir}/frontend/dispatch.yaml\"".format(
+      ". env/bin/activate && {gcloud_bin} --project={project_id} app deploy \"{workdir}/frontend/dispatch.yaml\"".format(
           gcloud_bin=gcloud_command,
           project_id=stage.project_id_gae,
           workdir=stage.workdir),
@@ -369,13 +382,11 @@ def start_cloud_sql_proxy(stage, debug=False):
   gcloud_command = "$GOOGLE_CLOUD_SDK/bin/gcloud --quiet"
   commands = [
       "mkdir -p {cloudsql_dir}".format(cloudsql_dir=stage.cloudsql_dir),
-      "{cloud_sql_proxy} -projects{project_id} -instances={db_instance_conn_name} -dir={cloudsql_dir} &".format(
+      "echo \"CLOUD_SQL_PROXY=$CLOUD_SQL_PROXY\"",
+      "$CLOUD_SQL_PROXY -projects={project_id} -instances={db_instance_conn_name} -dir={cloudsql_dir} &".format(
           project_id=stage.project_id_gae,
-          cloud_sql_proxy=stage.cloud_sql_proxy,
           cloudsql_dir=stage.cloudsql_dir,
           db_instance_conn_name=stage.db_instance_conn_name),
-      "cloud_sql_proxy_pid=$!",
-      "echo \"cloud_sql_proxy pid: $cloud_sql_proxy_pid\"",
       "sleep 5",  # Wait for cloud_sql_proxy to start.
   ]
   total = len(commands)
@@ -383,9 +394,45 @@ def start_cloud_sql_proxy(stage, debug=False):
   for cmd in commands:
     shared.execute_command("Start CloudSQL proxy (%d/%d)" % (idx, total),
         cmd,
-        cwd=constants.BACKENDS_DIR,
+        cwd='.',
         debug=debug)
     idx += 1
+
+
+def stop_cloud_sql_proxy(stage, debug=False):
+  command = "kill -9 $(ps | grep cloud_sql_proxy | awk '{print $1}')"
+  shared.execute_command("Stop CloudSQL proxy",
+      command,
+      cwd='.',
+      debug=debug)
+
+
+def prepare_flask_envars(stage, debug=False):
+  os.environ["PYTHONPATH"] = "{google_sdk_dir}/platform/google_appengine:lib".format(
+      google_sdk_dir=os.environ["GOOGLE_CLOUD_SDK"])
+  os.environ["FLASK_APP"] = "run_ibackend.py"
+  os.environ["FLASK_DEBUG"] = "1"
+  os.environ["APPLICATION_ID"] = stage.project_id_gae
+
+
+def _run_flask_command(stage, step_name, flask_command_name="--help", debug=False):
+  cmd_workdir = os.path.join(stage.workdir, 'backends')
+  command = ". env/bin/activate && python -m flask {command_name}".format(
+      command_name=flask_command_name)
+  shared.execute_command(step_name,
+      command,
+      cwd=cmd_workdir,
+      debug=debug)
+
+
+def run_flask_db_upgrade(stage, debug=False):
+  _run_flask_command(stage, "Applying database migrations",
+      flask_command_name="db upgrade", debug=debug)
+
+
+def run_flask_db_seeds(stage, debug=False):
+  _run_flask_command(stage, "Sowing DB seeds",
+      flask_command_name="db-seeds", debug=debug)
 
 
 ####################### SUB-COMMANDS #################
@@ -440,9 +487,14 @@ def deploy(stage_name, debug):
       install_required_packages,
       display_workdir,
       copy_src_to_workdir,
+      install_backends_dependencies,
       deploy_backends,
       deploy_frontend,
       start_cloud_sql_proxy,
+      prepare_flask_envars,
+      run_flask_db_upgrade,
+      run_flask_db_seeds,
+      stop_cloud_sql_proxy,
   ]
   for component in components:
     component(stage, debug=debug)
