@@ -339,15 +339,19 @@ def deploy_backends(stage, debug=False):
       "pip install -r jbackend/requirements.txt -t lib -q",
       # Applying patches requered in GAE environment (alas!).
       "cp -r \"$SCRIPTS_DIR\"/patches/lib/* lib/",
-      "find \"{workdir}\" -name '*.pyc' -exec rm {} \;".format(workdir=stage.workdir),
-      "{gcloud_bin} --project $project_id_gae app deploy gae_ibackend.yaml --version=v1".format(
-          gcloud_bin=gcloud_command),
-      "{gcloud_bin} --project $project_id_gae app deploy gae_jbackend.yaml --version=v1".format(
-          gcloud_bin=gcloud_command),
-      "{gcloud_bin} --project $project_id_gae app deploy cron.yaml".format(
-          gcloud_bin=gcloud_command),
-      "{gcloud_bin} --project $project_id_gae app deploy \"{workdir}/frontend/dispatch.yaml\"".format(
+      "find \"%(workdir)s\" -name '*.pyc' -exec rm {} \;" % dict(workdir=stage.workdir),
+      "{gcloud_bin} --project={project_id} app deploy gae_ibackend.yaml --version=v1".format(
           gcloud_bin=gcloud_command,
+          project_id=stage.project_id_gae),
+      "{gcloud_bin} --project={project_id} app deploy gae_jbackend.yaml --version=v1".format(
+          gcloud_bin=gcloud_command,
+          project_id=stage.project_id_gae),
+      "{gcloud_bin} --project={project_id} app deploy cron.yaml".format(
+          gcloud_bin=gcloud_command,
+          project_id=stage.project_id_gae),
+      "{gcloud_bin} --project={project_id} app deploy \"{workdir}/frontend/dispatch.yaml\"".format(
+          gcloud_bin=gcloud_command,
+          project_id=stage.project_id_gae,
           workdir=stage.workdir),
   ]
   cmd_workdir = os.path.join(stage.workdir, 'backends')

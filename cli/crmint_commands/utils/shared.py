@@ -44,7 +44,7 @@ def execute_command(step_name, command, cwd='.', report_empty_err=True, debug=Fa
   out, err = pipe.communicate()
   if debug and not stream_output_in_debug:
     click.echo(out)
-  if pipe.returncode != 0 and (len(err) > 0 or report_empty_err):
+  if pipe.returncode != 0 and err and (len(err) > 0 or report_empty_err):
     msg = "\n%s: %s %s" % (step_name, err, ("({})".format(out) if out else ''))
     click.echo(click.style(msg, fg="red", bold=True))
     click.echo(click.style("Command: %s\n" % command, bold=False))
