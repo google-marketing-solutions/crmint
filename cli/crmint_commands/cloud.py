@@ -440,8 +440,8 @@ def deploy(stage_name, debug):
       install_required_packages,
       display_workdir,
       copy_src_to_workdir,
-      deploy_frontend,
       deploy_backends,
+      deploy_frontend,
       start_cloud_sql_proxy,
   ]
   for component in components:
