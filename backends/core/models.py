@@ -218,6 +218,8 @@ class Pipeline(BaseModel):
   def start_single_job(self, job):
     if self.status not in Pipeline.STATUS.INACTIVE_STATUSES:
       return False
+    if not self.populate_params_runtime_values():
+      return False
     if not job.get_ready():
       return False
     self.update(status=Pipeline.STATUS.RUNNING, status_changed_at=datetime.now())
