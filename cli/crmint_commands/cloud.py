@@ -263,7 +263,7 @@ def copy_src_to_workdir(stage, debug=False):
 
   copy_db_conf = "echo \'SQLALCHEMY_DATABASE_URI=\"{cloud_db_uri}\"\' > {workdir}/backends/instance/config.py".format(
       workdir=stage.workdir,
-      cloud_db_uri=stage.local_db_uri)
+      cloud_db_uri=stage.cloud_db_uri)
 
   copy_app_data = """
 cat > %(workdir)s/backends/data/app.json <<EOL
@@ -413,6 +413,15 @@ def prepare_flask_envars(stage, debug=False):
   os.environ["FLASK_APP"] = "run_ibackend.py"
   os.environ["FLASK_DEBUG"] = "1"
   os.environ["APPLICATION_ID"] = stage.project_id_gae
+
+  # Use the local Cloud SQL Proxy url
+  command = "echo \'SQLALCHEMY_DATABASE_URI=\"{cloud_db_uri}\"\' > {workdir}/backends/instance/config.py".format(
+      workdir=stage.workdir,
+      cloud_db_uri=stage.local_db_uri)
+  shared.execute_command("Configure Cloud SQL proxy settings",
+      command,
+      cwd='.',
+      debug=debug)
 
 
 def _run_flask_command(stage, step_name, flask_command_name="--help", debug=False):
