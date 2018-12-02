@@ -34,7 +34,6 @@ class TestAbstractWorker(unittest.TestCase):
     self.testbed.activate()
     # Activate which service we want to stub
     self.testbed.init_taskqueue_stub()
-    self.testbed.init_memcache_stub()
     self.testbed.init_app_identity_stub()
 
   def tearDown(self):
@@ -202,7 +201,6 @@ class TestStorageToBQImporter(unittest.TestCase):
     self.testbed.activate()
     # Activate which service we want to stub
     self.testbed.init_urlfetch_stub()
-    self.testbed.init_memcache_stub()
     self.testbed.init_app_identity_stub()
     self.testbed.init_blobstore_stub()
     self.testbed.init_datastore_v3_stub()

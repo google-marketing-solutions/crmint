@@ -29,7 +29,6 @@ from flask_restful import marshal_with
 from flask_restful import Resource
 from flask_restful import reqparse
 
-from core import cache
 from core import cloud_logging
 from core.models import Job
 from core.models import Pipeline
