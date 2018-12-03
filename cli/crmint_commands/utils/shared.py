@@ -93,8 +93,7 @@ def check_service_account_file(stage):
 
 def before_hook(stage, stage_name):
   """
-    Method that adds variables to the stage object
-    and prepares the working directory
+  Adds variables to the stage object
   """
   stage.stage_name = stage_name
 
@@ -152,40 +151,3 @@ def check_variables():
       if download_status != 0:
         click.echo("[w]Could not download cloud sql proxy")
     os.environ["CLOUD_SQL_PROXY"] = cloud_sql_proxy
-
-
-def before_task(stage, use_service_account):
-  if os.path.exists(stage.cloudsql_dir):
-    shutil.rmtree(stage.cloudsql_dir)
-  os.mkdir(stage.cloudsql_dir)
-  with open("{}/backends/instance/config.py".format(stage.workdir), "w") as config:
-    config.write("SQLALCHEMY_DATABASE_URI=\"{}\"".format(stage.local_db_uri))
-  db_command = ""
-  if use_service_account:
-    db_command = "{} -projects={} -instances={} -dir={} -credential_file={}".format(
-        os.environ["CLOUD_SQL_PROXY"], stage.project_id_gae, stage.db_instance_conn_name,
-        stage.cloudsql_dir, os.path.join(constants.SERVICE_ACCOUNT_PATH,
-                                         constants.SERVICE_ACCOUNT_DEFAULT_FILE_NAME))
-  else:
-    db_command = "{} -projects={} -instances={} -dir={} -credential_file={}".format(
-        os.environ["CLOUD_SQL_PROXY"], stage.project_id_gae, stage.db_instance_conn_name,
-        stage.cloudsql_dir, os.path.join(constants.SERVICE_ACCOUNT_PATH,
-                                         stage.service_account_file))
-  return subprocess.Popen((db_command,
-                           "export FLASK_APP=\"{}/backends/run_ibackend.py\"".format(stage.workdir),
-                           "export PYTHONPATH=\"{}/platform/google_appengine:lib\"".format(
-                               os.environ["GOOGLE_CLOUD_SDK"]),
-                           "export APPLICATION_ID=\"{}\"".format(stage.project_id_gae)),
-                          preexec_fn=os.setsid, shell=True, stdout=subprocess.PIPE,
-                          stderr=subprocess.PIPE)
-
-
-def install_requirements():
-  try:
-    resp = subprocess.Popen("pip install -r {} -t {}".format(constants.REQUIREMENTS_DIR,
-                                                             constants.LIB_DEV_PATH),
-                     stdout=subprocess.PIPE,
-                     stderr=subprocess.PIPE,
-                     shell=True)
-  except:
-    raise Exception("Requirements could not be installed")

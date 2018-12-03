@@ -24,16 +24,6 @@ from crmint_commands.utils import constants
 from crmint_commands.utils import shared
 
 
-def source_stage_file_and_command_script(stage_file, command):
-  os.system("""SCRIPTS_DIR="{}"
-        source \"{}\"
-        source \"{}/deploy/before_hook.sh\"
-        source \"{}/deploy/{}.sh\""""
-            .format(constants.SCRIPTS_DIR, stage_file,
-                    constants.SCRIPTS_DIR,
-                    constants.SCRIPTS_DIR, command))
-
-
 def fetch_stage_or_default(stage_name=None, debug=False):
   if not stage_name:
     stage_name = shared.get_default_stage_name(debug=debug)
