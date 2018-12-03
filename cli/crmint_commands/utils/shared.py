@@ -23,6 +23,7 @@ from glob import glob
 import click
 
 from crmint_commands.utils import constants
+from crmint_commands.utils import spinner
 
 IGNORE_PATTERNS = ("^.idea", "^.git", "*.pyc", "frontend/node_modules",
                    "backends/data/*.json")
@@ -31,17 +32,20 @@ IGNORE_PATTERNS = ("^.idea", "^.git", "*.pyc", "frontend/node_modules",
 def execute_command(step_name, command, cwd='.', report_empty_err=True, debug=False, stream_output_in_debug=True):
   assert isinstance(command, str)
   pipe_output = (None if (debug and stream_output_in_debug) else subprocess.PIPE)
-  click.echo(click.style("---> %s" % step_name, fg='blue', bold=True))
+  click.echo(click.style("---> %s " % step_name, fg='blue', bold=True), nl=debug)
   if debug:
     click.echo(click.style("cwd: %s" % cwd, bg='blue', bold=False))
     click.echo(click.style("$ %s" % command, bg='blue', bold=False))
-  pipe = subprocess.Popen(
-      command,
-      cwd=cwd,
-      shell=True,
-      stdout=pipe_output,
-      stderr=pipe_output)
-  out, err = pipe.communicate()
+  with spinner.spinner(disable=debug):
+    pipe = subprocess.Popen(
+        command,
+        cwd=cwd,
+        shell=True,
+        stdout=pipe_output,
+        stderr=pipe_output)
+    out, err = pipe.communicate()
+  if not debug:
+    click.echo("\n", nl=False)
   if debug and not stream_output_in_debug:
     click.echo(out)
   if pipe.returncode != 0 and err and (len(err) > 0 or report_empty_err):
