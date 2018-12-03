@@ -151,3 +151,14 @@ def check_variables():
       if download_status != 0:
         click.echo("[w]Could not download cloud sql proxy")
     os.environ["CLOUD_SQL_PROXY"] = cloud_sql_proxy
+
+
+def install_requirements():
+  try:
+    resp = subprocess.Popen("pip install -r {} -t {}".format(constants.REQUIREMENTS_DIR,
+                                                             constants.LIB_DEV_PATH),
+                     stdout=subprocess.PIPE,
+                     stderr=subprocess.PIPE,
+                     shell=True)
+  except:
+    raise Exception("Requirements could not be installed")
