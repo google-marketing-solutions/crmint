@@ -22,8 +22,8 @@ from glob import glob
 
 import click
 
-from crmint_commands.utils import constants
-from crmint_commands.utils import spinner
+from cli.utils import constants
+from cli.utils import spinner
 
 IGNORE_PATTERNS = ("^.idea", "^.git", "*.pyc", "frontend/node_modules",
                    "backends/data/*.json")
@@ -79,7 +79,7 @@ def check_stage_file(stage_name):
 
 
 def get_stage_object(stage_name):
-  return getattr(__import__("stage_variables.%s" % stage_name), stage_name)
+  return getattr(__import__("stages.%s" % stage_name), stage_name)
 
 
 def get_service_account_file(stage):

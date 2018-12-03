@@ -17,9 +17,9 @@ import subprocess
 from shutil import copyfile
 import click
 
-from crmint_commands.utils import constants
-from crmint_commands.utils import database
-from crmint_commands.utils import shared
+from cli.utils import constants
+from cli.utils import database
+from cli.utils import shared
 
 
 @click.group()

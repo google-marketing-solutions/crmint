@@ -18,8 +18,8 @@ import string
 
 import click
 
-from crmint_commands.utils import constants
-from crmint_commands.utils import shared
+from cli.utils import constants
+from cli.utils import shared
 
 
 STAGE_FILE_TEMPLATE = """
@@ -143,7 +143,7 @@ def _ignore_stage_file(file_name):
 
 @cli.command('list')
 def list_stages():
-  """List your stages defined in scripts/variables/stages directory"""
+  """List your stages defined in cli/stages directory"""
   for file_name in os.listdir(constants.STAGE_DIR):
     if not _ignore_stage_file(file_name):
       click.echo(file_name[:-3])

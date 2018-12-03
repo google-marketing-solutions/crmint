@@ -25,14 +25,6 @@ service_account_file = ""
 # Example: "crmintapp-<customer>"
 project_id_gae = ""
 
-# Specify Project Name in Google Cloud
-# Example: "CRMintApp <customer Name>"
-project_name = ""
-
-# Specify Project Organization ID in Google Cloud or leave the variable blank
-# Example: "12345"
-project_org_id = ""
-
 # Specify Region. Use `gcloud app regions list` to list available regions.
 # Example: "europe-west2"
 project_region = ""

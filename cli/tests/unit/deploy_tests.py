@@ -21,7 +21,7 @@ import mock
 from click.testing import CliRunner
 
 import crmint_commands.deploy
-from crmint_commands.utils import constants
+from cli.utils import constants
 
 
 class TestDeploy(TestCase):

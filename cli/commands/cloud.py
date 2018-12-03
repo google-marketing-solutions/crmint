@@ -20,8 +20,8 @@ from io import StringIO
 
 import click
 
-from crmint_commands.utils import constants
-from crmint_commands.utils import shared
+from cli.utils import constants
+from cli.utils import shared
 
 
 def fetch_stage_or_default(stage_name=None, debug=False):

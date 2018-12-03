@@ -11,17 +11,19 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
 """
-	Constants used in the crmint_commands package
+Constants used in the cli/commands package.
 """
+
 import os
 
 
-PROJECT_DIR = os.path.join(os.path.dirname(__file__), '../../..')
+PROJECT_DIR = os.path.join(os.path.dirname(__file__), '../..')
 FRONTEND_DIR = os.path.join(PROJECT_DIR, "frontend")
 BACKENDS_DIR = os.path.join(PROJECT_DIR, "backends")
 SCRIPTS_DIR = "{}/scripts".format(PROJECT_DIR)
-STAGE_DIR = "{}/cli/stage_variables".format(PROJECT_DIR)
+STAGE_DIR = "{}/cli/stages".format(PROJECT_DIR)
 
 STAGE_EXAMPLE_PATH = "{}/stage_name.py.example".format(STAGE_DIR)
 
@@ -29,7 +31,7 @@ SERVICE_ACCOUNT_PATH = "{}/backends/data/".format(PROJECT_DIR)
 SERVICE_ACCOUNT_DEFAULT_FILE_NAME = "service-account.json"
 
 
-TASKS_PATH = "{}/cli/crmint_commands/".format(PROJECT_DIR)
+TASKS_PATH = "{}/cli/commands/".format(PROJECT_DIR)
 SEEDS_TASK = "_task_db_seeds.py"
 
 

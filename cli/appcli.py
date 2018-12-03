@@ -15,12 +15,12 @@
 import os
 import sys
 
-PLUGIN_FOLDER = os.path.join(os.path.dirname(__file__), 'crmint_commands')
+PLUGIN_FOLDER = os.path.join(os.path.dirname(__file__), 'commands')
 CLI_DIR = os.path.dirname(__file__)
 sys.path.insert(0, CLI_DIR)
 
 import click
-from crmint_commands.utils import shared
+from cli.utils import shared
 
 
 class CRMintCLI(click.MultiCommand):

@@ -16,7 +16,7 @@
 import os.path
 import subprocess
 import click
-from crmint_commands.utils import shared
+from cli.utils import shared
 
 
 def is_executable_file(path):
