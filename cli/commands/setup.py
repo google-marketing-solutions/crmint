@@ -53,49 +53,52 @@ def install_component(component_name, check_command, install_command, check_func
 @click.command()
 def cli():
   """Prepare the environment before deployment"""
-  click.echo("Setup in progress...")
-  try:
-    gcloud_install_command = """
-    export CLOUDSDK_CORE_DISABLE_PROMPTS=1
-    export CLOUDSDK_INSTALL_DIR=`realpath \"$gcloud_sdk_dir/..\"
-    curl https://sdk.cloud.google.com | bash
-    """
-
-    components = [
-        ("Homebrew",
-         "command -v brew",
-         "echo Please execute the following command first:\n\'/usr/bin/ruby " +
-         "-e \"$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)\"\'",
-         is_executable_file),
-        ("Node.js",
-         "command -v node",
-         "brew install node",
-         is_executable_file),
-        ("Angular",
-         "command -v ng",
-         "npm install -g @angular/cli",
-         is_executable_file),
-        ("MySQL",
-         "command -v mysql",
-         "brew install mysql",
-         is_executable_file),
-        ("Google Cloud SDK",
-         "command -v $gcloud_sdk_dir/bin/gcloud",
-         gcloud_install_command,
-         is_executable_file),
-        ("gcloud component app-engine-python",
-         "$gcloud_sdk_dir/bin/gcloud --version | grep \"app-engine-python\"",
-         "$gcloud_sdk_dir/bin/gcloud components install app-engine-python",
-         is_not_empty
-        ),
-        shared.check_variables
-        ]
-    with click.progressbar(components) as progress_bar:
-      for component in progress_bar:
-        if isinstance(component, tuple):
-          install_component(component[0], component[1], component[2], component[3])
-        else:
-          component()
-  except Exception as exception:
-    click.echo("Setup failed: {}".format(exception))
-    exit(1)
+  click.echo(click.style(">>>> Setup local env", fg='magenta', bold=True))
+  components = [
+      (
+          "Homebrew",
+          "command -v brew",
+          "echo Please execute the following command first:\n\'/usr/bin/ruby " +
+          "-e \"$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)\"\'",
+          is_executable_file
+      ),
+      (
+          "Node.js",
+          "command -v node",
+          "brew install node",
+          is_executable_file
+      ),
+      (
+          "Angular",
+          "command -v ng",
+          "npm install -g @angular/cli",
+          is_executable_file
+      ),
+      (
+          "MySQL",
+          "command -v mysql",
+          "brew install mysql",
+          is_executable_file
+      ),
+      (
+          "Google Cloud SDK",
+          "command -v gcloud",
+          "export CLOUDSDK_CORE_DISABLE_PROMPTS=1 && \
+           curl https://sdk.cloud.google.com | bash",
+          is_executable_file
+      ),
+      (
+          "App Engine Python",
+          "gcloud --version | grep \"app-engine-python\"",
+          "gcloud components install app-engine-python",
+          is_not_empty
+      ),
+  ]
+  for component in components:
+    step_name, check_cmd, install_cmd, check_cmd_res_func = component
+    status, out, err = shared.execute_command("Check %s" % step_name, check_cmd)
+    if status == 0 and check_cmd_res_func(out.strip()):
+      click.echo("     Already installed.")
+    else:
+      shared.execute_command("Install %s" % step_name, install_cmd)
+  click.echo(click.style("Done.", fg='magenta', bold=True))
