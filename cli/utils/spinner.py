@@ -3,6 +3,8 @@ import threading
 import time
 import itertools
 
+import click
+
 
 class Spinner(object):
   """
@@ -10,10 +12,12 @@ class Spinner(object):
   """
   spinner_cycle = itertools.cycle(['-', '/', '|', '\\'])
 
-  def __init__(self, beep=False, disable=False, force=False):
+  def __init__(self, beep=False, disable=False, force=False, color=None, bold=False):
     self.disable = disable
     self.beep = beep
     self.force = force
+    self.color = color
+    self.bold = bold
     self.stop_running = None
     self.spin_thread = None
 
@@ -32,7 +36,7 @@ class Spinner(object):
 
   def init_spin(self):
     while not self.stop_running.is_set():
-      sys.stdout.write(next(self.spinner_cycle))
+      sys.stdout.write(click.style(next(self.spinner_cycle), fg=self.color, bold=self.bold))
       sys.stdout.flush()
       time.sleep(0.25)
       sys.stdout.write('\b')
@@ -55,7 +59,7 @@ class Spinner(object):
     return False
 
 
-def spinner(beep=False, disable=False, force=False):
+def spinner(beep=False, disable=False, force=False, color=None, bold=False):
   """This function creates a context manager that is used to display a
   spinner on stdout as long as the context has not exited.
 
@@ -79,4 +83,4 @@ def spinner(beep=False, disable=False, force=False):
         do_something_else()
 
   """
-  return Spinner(beep, disable, force)
+  return Spinner(beep, disable, force, color=color, bold=bold)

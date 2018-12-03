@@ -36,7 +36,7 @@ def execute_command(step_name, command, cwd='.', report_empty_err=True, debug=Fa
   if debug:
     click.echo(click.style("cwd: %s" % cwd, bg='blue', bold=False))
     click.echo(click.style("$ %s" % command, bg='blue', bold=False))
-  with spinner.spinner(disable=debug):
+  with spinner.spinner(disable=debug, color='blue', bold=True):
     pipe = subprocess.Popen(
         command,
         cwd=cwd,
