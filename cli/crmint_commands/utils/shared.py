@@ -105,7 +105,7 @@ def before_hook(stage, stage_name):
   # Set DB connection variables.
   stage.db_instance_conn_name = "{}:{}:{}".format(
       stage.project_id_gae,
-      stage.project_region,
+      stage.project_sql_region,
       stage.db_instance_name)
 
   stage.cloudsql_dir = "/tmp/cloudsql"
