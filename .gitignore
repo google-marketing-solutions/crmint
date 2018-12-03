@@ -46,3 +46,4 @@ docs/_build
 
 # Python modules
 *.egg-info
+build/

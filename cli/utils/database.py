@@ -12,22 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import subprocess
-
 
 DATABASE_NAME = "crmintapp"
 DATABASE_USER = "crmintapp"
-
-
-def create_database():
-  db_command = "echo \"CREATE DATABASE IF NOT EXISTS {db_name} CHARACTER SET utf8;"\
-               "GRANT ALL PRIVILEGES ON {db_user}.* TO '{db_user}'@'localhost' IDENTIFIED BY '{db_user}';" \
-               "FLUSH PRIVILEGES;\" | mysql -u root"
-  res = subprocess.Popen(
-      db_command.format(db_name=DATABASE_NAME, db_user=DATABASE_USER),
-      stdout=subprocess.PIPE,
-      stderr=subprocess.PIPE,
-      shell=True)
-  error_message = res.communicate()[1]
-  if error_message:
-    raise Exception(error_message)
+DATABASE_PASSWORD = "crmintapp"
