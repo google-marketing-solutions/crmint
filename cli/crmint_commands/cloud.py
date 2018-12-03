@@ -434,6 +434,14 @@ def run_flask_db_seeds(stage, debug=False):
       flask_command_name="db-seeds", debug=debug)
 
 
+####################### RESET #######################
+
+
+def run_reset_pipelines(stage, debug=False):
+  _run_flask_command(stage, "Reset statuses of jobs and pipelines",
+      flask_command_name="reset-pipelines", debug=debug)
+
+
 ####################### SUB-COMMANDS #################
 
 
@@ -493,6 +501,37 @@ def deploy(stage_name, debug):
       prepare_flask_envars,
       run_flask_db_upgrade,
       run_flask_db_seeds,
+      stop_cloud_sql_proxy,
+  ]
+  for component in components:
+    component(stage, debug=debug)
+  click.echo(click.style("Done.", fg='magenta', bold=True))
+
+
+@cli.command('reset')
+@click.option('--stage_name', type=str, default=None)
+@click.option('--debug/--no-debug', default=False)
+def reset(stage_name, debug):
+  """Reset pipeline statuses."""
+  click.echo(click.style(">>>> Reset pipelines", fg='magenta', bold=True))
+
+  stage_name, stage = fetch_stage_or_default(stage_name, debug=debug)
+  if stage is None:
+    click.echo(click.style("Fix that issue by running: `$ crmint cloud setup`", fg='green'))
+    exit(1)
+
+  # Enriches stage with other variables.
+  stage = shared.before_hook(stage, stage_name)
+
+  # Runs setup stages.
+  components = [
+      install_required_packages,
+      display_workdir,
+      copy_src_to_workdir,
+      install_backends_dependencies,
+      start_cloud_sql_proxy,
+      prepare_flask_envars,
+      run_reset_pipelines,
       stop_cloud_sql_proxy,
   ]
   for component in components:
