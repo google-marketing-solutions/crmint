@@ -19,6 +19,7 @@ Anonymously report usage.
 """
 
 import json
+import logging
 import math
 import os
 import platform
@@ -32,6 +33,8 @@ from git import Repo
 PROJECT_DIR = os.path.realpath(os.path.join(os.path.dirname(__file__), '../../'))
 DEFAULT_TRACKING_ID = "UA-127959147-2"
 INSIGHT_CONF_FILEPATH = os.path.join(PROJECT_DIR, 'backends/data/insight.json')
+
+logger = logging.getLogger(__name__)
 
 
 class GAProvider(object):
@@ -138,7 +141,8 @@ class GAProvider(object):
     if self.opt_out is False:
       return
     if one([not kwargs, 'category' not in kwargs, 'action' not in kwargs]):
-      raise Exception('`category` and `action` required for anonymous reporting')
+      logger.error('`category` and `action` required for anonymous reporting')
+      return
     payload = {'type': 'event'}
     payload.update(kwargs)
     self._send(payload)

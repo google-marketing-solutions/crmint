@@ -78,6 +78,8 @@ class JobSingle(Resource):
       }, 422
 
     job.destroy()
+    insight = insight.GAProvider()
+    insight.track_event(category='jobs', action='delete')
     return {}, 204
 
   @marshal_with(job_fields)
@@ -104,7 +106,10 @@ class JobList(Resource):
   def get(self):
     args = parser.parse_args()
     pipeline = Pipeline.find(args['pipeline_id'])
-    return pipeline.jobs.all()
+    jobs = pipeline.jobs.all()
+    insight = insight.GAProvider()
+    insight.track_event(category='jobs', action='list')
+    return jobs
 
   @marshal_with(job_fields)
   def post(self):
@@ -120,6 +125,9 @@ class JobList(Resource):
     job.assign_attributes(args)
     job.save()
     job.save_relations(args)
+    insight = insight.GAProvider()
+    insight.track_event(category='jobs', action='create',
+        label=args['worker_class'])
     return job, 201
 
 
@@ -129,6 +137,9 @@ class JobStart(Resource):
   def post(self, job_id):
     job = Job.find(job_id)
     job.pipeline.start_single_job(job)
+    insight = insight.GAProvider()
+    insight.track_event(category='jobs', action='manual_run',
+        label=job.worker_class)
     return job
 
 
