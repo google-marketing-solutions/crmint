@@ -132,7 +132,8 @@ class GAProvider(object):
   def track(self, *args):
     if self.opt_out is True:
       return
-    path = '/' + '/'.join(map(lambda x: x.replace(' ', '-'), args))
+    only_args = filter(lambda x: not x.startswith('-'), args)
+    path = '/' + '/'.join(map(lambda x: x.replace(' ', '-'), only_args))
     payload = {'type': 'pageview', 'path': path}
     self._send(payload)
 
