@@ -34,8 +34,8 @@ DEFAULT_TRACKING_ID = "UA-127959147-2"
 INSIGHT_CONF_FILEPATH = os.path.join(PROJECT_DIR, 'backends/data/insight.json')
 
 
-class GATracker(object):
-  """GA Tracking model"""
+class GAProvider(object):
+  """Reports usage to Google Analytics."""
   URL = 'https://www.google-analytics.com/collect'
 
   def __init__(self, force_opt_out=False):

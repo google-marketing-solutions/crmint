@@ -13,14 +13,16 @@
 # limitations under the License.
 
 """Cron handler."""
-from flask import Blueprint
-from flask_restful import Resource
-from jbackend.extensions import api
 import logging
 import time
-from core.models import Pipeline
-from croniter import croniter
 
+from croniter import croniter
+from flask import Blueprint
+from flask_restful import Resource
+
+from core import insight
+from core.models import Pipeline
+from jbackend.extensions import api
 
 blueprint = Blueprint('cron', __name__)
 
@@ -44,6 +46,8 @@ class Cron(Resource):
         if self._its_time(schedule.cron):
           logging.info('Trying to start pipeline %s', pipeline.name)
           pipeline.start()
+          insight = insight.GAProvider()
+          insight.track_event(category='pipelines', action='scheduled_run')
           break
     return 'OK', 200
 
