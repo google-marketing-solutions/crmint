@@ -28,7 +28,6 @@ class TestPipeline(utils.ModelTestCase):
     self.testbed.activate()
     # Activate which service we want to stub
     self.testbed.init_taskqueue_stub()
-    self.testbed.init_memcache_stub()
     self.testbed.init_app_identity_stub()
 
   def tearDown(self):
@@ -133,7 +132,6 @@ class TestJob(utils.ModelTestCase):
     self.testbed = testbed.Testbed()
     self.testbed.activate()
     # Activate which service we want to stub
-    self.testbed.init_memcache_stub()
     self.testbed.init_app_identity_stub()
     self.testbed.init_taskqueue_stub()
 
@@ -186,25 +184,25 @@ class TestJob(utils.ModelTestCase):
     pipeline = models.Pipeline.create()
     job = models.Job.create(
         pipeline_id=pipeline.id)
-    self.assertEqual(job.get_status(), models.Job.STATUS.IDLE)
+    self.assertEqual(job.status, models.Job.STATUS.IDLE)
     self.assertTrue(job.get_ready())
-    self.assertEqual(job.get_status(), models.Job.STATUS.WAITING)
+    self.assertEqual(job.status, models.Job.STATUS.WAITING)
     task = job.start()
-    self.assertEqual(job.get_status(), models.Job.STATUS.RUNNING)
+    self.assertEqual(job.status, models.Job.STATUS.RUNNING)
     job.task_succeeded(task.name)
-    self.assertEqual(job.get_status(), models.Job.STATUS.SUCCEEDED)
+    self.assertEqual(job.status, models.Job.STATUS.SUCCEEDED)
 
   def test_task_succeeded_fails_with_failed_task(self):
     pipeline = models.Pipeline.create()
     job = models.Job.create(
         pipeline_id=pipeline.id)
     self.assertTrue(job.get_ready())
-    self.assertEqual(job.get_status(), models.Job.STATUS.WAITING)
+    self.assertEqual(job.status, models.Job.STATUS.WAITING)
     task = job.start()
     self.assertIsNotNone(task)
-    self.assertEqual(job.get_status(), models.Job.STATUS.RUNNING)
+    self.assertEqual(job.status, models.Job.STATUS.RUNNING)
     job.task_failed(task.name)
-    self.assertEqual(job.get_status(), models.Job.STATUS.FAILED)
+    self.assertEqual(job.status, models.Job.STATUS.FAILED)
 
   def test_save_relations(self):
     pipeline = models.Pipeline.create()

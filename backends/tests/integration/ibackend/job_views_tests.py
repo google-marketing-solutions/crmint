@@ -25,7 +25,6 @@ class TestJobList(utils.IBackendBaseTest):
     self.testbed = testbed.Testbed()
     self.testbed.activate()
     # Activate which service we want to stub
-    self.testbed.init_memcache_stub()
     self.testbed.init_app_identity_stub()
 
   def test_list_with_success(self):
