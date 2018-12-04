@@ -25,9 +25,6 @@ import click
 from cli.utils import constants
 from cli.utils import spinner
 
-IGNORE_PATTERNS = ("^.idea", "^.git", "*.pyc", "frontend/node_modules",
-                   "backends/data/*.json")
-
 
 def execute_command(step_name, command, cwd='.', report_empty_err=True, debug=False, stream_output_in_debug=True):
   assert isinstance(command, str)
@@ -156,14 +153,3 @@ def check_variables():
       if download_status != 0:
         click.echo("[w]Could not download cloud sql proxy")
     os.environ["CLOUD_SQL_PROXY"] = cloud_sql_proxy
-
-
-def install_requirements():
-  try:
-    resp = subprocess.Popen("pip install -r {} -t {}".format(constants.REQUIREMENTS_DIR,
-                                                             constants.LIB_DEV_PATH),
-                     stdout=subprocess.PIPE,
-                     stderr=subprocess.PIPE,
-                     shell=True)
-  except:
-    raise Exception("Requirements could not be installed")
