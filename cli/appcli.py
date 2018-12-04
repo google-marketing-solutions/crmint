@@ -16,18 +16,47 @@ import os
 import sys
 
 PLUGIN_FOLDER = os.path.join(os.path.dirname(__file__), 'commands')
+PROJECT_DIR = os.path.dirname(os.path.dirname(__file__))
 CLI_DIR = os.path.dirname(__file__)
+sys.path.insert(0, PROJECT_DIR)
 sys.path.insert(0, CLI_DIR)
 
 import click
 from cli.utils import shared
+from backends.core import insight
 
 
 class CRMintCLI(click.MultiCommand):
   """App multi command CLI"""
 
   def __init__(self, *args, **kwargs):
-    click.MultiCommand.__init__(self, *args, **kwargs)
+    super(CRMintCLI, self).__init__(*args, **kwargs)
+    self.insight = insight.GATracker()
+    self.insight.track('downloaded')
+    if self.insight.opt_out is None:
+      # None means that we still didn't record the user consent.
+      permission_given = self._ask_permission()
+      self.insight.set_opt_out(not permission_given)
+
+  def _ask_permission(self):
+    pkg_name = "CRMint"
+    msg = click.style(
+        "==========================================================================",
+        fg="black")
+    msg += click.style(
+        "\nWe're constantly looking for ways to make ",
+        fg='yellow')
+    msg += click.style(pkg_name, fg="red", bold=True)
+    msg += click.style(
+        " better! \nMay we anonymously report usage statistics to improve the tool over time? \n"
+        "More info: https://github.com/google/crmint & https://google.github.io/crmint",
+        fg='yellow')
+    msg += click.style(
+        "\n==========================================================================",
+        fg='black')
+    if click.confirm(msg, default=True):
+      return True
+    return False
 
   def list_commands(self, ctx):
     rv = []
@@ -44,6 +73,10 @@ class CRMintCLI(click.MultiCommand):
       code = compile(f.read(), full_name, 'exec')
       eval(code, ns, ns)
     return ns.get('cli', None)
+
+  def resolve_command(self, ctx, args):
+    self.insight.track(*args)
+    return super(CRMintCLI, self).resolve_command(ctx, args)
 
 
 CLI = CRMintCLI(help='Manage your CRMint instances on GCP or locally.')
