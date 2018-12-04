@@ -131,14 +131,14 @@ class GAProvider(object):
     requests.post(self.URL, data=qs)
 
   def track(self, *args):
-    if self.opt_out is False:
+    if self.opt_out is True:
       return
     path = '/' + '/'.join(map(lambda x: x.replace(' ', '-'), args))
     payload = {'type': 'pageview', 'path': path}
     self._send(payload)
 
   def track_event(self, **kwargs):
-    if self.opt_out is False:
+    if self.opt_out is True:
       return
     if one([not kwargs, 'category' not in kwargs, 'action' not in kwargs]):
       logger.error('`category` and `action` required for anonymous reporting')
