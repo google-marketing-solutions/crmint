@@ -247,6 +247,9 @@ def copy_src_to_workdir(stage, debug=False):
     --exclude=frontend/node_modules --exclude=backends/data/*.json . {workdir}".format(
       workdir=stage.workdir)
 
+  copy_insight_config_cmd = "cp backends/data/insight.json {workdir}/backends/data/insight.json".format(
+      workdir=stage.workdir)
+
   copy_service_account_cmd = "cp backends/data/{service_account_filename} {workdir}/backends/data/service-account.json".format(
       workdir=stage.workdir,
       service_account_filename=stage.service_account_file)
@@ -281,6 +284,7 @@ EOL""".strip() % dict(
 
   commands = [
       copy_src_cmd,
+      copy_insight_config_cmd,
       copy_service_account_cmd,
       copy_db_conf,
       copy_app_data,
