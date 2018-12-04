@@ -24,6 +24,7 @@ setup(
         "Click==7.0",
         "Flask==0.12.2",
         "GitPython==2.1.11",
+        "requests==2.18.4",
     ],
     entry_points="""
         [console_scripts]
