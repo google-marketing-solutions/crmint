@@ -15,6 +15,7 @@
 """
 Initialize the App Engine sdk.
 """
+from __future__ import print_function
 
 import os
 from google.appengine.ext import vendor
@@ -37,4 +38,4 @@ if os.environ.get('SERVER_SOFTWARE', '').startswith('Development'):
   # Use the App Engine Requests adapter. This makes sure that Requests uses
   # URLFetch.
   requests_toolbelt_appengine.monkeypatch()
-  print "Appengine requests patched"
+  print("Appengine requests patched")

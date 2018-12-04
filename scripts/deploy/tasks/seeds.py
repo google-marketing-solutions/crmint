@@ -1,3 +1,4 @@
+from __future__ import print_function
 # Copyright 2018 Google Inc
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -23,4 +24,4 @@ for setting in settings:
     gsetting = GeneralSetting()
     gsetting.name = setting
     gsetting.save()
-    print 'Added setting', setting
+    print('Added setting', setting)

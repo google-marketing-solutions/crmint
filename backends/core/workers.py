@@ -542,7 +542,7 @@ class GADataImporter(GAWorker):
       while response is None and tries < 5:
         try:
           status, response = request.next_chunk()
-        except HttpError, e:
+        except HttpError as e:
           if e.resp.status in [404, 500, 502, 503, 504]:
             tries += 1
             delay = 5 * 2 ** (tries + random())
