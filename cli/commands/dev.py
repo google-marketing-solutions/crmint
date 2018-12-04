@@ -147,10 +147,6 @@ def do_requirements(debug):
           "pip install -r jbackend/requirements.txt -t lib",
       ),
       (
-          "Install local Flask",
-          "pip install 'Flask==0.12.2'",
-      ),
-      (
           "Install documentation requirements",
           "pip install \"sphinx==1.7.2\" \"sphinx-autobuild==0.7.1\"",
       )

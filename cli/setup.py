@@ -21,7 +21,9 @@ setup(
     packages=find_packages(),
     include_package_data=True,
     install_requires=[
-        "Click",
+        "Click==7.0",
+        "Flask==0.12.2",
+        "GitPython==2.1.11",
     ],
     entry_points="""
         [console_scripts]
