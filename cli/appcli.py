@@ -32,9 +32,9 @@ class CRMintCLI(click.MultiCommand):
   def __init__(self, *args, **kwargs):
     super(CRMintCLI, self).__init__(*args, **kwargs)
     self.insight = insight.GAProvider()
-    self.insight.track('downloaded')
     if self.insight.opt_out is None:
       # None means that we still didn't record the user consent.
+      self.insight.track('downloaded')
       permission_given = self._ask_permission()
       self.insight.set_opt_out(not permission_given)
 
