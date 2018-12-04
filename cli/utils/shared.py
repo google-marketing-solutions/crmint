@@ -26,9 +26,11 @@ from cli.utils import constants
 from cli.utils import spinner
 
 
-def execute_command(step_name, command, cwd='.', report_empty_err=True, debug=False, stream_output_in_debug=True):
+def execute_command(step_name, command, cwd='.', report_empty_err=True, debug=False, stream_output_in_debug=True, force_std_out=False):
   assert isinstance(command, str)
   pipe_output = (None if (debug and stream_output_in_debug) else subprocess.PIPE)
+  if force_std_out:
+    pipe_output = None
   click.echo(click.style("---> %s " % step_name, fg='blue', bold=True), nl=debug)
   if debug:
     click.echo(click.style("cwd: %s" % cwd, bg='blue', bold=False))

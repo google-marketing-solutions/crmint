@@ -375,20 +375,34 @@ def deploy_backends(stage, debug=False):
 def start_cloud_sql_proxy(stage, debug=False):
   gcloud_command = "$GOOGLE_CLOUD_SDK/bin/gcloud --quiet"
   commands = [
-      "mkdir -p {cloudsql_dir}".format(cloudsql_dir=stage.cloudsql_dir),
-      "echo \"CLOUD_SQL_PROXY=$CLOUD_SQL_PROXY\"",
-      "$CLOUD_SQL_PROXY -projects={project_id} -instances={db_instance_conn_name} -dir={cloudsql_dir} &".format(
-          project_id=stage.project_id_gae,
-          cloudsql_dir=stage.cloudsql_dir,
-          db_instance_conn_name=stage.db_instance_conn_name),
-      "sleep 5",  # Wait for cloud_sql_proxy to start.
+      (
+          "mkdir -p {cloudsql_dir}".format(cloudsql_dir=stage.cloudsql_dir),
+          False,
+      ),
+      (
+          "echo \"CLOUD_SQL_PROXY=$CLOUD_SQL_PROXY\"",
+          False,
+      ),
+      (
+          "$CLOUD_SQL_PROXY -projects={project_id} -instances={db_instance_conn_name} -dir={cloudsql_dir} 2>/dev/null &".format(
+              project_id=stage.project_id_gae,
+              cloudsql_dir=stage.cloudsql_dir,
+              db_instance_conn_name=stage.db_instance_conn_name),
+          True,
+      ),
+      (
+          "sleep 5",  # Wait for cloud_sql_proxy to start.
+          False
+      ),
   ]
   total = len(commands)
   idx = 1
-  for cmd in commands:
+  for comp in commands:
+    cmd, force_std_out = comp
     shared.execute_command("Start CloudSQL proxy (%d/%d)" % (idx, total),
         cmd,
         cwd='.',
+        force_std_out=force_std_out,
         debug=debug)
     idx += 1
 
@@ -481,7 +495,9 @@ def setup(stage_name, debug):
 @cli.command('deploy')
 @click.option('--stage_name', type=str, default=None)
 @click.option('--debug/--no-debug', default=False)
-def deploy(stage_name, debug):
+@click.option('--skip-deploy-backends', is_flag=True, default=False)
+@click.option('--skip-deploy-frontend', is_flag=True, default=False)
+def deploy(stage_name, debug, skip_deploy_backends, skip_deploy_frontend):
   """Deploy CRMint on GCP."""
   click.echo(click.style(">>>> Deploy", fg='magenta', bold=True))
 
@@ -507,6 +523,12 @@ def deploy(stage_name, debug):
       run_flask_db_seeds,
       stop_cloud_sql_proxy,
   ]
+
+  if skip_deploy_backends and (deploy_backends in components):
+    components.remove(deploy_backends)
+  if skip_deploy_frontend and (deploy_frontend in components):
+    components.remove(deploy_frontend)
+
   for component in components:
     component(stage, debug=debug)
   click.echo(click.style("Done.", fg='magenta', bold=True))
