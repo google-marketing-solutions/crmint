@@ -63,6 +63,7 @@ def get_default_stage_name(debug=False):
   if status != 0:
     exit(1)
   stage_name = out.strip()
+  click.echo("     Project ID found: %s" % stage_name)
   return stage_name
 
 
