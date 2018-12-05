@@ -46,8 +46,8 @@ class Cron(Resource):
         if self._its_time(schedule.cron):
           logging.info('Trying to start pipeline %s', pipeline.name)
           pipeline.start()
-          insight = insight.GAProvider()
-          insight.track_event(category='pipelines', action='scheduled_run')
+          tracker = insight.GAProvider()
+          tracker.track_event(category='pipelines', action='scheduled_run')
           break
     return 'OK', 200
 
