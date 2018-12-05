@@ -372,6 +372,23 @@ def deploy_backends(stage, debug=False):
     idx += 1
 
 
+def download_cloud_sql_proxy(stage, debug=False):
+  cloud_sql_proxy_path = "/usr/bin/cloud_sql_proxy"
+  if os.path.isfile(cloud_sql_proxy_path):
+    os.environ["CLOUD_SQL_PROXY"] = cloud_sql_proxy_path
+  else:
+    cloud_sql_proxy_path = "{}/bin/cloud_sql_proxy".format(os.environ["HOME"])
+    if not os.path.isfile(cloud_sql_proxy_path):
+      if not os.path.exists(os.path.dirname(cloud_sql_proxy_path)):
+        os.mkdir(os.path.dirname(cloud_sql_proxy_path), 0755)
+      cloud_sql_download_link = "https://dl.google.com/cloudsql/cloud_sql_proxy.linux.amd64"
+      download_command = "curl -L {} -o {}".format(cloud_sql_download_link,
+                                                   cloud_sql_proxy_path)
+      shared.execute_command("Downloading Cloud SQL proxy", download_command,
+          debug=debug)
+    os.environ["CLOUD_SQL_PROXY"] = cloud_sql_proxy_path
+
+
 def start_cloud_sql_proxy(stage, debug=False):
   gcloud_command = "$GOOGLE_CLOUD_SDK/bin/gcloud --quiet"
   commands = [
@@ -477,7 +494,7 @@ def setup(stage_name, debug):
   # Enriches stage with other variables.
   stage = shared.before_hook(stage, stage_name)
 
-  # Runs setup stages.
+  # Runs setup steps.
   components = [
       create_appengine,
       create_service_account_key_if_needed,
@@ -509,7 +526,7 @@ def deploy(stage_name, debug, skip_deploy_backends, skip_deploy_frontend):
   # Enriches stage with other variables.
   stage = shared.before_hook(stage, stage_name)
 
-  # Runs setup stages.
+  # Runs deploy steps.
   components = [
       install_required_packages,
       display_workdir,
@@ -517,6 +534,7 @@ def deploy(stage_name, debug, skip_deploy_backends, skip_deploy_frontend):
       install_backends_dependencies,
       deploy_backends,
       deploy_frontend,
+      download_cloud_sql_proxy,
       start_cloud_sql_proxy,
       prepare_flask_envars,
       run_flask_db_upgrade,
