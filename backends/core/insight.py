@@ -29,7 +29,6 @@ import time
 from threading import Timer
 
 import requests
-from git import Repo
 
 PROJECT_DIR = os.path.realpath(os.path.join(os.path.dirname(__file__), '../../'))
 DEFAULT_TRACKING_ID = "UA-127959147-2"
@@ -46,8 +45,9 @@ class GAProvider(object):
     self.os_name = platform.system()
     self.python_version = platform.python_version()
     try:
-      self.app_version = str(Repo(PROJECT_DIR).tags[-1])
-    except:
+      version_filepath = os.path.join(PROJECT_DIR, 'VERSION')
+      self.app_version = open(version_filepath, 'r').read().strip()
+    except IOError:
       self.app_version = '0.0.0'
 
     conf = self._load_insight_config()
