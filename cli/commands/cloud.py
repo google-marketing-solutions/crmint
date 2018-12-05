@@ -243,8 +243,12 @@ def display_workdir(stage, debug=False):
 
 
 def copy_src_to_workdir(stage, debug=False):
-  copy_src_cmd = "rsync -r --exclude=.git --exclude=.idea --exclude='*.pyc' \
-    --exclude=frontend/node_modules --exclude=backends/data/*.json . {workdir}".format(
+  copy_src_cmd = "rsync -r --delete \
+    --exclude=.git \
+    --exclude=.idea \
+    --exclude='*.pyc' \
+    --exclude=frontend/node_modules \
+    --exclude=backends/data/*.json . {workdir}".format(
       workdir=stage.workdir)
 
   copy_insight_config_cmd = "cp backends/data/insight.json {workdir}/backends/data/insight.json".format(
