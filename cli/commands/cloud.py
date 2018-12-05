@@ -302,9 +302,11 @@ EOL""".strip() % dict(
 
 def deploy_frontend(stage, debug=False):
   gcloud_command = "$GOOGLE_CLOUD_SDK/bin/gcloud --quiet"
+  # NB: Limit the node process memory usage to avoid overloading
+  #     the Cloud Shell VM memory which makes it unresponsive.
   commands = [
       "npm install",
-      "node_modules/@angular/cli/bin/ng build --prod",
+      "node --max-old-space-size=512 ./node_modules/@angular/cli/bin/ng build --prod",
       "{gcloud_bin} --project={project_id} app deploy gae.yaml --version=v1".format(
           gcloud_bin=gcloud_command,
           project_id=stage.project_id_gae),
