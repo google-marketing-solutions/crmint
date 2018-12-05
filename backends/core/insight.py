@@ -52,7 +52,7 @@ class GAProvider(object):
 
     conf = self._load_insight_config()
     conf = self._define_random_values(conf)
-    self.config = self._save_insight_config(conf)
+    self.config = conf
 
   def _define_random_values(self, conf):
     if not conf.get('client_id', None):
@@ -70,16 +70,6 @@ class GAProvider(object):
         # Ill-formatted value
         pass
     return {}
-
-  def _save_insight_config(self, config):
-    with open(INSIGHT_CONF_FILEPATH, 'w+') as fp:
-      json.dump(config, fp)
-    return config
-
-  def set_opt_out(self, value):
-    conf = self._load_insight_config()
-    conf['opt_out'] = value
-    self.config = self._save_insight_config(conf)
 
   @property
   def opt_out(self):

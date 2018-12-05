@@ -26,6 +26,12 @@ from cli.utils import shared
 from backends.core import insight
 
 
+def _set_insight_opt_out(config, value):
+  config['opt_out'] = value
+  with open(insight.INSIGHT_CONF_FILEPATH, 'w+') as fp:
+    json.dump(config, fp)
+
+
 class CRMintCLI(click.MultiCommand):
   """App multi command CLI"""
 
@@ -69,12 +75,12 @@ class CRMintCLI(click.MultiCommand):
     self.insight = insight.GAProvider()
     if '--no-insight' in args:
       args.remove('--no-insight')
-      self.insight.set_opt_out(True)
+      _set_insight_opt_out(self.insight.config, True)
     if self.insight.opt_out is None:
       # None means that we still didn't record the user consent.
       self.insight.track('downloaded')
       permission_given = self._ask_permission()
-      self.insight.set_opt_out(not permission_given)
+      _set_insight_opt_out(self.insight.config, not permission_given)
     self.insight.track(*args)
     return super(CRMintCLI, self).resolve_command(ctx, args)
 
