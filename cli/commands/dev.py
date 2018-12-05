@@ -115,11 +115,15 @@ def init():
       (
           "Cleaning",
           "echo \"FLUSH PRIVILEGES;\" | mysql -u root".format(**params),
+      ),
+      (
+          "Create local service account file from a template",
+          "cp backends/data/service-account.json.example backends/data/service-account.json",
       )
   ]
   for component in components:
     name, cmd = component
-    shared.execute_command(name, cmd)
+    shared.execute_command(name, cmd, cwd=constants.PROJECT_DIR)
   click.echo(click.style("Done.", fg='magenta', bold=True))
 
 
