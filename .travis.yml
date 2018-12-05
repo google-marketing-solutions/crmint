@@ -30,8 +30,9 @@ install:
   # Update the App Engine environment
   - gcloud -q components update
   # Setup the CRMint project
-  - bin/app dev setup
-  - bin/app dev do requirements
+  - pip install cli/
+  - crmint dev setup
+  - crmint dev do requirements
   - pip install -r backends/tests/requirements.txt
   - mysql -u root --execute="CREATE DATABASE IF NOT EXISTS crmintapp_test;"
   - mysql -u root --execute="GRANT ALL PRIVILEGES ON crmintapp_test.* TO 'crmint'@'localhost' IDENTIFIED BY 'crmint'";
