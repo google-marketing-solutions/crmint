@@ -130,7 +130,7 @@ class GAProvider(object):
   def track_event(self, **kwargs):
     if self.opt_out is True:
       return
-    if one([not kwargs, 'category' not in kwargs, 'action' not in kwargs]):
+    if any([not kwargs, 'category' not in kwargs, 'action' not in kwargs]):
       print('`category` and `action` required for anonymous reporting')
       return
     payload = {'type': 'event'}
