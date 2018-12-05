@@ -145,7 +145,8 @@ def check_variables():
     cloud_sql_proxy = "{}/bin/cloud_sql_proxy".format(home_path)
     if not os.path.isfile(cloud_sql_proxy):
       click.echo("\rDownloading cloud_sql_proxy to ~/bin/", nl=False)
-      os.mkdir("{}/bin".format(home_path), 0755)
+      if not os.path.exists(os.path.dirname(cloud_sql_proxy)):
+        os.mkdir(os.path.dirname(cloud_sql_proxy), 0755)
       cloud_sql_download_link = "https://dl.google.com/cloudsql/cloud_sql_proxy.linux.amd64"
       download_command = "curl -L {} -o {}".format(cloud_sql_download_link,
                                                    os.environ["CLOUD_SQL_PROXY"])
