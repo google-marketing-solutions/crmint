@@ -108,8 +108,6 @@ class JobList(Resource):
     args = parser.parse_args()
     pipeline = Pipeline.find(args['pipeline_id'])
     jobs = pipeline.jobs.all()
-    tracker = insight.GAProvider()
-    tracker.track_event(category='jobs', action='list')
     return jobs
 
   @marshal_with(job_fields)
