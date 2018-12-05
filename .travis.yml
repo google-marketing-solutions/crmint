@@ -31,7 +31,7 @@ install:
   - gcloud -q components update
   # Setup the CRMint project
   - pip install -e cli/
-  - crmint dev setup --no-insight
+  - crmint dev init --no-insight
   - crmint dev do requirements --no-insight
   - pip install -r backends/tests/requirements.txt
   - mysql -u root --execute="CREATE DATABASE IF NOT EXISTS crmintapp_test;"
