@@ -306,7 +306,7 @@ def deploy_frontend(stage, debug=False):
   #     the Cloud Shell VM memory which makes it unresponsive.
   commands = [
       "npm install",
-      "node --max-old-space-size=512 ./node_modules/@angular/cli/bin/ng build --prod",
+      "node --max-old-space-size=512 ./node_modules/@angular/cli/bin/ng build",
       "{gcloud_bin} --project={project_id} app deploy gae.yaml --version=v1".format(
           gcloud_bin=gcloud_command,
           project_id=stage.project_id_gae),
