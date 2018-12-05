@@ -30,7 +30,7 @@ install:
   # Update the App Engine environment
   - gcloud -q components update
   # Setup the CRMint project
-  - pip install cli/
+  - pip install -e cli/
   - crmint dev setup --no-insight
   - crmint dev do requirements --no-insight
   - pip install -r backends/tests/requirements.txt
