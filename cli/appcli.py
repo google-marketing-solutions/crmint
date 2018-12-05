@@ -29,9 +29,6 @@ from backends.core import insight
 class CRMintCLI(click.MultiCommand):
   """App multi command CLI"""
 
-  def __init__(self, *args, **kwargs):
-    super(CRMintCLI, self).__init__(*args, **kwargs)
-
   def _ask_permission(self):
     pkg_name = "CRMint"
     msg = click.style(
