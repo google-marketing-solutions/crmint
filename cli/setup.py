@@ -1,5 +1,3 @@
-#!/usr/bin/env bash
-#
 # Copyright 2018 Google Inc
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,18 +12,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-CURRENT_DIR=$(pwd)
+from setuptools import setup, find_packages
 
-# Clones the crmint repository in the home directory.
-cd "$HOME"
-git clone https://github.com/google/crmint.git
-cd crmint
 
-# Configures the GCP project with the resources needed.
-bin/app cloud setup
-
-# Deploy the App Engine services.
-bin/app cloud deploy
-
-# Restores initial directory.
-cd "$CURRENT_DIR"
+setup(
+    name="crmint",
+    version="0.1",
+    packages=find_packages(),
+    include_package_data=True,
+    install_requires=[
+        "Click==7.0",
+        "Flask==0.12.2",
+        "requests==2.18.4",
+    ],
+    entry_points="""
+        [console_scripts]
+        crmint=appcli:entry_point
+    """,
+)

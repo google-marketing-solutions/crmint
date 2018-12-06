@@ -1,5 +1,3 @@
-#!/bin/bash
-#
 # Copyright 2018 Google Inc
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,12 +12,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# ------------------------- DEPLOY CRON ------------------------
-echo
-echo -e "$BLUE==>$NONE$BOLD CRON deploy is started$NONE"
-cd $workdir/backends
+"""
+Constants used in the cli/commands package.
+"""
 
-# Deploy CRON
-$gcloud_sdk_dir/bin/gcloud --quiet --project $project_id_gae app deploy cron.yaml
+import os
 
-# ------------------------- END DEPLOY CRON --------------------
+
+PROJECT_DIR = os.path.join(os.path.dirname(__file__), '../..')
+FRONTEND_DIR = os.path.join(PROJECT_DIR, "frontend")
+BACKENDS_DIR = os.path.join(PROJECT_DIR, "backends")
+PATCHES_DIR = "{}/cli/patches".format(PROJECT_DIR)
+STAGE_DIR = "{}/cli/stages".format(PROJECT_DIR)
+
+SERVICE_ACCOUNT_PATH = "{}/backends/data/".format(PROJECT_DIR)
+
+REQUIREMENTS_DIR = os.path.join(PROJECT_DIR, "cli/requirements.txt")
+LIB_DEV_PATH = os.path.join(PROJECT_DIR, "backends/lib_dev")

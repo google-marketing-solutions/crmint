@@ -12,12 +12,4 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import run_ibackend
-from core.models import Pipeline
-
-# Reset status of pipelines and jobs to 'idle'.
-for p in Pipeline.all():
-  for j in p.jobs:
-    j.update(status='idle')
-  p.update(status='idle')
-
+"""CLI Stages package."""

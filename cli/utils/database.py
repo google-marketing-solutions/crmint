@@ -1,5 +1,3 @@
-#!/bin/bash
-#
 # Copyright 2018 Google Inc
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,17 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# ------------------------- CREATE GCLOUD PROJECT ------------------------
-echo
-echo -e "$BLUE==>$NONE$BOLD Creating GCloud Project is started$NONE"
 
-project_args=
-
-if [ -z "$project_org_id" ]; then
-  project_args="--organization=$project_org_id"
-fi
-
-# Create project
-$gcloud_sdk_dir/bin/gcloud projects create "$project_id_gae" --name="$project_name $project_args"
-
-# ------------------------- END CREATE GCLOUD PROJECT --------------------
+DATABASE_NAME = "crmintapp"
+DATABASE_USER = "crmintapp"
+DATABASE_PASSWORD = "crmintapp"

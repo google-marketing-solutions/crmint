@@ -1,5 +1,3 @@
-#!/bin/bash
-#
 # Copyright 2018 Google Inc
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -13,10 +11,3 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-# --------------------------- AFTER TASK --------------------------
-
-echo -e "$BLUE==>$NONE$BOLD Stop cloud_sql_proxy with pid $cloud_sql_proxy_pid$NONE"
-kill -s STOP $cloud_sql_proxy_pid
-
-# ------------------------- END AFTER TASK ------------------------
