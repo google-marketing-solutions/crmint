@@ -25,7 +25,7 @@ type: markdown
 
 1.  Once the spinner has stopped, click on the notification to select the newly-created project. Enter the project ID here:
 
-    <input id="project-id" placeholder="Insert Project ID here, e.g. flying-tiger-112301">
+    <input id="project-id" placeholder="Insert Project ID here, e.g. flying-tiger-112301" data-target-id="cloudshell-url">
 
 ## Run setup steps on Cloud Shell
 
@@ -51,4 +51,4 @@ type: markdown
 - Read a full explanation of how CRMint works in [What is CRMint?](../guides/)
   and [CRMint Concepts](../guides/concepts.html)
 - CRMint pipeline concepts
-- Create your first CRMint pipeline
+- [Create your first CRMint pipeline with BigQuery ML](../quickstart/tutorial.html)
