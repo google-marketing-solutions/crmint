@@ -19,7 +19,6 @@ import json
 from flask import Blueprint
 from flask import request
 from flask_restful import Resource, reqparse
-from core import cache
 from core import workers
 from core.models import Job
 from jbackend.extensions import api
@@ -44,9 +43,6 @@ class Task(Resource):
         task_name = request.headers.get('X-AppEngine-TaskName')[11:]
 
     """
-    # Clear the memcache client, mainly to avoid memory overflow of
-    # the internal hashmap.
-    cache.clear_memcache_client()
     retries = int(request.headers.get('X-AppEngine-TaskExecutionCount'))
     args = parser.parse_args()
     logger.debug(args)

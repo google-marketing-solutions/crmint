@@ -14,19 +14,18 @@
 
 import click
 
-from core.models import Pipeline
-from core import database
-
 
 def add(app):
   @app.cli.command()
   def db_seeds():
     """Initialize the database."""
+    from core import database
     database.load_fixtures(logger_func=click.echo)
 
   @app.cli.command()
   def reset_pipelines():
     """Reset pipelines and jobs statuses."""
+    from core.models import Pipeline
     for pipeline in Pipeline.all():
       for job in pipeline.jobs:
         job.update(status='idle')

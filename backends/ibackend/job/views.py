@@ -16,8 +16,9 @@
 from flask import Blueprint
 from flask_restful import Resource, reqparse, marshal_with, fields, abort
 
-from ibackend.extensions import api
+from core import insight
 from core.models import Job, Pipeline
+from ibackend.extensions import api
 
 blueprint = Blueprint('job', __name__)
 
@@ -78,6 +79,8 @@ class JobSingle(Resource):
       }, 422
 
     job.destroy()
+    tracker = insight.GAProvider()
+    tracker.track_event(category='jobs', action='delete')
     return {}, 204
 
   @marshal_with(job_fields)
@@ -104,7 +107,8 @@ class JobList(Resource):
   def get(self):
     args = parser.parse_args()
     pipeline = Pipeline.find(args['pipeline_id'])
-    return pipeline.jobs.all()
+    jobs = pipeline.jobs.all()
+    return jobs
 
   @marshal_with(job_fields)
   def post(self):
@@ -120,6 +124,9 @@ class JobList(Resource):
     job.assign_attributes(args)
     job.save()
     job.save_relations(args)
+    tracker = insight.GAProvider()
+    tracker.track_event(category='jobs', action='create',
+        label=args['worker_class'])
     return job, 201
 
 
@@ -129,6 +136,9 @@ class JobStart(Resource):
   def post(self, job_id):
     job = Job.find(job_id)
     job.pipeline.start_single_job(job)
+    tracker = insight.GAProvider()
+    tracker.track_event(category='jobs', action='manual_run',
+        label=job.worker_class)
     return job
 
 

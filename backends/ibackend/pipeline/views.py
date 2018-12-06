@@ -29,8 +29,8 @@ from flask_restful import marshal_with
 from flask_restful import Resource
 from flask_restful import reqparse
 
-from core import cache
 from core import cloud_logging
+from core import insight
 from core.models import Job
 from core.models import Pipeline
 
@@ -121,6 +121,8 @@ class PipelineList(Resource):
 
   @marshal_with(pipeline_fields)
   def get(self):
+    tracker = insight.GAProvider()
+    tracker.track_event(category='pipelines', action='list')
     pipelines = Pipeline.all()
     return pipelines
 
@@ -131,6 +133,8 @@ class PipelineList(Resource):
     pipeline.assign_attributes(args)
     pipeline.save()
     pipeline.save_relations(args)
+    tracker = insight.GAProvider()
+    tracker.track_event(category='pipelines', action='create')
     return pipeline, 201
 
 
@@ -140,6 +144,8 @@ class PipelineStart(Resource):
   def post(self, pipeline_id):
     pipeline = Pipeline.find(pipeline_id)
     pipeline.start()
+    tracker = insight.GAProvider()
+    tracker.track_event(category='pipelines', action='manual_run')
     return pipeline
 
 
@@ -150,6 +156,8 @@ class PipelineStop(Resource):
   def post(self, pipeline_id):
     pipeline = Pipeline.find(pipeline_id)
     pipeline.stop()
+    tracker = insight.GAProvider()
+    tracker.track_event(category='pipelines', action='manual_stop')
     return pipeline
 
 
@@ -157,6 +165,9 @@ class PipelineExport(Resource):
   """Class for exporting of pipeline in yaml format"""
 
   def get(self, pipeline_id):
+    tracker = insight.GAProvider()
+    tracker.track_event(category='pipelines', action='export')
+
     pipeline = Pipeline.find(pipeline_id)
 
     jobs = self.__get_jobs__(pipeline)
@@ -239,6 +250,9 @@ class PipelineImport(Resource):
 
   @marshal_with(pipeline_fields)
   def post(self):
+    tracker = insight.GAProvider()
+    tracker.track_event(category='pipelines', action='import')
+
     args = import_parser.parse_args()
 
     file_ = args['upload_file']
@@ -259,7 +273,12 @@ class PipelineRunOnSchedule(Resource):
   def patch(self, pipeline_id):
     pipeline = Pipeline.find(pipeline_id)
     args = parser.parse_args()
-    pipeline.update(run_on_schedule=(args['run_on_schedule'] == 'True'))
+    schedule_pipeline = (args['run_on_schedule'] == 'True')
+    pipeline.update(run_on_schedule=schedule_pipeline)
+    tracker = insight.GAProvider()
+    tracker.track_event(
+        category='pipelines',
+        action=('schedule' if schedule_pipeline else 'unschedule'))
     return pipeline
 
 
