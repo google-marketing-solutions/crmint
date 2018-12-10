@@ -27,7 +27,7 @@ from cli.utils import spinner
 
 
 def execute_command(step_name, command, cwd='.', report_empty_err=True, debug=False, stream_output_in_debug=True, force_std_out=False):
-  assert isinstance(command, str)
+  assert isinstance(command, basestring)
   pipe_output = (None if (debug and stream_output_in_debug) else subprocess.PIPE)
   if force_std_out:
     pipe_output = None
