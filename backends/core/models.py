@@ -123,10 +123,47 @@ class Pipeline(BaseModel):
         ids_for_removing.append(schedule.id)
     Schedule.destroy(*ids_for_removing)
 
+  def populate_params_runtime_values(self):
+    try:
+      global_context = {}
+      for param in Param.where(pipeline_id=None, job_id=None).all():
+        global_context[param.name] = param.populate_runtime_value()
+      pipeline_context = global_context.copy()
+      for param in self.params.all():
+        pipeline_context[param.name] = param.populate_runtime_value(global_context)
+      for job in self.jobs.all():
+        for param in job.params.all():
+          param.populate_runtime_value(pipeline_context)
+      return True
+    except (InvalidExpression, TypeError) as e:
+      from core import cloud_logging
+      job_id = '-'
+      worker_class = '-'
+      if param.job_id is not None:
+        job_id = param.job_id
+        worker_class = param.job.worker_class
+        message = 'Bad job param "%s": %s' % (param.label, e)
+      elif param.pipeline_id is not None:
+        message = 'Bad pipeline param "%s": %s' % (param.label, e)
+      else:
+        message = 'Bad global param "%s": %s' % (param.label, e)
+      cloud_logging.logger.log_struct({
+          'labels': {
+              'pipeline_id': self.id,
+              'job_id': job_id,
+              'worker_class': worker_class,
+          },
+          'log_level': 'ERROR',
+          'message': message,
+      })
+      return False
+
   def set_status(self, status):
     self.update(status=status, status_changed_at=datetime.now())
 
   def get_ready(self):
+    if not self.populate_params_runtime_values():
+      return False
     for job in self.jobs.all():
       if not job.get_ready():
         return False
@@ -169,6 +206,8 @@ class Pipeline(BaseModel):
 
   def start_single_job(self, job):
     if self.status not in Pipeline.STATUS.INACTIVE_STATUSES:
+      return False
+    if not self.populate_params_runtime_values():
       return False
     if not job.get_ready():
       return False
@@ -290,23 +329,6 @@ class Job(BaseModel):
   def get_ready(self):
     if self.status not in Job.STATUS.INACTIVE_STATUSES:
       return False
-
-    try:
-      for param in self.params:
-        _ = param.val  # NOQA
-    except (InvalidExpression, TypeError) as e:
-      from core import cloud_logging
-      cloud_logging.logger.log_struct({
-          'labels': {
-              'pipeline_id': self.pipeline_id,
-              'job_id': self.id,
-              'worker_class': self.worker_class,
-          },
-          'log_level': 'ERROR',
-          'message': 'Bad job param "%s": %s' % (param.label, e),
-      })
-      return False
-
     self.set_status(Job.STATUS.WAITING)
     return True
 
@@ -378,7 +400,7 @@ class Job(BaseModel):
       return self.run()
 
   def run(self):
-    worker_params = dict([(p.name, p.val) for p in self.params])
+    worker_params = dict([(p.name, p.worker_value) for p in self.params])
     return self.enqueue(self.worker_class, worker_params)
 
   def stop(self):
@@ -556,39 +578,37 @@ class Param(BaseModel):
   description = Column(Text)
   label = Column(String(255))
   value = Column(Text())
+  runtime_value = Column(Text())
 
   _INLINER_REGEX = re.compile(r'{%.+?%}')
 
-  def _expand_vars(self, value):
-    names = {'True': True, 'False': False}
-    if self.job_id is not None or self.pipeline_id is not None:
-      for param in Param.where(pipeline_id=None, job_id=None).all():
-        names[param.name] = param.val
-    if self.job_id is not None:
-      for param in self.job.pipeline.params:
-        names[param.name] = param.val
+  def populate_runtime_value(self, context={}):
+    names = context.copy()
+    names.update({'True': True, 'False': False})
+    value = self.value
     inliners = self._INLINER_REGEX.findall(value)
     for inliner in inliners:
       result = simple_eval(inliner[2:-2], functions=inline.functions,
                            names=names)
       value = value.replace(inliner, str(result))
+    if self.job_id is not None:
+      self.update(runtime_value=value)
     return value
 
   @property
-  def val(self):
+  def worker_value(self):
     if self.type == 'boolean':
-      return self.value == '1'
-    val = self._expand_vars(self.value)
+      return self.runtime_value == '1'
     if self.type == 'number':
-      return _parse_num(val)
+      return _parse_num(self.runtime_value)
     if self.type == 'string_list':
-      return val.split('\n')
+      return self.runtime_value.split('\n')
     if self.type == 'number_list':
-      return [_parse_num(l) for l in val.split('\n') if l.strip()]
-    return val
+      return [_parse_num(l) for l in self.runtime_value.split('\n') if l.strip()]
+    return self.runtime_value
 
   @property
-  def api_val(self):
+  def api_value(self):
     if self.type == 'boolean':
       return self.value == '1'
     return self.value

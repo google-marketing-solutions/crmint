@@ -54,7 +54,7 @@ param_fields = {
     'id': fields.Integer,
     'name': fields.String,
     'type': fields.String,
-    'value': fields.Raw(attribute='api_val'),
+    'value': fields.Raw(attribute='api_value'),
     'label': fields.String
 }
 pipeline_fields = {
@@ -215,7 +215,7 @@ class PipelineExport(Resource):
       for param in job.params:
         params.append({
             'name': param.name,
-            'value': param.api_val,
+            'value': param.api_value,
             'label': param.label,
             'is_required': param.is_required,
             'type': param.type,

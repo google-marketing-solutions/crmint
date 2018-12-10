@@ -32,7 +32,7 @@ param_fields = {
     'id': fields.Integer,
     'name': fields.String,
     'type': fields.String,
-    'value': fields.Raw(attribute='api_val'),
+    'value': fields.Raw(attribute='api_value'),
     'label': fields.String
 }
 start_condition_fields = {
