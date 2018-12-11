@@ -22,6 +22,12 @@ from cli.utils import constants
 from cli.utils import shared
 
 
+STAGE_VERSION_1_0 = "v1.0"
+STAGE_VERSION_2_0 = "v2.0"
+
+SUPPORTED_STAGE_VERSIONS = (STAGE_VERSION_1_0, STAGE_VERSION_2_0)
+
+
 STAGE_FILE_TEMPLATE = """
 #
 # Copyright 2018 Google Inc
@@ -86,16 +92,12 @@ enabled_stages = False
 """.strip()
 
 
-def _create_stage_file(stage_name):
-  filename = "{}.py".format(stage_name)
-  filepath = os.path.join(constants.STAGE_DIR, filename)
-
+def _default_stage_context(stage_name):
   # Generates a cryptographically secured random password for the database user.
   # Source: https://stackoverflow.com/a/23728630
   random_password = ''.join(random.SystemRandom().choice(
       string.ascii_lowercase + string.digits) for _ in range(16))
-
-  content = STAGE_FILE_TEMPLATE.format(
+  return dict(
       service_account_file="{}.json".format(stage_name),
       project_id_gae=stage_name,
       project_region="europe-west",
@@ -107,11 +109,79 @@ def _create_stage_file(stage_name):
       db_password=random_password,
       db_instance_name="crmintapp",
       notification_sender_email="noreply@{}.appspotmail.com".format(stage_name),
-      app_title=" ".join(stage_name.split("-")).title(),
-  )
+      app_title=" ".join(stage_name.split("-")).title())
+
+
+def _create_stage_file(stage_name, context=None):
+  filename = "{}.py".format(stage_name)
+  filepath = os.path.join(constants.STAGE_DIR, filename)
+  if context is None:
+    context = _default_stage_context(stage_name)
+  content = STAGE_FILE_TEMPLATE.format(**context)
   with open(filepath, 'w+') as fp:
     fp.write(content)
   return filepath
+
+
+def _detect_stage_version(stage_name):
+  """
+  Stage version is defined as:
+    - `v1` for bash script stage definitions
+    - `v2+` for python stage definitions
+
+  Starts by checking for latest version.
+
+  Returns:
+      (version, filepath)
+  """
+  stage_python_filepath = shared.get_stage_file(stage_name)
+  if os.path.exists(stage_python_filepath):
+    stage = shared.get_stage_object(stage_name)
+    stage_version = getattr(stage, "spec_version", STAGE_VERSION_2_0)
+    if stage_version not in SUPPORTED_STAGE_VERSIONS:
+      raise ValueError("Unsupported spec version: '%s'. "
+                       "Supported versions are %s" % (
+                            stage_version,
+                            SUPPORTED_STAGE_VERSIONS))
+    return stage_version, stage_python_filepath
+
+  stage_bash_filepath = os.path.join(
+      constants.PROJECT_DIR,
+      "scripts/variables/stages",
+      "%s.sh" % stage_name)
+  if os.path.exists(stage_bash_filepath):
+    return STAGE_VERSION_1_0, stage_bash_filepath
+
+  raise ValueError("No stage file found for name: '%s'" % stage_name)
+
+
+
+def _parse_old_stage_file(stage_name):
+  """
+  Parse old stage file content.
+  """
+  old_version, old_filepath = _detect_stage_version(stage_name)
+  if old_version == STAGE_VERSION_1_0:
+    # Loads bash env variables.
+    cmd = "source %s" % old_filepath
+    cmd += " && set 2>/dev/null"
+    status, out, err = shared.execute_command(
+        "Load bash environment variables",
+        cmd,
+        cwd=constants.PROJECT_DIR,
+        stream_output_in_debug=False)
+
+    # Converts these env vars to dict representation.
+    old_stage = {}
+    for line in out.split("\n"):
+      key, _, value = line.partition("=")
+      old_stage[key] = value
+
+    return old_stage
+  elif old_version == STAGE_VERSION_2_0:
+    # Latest version
+    return None
+
 
 @click.group()
 def cli():
@@ -122,7 +192,7 @@ def cli():
 @cli.command('create')
 @click.option('--stage_name', default=None)
 def create(stage_name):
-  """Create new project in Google Cloud and add instances"""
+  """Create new stage file"""
   if not stage_name:
     stage_name = shared.get_default_stage_name()
 
@@ -133,6 +203,43 @@ def create(stage_name):
 
   filepath = _create_stage_file(stage_name)
   click.echo(click.style("Stage file created: %s" % filepath, fg='green'))
+
+
+def _ignore_stage_file(file_name):
+  IGNORED_STAGE_FILES = ["__init__.py"]
+  ENDS_WITH = [".pyc", ".example"]
+  return file_name in IGNORED_STAGE_FILES or file_name.endswith(tuple(ENDS_WITH))
+
+
+@cli.command('list')
+def list_stages():
+  """List your stages defined in cli/stages directory"""
+  for file_name in os.listdir(constants.STAGE_DIR):
+    if not _ignore_stage_file(file_name):
+      click.echo(file_name[:-3])
+
+
+@cli.command('migrate')
+@click.option('--stage_name', default=None)
+def migrate(stage_name):
+  """Migrate old stage file format to the latest one"""
+  try:
+    old_context = _parse_old_stage_file(stage_name)
+    if old_context is None:
+      click.echo(click.style(
+        "Already latest version detected: %s" % stage_name, fg='green'))
+      exit(0)
+  except ValueError as inst:
+    click.echo(click.style(str(inst), fg='red', bold=True))
+    exit(1)
+
+  # Save the new stage
+  # NB: we expect the variable names to be identical between old and new context
+  new_stage = _default_stage_context(stage_name)
+  new_stage.update(old_context)
+  filepath = _create_stage_file(stage_name, new_stage)
+  click.echo(click.style(
+      "Successfully migrated stage file to: %s" % filepath, fg='green'))
 
 
 def _ignore_stage_file(file_name):
