@@ -25,8 +25,5 @@ def add(app):
   @app.cli.command()
   def reset_pipelines():
     """Reset pipelines and jobs statuses."""
-    from core.models import Pipeline
-    for pipeline in Pipeline.all():
-      for job in pipeline.jobs:
-        job.update(status='idle')
-      pipeline.update(status='idle')
+    from core import database
+    database.reset_jobs_and_pipelines_statuses_to_idle()
