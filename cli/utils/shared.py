@@ -40,6 +40,7 @@ def execute_command(step_name, command, cwd='.', report_empty_err=True, debug=Fa
         command,
         cwd=cwd,
         shell=True,
+        executable='/bin/bash',
         stdout=pipe_output,
         stderr=pipe_output)
     out, err = pipe.communicate()
