@@ -223,6 +223,9 @@ def list_stages():
 @click.option('--stage_name', default=None)
 def migrate(stage_name):
   """Migrate old stage file format to the latest one"""
+  if not stage_name:
+    stage_name = shared.get_default_stage_name()
+
   try:
     old_context = _parse_old_stage_file(stage_name)
     if old_context is None:
