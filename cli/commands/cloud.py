@@ -579,6 +579,7 @@ def reset(stage_name, debug):
       display_workdir,
       copy_src_to_workdir,
       install_backends_dependencies,
+      download_cloud_sql_proxy,
       start_cloud_sql_proxy,
       prepare_flask_envars,
       run_reset_pipelines,

@@ -64,3 +64,10 @@ def load_fixtures(logger_func=None):
       general_setting.save()
       if logger_func:
         logger_func('Added setting %s' % setting)
+
+def reset_jobs_and_pipelines_statuses_to_idle():
+  from core.models import Pipeline
+  for pipeline in Pipeline.all():
+    for job in pipeline.jobs:
+      job.update(status='idle')
+    pipeline.update(status='idle')
