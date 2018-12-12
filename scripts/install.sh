@@ -32,6 +32,7 @@ fi
 pip install --quiet -e cli/
 
 # Adds the wrapper function to the user `.bashrc` file.
+echo "\\nAdding a bash function to your $HOME/.bashrc file."
 cat <<EOF >>$HOME/.bashrc
 
 # CRMint wrapper function.
@@ -43,4 +44,6 @@ function crmint {
   command crmint \$@ || return
 }
 EOF
-echo "\\nAdded a bash function to your $HOME/.bashrc file."
+
+echo "Reloading the shell"
+exec bash
