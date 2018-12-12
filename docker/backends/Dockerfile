@@ -54,14 +54,14 @@ WORKDIR /app
 COPY ./backends/core/requirements.txt /app/backends/core/requirements.txt
 COPY ./backends/ibackend/requirements.txt /app/backends/ibackend/requirements.txt
 COPY ./backends/jbackend/requirements.txt /app/backends/jbackend/requirements.txt
-COPY ./scripts/dev/requirements.txt /app/scripts/dev/requirements.txt
+COPY ./backends/core/requirements_dev.txt /app/backends/core/requirements_dev.txt
 
 # Install python dependencies
 WORKDIR /app/backends
 RUN apk add --update mariadb-client-libs \
     && apk add --no-cache --virtual .bootstrap-deps \
         bash curl python-dev musl-dev mariadb-dev gcc build-base \
-    && pip install -r /app/scripts/dev/requirements.txt -t lib_dev \
+    && pip install -r core/requirements_dev.txt -t lib_dev \
     && pip install -r ibackend/requirements.txt -t lib \
     && pip install -r jbackend/requirements.txt -t lib \
     && pip install "sphinx==1.7.2" "sphinx-autobuild==0.7.1" \
