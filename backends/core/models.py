@@ -124,6 +124,7 @@ class Pipeline(BaseModel):
     Schedule.destroy(*ids_for_removing)
 
   def populate_params_runtime_values(self):
+    inline.open_session()
     try:
       global_context = {}
       for param in Param.where(pipeline_id=None, job_id=None).all():
@@ -134,8 +135,10 @@ class Pipeline(BaseModel):
       for job in self.jobs.all():
         for param in job.params.all():
           param.populate_runtime_value(pipeline_context)
+      inline.close_session()
       return True
-    except (InvalidExpression, TypeError) as e:
+    except (InvalidExpression, TypeError, ValueError) as e:
+      inline.close_session()
       from core import cloud_logging
       job_id = '-'
       worker_class = '-'
@@ -604,7 +607,8 @@ class Param(BaseModel):
     if self.type == 'string_list':
       return self.runtime_value.split('\n')
     if self.type == 'number_list':
-      return [_parse_num(l) for l in self.runtime_value.split('\n') if l.strip()]
+      return [_parse_num(l) for l in self.runtime_value.split('\n')
+              if l.strip()]
     return self.runtime_value
 
   @property
