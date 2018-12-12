@@ -17,7 +17,7 @@
 # Downloads the source code.
 if [ ! -d $HOME/crmint ]; then
   git clone https://github.com/google/crmint.git $HOME/crmint
-  echo "\nCloned crmint repository to your home directory: $HOME."
+  echo "\\nCloned crmint repository to your home directory: $HOME."
 fi
 cd $HOME/crmint
 
@@ -43,4 +43,4 @@ function crmint {
   command crmint \$@ || return
 }
 EOF
-echo "\nAdded a bash function to your $HOME/.bashrc file."
+echo "\\nAdded a bash function to your $HOME/.bashrc file."

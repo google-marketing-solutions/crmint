@@ -3,8 +3,7 @@
 1.  Execute the quickstart script :
 
     ```shell
-    chmod +x ./scripts/cloud/quick-start.sh
-    ./scripts/cloud/quick-start.sh
+    curl https://raw.githubusercontent.com/dulacp/crmint/feature/install-script/scripts/install.sh | sudo bash
     ```
 
 1.  Once this script has completed executing, the installation is complete.
