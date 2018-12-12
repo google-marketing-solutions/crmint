@@ -23,6 +23,7 @@ cd $HOME/crmint
 
 # TODO temp
 git checkout dev
+git pull --quiet --rebase
 
 # Installs the command-line.
 if [ ! -d venv ]; then
