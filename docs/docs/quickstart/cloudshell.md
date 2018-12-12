@@ -3,7 +3,7 @@
 1.  Execute the quickstart script :
 
     ```shell
-    curl https://raw.githubusercontent.com/dulacp/crmint/feature/install-script/scripts/install.sh | sudo bash
+    curl https://raw.githubusercontent.com/dulacp/crmint/feature/install-script/scripts/install.sh | bash
     ```
 
 1.  Once this script has completed executing, the installation is complete.
