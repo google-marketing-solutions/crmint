@@ -14,6 +14,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+TARGET_BRANCH=$1
+
 # Downloads the source code.
 if [ ! -d $HOME/crmint ]; then
   git clone https://github.com/google/crmint.git $HOME/crmint
@@ -21,8 +23,8 @@ if [ ! -d $HOME/crmint ]; then
 fi
 cd $HOME/crmint
 
-# TODO temp
-git checkout dev
+# Updates the targeted branch.
+git checkout $TARGET_BRANCH
 git pull --quiet --rebase
 
 # Installs the command-line.
