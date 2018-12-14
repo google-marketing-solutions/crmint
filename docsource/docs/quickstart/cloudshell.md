@@ -7,7 +7,7 @@ Please run each of these commands in your CloudShell terminal.
 1.  Install `crmint` command-line:
 
     ```shell
-    bash <(curl -Ls https://raw.githubusercontent.com/google/crmint/dev/scripts/install.sh)
+    bash <(curl -Ls https://raw.githubusercontent.com/google/crmint/master/scripts/install.sh) master
     ```
 
 1.  Congratulations, you have `crmint` command-line installed on your CloudShell. You can access it whenever you need to manage your CRMint instances.
