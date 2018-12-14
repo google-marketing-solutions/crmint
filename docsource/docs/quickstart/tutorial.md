@@ -73,7 +73,7 @@ WHERE
 
     <input id="project-id" placeholder="Insert Project ID here, e.g. flying-tiger-112301" data-target-id="gcp-console">
 
-1.  Open your <a id="gcp-console" href="https://console.cloud.google.com/bigquery?project=placeholder" target="_blank">BigQuery console</a>
+1.  Open your <a id="gcp-console" data-href="https://console.cloud.google.com/bigquery?project=placeholder" target="_blank">BigQuery console</a>
 
 1.  Select your project name on the left sidebar.
 
