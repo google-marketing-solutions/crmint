@@ -15,6 +15,7 @@
 # limitations under the License.
 
 TARGET_BRANCH=$1
+CURRENT_DIR=$(pwd)
 
 # Downloads the source code.
 if [ ! -d $HOME/crmint ]; then
@@ -42,12 +43,17 @@ cat <<EOF >>$HOME/.bashrc
 # Automatically activates the virtualenv and makes the command
 # accessible from all directories
 function crmint {
-   cd \$HOME/crmint
+  CURRENT_DIR=\$(pwd)
+  cd \$HOME/crmint
   . venv/bin/activate
   command crmint \$@ || return
   deactivate
+  cd "\$CURRENT_DIR"
 }
 EOF
+
+# Restores initial directory.
+cd "$CURRENT_DIR"
 
 echo "Reloading the shell"
 exec bash
