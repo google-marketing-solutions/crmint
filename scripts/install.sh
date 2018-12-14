@@ -43,6 +43,7 @@ function crmint {
    cd \$HOME/crmint
   . venv/bin/activate
   command crmint \$@ || return
+  deactivate
 }
 EOF
 
