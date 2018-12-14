@@ -13,7 +13,7 @@
       (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
       m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
       })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
-
+      
       ga('create', 'UA-127959147-1', 'auto');
       ga('send', 'pageview');
     </script>
@@ -83,7 +83,7 @@
         </div>
 
         <ul class="nav col-xs-10">
-
+          
           <li><a href="/crmint/about/" >About</a></li>
           <li><a href="/crmint/docs/" class='current'>Docs</a></li>
           <li><a href="/crmint/blog/" >Blog</a></li>
@@ -96,7 +96,7 @@
   </div>
 
   <div class="top-nav right">
-
+    
     <li class="nav-item"><a href="/crmint/"><p>Home</p></a><div class="nav-toggle icon-close"></div></li>
     <hr>
     <li class="nav-item"><a href="/crmint/about/" ><p>About</p></a></li>
@@ -143,7 +143,7 @@
         <!-- Quick Start  Guides  Reference FAQ -->
 
         <ul class="nav col-xs-10">
-
+          
           <li><a href="/crmint/about/" >About</a></li>
           <li><a href="/crmint/docs/" class='current'>Docs</a></li>
           <li><a href="/crmint/faq/" >FAQ</a></li>
@@ -154,7 +154,7 @@
   </div>
 
   <div class="top-nav right">
-
+    
     <li class="nav-item"><a href="/crmint/"><p>Home</p></a><div class="nav-toggle icon-close"></div></li>
     <hr>
     <li class="nav-item"><a href="/crmint/about/" ><p>About</p></a></li>
@@ -174,7 +174,7 @@
     <div class="row">
       <div class="col-md-11 nofloat center-block">
         <div class="col-xs-12">
-          <h1 class="page-headline"></h1>
+          <h1 class="page-headline"></h1> 
         </div>
       </div>
     </div>
@@ -186,16 +186,60 @@
 
 <h1 id="crmint-quickstart">CRMint Quickstart</h1>
 
+<p>Please run each of these commands in your CloudShell terminal.</p>
+
+<h2 id="install-the-command-line">Install the command-line</h2>
+
 <ol>
   <li>
-    <p>Execute the quickstart script :</p>
+    <p>Install <code class="highlighter-rouge">crmint</code> command-line:</p>
 
-    <div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>chmod +x ./scripts/cloud/quick-start.sh
-./scripts/cloud/quick-start.sh
+    <div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>curl <span class="nt">-L</span> https://raw.githubusercontent.com/dulacp/crmint/feature/doc-new-deployment-instructions/scripts/install.sh | bash
 </code></pre></div>    </div>
   </li>
   <li>
-    <p>Once this script has completed executing, the installation is complete.</p>
+    <p>Congratulations, you have <code class="highlighter-rouge">crmint</code> command-line installed on your CloudShell. You can access it whenever you need to manage your CRMint instances.</p>
+
+    <div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>crmint <span class="nt">--help</span>
+</code></pre></div>    </div>
+  </li>
+</ol>
+
+<h2 id="deploy-your-project">Deploy your project</h2>
+
+<ol>
+  <li>
+    <p>Create a stage file for your first deployment:</p>
+
+    <div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>crmint stages create
+</code></pre></div>    </div>
+
+    <blockquote>
+      <p>This stage file contains all your environment variables for a particular deployment.</p>
+    </blockquote>
+  </li>
+  <li>
+    <p>Setup your environment:</p>
+
+    <div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>crmint cloud setup
+</code></pre></div>    </div>
+
+    <blockquote>
+      <p>Now your GCP project has all the required products activated and ready to go.</p>
+    </blockquote>
+  </li>
+  <li>
+    <p>Deploy your instance:</p>
+
+    <div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>crmint cloud deploy
+</code></pre></div>    </div>
+
+    <blockquote>
+      <p>Once this script has completed executing, the installation is complete.</p>
+    </blockquote>
+  </li>
+  <li>
+    <p><a href="https://console.cloud.google.com/appengine/services?project=crmint-dev-test">Open your CRMint application</a> with the default service.</p>
   </li>
 </ol>
 
@@ -250,10 +294,10 @@
     <!-- GA -->
     <script src="/crmint/js/waves.js"></script>
     <script src="/crmint/js/buttons.js"></script>
+    
+    
 
-
-
-
+    
 
   </body>
 </html>
