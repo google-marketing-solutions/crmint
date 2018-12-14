@@ -24,7 +24,7 @@ Please run each of these commands in your CloudShell terminal.
     crmint stages create
     ```
 
-    This stage file contains all your environment variables for a particular deployment.
+    > This stage file contains all your environment variables for a particular deployment.
 
 1.  Setup your environment:
 
@@ -32,7 +32,7 @@ Please run each of these commands in your CloudShell terminal.
     crmint cloud setup
     ```
 
-    Now your GCP project has all the required products activated and ready to go.
+    > Now your GCP project has all the required products activated and ready to go.
 
 1.  Deploy your instance:
 
@@ -40,6 +40,6 @@ Please run each of these commands in your CloudShell terminal.
     crmint cloud deploy
     ```
 
-    Once this script has completed executing, the installation is complete.
+    > Once this script has completed executing, the installation is complete.
 
 1.  <a href="https://console.cloud.google.com/appengine/services?project=crmint-dev-test">Open your CRMint application</a> with the default service.
