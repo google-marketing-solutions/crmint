@@ -47,7 +47,7 @@ def cli():
 
 def _check_if_appengine_instance_exists(stage, debug=False):
   gcloud_command = "$GOOGLE_CLOUD_SDK/bin/gcloud --quiet"
-  command = "{gcloud_bin} app describe --project={project_id} | grep -q 'codeBucket'".format(
+  command = "{gcloud_bin} app describe --verbosity critical --project={project_id} | grep -q 'codeBucket'".format(
       gcloud_bin=gcloud_command,
       project_id=stage.project_id_gae)
   status, out, err = shared.execute_command("Check if App Engine already exists",
