@@ -1,1 +1,3 @@
-_site/
+
+.jekyll-metadata
+_site
