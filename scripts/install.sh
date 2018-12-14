@@ -48,5 +48,4 @@ function crmint {
 EOF
 
 echo "Reloading the shell"
-source $HOME/.bashrc
 exec bash
