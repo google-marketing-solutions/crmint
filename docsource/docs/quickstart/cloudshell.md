@@ -42,4 +42,8 @@ Please run each of these commands in your CloudShell terminal.
 
     > Once this script has completed executing, the installation is complete.
 
-1.  [Open your CRMint application](https://console.cloud.google.com/appengine/services) with the default service.
+1.  Open your CRMint application:
+
+    ```shell
+    gcloud app browse
+    ```
