@@ -77,13 +77,15 @@ WHERE
 
 1.  Select your project name on the left sidebar.
 
-1.  Create a dataset with the button on the right &ldquo;Create Dataset&rdquo;.
+1.  Create a **US dataset** with the button on the right &ldquo;Create Dataset&rdquo;.
 
     ![Create Dataset button](../../img/gcp-bq-createdataset-button.png)
 
 1.  Name your dataset `predict_realestate_brasil`, and choose to store the data in the `US` location.
 
     ![Dataset configuration](../../img/gcp-bq-createdataset-conf.png)
+
+1.  Be sure to use the **US** location for your dataset. It's needed because the data source we will use is located in the US.
 
 ## Create the training pipeline in CRMint
 
