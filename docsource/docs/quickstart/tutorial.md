@@ -16,7 +16,7 @@ type: markdown
 
 *   About 30 mins of time.
 *   A Google Account, for use on the Google Cloud Platform.
-*   Working instance of CRMint, if not please read [how to deploy CRMint on GCP](quickstart/index.html).
+*   Working instance of CRMint, if not please read [how to deploy CRMint on GCP](index.html).
 
 ### Costs
 
