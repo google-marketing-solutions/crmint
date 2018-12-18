@@ -28,10 +28,7 @@ This tutorial uses billable components of Cloud Platform, including:
 You incur charges for:
 
 * [Storing](https://cloud.google.com/bigquery/pricing#active_storage) your ML model and training data in BigQuery
-    * The first 10 GB of storage is free each month.
 * [Querying](https://cloud.google.com/bigquery/pricing#on_demand_pricing) data in BigQuery
-    * The first 1 TB is free each month.
-    * If you are using flat-rate pricing, query costs are included in the monthly flat-rate price.
 * Running [BigQuery ML SQL statements](https://cloud.google.com/bigquery/pricing#bqml)
 
 ## Let's predict the price of houses
