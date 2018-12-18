@@ -33,40 +33,11 @@ You incur charges for:
 
 ## Let's predict the price of houses
 
-As usually in Data-Science, let's try to predict the price of real-estate. We do have some open-data for Brasil thanks to [Properati](http://properati.com).
+The goal of this tutorial is to build a pipeline to predict the price of real estate. We will use data from [Properati](http://properati.com).
 
-Here is the simple model we will use to achieve our modest goal:
+### Create a dataset in BigQuery
 
-```sql
-#standardSQL
-
-CREATE MODEL `predict_realestate_brasil.price_model`
-OPTIONS (
-    model_type='linear_reg',
-    early_stop=False,
-    max_iterations=20,
-    input_label_cols=['price']
-) AS
-SELECT
-  property_type,
-  state_name,
-  price,
-  surface_covered_in_m2,
-  rooms,
-  (surface_covered_in_m2 / rooms) AS room_avg_surface,
-  LENGTH(description) AS desc_length
-FROM `properati-data-public.properties_br.properties_sell_201802`
-WHERE
-  currency = 'BRL'
-  AND surface_covered_in_m2 IS NOT NULL
-  AND surface_covered_in_m2 > 1
-  AND rooms IS NOT NULL
-  AND MOD(ABS(FARM_FINGERPRINT(id)), 10) < 7
-```
-
-## Create a dataset in BigQuery
-
-1.  Indicate the name of your project
+1.  Enter the name of your project
 
     <input id="project-id" placeholder="Insert Project ID here, e.g. flying-tiger-112301" data-target-id="gcp-console">
 
@@ -84,7 +55,7 @@ WHERE
 
 1.  Be sure to use the **US** location for your dataset. It's needed because the data source we will use is located in the US.
 
-## Create the training pipeline in CRMint
+### Create the training pipeline in CRMint
 
 1.  Open your CRMint instance <a href="https://xxxxxx.appspot.com" id="crm-launch" target="_blank">&lt;Project ID not set&gt;</a>.
 
@@ -98,7 +69,7 @@ WHERE
 
     ![CRMint edit button](../../img/crmint-ui-edit-button.png)
 
-## Run and check evaluation metrics
+### Run and check evaluation metrics
 
 1.  Run the pipeline by clicking on the &ldquo;Start&rdquo; button.
 
@@ -106,7 +77,7 @@ WHERE
 
 1.  Explore the results saved in the `price_model_evaluation` table in BigQuery.
 
-## Let's predict some prices
+### Let's predict some prices
 
 Now that we have a model trained, evaluated and deployed to GCP, we are ready for some predictions!
 
