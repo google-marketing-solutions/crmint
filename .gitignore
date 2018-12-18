@@ -47,3 +47,4 @@ docs/_build
 # Python modules
 *.egg-info
 build/
+.jekyll-metadata
