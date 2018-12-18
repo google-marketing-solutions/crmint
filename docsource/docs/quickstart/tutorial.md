@@ -65,6 +65,13 @@ The goal of this tutorial is to build a pipeline to predict the price of real es
 
     ![CRMint import button](../../img/crmint-ui-import-button.png)
 
+1.  Look at the pipeline graph, it contains two nodes:
+
+    * **Train model**: Creates and trains a model based on the data selected by the SQL statement. Click on the node to inspect the content of the BQML query.
+    * **Evaluate model**: Runs an `ML.EVALUATE` query once the model is trained, to assess performances.
+
+    The resulting model is stored as part of your BigQuery dataset and is ready for production use as soon as it is trained.
+
 1.  Configure the imported pipeline by clicking the &ldquo;Edit&rdquo; button. You need to fill the `BQ_PROJECT` parameter.
 
     ![CRMint edit button](../../img/crmint-ui-edit-button.png)
@@ -83,9 +90,15 @@ Now that we have a model trained, evaluated and deployed to GCP, we are ready fo
 
 1.  Import the pre-built pipeline [predict.json](https://storage.googleapis.com/crmint-public/templates/pipelines/bqml/predict.json).
 
+1.  Look at the pipeline graph, it contains one node:
+
+    * **Get Predictions**: Runs an `ML.PREDICT` query to feed the input features to the model and get back one prediction per row.
+
 1.  Configure the imported pipeline like previously, filling-in the `BQ_PROJECT` parameter.
 
 1.  Run the pipeline.
+
+1.  Once the pipeline has finished (should take a couple minutes), you can [explore the predicted values](https://console.cloud.google.com/bigquery?d=predictions) in the `predict_realestate_brasil.predictions` table.
 
 1.  Congratulations, you now have a new table in BigQuery containing all your predictions!
 
