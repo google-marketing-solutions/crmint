@@ -25,7 +25,11 @@ $('#project-id').on('input',  function() {
   var projectId = document.getElementById('project-id').value;
   var launchTag = document.getElementById('crm-launch');
 
-  var projRe = /^[a-z\-]+(\-\d+|)$/;
+  /*
+   * A project ID must be 6 to 30 lowercase letters, digits, or hyphens.
+   * It must start with a letter and trailing hyphens are prohibited.
+   */
+  var projRe = /^[a-z][a-z0-9-]{4,28}[a-z0-9]$/;
 
   if (projRe.test(projectId)) {
     var templateUrl = anchorTag.getAttribute('data-href');
