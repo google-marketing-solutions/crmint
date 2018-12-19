@@ -314,9 +314,6 @@ def deploy_frontend(stage, debug=False):
       "{gcloud_bin} --project={project_id} app deploy gae.yaml --version=v1".format(
           gcloud_bin=gcloud_command,
           project_id=stage.project_id_gae),
-      "{gcloud_bin} --project={project_id} app deploy dispatch.yaml".format(
-          gcloud_bin=gcloud_command,
-          project_id=stage.project_id_gae)
   ]
   cmd_workdir = os.path.join(stage.workdir, 'frontend')
   total = len(commands)
@@ -327,6 +324,20 @@ def deploy_frontend(stage, debug=False):
         cwd=cmd_workdir,
         debug=debug)
     idx += 1
+
+
+def deploy_dispatch_rules(stage, debug=False):
+  gcloud_command = "$GOOGLE_CLOUD_SDK/bin/gcloud --quiet"
+  # NB: Limit the node process memory usage to avoid overloading
+  #     the Cloud Shell VM memory which makes it unresponsive.
+  command = "{gcloud_bin} --project={project_id} app deploy dispatch.yaml".format(
+      gcloud_bin=gcloud_command,
+      project_id=stage.project_id_gae)
+  cmd_workdir = os.path.join(stage.workdir, 'frontend')
+  shared.execute_command("Deploy the dispatch.yaml rules",
+      command,
+      cwd=cmd_workdir,
+      debug=debug)
 
 
 def install_backends_dependencies(stage, debug=False):
@@ -538,8 +549,9 @@ def deploy(stage_name, debug, skip_deploy_backends, skip_deploy_frontend):
       display_workdir,
       copy_src_to_workdir,
       install_backends_dependencies,
-      deploy_backends,
       deploy_frontend,
+      deploy_backends,
+      deploy_dispatch_rules,
       download_cloud_sql_proxy,
       start_cloud_sql_proxy,
       prepare_flask_envars,
