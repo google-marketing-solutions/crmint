@@ -45,7 +45,7 @@ The goal of this tutorial is to build a pipeline to predict the price of real es
 
 1.  Select your project name on the left sidebar.
 
-1.  Create a **US dataset** with the button on the right &ldquo;Create Dataset&rdquo;.
+1.  Create a **US dataset** with the button on the right **Create Dataset**.
 
     ![Create Dataset button](../../img/gcp-bq-createdataset-button.png)
 
@@ -61,7 +61,7 @@ The goal of this tutorial is to build a pipeline to predict the price of real es
 
 1.  Download the pre-built pipeline [train_evaluate_model.json](https://storage.googleapis.com/crmint-public/templates/pipelines/bqml/train_evaluate_model.json).
 
-1.  Import the pipeline in your CRMint instance with the right &ldquo;Import&rdquo; button.
+1.  Import the pipeline in your CRMint instance with the right **Import** button.
 
     ![CRMint import button](../../img/crmint-ui-import-button.png)
 
@@ -72,13 +72,13 @@ The goal of this tutorial is to build a pipeline to predict the price of real es
 
     The resulting model is stored as part of your BigQuery dataset and is ready for production use as soon as it is trained.
 
-1.  Configure the imported pipeline by clicking the &ldquo;Edit&rdquo; button. You need to fill the `BQ_PROJECT` parameter.
+1.  Configure the imported pipeline by clicking the **Edit** button. Fill in the `BQ_PROJECT` parameter with your Cloud Project ID.
 
     ![CRMint edit button](../../img/crmint-ui-edit-button.png)
 
 ### Run and check evaluation metrics
 
-1.  Run the pipeline by clicking on the &ldquo;Start&rdquo; button.
+1.  Run the pipeline by clicking on the **Start** button.
 
 1.  Be patient, should not take more than a minute or two&hellip;
 
