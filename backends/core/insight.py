@@ -30,7 +30,7 @@ from threading import Timer
 
 import requests
 
-PROJECT_DIR = os.path.realpath(os.path.join(os.path.dirname(__file__), '../../'))
+PROJECT_DIR = os.path.join(os.path.dirname(__file__), '../../')
 DEFAULT_TRACKING_ID = "UA-127959147-2"
 INSIGHT_CONF_FILEPATH = os.path.join(PROJECT_DIR, 'backends/data/insight.json')
 
