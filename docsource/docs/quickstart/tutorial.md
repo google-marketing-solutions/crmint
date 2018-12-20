@@ -59,7 +59,7 @@ The goal of this tutorial is to build a pipeline to predict the price of real es
 
 1.  Open your CRMint instance <a href="https://xxxxxx.appspot.com" id="crm-launch" target="_blank">&lt;Project ID not set&gt;</a>.
 
-1.  Download the pre-built pipeline [train_evaluate_model.json](https://storage.googleapis.com/crmint-public/templates/pipelines/bqml/train_evaluate_model.json).
+1.  Download the pre-built pipeline <a href="https://storage.googleapis.com/crmint-public/templates/pipelines/bqml/train_evaluate_model.json" download target="_blank">train_evaluate_model.json</a>.
 
 1.  Import the pipeline in your CRMint instance with the right **Import** button.
 
@@ -88,7 +88,7 @@ The goal of this tutorial is to build a pipeline to predict the price of real es
 
 Now that we have a model trained, evaluated and deployed to GCP, we are ready for some predictions!
 
-1.  Import the pre-built pipeline [predict.json](https://storage.googleapis.com/crmint-public/templates/pipelines/bqml/predict.json).
+1.  Import the pre-built pipeline <a href="https://storage.googleapis.com/crmint-public/templates/pipelines/bqml/predict.json" download target="_blank">predict.json</a>.
 
 1.  Look at the pipeline graph, it contains one node:
 
