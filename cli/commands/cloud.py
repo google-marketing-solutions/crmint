@@ -273,9 +273,9 @@ EOL""".strip() % dict(
     app_title=stage.app_title,
     notification_sender_email=stage.notification_sender_email)
 
-  # Prod environment for the frontend
+  # We dont't use prod environment for the frontend to speed up deploy.
   copy_prod_env = """
-cat > %(workdir)s/frontend/src/environments/environment.prod.ts <<EOL
+cat > %(workdir)s/frontend/src/environments/environment.ts <<EOL
 export const environment = {
   production: true,
   app_title: "%(app_title)s",
