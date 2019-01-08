@@ -296,8 +296,8 @@ class TestPipelineImport(utils.ModelTestCase):
     job2 = models.Job.create()
     data = {
         'params': [
-            {'name': 'p1', 'type': 'string', 'value': 'foo'},
-            {'name': 'p2', 'type': 'string', 'value': 'bar'},
+            {'name': 'p1', 'label': 'P1', 'type': 'string', 'value': 'foo'},
+            {'name': 'p2', 'label': 'P2', 'type': 'string', 'value': 'bar'},
         ],
         'schedules': [
             {'id': None, 'cron': 'NEW1'},
@@ -311,8 +311,10 @@ class TestPipelineImport(utils.ModelTestCase):
     pipeline.import_data(data)
     self.assertEqual(len(pipeline.params.all()), 2)
     self.assertEqual(pipeline.params[0].name, 'p1')
+    self.assertEqual(pipeline.params[0].label, 'P1')
     self.assertEqual(pipeline.params[0].value, 'foo')
     self.assertEqual(pipeline.params[1].name, 'p2')
+    self.assertEqual(pipeline.params[1].label, 'P2')
     self.assertEqual(pipeline.params[1].value, 'bar')
     self.assertEqual(len(pipeline.jobs.all()), 2)
     self.assertEqual(pipeline.jobs[0].name, 'j1')
