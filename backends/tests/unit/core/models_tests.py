@@ -67,8 +67,10 @@ class TestPipeline(utils.ModelTestCase):
         name='checkbox0',
         type='boolean')
     params = [
-        {'id': p1.id, 'name': 'checkbox1', 'type': 'boolean', 'value': '0'},
-        {'id': None, 'name': 'desc', 'type': 'text', 'value': 'Hello world!'},
+        {'id': p1.id, 'name': 'checkbox1', 'label': 'CheckBox',
+         'type': 'boolean', 'value': '0'},
+        {'id': None, 'name': 'desc', 'label': 'Text', 'type': 'text',
+         'value': 'Hello world!'},
     ]
     pipeline.assign_params(params)
     self.assertEqual(len(pipeline.params.all()), 2)
@@ -99,7 +101,8 @@ class TestPipeline(utils.ModelTestCase):
         {'id': None, 'cron': 'NEW1'}
     ]
     params = [
-        {'id': None, 'name': 'desc', 'type': 'text', 'value': 'Hello world!'}
+        {'id': None, 'name': 'desc', 'label': 'Description', 'type': 'text',
+         'value': 'Hello world!'}
     ]
     relations = {'schedules': schedules, 'params': params}
     self.assertEqual(len(pipeline.schedules.all()), 0)
@@ -216,7 +219,8 @@ class TestJob(utils.ModelTestCase):
         'condition': models.StartCondition.CONDITION.SUCCESS}
     ]
     params = [
-        {'id': None, 'name': 'desc', 'type': 'text', 'value': 'Hello world!'}
+        {'id': None, 'name': 'desc', 'label': 'Label', 'type': 'text',
+         'value': 'Hello world!'}
     ]
     relations = {'start_conditions': start_conditions, 'params': params}
     self.assertEqual(len(job1.start_conditions), 0)
