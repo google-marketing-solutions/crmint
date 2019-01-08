@@ -158,7 +158,7 @@ class Commenter(Worker):
   def _execute(self):
     if not self._params['success']:
       msg = '"{}" is unchecked: {}'.format(
-          self.PARAMS[1][3],
+          self.PARAMS[1][4],
           self._params['comment'])
       raise WorkerException(msg)
 

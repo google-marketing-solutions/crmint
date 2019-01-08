@@ -137,7 +137,7 @@ class Pipeline(BaseModel):
           param.populate_runtime_value(pipeline_context)
       inline.close_session()
       return True
-    except (InvalidExpression, TypeError, ValueError) as e:
+    except (InvalidExpression, TypeError, ValueError, SyntaxError) as e:
       inline.close_session()
       from core import cloud_logging
       job_id = '-'
@@ -637,6 +637,7 @@ class Param(BaseModel):
         elif obj and obj.__class__.__name__ == 'Job':
           param.job_id = obj.id
       param.name = arg_param['name']
+      param.label = arg_param['label']
       param.type = arg_param['type']
       if arg_param['type'] == 'boolean':
         param.value = arg_param['value']
