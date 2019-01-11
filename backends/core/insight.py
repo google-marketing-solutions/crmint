@@ -35,6 +35,14 @@ DEFAULT_TRACKING_ID = "UA-127959147-2"
 INSIGHT_CONF_FILEPATH = os.path.join(PROJECT_DIR, 'data/insight.json')
 
 
+def get_crmint_version():
+  try:
+    version_filepath = os.path.join(PROJECT_DIR, 'VERSION')
+    return open(version_filepath, 'r').read().strip()
+  except IOError:
+    return '0.0.0'
+
+
 class GAProvider(object):
   """Reports usage to Google Analytics."""
   URL = 'https://www.google-analytics.com/collect'
@@ -44,11 +52,7 @@ class GAProvider(object):
     self.tracking_id = DEFAULT_TRACKING_ID
     self.os_name = platform.system()
     self.python_version = platform.python_version()
-    try:
-      version_filepath = os.path.join(PROJECT_DIR, 'VERSION')
-      self.app_version = open(version_filepath, 'r').read().strip()
-    except IOError:
-      self.app_version = '0.0.0'
+    self.app_version = get_crmint_version()
 
     conf = self._load_insight_config()
     conf = self._define_random_values(conf)

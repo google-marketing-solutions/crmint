@@ -12,12 +12,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import os
 from setuptools import setup, find_packages
+
+
+PROJECT_DIR = os.path.join(os.path.dirname(__file__), '../')
+version_filepath = os.path.join(PROJECT_DIR, 'backends/VERSION')
+version = open(version_filepath, 'r').read().strip()
 
 
 setup(
     name="crmint",
-    version="0.1",
+    version=version,
     packages=find_packages(),
     include_package_data=True,
     install_requires=[
