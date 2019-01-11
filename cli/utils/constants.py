@@ -12,22 +12,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from google.appengine.ext import testbed
+"""
+Constants used in the cli/commands package.
+"""
 
-from core import models
+import os
 
-from tests import utils
 
-class TestJobList(utils.IBackendBaseTest):
+PROJECT_DIR = os.path.join(os.path.dirname(__file__), '../..')
+FRONTEND_DIR = os.path.join(PROJECT_DIR, "frontend")
+BACKENDS_DIR = os.path.join(PROJECT_DIR, "backends")
+PATCHES_DIR = "{}/cli/patches".format(PROJECT_DIR)
+STAGE_DIR = "{}/cli/stages".format(PROJECT_DIR)
 
-  def setUp(self):
-    super(TestJobList, self).setUp()
-    self.testbed = testbed.Testbed()
-    self.testbed.activate()
-    # Activate which service we want to stub
-    self.testbed.init_app_identity_stub()
+SERVICE_ACCOUNT_PATH = "{}/backends/data/".format(PROJECT_DIR)
 
-  def test_list_with_success(self):
-    pipeline = models.Pipeline.create()
-    response = self.client.get('/api/jobs?pipeline_id=%d' % pipeline.id)
-    self.assertEqual(response.status_code, 200)
+REQUIREMENTS_DIR = os.path.join(PROJECT_DIR, "cli/requirements.txt")
+LIB_DEV_PATH = os.path.join(PROJECT_DIR, "backends/lib_dev")

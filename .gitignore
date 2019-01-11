@@ -2,7 +2,8 @@
 .DS_Store
 Thumbs.db
 
-env/*
+env
+venv
 
 package-lock.json
 *.pyc
@@ -42,3 +43,8 @@ docs/_build
 # Generate _site locally now owing to custom plugins
 # **/_site
 **/.sass-cache
+
+# Python modules
+*.egg-info
+build/
+.jekyll-metadata

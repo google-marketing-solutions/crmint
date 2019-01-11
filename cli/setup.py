@@ -12,22 +12,27 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from google.appengine.ext import testbed
+import os
+from setuptools import setup, find_packages
 
-from core import models
 
-from tests import utils
+PROJECT_DIR = os.path.join(os.path.dirname(__file__), '../')
+version_filepath = os.path.join(PROJECT_DIR, 'backends/VERSION')
+version = open(version_filepath, 'r').read().strip()
 
-class TestJobList(utils.IBackendBaseTest):
 
-  def setUp(self):
-    super(TestJobList, self).setUp()
-    self.testbed = testbed.Testbed()
-    self.testbed.activate()
-    # Activate which service we want to stub
-    self.testbed.init_app_identity_stub()
-
-  def test_list_with_success(self):
-    pipeline = models.Pipeline.create()
-    response = self.client.get('/api/jobs?pipeline_id=%d' % pipeline.id)
-    self.assertEqual(response.status_code, 200)
+setup(
+    name="crmint",
+    version=version,
+    packages=find_packages(),
+    include_package_data=True,
+    install_requires=[
+        "Click==7.0",
+        "Flask==0.12.2",
+        "requests==2.18.4",
+    ],
+    entry_points="""
+        [console_scripts]
+        crmint=appcli:entry_point
+    """,
+)
