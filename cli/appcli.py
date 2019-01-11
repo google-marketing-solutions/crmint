@@ -33,6 +33,13 @@ def _set_insight_opt_out(config, value):
     json.dump(config, fp)
 
 
+def print_version(ctx, param, value):
+  if not value or ctx.resilient_parsing:
+    return
+  click.echo(insight.get_crmint_version())
+  ctx.exit()
+
+
 class CRMintCLI(click.MultiCommand):
   """App multi command CLI"""
 
@@ -86,9 +93,13 @@ class CRMintCLI(click.MultiCommand):
     return super(CRMintCLI, self).resolve_command(ctx, args)
 
 
-CLI = CRMintCLI(help='Manage your CRMint instances on GCP or locally.')
+@click.command(cls=CRMintCLI, help='Manage your CRMint instances on GCP or locally.')
+@click.option('--version', is_flag=True, callback=print_version,
+    expose_value=False, is_eager=True, help='Print out CRMint version.')
+def cli():
+    pass
 
 
 def entry_point():
   shared.check_variables()
-  CLI()
+  cli()
