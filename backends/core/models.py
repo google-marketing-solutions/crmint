@@ -140,16 +140,16 @@ class Pipeline(BaseModel):
     except (InvalidExpression, TypeError, ValueError, SyntaxError) as e:
       inline.close_session()
       from core import cloud_logging
-      job_id = '-'
-      worker_class = '-'
+      job_id = 'N/A'
+      worker_class = 'N/A'
       if param.job_id is not None:
         job_id = param.job_id
         worker_class = param.job.worker_class
-        message = 'Bad job param "%s": %s' % (param.label, e)
+        message = 'Invalid job parameter "%s": %s' % (param.label, e)
       elif param.pipeline_id is not None:
-        message = 'Bad pipeline param "%s": %s' % (param.label, e)
+        message = 'Invalid pipeline variable "%s": %s' % (param.label, e)
       else:
-        message = 'Bad global param "%s": %s' % (param.label, e)
+        message = 'Invalid global variable "%s": %s' % (param.label, e)
       cloud_logging.logger.log_struct({
           'labels': {
               'pipeline_id': self.id,
@@ -637,7 +637,10 @@ class Param(BaseModel):
         elif obj and obj.__class__.__name__ == 'Job':
           param.job_id = obj.id
       param.name = arg_param['name']
-      param.label = arg_param['label']
+      try:
+        param.label = arg_param['label']
+      except KeyError:
+        param.label = arg_param['name']
       param.type = arg_param['type']
       if arg_param['type'] == 'boolean':
         param.value = arg_param['value']
