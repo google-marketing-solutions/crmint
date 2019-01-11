@@ -357,7 +357,14 @@ class PipelineLogs(Resource):
               'job_name': job.name,
               'log_level': entry.payload.get('log_level', 'INFO')
           }
-          entries.append(log)
+        else:
+          log = {
+              'timestamp': entry.timestamp.__str__(),
+              'payload': entry.payload,
+              'job_name': 'N/A',
+              'log_level': entry.payload.get('log_level', 'INFO')
+          }
+        entries.append(log)
       next_page_token = iterator.next_page_token
     return {
         'entries': entries,
