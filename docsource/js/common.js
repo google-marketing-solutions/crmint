@@ -21,8 +21,10 @@ var firstScriptTag = document.getElementsByTagName('script')[0];
 firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
 
 $('#project-id').on('input',  function() {
-  var anchorTag = document.getElementById("cloudshell-url");
-  var projectId = document.getElementById('project-id').value;
+  var projectId = document.getElementById('project-id');
+  var projectIdValue = projectId.value;
+  var anchorTagId = projectId.getAttribute('data-target-id');
+  var anchorTag = document.getElementById(anchorTagId);
   var launchTag = document.getElementById('crm-launch');
 
   /*
@@ -31,19 +33,19 @@ $('#project-id').on('input',  function() {
    */
   var projRe = /^[a-z][a-z0-9-]{4,28}[a-z0-9]$/;
 
-  if (projRe.test(projectId)) {
+  if (projRe.test(projectIdValue)) {
     var templateUrl = anchorTag.getAttribute('data-href');
     var re = /(.*project=)([^&]+)(.*)/;
     var matches = re.exec(templateUrl);
     var newUrl = [
       matches[1],
-      projectId,
+      projectIdValue,
       matches[3]
     ].join('');
     anchorTag.href = newUrl;
     anchorTag.classList.remove('gray-image');
-    launchTag.href = 'https://' + projectId + '.appspot.com';
-    launchTag.innerHTML = projectId + '.appspot.com';
+    launchTag.href = 'https://' + projectIdValue + '.appspot.com';
+    launchTag.innerHTML = projectIdValue + '.appspot.com';
   } else {
     anchorTag.removeAttribute('href');
     launchTag.removeAttribute('href');
