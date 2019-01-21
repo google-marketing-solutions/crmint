@@ -1,0 +1,66 @@
+{
+  "params": [
+    {
+      "type": "text",
+      "name": "BQ_DATASET",
+      "value": "predict_realestate_brasil"
+    },
+    {
+      "type": "text",
+      "name": "BQ_PROJECT",
+      "value": ""
+    }
+  ],
+  "jobs": [
+    {
+      "hash_start_conditions": [],
+      "worker_class": "BQQueryLauncher",
+      "params": [
+        {
+          "description": null,
+          "value": "# standardSQL\n\nWITH prices AS (\n    SELECT \n      id,\n      property_type,\n      state_name,\n      price,\n      surface_covered_in_m2,\n      rooms,\n      (surface_covered_in_m2 / rooms) AS room_avg_surface,\n      LENGTH(description) AS desc_length\n    FROM `properati-data-public.properties_br.properties_sell_201802`\n    WHERE \n      currency = 'BRL'\n      AND surface_covered_in_m2 IS NOT NULL\n      AND surface_covered_in_m2 > 1\n      AND rooms IS NOT NULL\n      AND MOD(ABS(FARM_FINGERPRINT(id)), 10) >= 7\n)\nSELECT\n  *,\n  CAST(ROW_NUMBER() OVER() AS STRING) AS row_number\nFROM ML.PREDICT(MODEL `{% BQ_DATASET %}.price_model`,\n  (\n    SELECT\n      *\n    FROM prices\n  ))",
+          "label": null,
+          "is_required": false,
+          "type": "sql",
+          "name": "query"
+        },
+        {
+          "description": null,
+          "value": "{% BQ_PROJECT %}",
+          "label": null,
+          "is_required": false,
+          "type": "string",
+          "name": "bq_project_id"
+        },
+        {
+          "description": null,
+          "value": "{% BQ_DATASET %}",
+          "label": null,
+          "is_required": false,
+          "type": "string",
+          "name": "bq_dataset_id"
+        },
+        {
+          "description": null,
+          "value": "predictions",
+          "label": null,
+          "is_required": false,
+          "type": "string",
+          "name": "bq_table_id"
+        },
+        {
+          "description": null,
+          "value": true,
+          "label": null,
+          "is_required": false,
+          "type": "boolean",
+          "name": "overwrite"
+        }
+      ],
+      "id": "a969dfdb1107466ea38cf4f70eed1ca9",
+      "name": "Get Predictions"
+    }
+  ],
+  "name": "BQML Brasil Predict Prices",
+  "schedules": []
+}
