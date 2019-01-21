@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="title" content="CRMint">
     <meta name="description" content="Design and execute pipelines that enable data flow between CRM, Google Cloud, Google Analytics, AdWords, and DoubleClick.">
-    <title>Guides</title>
+    <title>Run BigQuery ML pipeline on CRMint</title>
 
     <script>
       (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
@@ -59,7 +59,7 @@
     <![endif]-->
 
     <!-- metadata -->
-    <meta name="og:title" content="crmint / Guides"/>
+    <meta name="og:title" content="crmint / Run BigQuery ML pipeline on CRMint"/>
     <!-- <meta name="og:image" content="...png"/> -->
     <meta name="og:description" content="Design and execute pipelines that enable data flow between CRM, Google Cloud, Google Analytics, AdWords, and DoubleClick.."/>
   </head>
@@ -105,8 +105,8 @@
       <div class="nav-doc-toggle icon-caret"></div>
       <ul class="doc-list">
         <a href="/crmint/docs" ><li class="nav-doc-tab">Overview</li></a>
-        <a href="/crmint/docs/quickstart" ><li class="nav-doc-tab">Quick Start</li></a>
-        <a href="/crmint/docs/guides" class='current'><li class="nav-doc-tab">Guides</li></a>
+        <a href="/crmint/docs/quickstart" class='current'><li class="nav-doc-tab">Quick Start</li></a>
+        <a href="/crmint/docs/guides" ><li class="nav-doc-tab">Guides</li></a>
         <a href="/crmint/docs/tutorials" ><li class="nav-doc-tab">Tutorials</li></a>
         <a href="/crmint/docs/reference" ><li class="nav-doc-tab">Reference</li></a>
         <a href="/crmint/docs/samples" ><li class="nav-doc-tab">Samples</li></a>
@@ -163,8 +163,8 @@
       <div class="nav-doc-toggle icon-caret"></div>
       <ul class="doc-list">
         <a href="/crmint/docs" ><li class="nav-doc-tab">Overview</li></a>
-        <a href="/crmint/docs/quickstart" ><li class="nav-doc-tab">Quick Start</li></a>
-        <a href="/crmint/docs/guides" class='current'><li class="nav-doc-tab">Guides</li></a>
+        <a href="/crmint/docs/quickstart" class='current'><li class="nav-doc-tab">Quick Start</li></a>
+        <a href="/crmint/docs/guides" ><li class="nav-doc-tab">Guides</li></a>
         <a href="/crmint/docs/reference" ><li class="nav-doc-tab">Reference</li></a>
       </ul>
     </li>
@@ -174,7 +174,7 @@
     <div class="row">
       <div class="col-md-11 nofloat center-block">
         <div class="col-xs-12">
-          <h1 class="page-headline">What is CRMint?</h1> 
+          <h1 class="page-headline">Run BigQuery ML pipeline on CRMint</h1> 
         </div>
       </div>
     </div>
@@ -192,8 +192,8 @@
 				<li class="tab docs-tab"><a href="/crmint/docs/">Docs</a></li>
 				<span class="doc-caret">></span>
 				<li class="tab"><a href="/crmint/docs/" >Overview</a></li>
-				<li class="tab"><a href="/crmint/docs/quickstart" >Quick Start</a></li>
-				<li class="tab"><a href="/crmint/docs/guides" class='current'>Guides</a></li>
+				<li class="tab"><a href="/crmint/docs/quickstart" class='current'>Quick Start</a></li>
+				<li class="tab"><a href="/crmint/docs/guides" >Guides</a></li>
 				<li class="tab"><a href="/crmint/docs/custom" >Customize</a></li>
 				<li class="tab"><a href="/crmint/docs/solutions" >Solutions</a></li>
 				<li class="tab"><a href="/crmint/docs/reference" >Reference</a></li>
@@ -202,8 +202,8 @@
 			
 
 <div class="contribute-links">
-	<a href="/crmint/contribute#docs/guides/concepts.md">Contribution Guidelines</a>
-	<a href="https://github.com/google/crmint//edit/master/docs/guides/concepts.md"><p class="github">Edit <span class="file-name">concepts.md</span></p></a>
+	<a href="/crmint/contribute#docs/quickstart/tutorial.md">Contribution Guidelines</a>
+	<a href="https://github.com/google/crmint//edit/master/docs/quickstart/tutorial.md"><p class="github">Edit <span class="file-name">tutorial.md</span></p></a>
 </div>
 		</div>
 	</div>
@@ -217,66 +217,160 @@
                 <div class="col-md-11 nofloat center-block ">
                     <div class="col-sm-3">
                         <ul class="doc-side-nav">
-    
-    <li><h5 class="doc-side-nav-title">Guides</h5></li>
-    <li class="doc-side-nav-list-item"><a href="/crmint/docs/guides/index.html" >What is CRMint?</a></li>
-    <li class="doc-side-nav-list-item"><a href="/crmint/docs/guides/concepts.html" class='current'>CRMint Concepts</a></li>
-    <li class="doc-side-nav-list-item"><a href="/crmint/docs/guides/variables.html" >Variables and expressions</a></li>
+	
+	<li><h5 class="doc-side-nav-title">Quick Start</h5></li>
+  <li class="doc-side-nav-list-item"><a href="/crmint/docs/quickstart/index.html" >Try deploying CRMint</a></li>
+	<li class="doc-side-nav-list-item"><a href="/crmint/docs/quickstart/tutorial.html" class='current'>Run a BigQuery ML pipeline</a></li>
  </ul>
+
                     </div>
                     <div class="col-sm-7 markdown">
-                        <h2 id="crmint-concepts">CRMint Concepts</h2>
+                        <p class="lead">This tutorial introduces CRMint users to implementing a BigQuery ML pipeline from training to predicting. We will deploy a model to predict the price of real-estate in Brasil based on some features of the apartments.</p>
 
-<p>The <a href="index.html">overview guide</a> describes the purpose and general capabilities of CRMint. This document breaks CRMint down into its conceptual parts.</p>
+<div id="toc"></div>
 
-<h3 id="pipelines">Pipelines</h3>
+<h2 id="before-you-begin">Before you begin</h2>
 
-<p>At the heart of CRMint are pipelines. A pipeline is the largest component within CRMint, and is the end-to-end process by which a business task is achieved.</p>
-
-<p>For example, a pipeline could be created to load conversion data into Google Analytics. The pipeline might perform many actions for example:</p>
+<h3 id="prerequisites">Prerequisites</h3>
 
 <ul>
-  <li>Load data from a CSV on Cloud Storage into BigQuery</li>
-  <li>Perform some transformations, using BigQuery</li>
-  <li>Send the resulting data to Google Analytics using the Measurement Protocol.</li>
+  <li>About 30 mins of time.</li>
+  <li>A Google Account, for use on the Google Cloud Platform.</li>
+  <li>Working instance of CRMint, if not please read <a href="index.html">how to deploy CRMint on GCP</a>.</li>
 </ul>
 
-<p>Pipelines can be executed manually, or more commonly run on a schedule.</p>
+<h3 id="costs">Costs</h3>
 
-<h3 id="jobs">Jobs</h3>
-
-<p>Pipelines are divided into <em>jobs</em>. A job is a single discrete task performed by a <em>worker</em>.  Workers are re-usable building blocks that perform common actions such as loading data from one source to another, which can be composed into pipelines.</p>
-
-<p>In the above example pipeline, the job of loading data into BigQuery would be performed by worker with <em>worker class</em> <strong>StorageToBQImporter</strong>.</p>
-
-<p>Once the data is loaded into BigQuery, then the job for transforming the data can start. This secondary job therefore has a <em>job dependency</em> on the previous <strong>StorageToBQImporter</strong>-based job.</p>
-
-<p>By defining jobs to perform each of the necessary tasks in the pipeline, and defining the job dependencies of each, the result is a graph that defines the execution path of the pipeline as a whole.</p>
-
-<p>The full range of Workers can be seen in the <a href="../reference/worker_spec.html">workers reference</a></p>
-
-<h3 id="creating-pipelines-using-the-editor">Creating pipelines using the editor</h3>
-
-<p>The easiest way to create a pipeline is through the user interface on your CRMint instance.</p>
-
-<p>Through the user interface, each component job can be defined in the pipeline, and a graph created by defining job dependencies.</p>
-
-<p>The pipeline is customised by then defining variables and expressions as discussed <a href="variables.html">in the separate guide</a>.</p>
-
-<h3 id="json-pipeline-configuration">JSON pipeline configuration</h3>
-
-<p>In addition to creating pipelines using the editor, it is possible to work with pipelines in a JSON format.</p>
-
-<p>This allows pipelines to be:</p>
+<p>This tutorial uses billable components of Cloud Platform, including:</p>
 
 <ul>
-  <li><strong>Easily exported or imported</strong>: The user interface provides the means to create a new pipeline from JSON, using the Import by template button. Equally, an existing pipeline can be exported using the Export button, to dowload as JSON.</li>
-  <li><strong>Replicated</strong>: An exported pipeline could be imported to create a replica, then modified as required. Alternatively, advanced editing could be performed on the JSON prior to re-importing, for example, if all references to Acme Corp needed changing to Example Inc, in every part of the pipeline, this could be done with a search and replace in a text editor.</li>
-  <li><strong>Shared</strong>, for example as an open-source template.</li>
+  <li>Google BigQuery</li>
+  <li>BigQuery ML</li>
 </ul>
 
-<p>For details on the format of the pipeline JSON, see the <a href="../reference/index.html">Pipeline JSON reference</a></p>
+<p>You incur charges for:</p>
 
+<ul>
+  <li><a href="https://cloud.google.com/bigquery/pricing#active_storage">Storing</a> your ML model and training data in BigQuery</li>
+  <li><a href="https://cloud.google.com/bigquery/pricing#on_demand_pricing">Querying</a> data in BigQuery</li>
+  <li>Running <a href="https://cloud.google.com/bigquery/pricing#bqml">BigQuery ML SQL statements</a></li>
+</ul>
+
+<h2 id="lets-predict-the-price-of-houses">Let’s predict the price of houses</h2>
+
+<p>The goal of this tutorial is to build a pipeline to predict the price of real estate. We will use data from <a href="http://properati.com">Properati</a>.</p>
+
+<h3 id="create-a-dataset-in-bigquery">Create a dataset in BigQuery</h3>
+
+<ol>
+  <li>
+    <p>Enter the name of your project</p>
+
+    <p><input id="project-id" placeholder="Insert Project ID here, e.g. flying-tiger-112301" data-target-id="gcp-console" /></p>
+  </li>
+  <li>
+    <p>Open your <a id="gcp-console" data-href="https://console.cloud.google.com/bigquery?project=placeholder" target="_blank">BigQuery console</a></p>
+  </li>
+  <li>
+    <p>Select your project name on the left sidebar.</p>
+  </li>
+  <li>
+    <p>Create a <strong>US dataset</strong> with the button on the right <strong>Create Dataset</strong>.</p>
+
+    <p><img src="/crmint/img/gcp-bq-createdataset-button.png" alt="Create Dataset button" /></p>
+  </li>
+  <li>
+    <p>Name your dataset <code class="highlighter-rouge">predict_realestate_brasil</code>, and choose to store the data in the <code class="highlighter-rouge">US</code> location.</p>
+
+    <p><img src="/crmint/img/gcp-bq-createdataset-conf.png" alt="Dataset configuration" /></p>
+  </li>
+  <li>
+    <p>Be sure to use the <strong>US</strong> location for your dataset. It’s needed because the data source we will use is located in the US.</p>
+  </li>
+</ol>
+
+<h3 id="create-the-training-pipeline-in-crmint">Create the training pipeline in CRMint</h3>
+
+<ol>
+  <li>
+    <p>Open your CRMint instance <a href="https://xxxxxx.appspot.com" id="crm-launch" target="_blank">&lt;Project ID not set&gt;</a>.</p>
+  </li>
+  <li>
+    <p>Download the pre-built pipeline <a href="https://storage.googleapis.com/crmint-public/templates/pipelines/bqml/train_evaluate_model.json" download="" target="_blank">train_evaluate_model.json</a>.</p>
+  </li>
+  <li>
+    <p>Import the pipeline in your CRMint instance with the right <strong>Import</strong> button.</p>
+
+    <p><img src="/crmint/img/crmint-ui-import-button.png" alt="CRMint import button" /></p>
+  </li>
+  <li>
+    <p>Look at the pipeline graph, it contains two nodes:</p>
+
+    <ul>
+      <li><strong>Train model</strong>: Creates and trains a model based on the data selected by the SQL statement. Click on the node to inspect the content of the BQML query.</li>
+      <li><strong>Evaluate model</strong>: Runs an <code class="highlighter-rouge">ML.EVALUATE</code> query once the model is trained, to assess performances.</li>
+    </ul>
+
+    <p>The resulting model is stored as part of your BigQuery dataset and is ready for production use as soon as it is trained.</p>
+  </li>
+  <li>
+    <p>Configure the imported pipeline by clicking the <strong>Edit</strong> button. Fill in the <code class="highlighter-rouge">BQ_PROJECT</code> parameter with your Cloud Project ID.</p>
+
+    <p><img src="/crmint/img/crmint-ui-edit-button.png" alt="CRMint edit button" /></p>
+  </li>
+</ol>
+
+<h3 id="run-and-check-evaluation-metrics">Run and check evaluation metrics</h3>
+
+<ol>
+  <li>
+    <p>Run the pipeline by clicking on the <strong>Start</strong> button.</p>
+  </li>
+  <li>
+    <p>Be patient, should not take more than a minute or two…</p>
+  </li>
+  <li>
+    <p>Explore the results saved in the <code class="highlighter-rouge">price_model_evaluation</code> table in BigQuery.</p>
+  </li>
+</ol>
+
+<h3 id="lets-predict-some-prices">Let’s predict some prices</h3>
+
+<p>Now that we have a model trained, evaluated and deployed to GCP, we are ready for some predictions!</p>
+
+<ol>
+  <li>
+    <p>Import the pre-built pipeline <a href="https://storage.googleapis.com/crmint-public/templates/pipelines/bqml/predict.json" download="" target="_blank">predict.json</a>.</p>
+  </li>
+  <li>
+    <p>Look at the pipeline graph, it contains one node:</p>
+
+    <ul>
+      <li><strong>Get Predictions</strong>: Runs an <code class="highlighter-rouge">ML.PREDICT</code> query to feed the input features to the model and get back one prediction per row.</li>
+    </ul>
+  </li>
+  <li>
+    <p>Configure the imported pipeline like previously, filling-in the <code class="highlighter-rouge">BQ_PROJECT</code> parameter.</p>
+  </li>
+  <li>
+    <p>Run the pipeline.</p>
+  </li>
+  <li>
+    <p>Once the pipeline has finished (should take a couple minutes), you can <a href="https://console.cloud.google.com/bigquery?d=predictions">explore the predicted values</a> in the <code class="highlighter-rouge">predict_realestate_brasil.predictions</code> table.</p>
+  </li>
+  <li>
+    <p>Congratulations, you now have a new table in BigQuery containing all your predictions!</p>
+  </li>
+</ol>
+
+<h2 id="whats-next">What’s next</h2>
+
+<ul>
+  <li>Schedule this pipeline to run daily.</li>
+  <li>Read a full explanation of how CRMint works in <a href="../guides/">What is CRMint?</a>
+and <a href="../guides/concepts.html">CRMint Concepts</a></li>
+  <li>CRMint pipeline concepts</li>
+</ul>
 
                     </div>
 

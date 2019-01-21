@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="title" content="CRMint">
     <meta name="description" content="Design and execute pipelines that enable data flow between CRM, Google Cloud, Google Analytics, AdWords, and DoubleClick.">
-    <title>Guides</title>
+    <title>CRMint Quickstart</title>
 
     <script>
       (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
@@ -59,11 +59,11 @@
     <![endif]-->
 
     <!-- metadata -->
-    <meta name="og:title" content="crmint / Guides"/>
+    <meta name="og:title" content="crmint / CRMint Quickstart"/>
     <!-- <meta name="og:image" content="...png"/> -->
     <meta name="og:description" content="Design and execute pipelines that enable data flow between CRM, Google Cloud, Google Analytics, AdWords, and DoubleClick.."/>
   </head>
-  <body class=docs>
+  <body class=>
 
     <!-- <nav id="sticky-nav">
   <div class="nav-container container">
@@ -105,8 +105,8 @@
       <div class="nav-doc-toggle icon-caret"></div>
       <ul class="doc-list">
         <a href="/crmint/docs" ><li class="nav-doc-tab">Overview</li></a>
-        <a href="/crmint/docs/quickstart" ><li class="nav-doc-tab">Quick Start</li></a>
-        <a href="/crmint/docs/guides" class='current'><li class="nav-doc-tab">Guides</li></a>
+        <a href="/crmint/docs/quickstart" class='current'><li class="nav-doc-tab">Quick Start</li></a>
+        <a href="/crmint/docs/guides" ><li class="nav-doc-tab">Guides</li></a>
         <a href="/crmint/docs/tutorials" ><li class="nav-doc-tab">Tutorials</li></a>
         <a href="/crmint/docs/reference" ><li class="nav-doc-tab">Reference</li></a>
         <a href="/crmint/docs/samples" ><li class="nav-doc-tab">Samples</li></a>
@@ -163,8 +163,8 @@
       <div class="nav-doc-toggle icon-caret"></div>
       <ul class="doc-list">
         <a href="/crmint/docs" ><li class="nav-doc-tab">Overview</li></a>
-        <a href="/crmint/docs/quickstart" ><li class="nav-doc-tab">Quick Start</li></a>
-        <a href="/crmint/docs/guides" class='current'><li class="nav-doc-tab">Guides</li></a>
+        <a href="/crmint/docs/quickstart" class='current'><li class="nav-doc-tab">Quick Start</li></a>
+        <a href="/crmint/docs/guides" ><li class="nav-doc-tab">Guides</li></a>
         <a href="/crmint/docs/reference" ><li class="nav-doc-tab">Reference</li></a>
       </ul>
     </li>
@@ -174,7 +174,7 @@
     <div class="row">
       <div class="col-md-11 nofloat center-block">
         <div class="col-xs-12">
-          <h1 class="page-headline">What is CRMint?</h1> 
+          <h1 class="page-headline"></h1> 
         </div>
       </div>
     </div>
@@ -184,110 +184,67 @@
 
 </div>
 
-<div class="container">
-	<div class="row">
-		<div class="col-md-11 nofloat center-block">
-			<ul class="col-sm-10 doc-nav">
-				
-				<li class="tab docs-tab"><a href="/crmint/docs/">Docs</a></li>
-				<span class="doc-caret">></span>
-				<li class="tab"><a href="/crmint/docs/" >Overview</a></li>
-				<li class="tab"><a href="/crmint/docs/quickstart" >Quick Start</a></li>
-				<li class="tab"><a href="/crmint/docs/guides" class='current'>Guides</a></li>
-				<li class="tab"><a href="/crmint/docs/custom" >Customize</a></li>
-				<li class="tab"><a href="/crmint/docs/solutions" >Solutions</a></li>
-				<li class="tab"><a href="/crmint/docs/reference" >Reference</a></li>
-				<li class="tab"><a href="/crmint/docs/presentations" >Presentations &amp; Talks</a></li>
-			</ul>
-			
+<h1 id="crmint-quickstart">CRMint Quickstart</h1>
 
-<div class="contribute-links">
-	<a href="/crmint/contribute#docs/guides/concepts.md">Contribution Guidelines</a>
-	<a href="https://github.com/google/crmint//edit/master/docs/guides/concepts.md"><p class="github">Edit <span class="file-name">concepts.md</span></p></a>
-</div>
-		</div>
-	</div>
-</div>
+<p>Please run each of these commands in your CloudShell terminal.</p>
 
+<h2 id="install-the-command-line">Install the command-line</h2>
 
+<ol>
+  <li>
+    <p>Install <code class="highlighter-rouge">crmint</code> command-line:</p>
 
-        
-        <div class="container">
-            <div class="row">
-                <div class="col-md-11 nofloat center-block ">
-                    <div class="col-sm-3">
-                        <ul class="doc-side-nav">
-    
-    <li><h5 class="doc-side-nav-title">Guides</h5></li>
-    <li class="doc-side-nav-list-item"><a href="/crmint/docs/guides/index.html" >What is CRMint?</a></li>
-    <li class="doc-side-nav-list-item"><a href="/crmint/docs/guides/concepts.html" class='current'>CRMint Concepts</a></li>
-    <li class="doc-side-nav-list-item"><a href="/crmint/docs/guides/variables.html" >Variables and expressions</a></li>
- </ul>
-                    </div>
-                    <div class="col-sm-7 markdown">
-                        <h2 id="crmint-concepts">CRMint Concepts</h2>
+    <div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>bash &lt;<span class="o">(</span>curl <span class="nt">-Ls</span> https://raw.githubusercontent.com/google/crmint/master/scripts/install.sh<span class="o">)</span> master
+</code></pre></div>    </div>
+  </li>
+  <li>
+    <p>Congratulations, you have <code class="highlighter-rouge">crmint</code> command-line installed on your CloudShell. You can access it whenever you need to manage your CRMint instances.</p>
 
-<p>The <a href="index.html">overview guide</a> describes the purpose and general capabilities of CRMint. This document breaks CRMint down into its conceptual parts.</p>
+    <div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>crmint <span class="nt">--help</span>
+</code></pre></div>    </div>
+  </li>
+</ol>
 
-<h3 id="pipelines">Pipelines</h3>
+<h2 id="deploy-your-project">Deploy your project</h2>
 
-<p>At the heart of CRMint are pipelines. A pipeline is the largest component within CRMint, and is the end-to-end process by which a business task is achieved.</p>
+<ol>
+  <li>
+    <p>Create a stage file for your first deployment:</p>
 
-<p>For example, a pipeline could be created to load conversion data into Google Analytics. The pipeline might perform many actions for example:</p>
+    <div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>crmint stages create
+</code></pre></div>    </div>
 
-<ul>
-  <li>Load data from a CSV on Cloud Storage into BigQuery</li>
-  <li>Perform some transformations, using BigQuery</li>
-  <li>Send the resulting data to Google Analytics using the Measurement Protocol.</li>
-</ul>
+    <blockquote>
+      <p>This stage file contains all your environment variables for a particular deployment.</p>
+    </blockquote>
+  </li>
+  <li>
+    <p>Setup your environment:</p>
 
-<p>Pipelines can be executed manually, or more commonly run on a schedule.</p>
+    <div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>crmint cloud setup
+</code></pre></div>    </div>
 
-<h3 id="jobs">Jobs</h3>
+    <blockquote>
+      <p>Now your GCP project has all the required products activated and ready to go.</p>
+    </blockquote>
+  </li>
+  <li>
+    <p>Deploy your instance:</p>
 
-<p>Pipelines are divided into <em>jobs</em>. A job is a single discrete task performed by a <em>worker</em>.  Workers are re-usable building blocks that perform common actions such as loading data from one source to another, which can be composed into pipelines.</p>
+    <div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>crmint cloud deploy
+</code></pre></div>    </div>
 
-<p>In the above example pipeline, the job of loading data into BigQuery would be performed by worker with <em>worker class</em> <strong>StorageToBQImporter</strong>.</p>
+    <blockquote>
+      <p>Once this script has completed executing, the installation is complete.</p>
+    </blockquote>
+  </li>
+  <li>
+    <p>Open your CRMint application:</p>
 
-<p>Once the data is loaded into BigQuery, then the job for transforming the data can start. This secondary job therefore has a <em>job dependency</em> on the previous <strong>StorageToBQImporter</strong>-based job.</p>
-
-<p>By defining jobs to perform each of the necessary tasks in the pipeline, and defining the job dependencies of each, the result is a graph that defines the execution path of the pipeline as a whole.</p>
-
-<p>The full range of Workers can be seen in the <a href="../reference/worker_spec.html">workers reference</a></p>
-
-<h3 id="creating-pipelines-using-the-editor">Creating pipelines using the editor</h3>
-
-<p>The easiest way to create a pipeline is through the user interface on your CRMint instance.</p>
-
-<p>Through the user interface, each component job can be defined in the pipeline, and a graph created by defining job dependencies.</p>
-
-<p>The pipeline is customised by then defining variables and expressions as discussed <a href="variables.html">in the separate guide</a>.</p>
-
-<h3 id="json-pipeline-configuration">JSON pipeline configuration</h3>
-
-<p>In addition to creating pipelines using the editor, it is possible to work with pipelines in a JSON format.</p>
-
-<p>This allows pipelines to be:</p>
-
-<ul>
-  <li><strong>Easily exported or imported</strong>: The user interface provides the means to create a new pipeline from JSON, using the Import by template button. Equally, an existing pipeline can be exported using the Export button, to dowload as JSON.</li>
-  <li><strong>Replicated</strong>: An exported pipeline could be imported to create a replica, then modified as required. Alternatively, advanced editing could be performed on the JSON prior to re-importing, for example, if all references to Acme Corp needed changing to Example Inc, in every part of the pipeline, this could be done with a search and replace in a text editor.</li>
-  <li><strong>Shared</strong>, for example as an open-source template.</li>
-</ul>
-
-<p>For details on the format of the pipeline JSON, see the <a href="../reference/index.html">Pipeline JSON reference</a></p>
-
-
-                    </div>
-
-                    <div id="toc" class="toc col-sm-2">
-                    </div>
-                </div>
-            </div>
-        </div>
-        
-
-
+    <div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>gcloud app browse
+</code></pre></div>    </div>
+  </li>
+</ol>
 
 
 <footer>

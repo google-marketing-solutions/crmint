@@ -25,16 +25,16 @@ type: markdown
 
 1.  Once the spinner has stopped, click on the notification to select the newly-created project. Enter the project ID here:
 
-    <input id="project-id" placeholder="Insert Project ID here, e.g. flying-tiger-112301">
+    <input id="project-id" placeholder="Insert Project ID here, e.g. flying-tiger-112301" data-target-id="cloudshell-url">
 
 ## Run setup steps on Cloud Shell
 
 1.  Open a Cloud Shell
 
-    <a id='cloudshell-url' class="gray-image" target="_blank" data-href="https://console.cloud.google.com/cloudshell/editor?cloudshell_git_repo=https%3A%2F%2Fgithub.com%2Fgoogle%2Fcrmint&project=placeholder&cloudshell_git_branch=master&cloudshell_tutorial=docs%2Fdocs%2Fquickstart%2Fcloudshell.md">
+    <a id='cloudshell-url' class="gray-image" target="_blank" data-href="https://console.cloud.google.com/cloudshell/editor?project=placeholder&cloudshell_git_repo=https%3A%2F%2Fgithub.com%2Fgoogle%2Fcrmint&cloudshell_git_branch=master&&cloudshell_tutorial=docsource%2Fdocs%2Fquickstart%2Fcloudshell.md&cloudshell_open_in_editor=README.md">
     <img alt="Open in Cloud Shell" src ="https://gstatic.com/cloudssh/images/open-btn.svg" style="width:250px;"></a>
 
-1.  Follow the instructions which appear in the tutorial within the Cloud Shell environment.
+1.  Follow the <a href="cloudshell.md" target="_blank">instructions</a> which appear in the tutorial within the Cloud Shell environment, on the right side-panel.
 
 1.  Once this script has completed executing, CRMint has been installed!
 
@@ -51,4 +51,4 @@ type: markdown
 - Read a full explanation of how CRMint works in [What is CRMint?](../guides/)
   and [CRMint Concepts](../guides/concepts.html)
 - CRMint pipeline concepts
-- Create your first CRMint pipeline
+- [Create your first CRMint pipeline with BigQuery ML](../quickstart/tutorial.html)

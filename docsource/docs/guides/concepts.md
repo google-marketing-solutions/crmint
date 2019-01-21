@@ -53,5 +53,5 @@ This allows pipelines to be:
 *   **Replicated**: An exported pipeline could be imported to create a replica, then modified as required. Alternatively, advanced editing could be performed on the JSON prior to re-importing, for example, if all references to Acme Corp needed changing to Example Inc, in every part of the pipeline, this could be done with a search and replace in a text editor.
 *   **Shared**, for example as an open-source template.
 
-For details on the format of the pipeline JSON, see the [Pipeline JSON reference](../reference/pipeline.html)
+For details on the format of the pipeline JSON, see the [Pipeline JSON reference](../reference/index.html)
 
