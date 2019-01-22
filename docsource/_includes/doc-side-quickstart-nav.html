@@ -2,4 +2,5 @@
 	{% assign current = page.url | downcase | split: '/' %}
 	<li><h5 class="doc-side-nav-title">Quick Start</h5></li>
 	<li class="doc-side-nav-list-item"><a href="{{ site.baseurl }}/docs/quickstart/" {% if !current[3] %}class='current'{% endif %}>Try deploying CRMint</a></li>
+	<li class="doc-side-nav-list-item"><a href="{{ site.baseurl }}/docs/quickstart/Introduction.md" {% if !current[3] %}class='current'{% endif %}>A whistlestop tour of CRMint</a></li>
  </ul>
