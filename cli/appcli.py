@@ -89,6 +89,9 @@ class CRMintCLI(click.MultiCommand):
       self.insight.track('downloaded')
       permission_given = self._ask_permission()
       _set_insight_opt_out(self.insight.config, not permission_given)
+      # Reload with the new configuration.
+      self.insight = insight.GAProvider()
+      self.insight.track('installed')
     self.insight.track(*args)
     return super(CRMintCLI, self).resolve_command(ctx, args)
 
