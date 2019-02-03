@@ -215,7 +215,7 @@ class Pipeline(BaseModel):
     if not job.get_ready():
       return False
     self.set_status(Pipeline.STATUS.RUNNING)
-    job.start()
+    job.start_as_single()
     return True
 
   def job_finished(self):
@@ -374,6 +374,16 @@ class Job(BaseModel):
         return False
     return True
 
+  def start_as_single(self):
+    """
+    Returns: Task object that was added to the task queue, otherwise None.
+    """
+    if self.status != Job.STATUS.WAITING:
+      return None
+    else:
+      self.set_status(Job.STATUS.RUNNING)
+      return self.run()
+
   def start(self):
     """
     Returns: Task object that was added to the task queue, otherwise None.
@@ -396,11 +406,7 @@ class Job(BaseModel):
     if self.pipeline.status == Pipeline.STATUS.FAILED:
       return None
 
-    if self.status != Job.STATUS.WAITING:
-      return None
-    else:
-      self.set_status(Job.STATUS.RUNNING)
-      return self.run()
+    return self.start_as_single()
 
   def run(self):
     worker_params = dict([(p.name, p.worker_value) for p in self.params])
