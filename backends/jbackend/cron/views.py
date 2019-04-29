@@ -16,6 +16,8 @@
 import logging
 import time
 
+from google.appengine.api import urlfetch
+
 from croniter import croniter
 from flask import Blueprint
 from flask_restful import Resource
@@ -39,6 +41,7 @@ class Cron(Resource):
 
   def get(self):
     """Finds and enqueues pipelines scheduled to be executed now."""
+    urlfetch.set_default_fetch_deadline(300)
     for pipeline in Pipeline.where(run_on_schedule=True).all():
       logging.info('Checking schedules for pipeline %s', pipeline.name)
       for schedule in pipeline.schedules:
