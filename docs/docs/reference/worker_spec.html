@@ -223,6 +223,256 @@ pipeline - see <a href="../guides/concepts.html">CRMint concepts</a> for more de
 <p>The following is the list of available workers, with their configuration
 options.</p>
 
+<div>
+  <h1>BQMLTrainer</h1>
+  <h3>Worker to run BQML SQL queries in BigQuery.</h3>
+
+  <p><strong>Parameters</strong></p>
+  <table>
+    <tr><th>Parameter name</th><th>Data type</th><th>Required</th><th>Default value</th><th>Description</th></tr>
+    
+    <tr><td>query</td><td>sql</td><td>True</td><td></td><td>Query</td></tr>
+    
+    <tr><td>bq_project_id</td><td>string</td><td>False</td><td></td><td>BQ Project ID</td></tr>
+     
+  </table>
+
+</div>
+
+<div>
+  <h1>BQQueryLauncher</h1>
+  <h3>Worker to run SQL queries in BigQuery.</h3>
+
+  <p><strong>Parameters</strong></p>
+  <table>
+    <tr><th>Parameter name</th><th>Data type</th><th>Required</th><th>Default value</th><th>Description</th></tr>
+    
+    <tr><td>query</td><td>sql</td><td>True</td><td></td><td>Query</td></tr>
+    
+    <tr><td>bq_project_id</td><td>string</td><td>False</td><td></td><td>BQ Project ID</td></tr>
+    
+    <tr><td>bq_dataset_id</td><td>string</td><td>True</td><td></td><td>BQ Dataset ID</td></tr>
+    
+    <tr><td>bq_table_id</td><td>string</td><td>True</td><td></td><td>BQ Table ID</td></tr>
+    
+    <tr><td>overwrite</td><td>boolean</td><td>True</td><td>False</td><td>Overwrite table</td></tr>
+     
+  </table>
+
+</div>
+
+<div>
+  <h1>BQToMeasurementProtocol</h1>
+  <h3>Worker to push data through Measurement Protocol</h3>
+
+  <p><strong>Parameters</strong></p>
+  <table>
+    <tr><th>Parameter name</th><th>Data type</th><th>Required</th><th>Default value</th><th>Description</th></tr>
+    
+    <tr><td>bq_project_id</td><td>string</td><td>False</td><td></td><td>BQ Project ID</td></tr>
+    
+    <tr><td>bq_dataset_id</td><td>string</td><td>True</td><td></td><td>BQ Dataset ID</td></tr>
+    
+    <tr><td>bq_table_id</td><td>string</td><td>True</td><td></td><td>BQ Table ID</td></tr>
+    
+    <tr><td>mp_batch_size</td><td>number</td><td>True</td><td>20</td><td>Measurement Protocol batch size (https://goo.gl/7VeWuB</td></tr>
+     
+  </table>
+
+</div>
+
+<div>
+  <h1>BQToStorageExporter</h1>
+  <h3>Worker to export a BigQuery table to a CSV file.</h3>
+
+  <p><strong>Parameters</strong></p>
+  <table>
+    <tr><th>Parameter name</th><th>Data type</th><th>Required</th><th>Default value</th><th>Description</th></tr>
+    
+    <tr><td>bq_project_id</td><td>string</td><td>False</td><td></td><td>BQ Project ID</td></tr>
+    
+    <tr><td>bq_dataset_id</td><td>string</td><td>True</td><td></td><td>BQ Dataset ID</td></tr>
+    
+    <tr><td>bq_table_id</td><td>string</td><td>True</td><td></td><td>BQ Table ID</td></tr>
+    
+    <tr><td>destination_uri</td><td>string</td><td>True</td><td></td><td>Destination CSV or JSON file URI (e.g. gs://bucket/data.csv)</td></tr>
+    
+    <tr><td>print_header</td><td>boolean</td><td>True</td><td>False</td><td>Include a header row</td></tr>
+    
+    <tr><td>export_json</td><td>boolean</td><td>False</td><td>False</td><td>Export in JSON format</td></tr>
+     
+  </table>
+
+</div>
+
+<div>
+  <h1>Commenter</h1>
+  <h3>Dummy worker that fails when checkbox is unchecked.</h3>
+
+  <p><strong>Parameters</strong></p>
+  <table>
+    <tr><th>Parameter name</th><th>Data type</th><th>Required</th><th>Default value</th><th>Description</th></tr>
+    
+    <tr><td>comment</td><td>text</td><td>False</td><td></td><td>Comment</td></tr>
+    
+    <tr><td>success</td><td>boolean</td><td>True</td><td>False</td><td>Finish successfully</td></tr>
+     
+  </table>
+
+</div>
+
+<div>
+  <h1>GAAudiencesUpdater</h1>
+  <h3>Worker to update GA audiences using values from a BQ table.</h3>
+
+  <p>
+See: https://developers.google.com/analytics/devguides/config/mgmt/v3/mgmtReference/management/remarketingAudience#resource<br />
+for more details on the required GA Audience JSON template format.
+</p>
+
+  <p><strong>Parameters</strong></p>
+  <table>
+    <tr><th>Parameter name</th><th>Data type</th><th>Required</th><th>Default value</th><th>Description</th></tr>
+    
+    <tr><td>property_id</td><td>string</td><td>True</td><td></td><td>GA Property Tracking ID (e.g. UA-12345-3)</td></tr>
+    
+    <tr><td>bq_project_id</td><td>string</td><td>False</td><td></td><td>BQ Project ID</td></tr>
+    
+    <tr><td>bq_dataset_id</td><td>string</td><td>True</td><td></td><td>BQ Dataset ID</td></tr>
+    
+    <tr><td>bq_table_id</td><td>string</td><td>True</td><td></td><td>BQ Table ID</td></tr>
+    
+    <tr><td>template</td><td>text</td><td>True</td><td></td><td>GA audience JSON template</td></tr>
+     
+  </table>
+
+</div>
+
+<div>
+  <h1>GADataImporter</h1>
+  <h3>Imports CSV data from Cloud Storage to GA using Data Import.</h3>
+
+  <p><strong>Parameters</strong></p>
+  <table>
+    <tr><th>Parameter name</th><th>Data type</th><th>Required</th><th>Default value</th><th>Description</th></tr>
+    
+    <tr><td>csv_uri</td><td>string</td><td>True</td><td></td><td>CSV data file URI (e.g. gs://bucket/data.csv)</td></tr>
+    
+    <tr><td>property_id</td><td>string</td><td>True</td><td></td><td>GA Property Tracking ID (e.g. UA-12345-3)</td></tr>
+    
+    <tr><td>dataset_id</td><td>string</td><td>True</td><td></td><td>GA Dataset ID (e.g. sLj2CuBTDFy6CedBJw)</td></tr>
+    
+    <tr><td>max_uploads</td><td>number</td><td>False</td><td></td><td>Maximum uploads to keep in GA Dataset (leave empty to keep all)</td></tr>
+    
+    <tr><td>delete_before</td><td>boolean</td><td>True</td><td>False</td><td>Delete older uploads before upload</td></tr>
+     
+  </table>
+
+</div>
+
+<div>
+  <h1>GAToBQImporter</h1>
+  <h3>Worker to load data into BQ from GA using Core Reporting API.</h3>
+
+  <p><strong>Parameters</strong></p>
+  <table>
+    <tr><th>Parameter name</th><th>Data type</th><th>Required</th><th>Default value</th><th>Description</th></tr>
+    
+    <tr><td>view_ids</td><td>string_list</td><td>True</td><td></td><td>View IDs (e.g. 12345)</td></tr>
+    
+    <tr><td>start_date</td><td>string</td><td>True</td><td></td><td>Start date (e.g. 2015-12-31)</td></tr>
+    
+    <tr><td>end_date</td><td>string</td><td>True</td><td></td><td>End date (e.g. 2016-12-31)</td></tr>
+    
+    <tr><td>day_by_day</td><td>boolean</td><td>True</td><td>False</td><td>Fetch data day by day</td></tr>
+    
+    <tr><td>metrics</td><td>string_list</td><td>True</td><td></td><td>Metrics (e.g. ga:users)</td></tr>
+    
+    <tr><td>dimensions</td><td>string_list</td><td>False</td><td></td><td>Dimensions (e.g. ga:source)</td></tr>
+    
+    <tr><td>filters</td><td>string</td><td>False</td><td></td><td>Filters (e.g. ga:deviceCategory==mobile)</td></tr>
+    
+    <tr><td>include_empty_rows</td><td>boolean</td><td>True</td><td>False</td><td>Include empty rows</td></tr>
+    
+    <tr><td>bq_project_id</td><td>string</td><td>False</td><td></td><td>BQ Project ID</td></tr>
+    
+    <tr><td>bq_dataset_id</td><td>string</td><td>True</td><td></td><td>BQ Dataset ID</td></tr>
+    
+    <tr><td>bq_table_id</td><td>string</td><td>True</td><td></td><td>BQ Table ID</td></tr>
+     
+  </table>
+
+</div>
+
+<div>
+  <h1>MLPredictor</h1>
+  <h3>Worker to create ML batch prediction jobs.</h3>
+
+  <p><strong>Parameters</strong></p>
+  <table>
+    <tr><th>Parameter name</th><th>Data type</th><th>Required</th><th>Default value</th><th>Description</th></tr>
+    
+    <tr><td>project</td><td>string</td><td>True</td><td></td><td>ML project ID</td></tr>
+    
+    <tr><td>model</td><td>string</td><td>True</td><td></td><td>ML model name</td></tr>
+    
+    <tr><td>version</td><td>string</td><td>True</td><td></td><td>ML model version</td></tr>
+    
+    <tr><td>input_uris</td><td>string_list</td><td>True</td><td></td><td>URIs of input JSON files (e.g. gs://bucket/data.json)</td></tr>
+    
+    <tr><td>output_uri</td><td>string</td><td>True</td><td></td><td>URI of folder to put predictions into (e.g. gs://bucket/folder)</td></tr>
+     
+  </table>
+
+</div>
+
+<div>
+  <h1>StorageCleaner</h1>
+  <h3>Worker to delete stale files in Cloud Storage.</h3>
+
+  <p><strong>Parameters</strong></p>
+  <table>
+    <tr><th>Parameter name</th><th>Data type</th><th>Required</th><th>Default value</th><th>Description</th></tr>
+    
+    <tr><td>file_uris</td><td>string_list</td><td>True</td><td></td><td>List of file URIs and URI patterns (e.g. gs://bucket/data.csv or gs://bucket/data_*.csv</td></tr>
+    
+    <tr><td>expiration_days</td><td>number</td><td>True</td><td>30</td><td>Days to keep files since last modification</td></tr>
+     
+  </table>
+
+</div>
+
+<div>
+  <h1>StorageToBQImporter</h1>
+  <h3>Worker to import a CSV file into a BigQuery table.</h3>
+
+  <p><strong>Parameters</strong></p>
+  <table>
+    <tr><th>Parameter name</th><th>Data type</th><th>Required</th><th>Default value</th><th>Description</th></tr>
+    
+    <tr><td>source_uris</td><td>string_list</td><td></td><td>True</td><td>Source CSV or JSON files URIs (e.g. gs://bucket/data.csv)</td></tr>
+    
+    <tr><td>bq_project_id</td><td>string</td><td>False</td><td></td><td>BQ Project ID</td></tr>
+    
+    <tr><td>bq_dataset_id</td><td>string</td><td>True</td><td></td><td>BQ Dataset ID</td></tr>
+    
+    <tr><td>bq_table_id</td><td>string</td><td>True</td><td></td><td>BQ Table ID</td></tr>
+    
+    <tr><td>overwrite</td><td>boolean</td><td>True</td><td>False</td><td>Overwrite table</td></tr>
+    
+    <tr><td>dont_create</td><td>boolean</td><td>True</td><td>False</td><td>Don\'t create table if doesn\'t exist</td></tr>
+    
+    <tr><td>autodetect</td><td>boolean</td><td>True</td><td>False</td><td>Autodetect schema and other parameters</td></tr>
+    
+    <tr><td>rows_to_skip</td><td>number</td><td>False</td><td>0</td><td>Header rows to skip</td></tr>
+    
+    <tr><td>errors_to_allow</td><td>number</td><td>False</td><td>0</td><td>Number of errors allowed</td></tr>
+    
+    <tr><td>import_json</td><td>boolean</td><td>False</td><td>False</td><td>Source is in JSON format</td></tr>
+     
+  </table>
+
+</div>
   
                         </div>
                     </div>
