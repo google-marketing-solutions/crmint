@@ -604,6 +604,7 @@ class GAAudiencesUpdater(BQWorker, GAWorker):
       ('bq_dataset_id', 'string', True, '', 'BQ Dataset ID'),
       ('bq_table_id', 'string', True, '', 'BQ Table ID'),
       ('template', 'text', True, '', 'GA audience JSON template'),
+      ('account_id', 'string', False, '', 'GA Account ID'),
   ]
 
   def _infer_audiences(self):
@@ -702,7 +703,10 @@ class GAAudiencesUpdater(BQWorker, GAWorker):
       self.retry(request.execute)()
 
   def _execute(self):
-    self._account_id = self._params['property_id'].split('-')[1]
+    if self._params['account_id']:
+      self._account_id = self._params['account_id']
+    else:
+      self._account_id = self._params['property_id'].split('-')[1]
     self._bq_setup()
     self._table.reload()
     self._ga_setup('v3')
