@@ -392,6 +392,8 @@ class GAWorker(Worker):
     credentials = ServiceAccountCredentials.from_json_keyfile_name(_KEY_FILE)
     self._ga_client = build('analytics', v, credentials=credentials)
 
+  def _parse_accountid_from_propertyid(self, property_id):
+    return self._params['property_id'].split('-')[1]
 
 class GAToBQImporter(BQWorker, GAWorker):
   """Worker to load data into BQ from GA using Core Reporting API."""
@@ -524,6 +526,7 @@ class GADataImporter(GAWorker):
        'Maximum uploads to keep in GA Dataset (leave empty to keep all)'),
       ('delete_before', 'boolean', True, False,
        'Delete older uploads before upload'),
+      ('account_id', 'string', False, '', 'GA Account ID'),
   ]
 
   _BUFFER_SIZE = 256 * 1024
@@ -582,7 +585,11 @@ class GADataImporter(GAWorker):
 
   def _execute(self):
     self._ga_setup('v3')
-    self._account_id = self._params['property_id'].split('-')[1]
+    if self._params['account_id']:
+      self._account_id = self._params['account_id']
+    else:
+      self._account_id = self._parse_accountid_from_propertyid(
+          self._params['property_id'])
     self._file_name = self._params['csv_uri'].replace('gs:/', '')
     if self._params['max_uploads'] > 0 and self._params['delete_before']:
       self._delete_older(self._params['max_uploads'] - 1)
@@ -604,6 +611,7 @@ class GAAudiencesUpdater(BQWorker, GAWorker):
       ('bq_dataset_id', 'string', True, '', 'BQ Dataset ID'),
       ('bq_table_id', 'string', True, '', 'BQ Table ID'),
       ('template', 'text', True, '', 'GA audience JSON template'),
+      ('account_id', 'string', False, '', 'GA Account ID'),
   ]
 
   def _infer_audiences(self):
@@ -702,7 +710,11 @@ class GAAudiencesUpdater(BQWorker, GAWorker):
       self.retry(request.execute)()
 
   def _execute(self):
-    self._account_id = self._params['property_id'].split('-')[1]
+    if self._params['account_id']:
+      self._account_id = self._params['account_id']
+    else:
+      self._account_id = self._parse_accountid_from_propertyid(
+          self._params['property_id'])
     self._bq_setup()
     self._table.reload()
     self._ga_setup('v3')
