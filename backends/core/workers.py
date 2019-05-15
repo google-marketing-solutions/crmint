@@ -851,14 +851,28 @@ class MeasurementProtocolWorker(Worker):
     Raises: MeasurementProtocolException if the HTTP request fails.
     """
     headers = {'user-agent': user_agent}
-    req = requests.post('https://www.google-analytics.com/batch',
-                        headers=headers,
-                        data=batch_payload)
+    if self._debug:
+      for payload in batch_payload.split('\n'):
+        response = requests.post('https://www.google-analytics.com/debug/collect',
+                                 headers=headers,
+                                 data=payload)
+        result = json.loads(response.text)
+        if (not result['hitParsingResult'] or
+            not result['hitParsingResult'][0]['valid']):
+          message = ('Invalid payload ("&" characters replaced with new lines):'
+                     '\n\n%s\n\nValidation response:\n\n%s')
+          readable_payload = payload.replace('&', '\n')
+          self.log_warn(message, readable_payload, response.text)
+    else:
+      response = requests.post('https://www.google-analytics.com/batch',
+                               headers=headers,
+                               data=batch_payload)
 
-    if req.status_code != requests.codes.ok:
-      raise MeasurementProtocolException('Failed to send event hit with status '
-                                         'code (%s) and parameters: %s'
-                                         % (req.status_code, batch_payload))
+      if response.status_code != requests.codes.ok:
+        raise MeasurementProtocolException('Failed to send event hit with '
+                                           'status code (%s) and parameters: %s'
+                                           % (response.status_code,
+                                             batch_payload))
 
 
 class BQToMeasurementProtocol(BQWorker):
@@ -870,6 +884,7 @@ class BQToMeasurementProtocol(BQWorker):
       ('bq_table_id', 'string', True, '', 'BQ Table ID'),
       ('mp_batch_size', 'number', True, 20, ('Measurement Protocol batch size '
                                              '(https://goo.gl/7VeWuB)')),
+      ('debug', 'boolean', True, False, 'Debug mode'),
   ]
 
   # BigQuery batch size for querying results. Default to 1000.
@@ -937,6 +952,7 @@ class BQToMeasurementProtocolProcessor(BQWorker, MeasurementProtocolWorker):
   def _execute(self):
     self._bq_setup()
     self._table.reload()
+    self._debug = self._params['debug']
     page_token = self._params['bq_page_token'] or None
     batch_size = self._params['bq_batch_size']
     query_iterator = self.retry(self._table.fetch_data, max_retries=1)(
