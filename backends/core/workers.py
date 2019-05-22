@@ -167,6 +167,10 @@ class BQWorker(Worker):
   """Abstract BigQuery worker."""
 
   def _get_client(self):
+    bigquery.Client.SCOPE = (
+        'https://www.googleapis.com/auth/bigquery',
+        'https://www.googleapis.com/auth/cloud-platform',
+        'https://www.googleapis.com/auth/drive')
     client = bigquery.Client.from_service_account_json(_KEY_FILE)
     if self._params['bq_project_id'].strip():
       client.project = self._params['bq_project_id']
