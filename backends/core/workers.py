@@ -48,6 +48,7 @@ AVAILABLE = (
     'GADataImporter',
     'GAToBQImporter',
     'MLPredictor',
+    'StorageChecker',
     'StorageCleaner',
     'StorageToBQImporter',
 )
@@ -296,6 +297,31 @@ class StorageCleaner(StorageWorker):
       if stat.st_ctime < expiration_timestamp:
         gcs.delete(stat.filename)
         self.log_info('gs:/%s file deleted.', stat.filename)
+
+
+class StorageChecker(StorageWorker):
+  """Worker to check if files matching the patterns exist in Cloud Storage."""
+
+  PARAMS = [
+      ('file_uris', 'string_list', True, '',
+       ('List of file URIs and URI patterns (e.g. gs://bucket/data.csv or '
+        'gs://bucket/data_*.csv)')),
+      ('min_size', 'number', False, '',
+       'Least total size of matching files in bytes required for success'),
+  ]
+
+  def _execute(self):
+    try:
+      min_size = int(self._params['min_size'])
+    except TypeError:
+      min_size = 0
+    stats = self._get_matching_stats(self._params['file_uris'])
+    if not stats:
+      raise WorkerException('Files matching the patterns were not found')
+    size = reduce(lambda total, stat: total + stat.st_size, stats, 0)
+    if size < min_size:
+      raise WorkerException( 'Files matching the patterns are too small')
+
 
 
 class StorageToBQImporter(StorageWorker, BQWorker):
