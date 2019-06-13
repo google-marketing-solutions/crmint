@@ -34,7 +34,7 @@ from oauth2client.service_account import ServiceAccountCredentials
 import requests
 from google.cloud import bigquery
 from google.cloud.exceptions import ClientError
-
+from google.cloud import automl_v1beta1 as automl
 
 _KEY_FILE = os.path.join(os.path.dirname(__file__), '..', 'data',
                          'service-account.json')
@@ -50,6 +50,7 @@ AVAILABLE = (
     'MLPredictor',
     'StorageCleaner',
     'StorageToBQImporter',
+    'AutoMLPredictor'
 )
 
 # Defines how many times to retry on failure, default to 5 times.
@@ -949,3 +950,38 @@ class BQMLTrainer(BQWorker):
     job = client.run_async_query(job_name, self._params['query'])
     job.use_legacy_sql = False
     self._begin_and_wait(job)
+
+class AutoMLPredictor(BQWorker):
+  """Worker to run BQML SQL queries in BigQuery."""
+
+  PARAMS = [
+      ('bq_project_id', 'string', False, '', 'BQ Project ID'),
+      ('compute_region', 'string', False, '', 'Compute Region'),
+      ('model_id', 'string', False, '', 'AutoML Model ID'),
+      ('bq_dataset_id', 'string', True, '', 'BQ Dataset ID'),
+      ('bq_table_id', 'string', True, '', 'BQ Table ID'),
+      ('destination_uri', 'string', True, '',
+       'Destination CSV file path (e.g. gs://bucket/)'),
+  ]
+
+  def _execute(self):
+    self._bq_setup()
+    automl_client = automl.AutoMlClient()
+    # Get the full path of the model.
+    model_full_id = automl_client.model_path(
+        self._params['bq_project_id'], self._params['compute_region'], self._params['model_id']
+    )
+    # Create client for prediction service.
+    prediction_client = automl.PredictionServiceClient()
+    input_config = {"bigquery_source": {"input_uri": self._table}}
+    output_config = {"gcs_destination": {"output_uri_prefix": self._params['destination_uri']}}
+    # Query model
+    response = prediction_client.batch_predict(
+        model_full_id, input_config, output_config)
+    print("Making batch prediction... ")
+    try:
+        result = response.result()
+    except:
+        # Hides Any to BatchPredictResult error.
+        pass
+    print("Batch prediction complete.\n{}".format(response.metadata))
