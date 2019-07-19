@@ -25,6 +25,8 @@ from random import random
 import time
 import urllib
 import uuid
+import yaml
+import hashlib
 
 from apiclient.discovery import build
 from apiclient.errors import HttpError
@@ -34,6 +36,7 @@ from oauth2client.service_account import ServiceAccountCredentials
 import requests
 from google.cloud import bigquery
 from google.cloud.exceptions import ClientError
+# from googleads import adwords
 
 
 _KEY_FILE = os.path.join(os.path.dirname(__file__), '..', 'data',
@@ -50,6 +53,7 @@ AVAILABLE = (
     'MLPredictor',
     'StorageCleaner',
     'StorageToBQImporter',
+    'BQToCM',
 )
 
 # Defines how many times to retry on failure, default to 5 times.
@@ -57,7 +61,6 @@ DEFAULT_MAX_RETRIES = os.environ.get('MAX_RETRIES', 5)
 
 
 # pylint: disable=too-few-public-methods
-
 
 class WorkerException(Exception):
   """Worker execution exceptions expected in task handler."""
@@ -303,7 +306,7 @@ class StorageToBQImporter(StorageWorker, BQWorker):
 
   PARAMS = [
       ('source_uris', 'string_list', '', True,
-       'Source CSV or JSON files URIs (e.g. gs://bucket/data.csv)'),
+       'Hello 2 Source CSV or JSON files URIs (e.g. gs://bucket/data.csv)'),
       ('bq_project_id', 'string', False, '', 'BQ Project ID'),
       ('bq_dataset_id', 'string', True, '', 'BQ Dataset ID'),
       ('bq_table_id', 'string', True, '', 'BQ Table ID'),
@@ -848,7 +851,6 @@ class MeasurementProtocolWorker(Worker):
                                          'code (%s) and parameters: %s'
                                          % (req.status_code, batch_payload))
 
-
 class BQToMeasurementProtocol(BQWorker):
   """Worker to push data through Measurement Protocol"""
 
@@ -949,3 +951,292 @@ class BQMLTrainer(BQWorker):
     job = client.run_async_query(job_name, self._params['query'])
     job.use_legacy_sql = False
     self._begin_and_wait(job)
+
+
+
+class AdsAPIWorker(Worker):
+  """Abstract Customer Match worker."""
+
+  def _get_ads_api_client(self):
+		print('************************')
+		yaml_string = AdsAPISettingsBuilder.build(self._params)
+		print('YAML String: \n' + yaml_string)
+		print('************************')
+		return yaml_string
+
+
+class CustomerMatchWorker(AdsAPIWorker):
+  """Customer Match worker."""
+
+  # Customer Match list fields
+  EMAIL = 'Email'
+  PHONE = 'Phone'
+  MOBILE_ID = 'MobileId'
+  USER_ID = 'UserId'
+  FIRST_NAME = 'FirstName'
+  LAST_NAME = 'LastName'
+  COUNTRY_CODE = 'CountryCode'
+  ZIP_CODE = 'ZipCode'
+  LIST_NAME = 'List'
+  IS_DATA_ENCRYPTED = False
+
+  # Default Values
+  GENERIC_LIST = 'Generic List from the API'
+
+  def _execute(self):
+    self.IS_DATA_ENCRYPTED = self._params['success']
+    self._generate_list_data_structure()
+    
+  def _normalize_and_sha256(self, input_string):
+    """Normalizes (lowercase, remove whitespace) and hashes a string with SHA-256.
+
+    Args:
+      s: The string to perform this operation on.
+
+    Returns:
+      A normalized and SHA-256 hashed string.
+    """
+    return hashlib.sha256(input_string.strip().lower()).hexdigest()
+
+  def _generate_list_data_structure(self):
+    data_structure = {}
+    data_structure['emails'] = []
+    data_structure['phones'] = []
+    data_structure['mobile_ids'] = []
+    data_structure['user_ids'] = []
+    data_structure['addresses'] = []
+    return data_structure
+
+
+  def _read_query_data(self, query_data, fields):
+    """Reads customer data from query_data and stores it in memory.
+
+    Args:
+      query_data: BQ table page.
+    Returns:
+      customer_data: Processed data from BQ table page.
+    """
+    customer_data = {}
+    list_data = []
+
+    line_count = 0
+    for row in query_data:
+      data = dict(zip(fields, row))
+
+      if data.get(self.LIST_NAME):
+        if not customer_data.get(data[self.LIST_NAME]):
+          customer_data[data[self.LIST_NAME]] = self._generate_list_data_structure()
+        list_data = customer_data[data[self.LIST_NAME]]
+      else:
+        # Use generic list
+        if not customer_data.get(self.GENERIC_LIST):
+          customer_data[self.GENERIC_LIST] = self._generate_list_data_structure()
+        list_data = customer_data[self.GENERIC_LIST]
+
+      if data.get(self.EMAIL):
+        if self.IS_DATA_ENCRYPTED:
+          list_data['emails'].append({'hashedEmail': data[self.EMAIL]})
+        else:
+          list_data['emails'].append({'hashedEmail': self._normalize_and_sha256(data[self.EMAIL])})
+
+      if data.get(self.PHONE):
+        if self.IS_DATA_ENCRYPTED:
+          list_data['phones'].append({'hashedPhoneNumber': data[self.PHONE]})
+        else:
+          list_data['phones'].append(
+              {'hashedPhoneNumber': self._normalize_and_sha256(data[self.PHONE])})
+
+      if data.get(self.MOBILE_ID):
+        list_data['mobile_ids'].append({'mobileId': data[self.MOBILE_ID]})
+      if data.get(self.USER_ID):
+        list_data['user_ids'].append({'userId': data[self.USER_ID]})
+      if (data.get(self.FIRST_NAME) and data.get(self.LAST_NAME) and
+          data.get(self.COUNTRY_CODE) and data.get(self.ZIP_CODE)):
+        address = {}
+        if self.IS_DATA_ENCRYPTED:
+          address['hashedFirstName'] = data[self.FIRST_NAME]
+          address['hashedLastName'] = data[self.LAST_NAME]
+        else:
+          address['hashedFirstName'] = self._normalize_and_sha256(data[self.FIRST_NAME])
+          address['hashedLastName'] = self._normalize_and_sha256(data[self.LAST_NAME])
+        address['CountryCode'] = data[self.COUNTRY_CODE]
+        address['ZipCode'] = data[self.ZIP_CODE]
+        list_data['addresses'].append(address)
+
+      line_count += 1
+
+    self.log_info('Processed %d lines from table.', line_count)
+
+    return customer_data
+
+  def upload_data(self, client, list_name, customer_data):
+    """Uploads processed data to the specified list and creates it if necessary.
+
+    Args:
+      client: Adwords API client used to create and mutate the user list.
+      list_name: The name of the user list to modify.
+      customer_data: Processed customer data to be uploaded.
+    Returns:
+      None.
+    """
+    # Initialize appropriate services.
+    user_list_service = client.GetService('AdwordsUserListService', 'v201809')
+
+    # Check if the list already exists
+    selector = {
+        'fields': ['Name', 'Id'],
+        'predicates': [{
+            'field': 'Name',
+            'operator': 'EQUALS',
+            'values': list_name
+        }],
+    }
+    result = user_list_service.get(selector)
+    if result['entries']:
+      logger.info(
+          'The user list %s is already created and its info was retrieved.',
+          list_name)
+      user_list_id = result['entries'][0]['id']
+    else:
+      logger.info('The user list %s will be created.', list_name)
+      user_list = {
+          'xsi_type': 'CrmBasedUserList',
+          'name': list_name,
+          'description': 'This is a list of users uploaded from Adwords API',
+          # CRM-based user lists can use a membershipLifeSpan of 10000 to indicate
+          # unlimited; otherwise normal values apply.
+          'membershipLifeSpan': 10000,
+          'uploadKeyType': 'CONTACT_INFO'
+      }
+
+      # Create an operation to add the user list.
+      operations = [{'operator': 'ADD', 'operand': user_list}]
+      result = user_list_service.mutate(operations)
+      user_list_id = result['value'][0]['id']
+
+    members = []
+    if customer_data['emails']:
+      members.extend(customer_data['emails'])
+    if customer_data['phones']:
+      members.extend(customer_data['phones'])
+    if customer_data['mobile_ids']:
+      members.extend(customer_data['mobile_ids'])
+    if customer_data['user_ids']:
+      members.extend(customer_data['user_ids'])
+    if customer_data['addresses']:
+      members.extend(customer_data['addresses'])
+
+    total_uploaded = 0
+    # Flow control to keep calls within usage limits
+    logger.info('Starting upload.')
+    for i in range(0, len(members), MAX_ITEMS_PER_CALL):
+      start = i
+      end = i + MAX_ITEMS_PER_CALL
+
+      members_to_upload = members[start:end]
+
+      mutate_members_operation = {
+          'operand': {
+              'userListId': user_list_id,
+              'membersList': members_to_upload
+          },
+          'operator': 'ADD'
+      }
+
+      response = user_list_service.mutateMembers([mutate_members_operation])
+
+      if 'userLists' in response:
+        for user_list in response['userLists']:
+          logger.info(
+              '%d members were added to user list with name "%s" & ID "%d".',
+              len(members_to_upload), user_list['name'], user_list['id'])
+        total_uploaded += len(members_to_upload)
+
+
+class BQToCM(BQWorker, AdsAPIWorker):
+  """Worker to push data through Measurement Protocol"""
+
+  PARAMS = [
+      ('bq_project_id', 'string', False, '', 'BQ Project ID'),
+      ('bq_dataset_id', 'string', True, '', 'BQ Dataset ID'),
+      ('bq_table_id', 'string', True, '', 'BQ Table ID'),
+      ('client_customer_id', 'string', True, '', 'Client Customer ID'),
+      ('developer_token', 'string', True, '', 'Developer Token'),
+      ('refresh_token', 'string', True, '', 'Refresh Token'),
+      ('client_id', 'string', True, '', 'Cloud Project Client ID'),
+      ('client_secret', 'string', True, '', 'Cloud Project Client Secret'),
+      ('encrypted_data', 'boolean', True, False, 'Are fields hashed already?'),
+  ]
+
+  # BigQuery batch size for querying results. Default to 1000.
+  BQ_BATCH_SIZE = int(1000)
+
+  # Maximum number of jobs to enqueued before spawning a new scheduler.
+  MAX_ENQUEUED_JOBS = 50
+
+  def _execute(self):
+    ads_client = self._get_ads_api_client()
+    self._bq_setup()
+    self._table.reload()
+    page_token = self._params.get('bq_page_token', None)
+    batch_size = self.BQ_BATCH_SIZE
+    query_iterator = self.retry(self._table.fetch_data, max_retries=1)(
+        max_results=batch_size,
+        page_token=page_token)
+
+    enqueued_jobs_count = 0
+    for query_page in query_iterator.pages:  # pylint: disable=unused-variable
+      # Enqueue job for this page
+      worker_params = self._params.copy()
+      worker_params['bq_page_token'] = page_token
+      worker_params['bq_batch_size'] = self.BQ_BATCH_SIZE
+      worker_params['ads_client'] = ads_client
+      self._enqueue('BQToCMProcessor', worker_params, 0)
+      enqueued_jobs_count += 1
+
+      # Updates the page token reference for the next iteration.
+      page_token = query_iterator.next_page_token
+
+      # Spawns a new job to schedule the remaining pages.
+      if (enqueued_jobs_count >= self.MAX_ENQUEUED_JOBS
+          and page_token is not None):
+        worker_params = self._params.copy()
+        worker_params['bq_page_token'] = page_token
+        self._enqueue(self.__class__.__name__, worker_params, 0)
+        return
+
+
+class BQToCMProcessor(BQWorker, CustomerMatchWorker):
+  """Worker pushing to Customer Match the first page only of a query"""
+
+  def _process_query_results(self, query_data, query_schema):
+    """Sends event hits from query data."""
+    fields = [f.name for f in query_schema]
+    payload_list = []
+    customer_data = self._read_query_data(query_data, fields)
+
+
+  def _execute(self):
+    print("*** Executing BQToCMProcessor ***")
+    self._bq_setup()
+    self._table.reload()
+    page_token = self._params['bq_page_token'] or None
+    batch_size = self._params['bq_batch_size']
+    query_iterator = self.retry(self._table.fetch_data, max_retries=1)(
+        max_results=batch_size,
+        page_token=page_token)
+    query_first_page = next(query_iterator.pages)
+    self._process_query_results(query_first_page, query_iterator.schema)
+
+
+class AdsAPISettingsBuilder(object):
+  """Class that build a YAML string from the params of a worker"""
+  @staticmethod
+  def build(params):
+    string = "adwords:\n"
+    string += '  client_customer_id: ' + params['client_customer_id'].strip() + '\n'
+    string += '  developer_token: ' + params['developer_token'].strip() + '\n'
+    string += '  client_id: ' + params['client_id'].strip() + '\n'
+    string += '  client_secret: ' + params['client_secret'].strip() + '\n'
+    string += '  refresh_token: ' + params['refresh_token'].strip()
+    return string
