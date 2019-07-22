@@ -1217,7 +1217,8 @@ class BQToCMProcessor(BQWorker, CustomerMatchWorker):
 
 
   def _execute(self):
-    print("*** Executing BQToCMProcessor ***")
+    print("******* Job params: ***********")
+    print(dir(self._params))
     self._bq_setup()
     self._table.reload()
     page_token = self._params['bq_page_token'] or None
