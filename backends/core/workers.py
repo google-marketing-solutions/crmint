@@ -390,7 +390,8 @@ class GAWorker(Worker):
 
   def _ga_setup(self, v='v4'):
     credentials = ServiceAccountCredentials.from_json_keyfile_name(_KEY_FILE)
-    self._ga_client = build('analytics', v, credentials=credentials)
+    service = 'analyticsreporting' if v == 'v4' else 'analytics'
+    self._ga_client = build(service, v, credentials=credentials)
 
   def _parse_accountid_from_propertyid(self, property_id):
     return self._params['property_id'].split('-')[1]
@@ -600,7 +601,7 @@ class GADataImporter(GAWorker):
 
 class GAAudiencesUpdater(BQWorker, GAWorker):
   """Worker to update GA audiences using values from a BQ table.
-  
+
   See: https://developers.google.com/analytics/devguides/config/mgmt/v3/mgmtReference/management/remarketingAudience#resource
   for more details on the required GA Audience JSON template format."""
 
