@@ -12,3 +12,4 @@ google-api-python-client==1.6.5
 google-cloud-logging==1.6.0
 GoogleAppEngineCloudStorageClient==1.9.22.1
 pyyaml==3.12
+oauthlib==3.0.2
