@@ -25,6 +25,8 @@ from random import random
 import time
 import urllib
 import uuid
+import yaml
+import hashlib
 
 from apiclient.discovery import build
 from apiclient.errors import HttpError
@@ -34,6 +36,8 @@ from oauth2client.service_account import ServiceAccountCredentials
 import requests
 from google.cloud import bigquery
 from google.cloud.exceptions import ClientError
+# Import appropriate modules from the client library.
+from googleads import adwords
 
 
 _KEY_FILE = os.path.join(os.path.dirname(__file__), '..', 'data',
@@ -50,6 +54,8 @@ AVAILABLE = (
     'MLPredictor',
     'StorageCleaner',
     'StorageToBQImporter',
+    'AddClientMatchLists',
+    'RemoveClientMatchLists',
 )
 
 # Defines how many times to retry on failure, default to 5 times.
@@ -604,7 +610,7 @@ class GADataImporter(GAWorker):
 
 class GAAudiencesUpdater(BQWorker, GAWorker):
   """Worker to update GA audiences using values from a BQ table.
-  
+
   See: https://developers.google.com/analytics/devguides/config/mgmt/v3/mgmtReference/management/remarketingAudience#resource
   for more details on the required GA Audience JSON template format."""
 
@@ -797,7 +803,7 @@ class MeasurementProtocolException(WorkerException):
 
 class MeasurementProtocolWorker(Worker):
   """Abstract Measurement Protocol worker."""
-  
+
   def _flatten(self, data):
     flat = False
     while not flat:
@@ -965,3 +971,91 @@ class BQMLTrainer(BQWorker):
     job = client.run_async_query(job_name, self._params['query'])
     job.use_legacy_sql = False
     self._begin_and_wait(job)
+
+class AddClientMatchLists(Worker):
+
+  def _execute(self):
+    # with open('data/googleads.yaml', 'r') as yaml_file:
+    #     adwords_yaml_dict = yaml.safe_load(yaml_file)
+    # adwords_config = adwords_yaml_dict.get('adwords', {})
+    # adwords_client = adwords.AdWordsClient(
+    #     adwords_config.get('developer_token'), adwords_config.get(''),
+    #     cache=suds.cache.NoCache())
+    # adwords_client = adwords.AdWordsClient.LoadFromString(adwords_yaml)
+    adwords_client = adwords.AdWordsClient.LoadFromStorage(path='data/googleads.yaml')
+    self.run(adwords_client)
+
+  def run(self, client):
+    # Initialize appropriate services.
+    user_list_service = client.GetService('AdwordsUserListService', 'v201809')
+
+    user_list = {
+        'xsi_type': 'CrmBasedUserList',
+        'name': 'Customer relationship management list #%d' % uuid.uuid4(),
+        'description': 'A list of customers that originated from email addresses',
+        # CRM-based user lists can use a membershipLifeSpan of 10000 to indicate
+        # unlimited; otherwise normal values apply.
+        'membershipLifeSpan': 30,
+        'uploadKeyType': 'CONTACT_INFO'
+    }
+
+    # Create an operation to add the user list.
+    operations = [{
+        'operator': 'ADD',
+        'operand': user_list
+    }]
+
+    result = user_list_service.mutate(operations)
+    user_list_id = result['value'][0]['id']
+
+    emails = ['customer1@example.com', 'customer2@example.com',
+              ' Customer3@example.com ']
+    members = [{'hashedEmail': self.NormalizeAndSHA256(email)} for email in emails]
+
+    # Add address info.
+    members.append({
+        'addressInfo': {
+            # First and last name must be normalized and hashed.
+            'hashedFirstName': self.NormalizeAndSHA256('John'),
+            'hashedLastName': self.NormalizeAndSHA256('Doe'),
+            # Country code and zip code are sent in plaintext.
+            'countryCode': 'US',
+            'zipCode': '10001'
+        }
+    })
+
+    mutate_members_operation = {
+        'operand': {
+            'userListId': user_list_id,
+            'membersList': members
+        },
+        'operator': 'ADD'
+    }
+
+    response = user_list_service.mutateMembers([mutate_members_operation])
+
+    if 'userLists' in response:
+      for user_list in response['userLists']:
+        print ('User list with name "%s" and ID "%d" was added.'
+               % (user_list['name'], user_list['id']))
+
+  def NormalizeAndSHA256(self, s):
+    """Normalizes (lowercase, remove whitespace) and hashes a string with SHA-256.
+    Args:
+      s: The string to perform this operation on.
+    Returns:
+      A normalized and SHA-256 hashed string.
+    """
+    return hashlib.sha256(s.strip().lower()).hexdigest()
+
+
+class RemoveClientMatchLists(Worker):
+
+  PARAMS = [
+      ('test', 'string', True, '', 'Enter test value'),
+  ]
+
+  def _execute(self):
+    print('Remove')
+    testing_value = self._params['test']
+    print(testing_value)
