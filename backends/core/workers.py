@@ -963,10 +963,7 @@ class AdsAPIWorker(Worker):
 
   def _init_ads_api_client(self):
 		global _ADS_API_CLIENT
-		print('************************')
-		print('getting the token client')
 		token_client = self._get_token_client()
-		print('getting the ads client')
 		if not _ADS_API_CLIENT:
 			_ADS_API_CLIENT = adwords.AdWordsClient(
         developer_token=self._params['developer_token'].strip(),
@@ -975,9 +972,6 @@ class AdsAPIWorker(Worker):
         client_customer_id=self._params['client_customer_id'].strip(),
         cache=adsCommon.ZeepServiceProxy.NO_CACHE
       )
-			print("client retreived")
-		else:
-			print("Ads API client from cache")
 
 
   def _get_token_client(self):
@@ -1239,7 +1233,6 @@ class BQToCMProcessor(BQWorker, CustomerMatchWorker):
     payload_list = []
     customer_data = self._read_query_data(query_data, fields)
     for name in customer_data:
-        print("call my name: " + name)
         self.upload_data(name, customer_data[name])
 
 
