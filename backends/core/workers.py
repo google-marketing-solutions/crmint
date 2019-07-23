@@ -37,6 +37,8 @@ import requests
 from google.cloud import bigquery
 from google.cloud.exceptions import ClientError
 from googleads import adwords
+from googleads.oauth2 import GoogleRefreshTokenClient as tokenClient
+from googleads import common as adsCommon
 
 
 _KEY_FILE = os.path.join(os.path.dirname(__file__), '..', 'data',
@@ -59,6 +61,7 @@ AVAILABLE = (
 # Defines how many times to retry on failure, default to 5 times.
 DEFAULT_MAX_RETRIES = os.environ.get('MAX_RETRIES', 5)
 
+_ADS_API_CLIENT = None
 
 # pylint: disable=too-few-public-methods
 
@@ -956,16 +959,34 @@ class BQMLTrainer(BQWorker):
 
 class AdsAPIWorker(Worker):
   """Abstract Customer Match worker."""
+  _MAX_ITEMS_PER_CALL = 990
 
-  def _get_ads_api_client(self):
+  def _init_ads_api_client(self):
+		global _ADS_API_CLIENT
 		print('************************')
-		yaml_string = AdsAPISettingsBuilder.build(self._params)
-		print('YAML String: \n' + yaml_string)
-		print('************************')
-		print('getting the client')
-		ads_client = adwords.AdWordsClient.LoadFromString(yaml_string)
-    print("client retreived")
-		return ads_client
+		print('getting the token client')
+		token_client = self._get_token_client()
+		print('getting the ads client')
+		if not _ADS_API_CLIENT:
+			_ADS_API_CLIENT = adwords.AdWordsClient(
+        developer_token=self._params['developer_token'].strip(),
+        oauth2_client=token_client,
+        user_agent="CRMint",
+        client_customer_id=self._params['client_customer_id'].strip(),
+        cache=adsCommon.ZeepServiceProxy.NO_CACHE
+      )
+			print("client retreived")
+		else:
+			print("Ads API client from cache")
+
+
+  def _get_token_client(self):
+    client = oauth2_client = tokenClient(
+      client_id=self._params['client_id'].strip(),
+      client_secret=self._params['client_secret'].strip(),
+      refresh_token=self._params['refresh_token'].strip()
+    )
+    return client
 
 
 class CustomerMatchWorker(AdsAPIWorker):
@@ -1072,7 +1093,7 @@ class CustomerMatchWorker(AdsAPIWorker):
 
     return customer_data
 
-  def upload_data(self, client, list_name, customer_data):
+  def upload_data(self, list_name, customer_data):
     """Uploads processed data to the specified list and creates it if necessary.
 
     Args:
@@ -1082,8 +1103,9 @@ class CustomerMatchWorker(AdsAPIWorker):
     Returns:
       None.
     """
+    global _ADS_API_CLIENT
     # Initialize appropriate services.
-    user_list_service = client.GetService('AdwordsUserListService', 'v201809')
+    user_list_service = _ADS_API_CLIENT.GetService('AdwordsUserListService', 'v201809')
 
     # Check if the list already exists
     selector = {
@@ -1096,12 +1118,12 @@ class CustomerMatchWorker(AdsAPIWorker):
     }
     result = user_list_service.get(selector)
     if result['entries']:
-      logger.info(
+      self.log_info(
           'The user list %s is already created and its info was retrieved.',
           list_name)
       user_list_id = result['entries'][0]['id']
     else:
-      logger.info('The user list %s will be created.', list_name)
+      self.log_info('The user list %s will be created.', list_name)
       user_list = {
           'xsi_type': 'CrmBasedUserList',
           'name': list_name,
@@ -1131,10 +1153,10 @@ class CustomerMatchWorker(AdsAPIWorker):
 
     total_uploaded = 0
     # Flow control to keep calls within usage limits
-    logger.info('Starting upload.')
-    for i in range(0, len(members), MAX_ITEMS_PER_CALL):
+    self.log_info('Starting upload.')
+    for i in range(0, len(members), self._MAX_ITEMS_PER_CALL):
       start = i
-      end = i + MAX_ITEMS_PER_CALL
+      end = i + self._MAX_ITEMS_PER_CALL
 
       members_to_upload = members[start:end]
 
@@ -1150,7 +1172,7 @@ class CustomerMatchWorker(AdsAPIWorker):
 
       if 'userLists' in response:
         for user_list in response['userLists']:
-          logger.info(
+          self.log_info(
               '%d members were added to user list with name "%s" & ID "%d".',
               len(members_to_upload), user_list['name'], user_list['id'])
         total_uploaded += len(members_to_upload)
@@ -1178,7 +1200,7 @@ class BQToCM(BQWorker, AdsAPIWorker):
   MAX_ENQUEUED_JOBS = 50
 
   def _execute(self):
-    ads_client = self._get_ads_api_client()
+    self._init_ads_api_client()
     self._bq_setup()
     self._table.reload()
     page_token = self._params.get('bq_page_token', None)
@@ -1193,7 +1215,6 @@ class BQToCM(BQWorker, AdsAPIWorker):
       worker_params = self._params.copy()
       worker_params['bq_page_token'] = page_token
       worker_params['bq_batch_size'] = self.BQ_BATCH_SIZE
-      worker_params['ads_client'] = ads_client
       self._enqueue('BQToCMProcessor', worker_params, 0)
       enqueued_jobs_count += 1
 
@@ -1219,7 +1240,7 @@ class BQToCMProcessor(BQWorker, CustomerMatchWorker):
     customer_data = self._read_query_data(query_data, fields)
     for name in customer_data:
         print("call my name: " + name)
-        self.upload_data(self._params['ads_client'], name, customer_data[name])
+        self.upload_data(name, customer_data[name])
 
 
   def _execute(self):
@@ -1232,16 +1253,3 @@ class BQToCMProcessor(BQWorker, CustomerMatchWorker):
         page_token=page_token)
     query_first_page = next(query_iterator.pages)
     self._process_query_results(query_first_page, query_iterator.schema)
-
-
-class AdsAPISettingsBuilder(object):
-  """Class that build a YAML string from the params of a worker"""
-  @staticmethod
-  def build(params):
-    string = "adwords:\n"
-    string += '  client_customer_id: ' + params['client_customer_id'].strip() + '\n'
-    string += '  developer_token: ' + params['developer_token'].strip() + '\n'
-    string += '  client_id: ' + params['client_id'].strip() + '\n'
-    string += '  client_secret: ' + params['client_secret'].strip() + '\n'
-    string += '  refresh_token: ' + params['refresh_token'].strip()
-    return string

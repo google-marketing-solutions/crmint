@@ -14,7 +14,7 @@
 
 # Docker: Google App Engine
 
-FROM python:2.7.15
+FROM python:2.7.9
 MAINTAINER Pierre Dulac <dulacp@google.com>
 
 WORKDIR /root
