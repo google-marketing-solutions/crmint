@@ -14,17 +14,18 @@
 
 # Docker: Google App Engine
 
-FROM python:2.7.15-alpine3.6
+FROM python:2.7.15
 MAINTAINER Pierre Dulac <dulacp@google.com>
 
 WORKDIR /root
 
 # Download Google App Engine SDK
-RUN apk add --no-cache --virtual .bootstrap-deps wget ca-certificates \
-    && wget -O cloud.tar.gz https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-sdk-217.0.0-linux-x86_64.tar.gz \
+RUN apt-get update \
+    && apt-get install -y wget \
+    # && ca-certificates \
+    && wget -O cloud.tar.gz https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-sdk-254.0.0-linux-x86_64.tar.gz \
     && tar xzf cloud.tar.gz \
-    && rm cloud.tar.gz \
-    && apk del .bootstrap-deps
+    && rm cloud.tar.gz
 
 RUN google-cloud-sdk/install.sh \
       --path-update=true \
@@ -58,14 +59,14 @@ COPY ./backends/core/requirements_dev.txt /app/backends/core/requirements_dev.tx
 
 # Install python dependencies
 WORKDIR /app/backends
-RUN apk add --update mariadb-client-libs \
-    && apk add --no-cache --virtual .bootstrap-deps \
-        bash curl python-dev musl-dev mariadb-dev gcc build-base \
-    && pip install -r core/requirements_dev.txt -t lib_dev \
+RUN apt-get update \
+    && apt-get install -y bash curl python-dev gcc libxml2-dev libxslt1-dev python-genshi python-lxml-dbg python-lxml-doc python-setuptools python-lxml
+
+RUN pip install -r core/requirements_dev.txt -t lib_dev \
     && pip install -r ibackend/requirements.txt -t lib \
     && pip install -r jbackend/requirements.txt -t lib \
     && pip install "sphinx==1.7.2" "sphinx-autobuild==0.7.1" \
-    && apk del .bootstrap-deps
+    && pip install lxml
 
 # Install App Engine Mysql preferred db
 RUN pip install Mysql-Python
@@ -73,9 +74,6 @@ RUN pip install Mysql-Python
 # Start
 WORKDIR /app
 COPY ./backends/ /app/backends
-
-# We need bash to run multiline commands in docker-compose.
-RUN apk add --no-cache bash
 
 CMD /root/google-cloud-sdk/platform/google_appengine/dev_appserver.py \
       --skip_sdk_update_check \

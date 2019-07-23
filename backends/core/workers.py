@@ -36,7 +36,7 @@ from oauth2client.service_account import ServiceAccountCredentials
 import requests
 from google.cloud import bigquery
 from google.cloud.exceptions import ClientError
-# from googleads import adwords
+from googleads import adwords
 
 
 _KEY_FILE = os.path.join(os.path.dirname(__file__), '..', 'data',
@@ -962,7 +962,10 @@ class AdsAPIWorker(Worker):
 		yaml_string = AdsAPISettingsBuilder.build(self._params)
 		print('YAML String: \n' + yaml_string)
 		print('************************')
-		return yaml_string
+		print('getting the client')
+		ads_client = adwords.AdWordsClient.LoadFromString(yaml_string)
+    print("client retreived")
+		return ads_client
 
 
 class CustomerMatchWorker(AdsAPIWorker):
@@ -981,7 +984,7 @@ class CustomerMatchWorker(AdsAPIWorker):
   IS_DATA_ENCRYPTED = False
 
   # Default Values
-  GENERIC_LIST = 'Generic List from the API'
+  GENERIC_LIST = 'CM TEST - Generic List from the API'
 
   def _execute(self):
     self.IS_DATA_ENCRYPTED = self._params['success']
@@ -1214,11 +1217,12 @@ class BQToCMProcessor(BQWorker, CustomerMatchWorker):
     fields = [f.name for f in query_schema]
     payload_list = []
     customer_data = self._read_query_data(query_data, fields)
+    for name in customer_data:
+        print("call my name: " + name)
+        self.upload_data(self._params['ads_client'], name, customer_data[name])
 
 
   def _execute(self):
-    print("******* Job params: ***********")
-    print(dir(self._params))
     self._bq_setup()
     self._table.reload()
     page_token = self._params['bq_page_token'] or None
