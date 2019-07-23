@@ -420,7 +420,8 @@ class GAWorker(Worker):
 
   def _ga_setup(self, v='v4'):
     credentials = ServiceAccountCredentials.from_json_keyfile_name(_KEY_FILE)
-    self._ga_client = build('analytics', v, credentials=credentials)
+    service = 'analyticsreporting' if v == 'v4' else 'analytics'
+    self._ga_client = build(service, v, credentials=credentials)
 
   def _parse_accountid_from_propertyid(self):
     return self._params['property_id'].split('-')[1]
