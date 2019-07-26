@@ -1087,7 +1087,7 @@ class CustomerMatchWorker(AdsAPIWorker):
 
     return customer_data
 
-  def upload_data(self, list_name, customer_data):
+  def _upload_data(self, list_name, customer_data):
     """Uploads processed data to the specified list and creates it if necessary.
 
     Args:
@@ -1233,7 +1233,7 @@ class BQToCMProcessor(BQWorker, CustomerMatchWorker):
     payload_list = []
     customer_data = self._read_query_data(query_data, fields)
     for name in customer_data:
-        self.upload_data(name, customer_data[name])
+        self._upload_data(name, customer_data[name])
 
 
   def _execute(self):

@@ -22,9 +22,10 @@ WORKDIR /root
 # Download Google App Engine SDK
 RUN apt-get update \
     && apt-get install -y wget \
-    && wget -O cloud.tar.gz https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-sdk-254.0.0-linux-x86_64.tar.gz \
+    && wget -O cloud.tar.gz https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-sdk-217.0.0-linux-x86_64.tar.gz \
     && tar xzf cloud.tar.gz \
-    && rm cloud.tar.gz
+    && rm cloud.tar.gz \
+    && apt-get autoremove -y
 
 RUN google-cloud-sdk/install.sh \
       --path-update=true \
@@ -65,7 +66,8 @@ RUN apt-get update \
     && pip install -r ibackend/requirements.txt -t lib \
     && pip install -r jbackend/requirements.txt -t lib \
     && pip install "sphinx==1.7.2" "sphinx-autobuild==0.7.1" \
-    && pip install lxml
+    && pip install lxml \
+    && apt-get autoremove -y
 
 # Install App Engine Mysql preferred db
 RUN pip install Mysql-Python
