@@ -984,6 +984,7 @@ class AddClientMatchLists(Worker):
     # adwords_client = adwords.AdWordsClient.LoadFromString(adwords_yaml)
     print 'STARTING1'
     adwords_client = adwords.AdWordsClient.LoadFromStorage(path='data/googleads.yaml')
+    adwords_client.cache = googleads.common.ZeepServiceProxy.NO_CACHE
     self.run(adwords_client)
 
   def run(self, client):
