@@ -982,11 +982,13 @@ class AddClientMatchLists(Worker):
     #     adwords_config.get('developer_token'), adwords_config.get(''),
     #     cache=suds.cache.NoCache())
     # adwords_client = adwords.AdWordsClient.LoadFromString(adwords_yaml)
+    print 'STARTING1'
     adwords_client = adwords.AdWordsClient.LoadFromStorage(path='data/googleads.yaml')
     self.run(adwords_client)
 
   def run(self, client):
     # Initialize appropriate services.
+    print 'STARTING2'
     user_list_service = client.GetService('AdwordsUserListService', 'v201809')
 
     user_list = {
@@ -1034,6 +1036,8 @@ class AddClientMatchLists(Worker):
 
     response = user_list_service.mutateMembers([mutate_members_operation])
 
+    print 'STARTING3'
+
     if 'userLists' in response:
       for user_list in response['userLists']:
         print ('User list with name "%s" and ID "%d" was added.'
@@ -1046,6 +1050,7 @@ class AddClientMatchLists(Worker):
     Returns:
       A normalized and SHA-256 hashed string.
     """
+    print 'STARTIN4'
     return hashlib.sha256(s.strip().lower()).hexdigest()
 
 

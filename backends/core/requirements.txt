@@ -8,9 +8,11 @@ sqlalchemy_mixins==0.2.2
 google-cloud-bigquery==0.27
 simpleeval==0.9.5
 Flask-RESTful==0.3.5
-google-api-python-client==1.6.5
+google-api-python-client
 google-cloud-logging==1.6.0
 GoogleAppEngineCloudStorageClient==1.9.22.1
 pyyaml
-oauthlib==3.0.2
-googleads==20.0.0
+oauthlib
+googleads==19.0.1
+lxml==3.7.3
+oauth2client
