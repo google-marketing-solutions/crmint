@@ -37,7 +37,8 @@ import requests
 from google.cloud import bigquery
 from google.cloud.exceptions import ClientError
 # Import appropriate modules from the client library.
-from googleads import adwords
+from googleads import adwords, common
+#import googleads
 
 
 _KEY_FILE = os.path.join(os.path.dirname(__file__), '..', 'data',
@@ -971,7 +972,6 @@ class BQMLTrainer(BQWorker):
     job = client.run_async_query(job_name, self._params['query'])
     job.use_legacy_sql = False
     self._begin_and_wait(job)
-
 class AddClientMatchLists(Worker):
 
   def _execute(self):
@@ -984,14 +984,15 @@ class AddClientMatchLists(Worker):
     # adwords_client = adwords.AdWordsClient.LoadFromString(adwords_yaml)
     print 'STARTING1'
     adwords_client = adwords.AdWordsClient.LoadFromStorage(path='data/googleads.yaml')
-    adwords_client.cache = googleads.common.ZeepServiceProxy.NO_CACHE
+    adwords_client.cache = common.ZeepServiceProxy.NO_CACHE
     self.run(adwords_client)
 
   def run(self, client):
     # Initialize appropriate services.
     print 'STARTING2'
     user_list_service = client.GetService('AdwordsUserListService', 'v201809')
-
+    print(user_list_service)
+    print 'STARTING3'
     user_list = {
         'xsi_type': 'CrmBasedUserList',
         'name': 'Customer relationship management list #%d' % uuid.uuid4(),
@@ -1001,16 +1002,17 @@ class AddClientMatchLists(Worker):
         'membershipLifeSpan': 30,
         'uploadKeyType': 'CONTACT_INFO'
     }
-
+    print(uuid.uuid4())
     # Create an operation to add the user list.
     operations = [{
         'operator': 'ADD',
         'operand': user_list
     }]
-
+    print 'STARTING4'
     result = user_list_service.mutate(operations)
+    print 'STARTING5'
     user_list_id = result['value'][0]['id']
-
+    print 'STARTING6'
     emails = ['customer1@example.com', 'customer2@example.com',
               ' Customer3@example.com ']
     members = [{'hashedEmail': self.NormalizeAndSHA256(email)} for email in emails]
