@@ -40,7 +40,6 @@ from googleads import adwords
 from googleads.oauth2 import GoogleRefreshTokenClient as tokenClient
 from googleads import common as adsCommon
 import zeep.cache
-from google.appengine.api import memcache
 
 
 _KEY_FILE = os.path.join(os.path.dirname(__file__), '..', 'data',
@@ -973,10 +972,7 @@ class AdsAPIWorker(Worker):
   #       cache=zeep.cache.InMemoryCache()
   #     )
   def _get_ads_api_client(self):
-    yaml_string = AdsAPISettingsBuilder.build(self._pipeline_id, self._params)
-    print('YAML String: \n' + yaml_string)
-    print('************************')
-    print('getting the client')
+    yaml_string = AdsAPISettingsBuilder.build(self._params)
     ads_api_client = adwords.AdWordsClient.LoadFromString(yaml_string)
     ads_api_client.cache = zeep.cache.InMemoryCache()
     return ads_api_client
@@ -985,39 +981,14 @@ class AdsAPIWorker(Worker):
 class AdsAPISettingsBuilder(object):
   """Class that build a YAML string from the params of a worker"""
   @staticmethod
-  def build(pipeline_id, params=None):
-    _pipeline_id = str(pipeline_id)
-    print("*******_pipeline_id: " + _pipeline_id)
-    ads_params_serialized = memcache.get('ads_params_serialized_' + _pipeline_id)
-    if ads_params_serialized is None:
-      print("******* using NOT CACHED params")
-      ads_params_serialized = AdsAPISettingsBuilder.serialize(params)
-      try:
-        added = memcache.add('ads_params_serialized_' + _pipeline_id, ads_params_serialized, 86400)
-      except ValueError:
-        raise ValueError('Memcache set failed - data larger than 1MB')
-    else:
-      if params is not None:
-        print("******* UPDATING cached params")
-        ads_params_serialized = AdsAPISettingsBuilder.serialize(params)
-        try:
-          added = memcache.replace('ads_params_serialized_' + _pipeline_id, ads_params_serialized, 86400)
-        except ValueError:
-          raise ValueError('Memcache set failed - data larger than 1MB')
-    return ads_params_serialized
-
-  @staticmethod
-  def serialize(params):
-    """
-    Serialize the params.
-    """
-    serialized_string = "adwords:\n"
-    serialized_string += '  client_customer_id: ' + params['client_customer_id'].strip() + '\n'
-    serialized_string += '  developer_token: ' + params['developer_token'].strip() + '\n'
-    serialized_string += '  client_id: ' + params['client_id'].strip() + '\n'
-    serialized_string += '  client_secret: ' + params['client_secret'].strip() + '\n'
-    serialized_string += '  refresh_token: ' + params['refresh_token'].strip()
-    return serialized_string
+  def build(params):
+    string = "adwords:\n"
+    string += '  client_customer_id: ' + params['client_customer_id'].strip() + '\n'
+    string += '  developer_token: ' + params['developer_token'].strip() + '\n'
+    string += '  client_id: ' + params['client_id'].strip() + '\n'
+    string += '  client_secret: ' + params['client_secret'].strip() + '\n'
+    string += '  refresh_token: ' + params['refresh_token'].strip()
+    return string
 
 
 class CustomerMatchWorker(AdsAPIWorker):
