@@ -1,4 +1,4 @@
-# Copyright 2018 Google Inc
+# Copyright 2019 Google Inc. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -54,6 +54,7 @@ AVAILABLE = (
     'GADataImporter',
     'GAToBQImporter',
     'MLPredictor',
+    'StorageChecker',
     'StorageCleaner',
     'StorageToBQImporter',
     'BQToCM',
@@ -172,6 +173,10 @@ class BQWorker(Worker):
   """Abstract BigQuery worker."""
 
   def _get_client(self):
+    bigquery.Client.SCOPE = (
+        'https://www.googleapis.com/auth/bigquery',
+        'https://www.googleapis.com/auth/cloud-platform',
+        'https://www.googleapis.com/auth/drive')
     client = bigquery.Client.from_service_account_json(_KEY_FILE)
     if self._params['bq_project_id'].strip():
       client.project = self._params['bq_project_id']
@@ -303,6 +308,31 @@ class StorageCleaner(StorageWorker):
         self.log_info('gs:/%s file deleted.', stat.filename)
 
 
+class StorageChecker(StorageWorker):
+  """Worker to check if files matching the patterns exist in Cloud Storage."""
+
+  PARAMS = [
+      ('file_uris', 'string_list', True, '',
+       ('List of file URIs and URI patterns (e.g. gs://bucket/data.csv or '
+        'gs://bucket/data_*.csv)')),
+      ('min_size', 'number', False, '',
+       'Least total size of matching files in bytes required for success'),
+  ]
+
+  def _execute(self):
+    try:
+      min_size = int(self._params['min_size'])
+    except TypeError:
+      min_size = 0
+    stats = self._get_matching_stats(self._params['file_uris'])
+    if not stats:
+      raise WorkerException('Files matching the patterns were not found')
+    size = reduce(lambda total, stat: total + stat.st_size, stats, 0)
+    if size < min_size:
+      raise WorkerException( 'Files matching the patterns are too small')
+
+
+
 class StorageToBQImporter(StorageWorker, BQWorker):
   """Worker to import a CSV file into a BigQuery table."""
 
@@ -395,7 +425,11 @@ class GAWorker(Worker):
 
   def _ga_setup(self, v='v4'):
     credentials = ServiceAccountCredentials.from_json_keyfile_name(_KEY_FILE)
-    self._ga_client = build('analytics', v, credentials=credentials)
+    service = 'analyticsreporting' if v == 'v4' else 'analytics'
+    self._ga_client = build(service, v, credentials=credentials)
+
+  def _parse_accountid_from_propertyid(self):
+    return self._params['property_id'].split('-')[1]
 
 
 class GAToBQImporter(BQWorker, GAWorker):
@@ -529,6 +563,7 @@ class GADataImporter(GAWorker):
        'Maximum uploads to keep in GA Dataset (leave empty to keep all)'),
       ('delete_before', 'boolean', True, False,
        'Delete older uploads before upload'),
+      ('account_id', 'string', False, '', 'GA Account ID'),
   ]
 
   _BUFFER_SIZE = 256 * 1024
@@ -587,7 +622,10 @@ class GADataImporter(GAWorker):
 
   def _execute(self):
     self._ga_setup('v3')
-    self._account_id = self._params['property_id'].split('-')[1]
+    if self._params['account_id']:
+      self._account_id = self._params['account_id']
+    else:
+      self._account_id = self._parse_accountid_from_propertyid()
     self._file_name = self._params['csv_uri'].replace('gs:/', '')
     if self._params['max_uploads'] > 0 and self._params['delete_before']:
       self._delete_older(self._params['max_uploads'] - 1)
@@ -598,9 +636,10 @@ class GADataImporter(GAWorker):
 
 class GAAudiencesUpdater(BQWorker, GAWorker):
   """Worker to update GA audiences using values from a BQ table.
-  
+
   See: https://developers.google.com/analytics/devguides/config/mgmt/v3/mgmtReference/management/remarketingAudience#resource
-  for more details on the required GA Audience JSON template format."""
+  for more details on the required GA Audience JSON template format.
+  """
 
   PARAMS = [
       ('property_id', 'string', True, '',
@@ -609,6 +648,7 @@ class GAAudiencesUpdater(BQWorker, GAWorker):
       ('bq_dataset_id', 'string', True, '', 'BQ Dataset ID'),
       ('bq_table_id', 'string', True, '', 'BQ Table ID'),
       ('template', 'text', True, '', 'GA audience JSON template'),
+      ('account_id', 'string', False, '', 'GA Account ID'),
   ]
 
   def _infer_audiences(self):
@@ -707,7 +747,10 @@ class GAAudiencesUpdater(BQWorker, GAWorker):
       self.retry(request.execute)()
 
   def _execute(self):
-    self._account_id = self._params['property_id'].split('-')[1]
+    if self._params['account_id']:
+      self._account_id = self._params['account_id']
+    else:
+      self._account_id = self._parse_accountid_from_propertyid()
     self._bq_setup()
     self._table.reload()
     self._ga_setup('v3')
@@ -786,7 +829,7 @@ class MeasurementProtocolException(WorkerException):
 
 class MeasurementProtocolWorker(Worker):
   """Abstract Measurement Protocol worker."""
-  
+
   def _flatten(self, data):
     flat = False
     while not flat:
@@ -814,11 +857,11 @@ class MeasurementProtocolWorker(Worker):
   def _prepare_payloads_for_batch_request(self, payloads):
     """Merges payloads to send them in a batch request.
 
-    Arguments:
-      payloads list of payload, each payload being a dictionary.
+    Args:
+        payloads: list of payload, each payload being a dictionary.
 
-    Returns: concatenated url-encoded payloads.
-        For example:
+    Returns:
+        Concatenated url-encoded payloads. For example:
 
           param1=value10&param2=value20
           param1=value11&param2=value21
@@ -826,7 +869,7 @@ class MeasurementProtocolWorker(Worker):
     assert isinstance(payloads, list) or isinstance(payloads, tuple)
     payloads_utf8 = [sorted([(k, unicode(p[k]).encode('utf-8')) for k in p],
                             key=lambda t: t[0]) for p in payloads]
-    return '\n'.join(map(lambda p: urllib.urlencode(p), payloads_utf8))
+    return '\n'.join([urllib.urlencode(p) for p in payloads_utf8])
 
   def _send_batch_hits(self, batch_payload, user_agent='CRMint / 0.1'):
     """Sends a batch request to the Measurement Protocol endpoint.
@@ -836,25 +879,40 @@ class MeasurementProtocolWorker(Worker):
 
         https://ga-dev-tools.appspot.com/hit-builder/
 
-    Arguments:
-      data list of payloads, each payload being a list of key/values tuples
-          to pass to the Measurement Protocol batch endpoint.
-      user_agent string representing the client User Agent.
+    Args:
+        batch_payload: list of payloads, each payload being a list of key/values
+            tuples to pass to the Measurement Protocol batch endpoint.
+        user_agent: string representing the client User Agent.
 
-    Raises: MeasurementProtocolException if the HTTP request fails.
+    Raises:
+        MeasurementProtocolException: if the HTTP request fails.
     """
     headers = {'user-agent': user_agent}
-    req = requests.post('https://www.google-analytics.com/batch',
-                        headers=headers,
-                        data=batch_payload)
+    if self._debug:
+      for payload in batch_payload.split('\n'):
+        response = requests.post(
+            'https://www.google-analytics.com/debug/collect',
+            headers=headers,
+            data=payload)
+        result = json.loads(response.text)
+        if (not result['hitParsingResult'] or
+            not result['hitParsingResult'][0]['valid']):
+          message = ('Invalid payload ("&" characters replaced with new lines):'
+                     '\n\n%s\n\nValidation response:\n\n%s')
+          readable_payload = payload.replace('&', '\n')
+          self.log_warn(message, readable_payload, response.text)
+    else:
+      response = requests.post('https://www.google-analytics.com/batch',
+                               headers=headers,
+                               data=batch_payload)
 
-    if req.status_code != requests.codes.ok:
-      raise MeasurementProtocolException('Failed to send event hit with status '
-                                         'code (%s) and parameters: %s'
-                                         % (req.status_code, batch_payload))
+      if response.status_code != requests.codes.ok:
+        raise MeasurementProtocolException(
+            'Failed to send event hit with status code (%s) and parameters: %s'
+            % (response.status_code, batch_payload))
 
 class BQToMeasurementProtocol(BQWorker):
-  """Worker to push data through Measurement Protocol"""
+  """Worker to push data through Measurement Protocol."""
 
   PARAMS = [
       ('bq_project_id', 'string', False, '', 'BQ Project ID'),
@@ -862,6 +920,7 @@ class BQToMeasurementProtocol(BQWorker):
       ('bq_table_id', 'string', True, '', 'BQ Table ID'),
       ('mp_batch_size', 'number', True, 20, ('Measurement Protocol batch size '
                                              '(https://goo.gl/7VeWuB)')),
+      ('debug', 'boolean', True, False, 'Debug mode'),
   ]
 
   # BigQuery batch size for querying results. Default to 1000.
@@ -901,7 +960,7 @@ class BQToMeasurementProtocol(BQWorker):
 
 
 class BQToMeasurementProtocolProcessor(BQWorker, MeasurementProtocolWorker):
-  """Worker pushing to Measurement Protocol the first page only of a query"""
+  """Worker pushing to Measurement Protocol the first page only of a query."""
 
   def _send_payload_list(self, payload_list):
     batch_payload = self._prepare_payloads_for_batch_request(payload_list)
@@ -929,6 +988,7 @@ class BQToMeasurementProtocolProcessor(BQWorker, MeasurementProtocolWorker):
   def _execute(self):
     self._bq_setup()
     self._table.reload()
+    self._debug = self._params['debug']
     page_token = self._params['bq_page_token'] or None
     batch_size = self._params['bq_batch_size']
     query_iterator = self.retry(self._table.fetch_data, max_retries=1)(
