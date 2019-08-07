@@ -79,6 +79,8 @@ class Worker(object):
   # a web UI. See examples below in worker classes.
   PARAMS = []
 
+  GLOBAL_SETTINGS = ['google_ads_refresh_token', 'client_id', 'client_secret', 'developer_token']
+
   # Maximum number of execution attempts.
   MAX_ATTEMPTS = 1
 
@@ -976,10 +978,10 @@ class BQMLTrainer(BQWorker):
 class AddClientMatchLists(Worker):
 
   PARAMS = [
-      ('developer_token', 'string', True, '', 'Developer Token'),
-      ('client_id', 'string', True, '', 'Client ID'),
-      ('client_secret', 'string', True, '', 'Client Secret'),
-      ('refresh_token', 'string', True, '', 'Refresh Token'),
+      # ('developer_token', 'string', True, '', 'Developer Token'),
+      # ('client_id', 'string', True, '', 'Client ID'),
+      # ('client_secret', 'string', True, '', 'Client Secret'),
+      # ('refresh_token', 'string', True, '', 'Refresh Token'),
       ('client_customer_id', 'string', True, '', 'Client Customer ID')
   ]
 
@@ -991,10 +993,11 @@ class AddClientMatchLists(Worker):
     #     adwords_config.get('developer_token'), adwords_config.get(''),
     #     cache=suds.cache.NoCache())
     # adwords_client = adwords.AdWordsClient.LoadFromString(adwords_yaml)
-    print 'STARTING1'
+
+    # print(self._params)
     client_id = self._params['client_id']
     client_secret = self._params['client_secret']
-    refresh_token = self._params['refresh_token']
+    refresh_token = self._params['google_ads_refresh_token']
     dev_token = self._params['developer_token']
     client_customer_id = re.sub(r'\D', '', self._params['client_customer_id'])
     # adwords_client = adwords.AdWordsClient.
@@ -1007,10 +1010,7 @@ class AddClientMatchLists(Worker):
 
   def run(self, client):
     # Initialize appropriate services.
-    print 'STARTING2'
     user_list_service = client.GetService('AdwordsUserListService', 'v201809')
-    print(user_list_service)
-    print 'STARTING3'
     user_list = {
         'xsi_type': 'CrmBasedUserList',
         'name': 'Customer rel. management list #%d' % uuid.uuid4(),
@@ -1021,7 +1021,6 @@ class AddClientMatchLists(Worker):
         'membershipLifeSpan': 30,
         'uploadKeyType': 'CONTACT_INFO'
     }
-    print(uuid.uuid4())
     # Create an operation to add the user list.
     operations = [{
         'operator': 'ADD',
@@ -1101,7 +1100,3 @@ class AdwordsClient():
     adwords_client.cache = common.ZeepServiceProxy.NO_CACHE
 
     return adwords_client
-
-
-    #4/lgGpVxvUguq_o-0iOytEBx-kz0W-iq2ZzZiDTO_4YAysVK3dgcvcgSs
-    #1/fF5A1JtqnCu2x-g4oMJDjTVDEkM8DT-oii0tE2JaPh-8-BjcnIAWgInPfanLWLLy
