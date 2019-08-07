@@ -106,15 +106,19 @@ class GeneralSettingsRoute(Resource):
     # Gets value from the google_ads_authentication_code field
     ads_code = [d['value'] for d in args['settings']
                 if d['name'] == 'google_ads_authentication_code'][0]
-
-    token = ads_auth_code.get_token(client_id, client_secret, ads_code)
+    if ads_code:
+        token = ads_auth_code.get_token(client_id, client_secret, ads_code)
+    else:
+        token = None
 
     settings = []
     for arg in args['settings']:
       setting = GeneralSetting.where(name=arg['name']).first()
       if setting:
-        if setting.name == 'google_ads_refresh_token':
+        if setting.name == 'google_ads_refresh_token' and token:
           setting.update(value=token)
+        elif setting.name == 'google_ads_authentication_code':
+          setting.update(value='')
         else:
           setting.update(value=arg['value'])
       settings.append(setting)

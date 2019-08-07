@@ -29,6 +29,7 @@ import logging
 from oauth2client.service_account import ServiceAccountCredentials
 import os
 from random import random
+import re
 import requests
 import time
 import urllib
@@ -995,7 +996,7 @@ class AddClientMatchLists(Worker):
     client_secret = self._params['client_secret']
     refresh_token = self._params['refresh_token']
     dev_token = self._params['developer_token']
-    client_customer_id = self._params['client_customer_id']
+    client_customer_id = re.sub(r'\D', '', self._params['client_customer_id'])
     # adwords_client = adwords.AdWordsClient.
     # LoadFromStorage(path='data/googleads.yaml')
     # adwords_client.cache = common.ZeepServiceProxy.NO_CACHE
@@ -1095,8 +1096,12 @@ class AdwordsClient():
                 dev_token, client_customer_id):
     oauth_client = oauth2.GoogleRefreshTokenClient(client_id,
                                                    client_secret, refresh_token)
-    adwords_client = adwords.AdWordsClient(dev_token, oauth_client,
-                                           client_customer_id)
+    adwords_client = adwords.AdWordsClient(
+        dev_token, oauth_client, client_customer_id=client_customer_id)
     adwords_client.cache = common.ZeepServiceProxy.NO_CACHE
 
     return adwords_client
+
+
+    #4/lgGpVxvUguq_o-0iOytEBx-kz0W-iq2ZzZiDTO_4YAysVK3dgcvcgSs
+    #1/fF5A1JtqnCu2x-g4oMJDjTVDEkM8DT-oii0tE2JaPh-8-BjcnIAWgInPfanLWLLy
