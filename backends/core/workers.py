@@ -14,31 +14,22 @@
 
 """Module with CRMintApp worker classes."""
 
-
 from datetime import datetime
 from datetime import timedelta
 from fnmatch import fnmatch
 from functools import wraps
+import hashlib
 import json
 import os
 from random import random
+import re
 import time
 import urllib
 import uuid
-import yaml
-import hashlib
 
-from apiclient.discovery import build
-from apiclient.errors import HttpError
-from apiclient.http import MediaIoBaseUpload
-import cloudstorage as gcs
-from oauth2client.service_account import ServiceAccountCredentials
-import requests
 from google.cloud import bigquery
 from google.cloud.exceptions import ClientError
 from googleads import adwords
-from googleads.oauth2 import GoogleRefreshTokenClient as tokenClient
-from googleads import common as adsCommon
 import zeep.cache
 
 
@@ -78,6 +69,8 @@ class Worker(object):
   # parameter value is missing, and 4) label to show near parameter's field in
   # a web UI. See examples below in worker classes.
   PARAMS = []
+
+  GLOBAL_SETTINGS = []
 
   # Maximum number of execution attempts.
   MAX_ATTEMPTS = 3
@@ -1015,7 +1008,6 @@ class BQMLTrainer(BQWorker):
     self._begin_and_wait(job)
 
 
-
 class AdsAPIWorker(Worker):
   """Abstract Customer Match worker."""
   _MAX_ITEMS_PER_CALL = 990
@@ -1047,7 +1039,7 @@ class AdsAPISettingsBuilder(object):
     string += '  developer_token: ' + params['developer_token'].strip() + '\n'
     string += '  client_id: ' + params['client_id'].strip() + '\n'
     string += '  client_secret: ' + params['client_secret'].strip() + '\n'
-    string += '  refresh_token: ' + params['refresh_token'].strip()
+    string += '  refresh_token: ' + params['google_ads_refresh_token'].strip()
     return string
 
 
@@ -1247,13 +1239,12 @@ class BQToCM(BQWorker, AdsAPIWorker):
       ('bq_project_id', 'string', False, '', 'BQ Project ID'),
       ('bq_dataset_id', 'string', True, '', 'BQ Dataset ID'),
       ('bq_table_id', 'string', True, '', 'BQ Table ID'),
-      ('client_customer_id', 'string', True, '', 'Client Customer ID'),
-      ('developer_token', 'string', True, '', 'Developer Token'),
-      ('refresh_token', 'string', True, '', 'Refresh Token'),
-      ('client_id', 'string', True, '', 'Cloud Project Client ID'),
-      ('client_secret', 'string', True, '', 'Cloud Project Client Secret'),
+      ('client_customer_id', 'string', True, '', 'Google Ads Customer ID'),
+      ('list_name', 'string', True, '', 'Audience List Name'),
       ('encrypted_data', 'boolean', True, False, 'Are fields hashed already?'),
   ]
+
+  GLOBAL_SETTINGS = ['google_ads_refresh_token', 'client_id', 'client_secret', 'developer_token']
 
   # BigQuery batch size for querying results. Default to 1000.
   BQ_BATCH_SIZE = int(1000)
@@ -1262,6 +1253,7 @@ class BQToCM(BQWorker, AdsAPIWorker):
   MAX_ENQUEUED_JOBS = 50
 
   def _execute(self):
+    self._check_global_params()
     self._get_ads_api_client()
     self._bq_setup()
     self._table.reload()
@@ -1290,6 +1282,19 @@ class BQToCM(BQWorker, AdsAPIWorker):
         worker_params['bq_page_token'] = page_token
         self._enqueue(self.__class__.__name__, worker_params, 0)
         return
+
+  def _check_global_params(self):
+    """If one or more global params are missing, we need to raise an exception and alert the user"""
+    if \
+    not self._params['client_id'] \
+    or self._params['client_id']=="" \
+    or not self._params['client_secret'] \
+    or self._params['client_secret']=="" \
+    or not self._params['google_ads_refresh_token'] \
+    or self._params['google_ads_refresh_token']=="" \
+    or not self._params['developer_token'] \
+    or self._params['developer_token']=="":
+      raise WorkerException("One or more global parameters are missing.")
 
 
 class BQToCMProcessor(BQWorker, CustomerMatchWorker):

@@ -24,7 +24,7 @@ from flask import request
 from flask_restful import Resource, reqparse
 
 from core import workers
-from core.models import Job
+from core.models import Job, GeneralSetting
 from jbackend.extensions import api
 
 logger = logging.getLogger(__name__)
@@ -55,6 +55,10 @@ class Task(Resource):
     job = Job.find(args['job_id'])
     worker_class = getattr(workers, args['worker_class'])
     worker_params = json.loads(args['worker_params'])
+
+    for setting in worker_class.GLOBAL_SETTINGS:
+        worker_params[setting] = GeneralSetting.where(name=setting).first().value
+
     worker = worker_class(worker_params, job.pipeline_id, job.id)
     if retries >= worker_class.MAX_ATTEMPTS:
       worker.log_error('Execution canceled after %i failed attempts', retries)

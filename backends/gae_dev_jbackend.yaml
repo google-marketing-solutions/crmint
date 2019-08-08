@@ -14,7 +14,7 @@ libraries:
   - name: ssl
     version: "latest"
   - name: lxml
-    version: latest
+    version: "latest"
 
 
 env_variables:

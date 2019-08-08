@@ -14,8 +14,15 @@
           </mat-form-field>
         </div>
       </div>
+
+      <!-- Displays google ads Authentication link-->
+      <div><br /><a [href]="googleAdsAuthURL" target="_blank"Authentication>Click here to get Google Ads authentication code</a><br /></div>
+
       <div>
+        <!-- Added page refresh onto Save button-->
+        <br />
         <button mat-raised-button type="submit" color="primary">Save</button>
+        <button mat-raised-button type="submit" color="primary" onClick="window.location.reload();">Refresh</button>
       </div>
     </form>
   </mat-card>

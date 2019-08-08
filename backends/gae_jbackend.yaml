@@ -35,8 +35,7 @@ libraries:
   - name: ssl
     version: "latest"
   - name: lxml
-    version: latest
-
+    version: "latest"
 
 skip_files:
   - \.pyc$

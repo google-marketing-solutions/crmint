@@ -55,7 +55,8 @@ def load_fixtures(logger_func=None):
   :param: Logger function to display the loading state
   """
   from core import models
-  general_settings = ['emails_for_notifications']
+  # added two more rows to list, for google ads auth code and refresh token
+  general_settings = ['client_id', 'client_secret', 'emails_for_notifications', 'google_ads_authentication_code', 'google_ads_refresh_token', 'developer_token']
   for setting in general_settings:
     general_setting = models.GeneralSetting.where(name=setting).first()
     if not general_setting:
