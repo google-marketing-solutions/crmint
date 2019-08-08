@@ -56,8 +56,8 @@ class Task(Resource):
     worker_class = getattr(workers, args['worker_class'])
     worker_params = json.loads(args['worker_params'])
 
-    for g_setting in worker_class.GLOBAL_SETTINGS:
-        worker_params[g_setting] = GeneralSetting.where(name=g_setting).first().value
+    for setting in worker_class.GLOBAL_SETTINGS:
+        worker_params[setting] = GeneralSetting.where(name=setting).first().value
 
     worker = worker_class(worker_params, job.pipeline_id, job.id)
     if retries >= worker_class.MAX_ATTEMPTS:

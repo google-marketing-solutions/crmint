@@ -79,7 +79,7 @@ class Worker(object):
   # a web UI. See examples below in worker classes.
   PARAMS = []
 
-  GLOBAL_SETTINGS = ['google_ads_refresh_token', 'client_id', 'client_secret', 'developer_token']
+  GLOBAL_SETTINGS = []
 
   # Maximum number of execution attempts.
   MAX_ATTEMPTS = 1
@@ -984,6 +984,8 @@ class AddClientMatchLists(Worker):
       # ('refresh_token', 'string', True, '', 'Refresh Token'),
       ('client_customer_id', 'string', True, '', 'Client Customer ID')
   ]
+
+  GLOBAL_SETTINGS = ['google_ads_refresh_token', 'client_id', 'client_secret', 'developer_token']
 
   def _execute(self):
     # with open('data/googleads.yaml', 'r') as yaml_file:
