@@ -304,6 +304,7 @@ class TestBQToMeasurementProtocolProcessor(TestBQToMeasurementProtocolMixin, uni
             'bq_page_token': None,
             'bq_batch_size': 10,
             'mp_batch_size': 20,
+            'debug': False,
         },
         1,
         1)
@@ -390,6 +391,7 @@ cd1=segment1&cid=35009a79-1a05-49d7-b876-2b884d0f825b&ea=action&ec=category&el=%
             'bq_page_token': None,
             'bq_batch_size': 10,
             'mp_batch_size': 20,
+            'debug': False,
         },
         1,
         1)
@@ -611,6 +613,7 @@ cd1=segment1&cid=35009a79-1a05-49d7-b876-2b884d0f825b&ea=action&ec=category&el=%
             'bq_page_token': None,
             'bq_batch_size': 10,
             'mp_batch_size': 20,
+            'debug': False,
         },
         1,
         1)
