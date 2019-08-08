@@ -31,11 +31,13 @@ export class SettingsComponent implements OnInit {
   config: Config = {
     sa_email: 'Unknown',
     settings: [],
-    variables: []
+    variables: [],
+    google_ads_auth_url: '',
   };
 
   gVarsForm: FormGroup;
   settingsForm: FormGroup;
+  googleAdsAuthURL: string;
 
   constructor(
     private settingsService: SettingsService,
@@ -65,6 +67,8 @@ export class SettingsComponent implements OnInit {
       settingsLairs: this._fb.array([])
     });
     this.setSettingsLairs(this.config.settings);
+    //setting values for google url
+    this.googleAdsAuthURL = this.config.google_ads_auth_url;
   }
 
   setSettingsLairs(settings) {

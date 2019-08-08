@@ -56,6 +56,9 @@ COPY ./backends/ibackend/requirements.txt /app/backends/ibackend/requirements.tx
 COPY ./backends/jbackend/requirements.txt /app/backends/jbackend/requirements.txt
 COPY ./backends/core/requirements_dev.txt /app/backends/core/requirements_dev.txt
 
+# Add packages required for Python libs compilation.
+RUN apk update && apk add build-base gcc musl-dev libxml2-dev libxslt-dev
+
 # Install python dependencies
 WORKDIR /app/backends
 RUN apk add --update mariadb-client-libs \

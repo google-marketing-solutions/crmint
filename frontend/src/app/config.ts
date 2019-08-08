@@ -18,6 +18,8 @@ export class Config {
   sa_email: string;
   settings: Setting[];
   variables: Param[];
+  //added new variable
+  google_ads_auth_url: string;
 }
 
 export class Setting {

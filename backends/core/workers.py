@@ -14,27 +14,32 @@
 
 """Module with CRMintApp worker classes."""
 
-
-from datetime import datetime
-from datetime import timedelta
-from fnmatch import fnmatch
-from functools import wraps
-import json
-import os
-from random import random
-import time
-import urllib
-import uuid
-
 from apiclient.discovery import build
 from apiclient.errors import HttpError
 from apiclient.http import MediaIoBaseUpload
 import cloudstorage as gcs
+from datetime import datetime
+from datetime import timedelta
+from fnmatch import fnmatch
+from functools import wraps
+from googleads import adwords, common, oauth2
+import hashlib
+import json
+import logging
 from oauth2client.service_account import ServiceAccountCredentials
+import os
+from random import random
+import re
 import requests
+import time
+import urllib
+import uuid
+import yaml
+
 from google.cloud import bigquery
 from google.cloud.exceptions import ClientError
 
+logging.disable(logging.DEBUG)
 
 _KEY_FILE = os.path.join(os.path.dirname(__file__), '..', 'data',
                          'service-account.json')
@@ -51,6 +56,7 @@ AVAILABLE = (
     'StorageChecker',
     'StorageCleaner',
     'StorageToBQImporter',
+    'AddClientMatchLists',
 )
 
 # Defines how many times to retry on failure, default to 5 times.
@@ -74,8 +80,10 @@ class Worker(object):
   # a web UI. See examples below in worker classes.
   PARAMS = []
 
+  GLOBAL_SETTINGS = []
+
   # Maximum number of execution attempts.
-  MAX_ATTEMPTS = 3
+  MAX_ATTEMPTS = 1
 
   def __init__(self, params, pipeline_id, job_id):
     self._pipeline_id = pipeline_id
@@ -1009,3 +1017,132 @@ class BQMLTrainer(BQWorker):
     job = client.run_async_query(job_name, self._params['query'])
     job.use_legacy_sql = False
     self._begin_and_wait(job)
+
+
+class AddClientMatchLists(Worker):
+
+  PARAMS = [
+      # ('developer_token', 'string', True, '', 'Developer Token'),
+      # ('client_id', 'string', True, '', 'Client ID'),
+      # ('client_secret', 'string', True, '', 'Client Secret'),
+      # ('refresh_token', 'string', True, '', 'Refresh Token'),
+      ('client_customer_id', 'string', True, '', 'Client Customer ID')
+  ]
+
+  GLOBAL_SETTINGS = ['google_ads_refresh_token', 'client_id', 'client_secret', 'developer_token']
+
+  def _execute(self):
+    # with open('data/googleads.yaml', 'r') as yaml_file:
+    #     adwords_yaml_dict = yaml.safe_load(yaml_file)
+    # adwords_config = adwords_yaml_dict.get('adwords', {})
+    # adwords_client = adwords.AdWordsClient(
+    #     adwords_config.get('developer_token'), adwords_config.get(''),
+    #     cache=suds.cache.NoCache())
+    # adwords_client = adwords.AdWordsClient.LoadFromString(adwords_yaml)
+
+    # print(self._params)
+    client_id = self._params['client_id']
+    client_secret = self._params['client_secret']
+    refresh_token = self._params['google_ads_refresh_token']
+    dev_token = self._params['developer_token']
+    client_customer_id = re.sub(r'\D', '', self._params['client_customer_id'])
+    # adwords_client = adwords.AdWordsClient.
+    # LoadFromStorage(path='data/googleads.yaml')
+    # adwords_client.cache = common.ZeepServiceProxy.NO_CACHE
+    client = AdwordsClient()
+    adwords_client = client.getClient(client_id, client_secret, refresh_token,
+                                      dev_token, client_customer_id)
+    self.run(adwords_client)
+
+  def run(self, client):
+    # Initialize appropriate services.
+    user_list_service = client.GetService('AdwordsUserListService', 'v201809')
+    user_list = {
+        'xsi_type': 'CrmBasedUserList',
+        'name': 'Customer rel. management list #%d' % uuid.uuid4(),
+        'description': 'List of customers that originated from email addresses',
+        # CRM-based user lists can use a membershipLifeSpan of 10000
+        # to indicate
+        # unlimited; otherwise normal values apply.
+        'membershipLifeSpan': 30,
+        'uploadKeyType': 'CONTACT_INFO'
+    }
+    # Create an operation to add the user list.
+    operations = [{
+        'operator': 'ADD',
+        'operand': user_list
+    }]
+    print 'STARTING4'
+    result = user_list_service.mutate(operations)
+    print 'STARTING5'
+    user_list_id = result['value'][0]['id']
+    print 'STARTING6'
+    emails = ['customer1@example.com', 'customer2@example.com',
+              ' Customer3@example.com ']
+    members = [{'hashedEmail': self.NormalizeAndSHA256(email)} for
+               email in emails]
+
+    # Add address info.
+    members.append({
+        'addressInfo': {
+            # First and last name must be normalized and hashed.
+            'hashedFirstName': self.NormalizeAndSHA256('John'),
+            'hashedLastName': self.NormalizeAndSHA256('Doe'),
+            # Country code and zip code are sent in plaintext.
+            'countryCode': 'US',
+            'zipCode': '10001'
+        }
+    })
+
+    mutate_members_operation = {
+        'operand': {
+            'userListId': user_list_id,
+            'membersList': members
+        },
+        'operator': 'ADD'
+    }
+
+    response = user_list_service.mutateMembers([mutate_members_operation])
+
+    print 'STARTING7'
+
+    if 'userLists' in response:
+      for user_list in response['userLists']:
+        print ('User list with name "%s" and ID "%d" was added.'
+               % (user_list['name'], user_list['id']))
+
+  def NormalizeAndSHA256(self, s):
+    """Normalizes (lowercase, remove whitespace) and hashes a string
+        with SHA-256.
+    Args:
+      s: The string to perform this operation on.
+    Returns:
+      A normalized and SHA-256 hashed string.
+    """
+    print 'STARTING4'
+    return hashlib.sha256(s.strip().lower()).hexdigest()
+
+
+class RemoveClientMatchLists(Worker):
+
+  PARAMS = [
+      ('test', 'string', True, '', 'Enter test value'),
+  ]
+
+  def _execute(self):
+    print('Remove')
+    testing_value = self._params['test']
+    print(testing_value)
+
+
+class AdwordsClient():
+
+  def getClient(self, client_id, client_secret, refresh_token,
+                dev_token, client_customer_id):
+    oauth_client = oauth2.GoogleRefreshTokenClient(client_id,
+                                                   client_secret, refresh_token)
+    adwords_client = adwords.AdWordsClient(
+        dev_token, oauth_client, client_customer_id=client_customer_id)
+    adwords_client.cache = common.ZeepServiceProxy.NO_CACHE
+
+    return adwords_client
