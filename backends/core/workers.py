@@ -32,6 +32,7 @@ from apiclient.http import MediaIoBaseUpload
 import cloudstorage as gcs
 from oauth2client.service_account import ServiceAccountCredentials
 import requests
+from google.api_core.exceptions import GoogleAPICallError, RetryError
 from google.cloud import bigquery
 from google.cloud.exceptions import ClientError
 from google.cloud import automl_v1beta1 as automl
@@ -951,8 +952,9 @@ class BQMLTrainer(BQWorker):
     job.use_legacy_sql = False
     self._begin_and_wait(job)
 
+
 class AutoMLPredictor(BQWorker):
-  """Worker to run BQML SQL queries in BigQuery."""
+  """Worker to run batch prediction from an AutoML trained model."""
 
   PARAMS = [
       ('bq_project_id', 'string', False, '', 'BQ Project ID'),
@@ -969,19 +971,23 @@ class AutoMLPredictor(BQWorker):
     automl_client = automl.AutoMlClient()
     # Get the full path of the model.
     model_full_id = automl_client.model_path(
-        self._params['bq_project_id'], self._params['compute_region'], self._params['model_id']
-    )
+        self._params['bq_project_id'],
+        self._params['compute_region'],
+        self._params['model_id'])
     # Create client for prediction service.
     prediction_client = automl.PredictionServiceClient()
-    input_config = {"bigquery_source": {"input_uri": self._table}}
-    output_config = {"gcs_destination": {"output_uri_prefix": self._params['destination_uri']}}
+    input_config = {'bigquery_source': {'input_uri': self._table}}
+    output_config = {
+        'gcs_destination': {
+            'output_uri_prefix': self._params['destination_uri']
+        }
+    }
     # Query model
     response = prediction_client.batch_predict(
         model_full_id, input_config, output_config)
-    print("Making batch prediction... ")
+    print('Making batch prediction... ')
     try:
         result = response.result()
-    except:
-        # Hides Any to BatchPredictResult error.
-        pass
-    print("Batch prediction complete.\n{}".format(response.metadata))
+    except (GoogleAPICallError, RetryError) as inst:
+        self.log_error('Error during batch prediction: %s' % inst)
+    self.log_info('Batch prediction complete.\n{}'.format(response.metadata))
