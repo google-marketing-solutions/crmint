@@ -25,7 +25,9 @@ from random import random
 import re
 import time
 import urllib
+from urllib2 import HTTPError
 import uuid
+import requests
 
 from google.cloud import bigquery
 from google.cloud.exceptions import ClientError
@@ -49,10 +51,11 @@ AVAILABLE = (
     'StorageCleaner',
     'StorageToBQImporter',
     'BQToCM',
+    'ImportOfflineAppConversion',
 )
 
 # Defines how many times to retry on failure, default to 5 times.
-DEFAULT_MAX_RETRIES = os.environ.get('MAX_RETRIES', 5)
+DEFAULT_MAX_RETRIES = os.environ.get('MAX_RETRIES', 1)
 
 # pylint: disable=too-few-public-methods
 
@@ -73,7 +76,7 @@ class Worker(object):
   GLOBAL_SETTINGS = []
 
   # Maximum number of execution attempts.
-  MAX_ATTEMPTS = 3
+  MAX_ATTEMPTS = 1
 
   def __init__(self, params, pipeline_id, job_id):
     self._pipeline_id = pipeline_id
@@ -134,7 +137,7 @@ class Worker(object):
       while tries < max_retries:
         try:
           return func(*args, **kwargs)
-        except HttpError as e:
+        except HTTPError as e:
           # If it is a client side error, then there's no reason to retry.
           if e.resp.status > 399 and e.resp.status < 500:
             raise e
@@ -1064,7 +1067,7 @@ class CustomerMatchWorker(AdsAPIWorker):
   def _execute(self):
     self.IS_DATA_ENCRYPTED = self._params['success']
     self._generate_list_data_structure()
-    
+
   def _normalize_and_sha256(self, input_string):
     """Normalizes (lowercase, remove whitespace) and hashes a string with SHA-256.
 
@@ -1187,7 +1190,6 @@ class CustomerMatchWorker(AdsAPIWorker):
           'membershipLifeSpan': 10000,
           'uploadKeyType': 'CONTACT_INFO'
       }
-
       # Create an operation to add the user list.
       operations = [{'operator': 'ADD', 'operand': user_list}]
       result = user_list_service.mutate(operations)
@@ -1316,6 +1318,110 @@ class BQToCMProcessor(BQWorker, CustomerMatchWorker):
     batch_size = self._params['bq_batch_size']
     query_iterator = self.retry(self._table.fetch_data, max_retries=1)(
         max_results=batch_size,
+        page_token=page_token)
+    query_first_page = next(query_iterator.pages)
+    self._process_query_results(query_first_page, query_iterator.schema)
+
+
+class ImportOfflineAppConversion(BQWorker):
+
+  PARAMS = [
+      ('link_id', 'string', True, '', 'Link ID'),
+      ('bq_project_id', 'string', False, '', 'BQ Project ID'),
+      ('bq_dataset_id', 'string', True, '', 'BQ Dataset ID'),
+      ('bq_table_id', 'string', True, '', 'BQ Table ID'),
+  ]
+  GLOBAL_SETTINGS = ['app_conversions_and_remarketing_developer_token']
+  CONTENT_TYPE = 'application/json; charset=utf-8'
+  HEADER_PARAMS = ['User_Agent', 'X_Forwarded_For']
+  BODY_PARAM = 'app_event_data'
+  REQUIRED_PARAMS = ['rdid', 'id_type', 'lat', 'app_version',
+                     'os_version', 'sdk_version', 'timestamp',
+                     'dev_token', 'link_id', 'app_event_type']
+  OPTIONAL_PARAMS = ['value', 'app_event_name', 'currency_code', 'gclid']
+
+  def _send_url(self, headers, params, data):
+    """ Send API call given headers, parameters and extra data. Take ad_event_id
+    and attributed values and send appended params to make second API call """
+
+    response = requests.post('https://www.googleadservices.com/pagead/conversion/app/1.0',
+                             headers=headers, params=params, json=data)
+
+    if response.status_code != requests.codes.ok:
+      self.log_info(
+          'Failed to send event hit with status code (%s) and parameters: %s'
+          % (response.status_code, params)
+      )
+
+    result = json.loads(response.text)
+
+    try:
+      params['ad_event_id'] = result['ad_events'][0]['ad_event_id']
+    except:
+      return
+
+    params['attributed'] = result['attributed']
+
+    self._send_second_url(headers, params, data)
+
+  def _send_second_url(self, headers, params, data):
+    """ Send second API call using fields from first API call. """
+
+    second_response = requests.post(
+        'https://www.googleadservices.com/pagead/conversion/app/1.0/cross_network',
+        headers=headers, params=params, json=data)
+
+    if second_response.status_code != requests.codes.ok:
+      self.log_info(
+          'Failed to send event hit with status code (%s) and parameters: %s'
+          % (second_response.status_code, params)
+      )
+
+  def _process_query_results(self, query_data, query_schema):
+    """ For each row in the BigQuery table, check if we have the
+    required parameters and then check to see if we have any optional
+    parameters. If a required parameter is missing, warn the user of which
+    parameter. Create new dicts containing params and headers and for json
+    if we have app_event_data present. Send to _send_url method to fetch data
+    """
+
+    link_id = self._params['link_id']
+    dev_token = self._params['app_conversions_and_remarketing_developer_token']
+    fields = [field.name for field in query_schema]
+    for row in query_data:
+      data = dict(zip(fields, row))
+      data['dev_token'] = dev_token
+      data['link_id'] = link_id
+      try:
+        for req_param in self.REQUIRED_PARAMS + self.HEADER_PARAMS:
+          if data[req_param] is None:
+            self.log_info('Missing required fields')
+            raise ValueError((req_param, str(data)))
+      except KeyError as e:
+        self.log_error('Required field "%s" is missing' % e.message)
+        break
+      except ValueError as e:
+        self.log_warn('Required field "%s" is missing in the row %s', e.message)
+      params = {k: data[k] for k in self.REQUIRED_PARAMS + self.OPTIONAL_PARAMS
+                if k in data and data[k] is not None}
+      headers = {k.replace('_', '-'): data[k] for k in self.HEADER_PARAMS}
+      headers['Content-Type'] = self.CONTENT_TYPE
+
+      if self.BODY_PARAM in data and data[self.BODY_PARAM] is not None:
+        json = {self.BODY_PARAM: data[self.BODY_PARAM]}
+      else:
+        json = None
+        headers['Content-Length'] = '0'
+
+      self._send_url(headers, params, json)
+
+  def _execute(self):
+    """ Executes worker by fetching table data. """
+
+    page_token = self._params.get('bq_page_token', None)
+    self._bq_setup()
+    self._table.reload()
+    query_iterator = self.retry(self._table.fetch_data, max_retries=1)(
         page_token=page_token)
     query_first_page = next(query_iterator.pages)
     self._process_query_results(query_first_page, query_iterator.schema)
