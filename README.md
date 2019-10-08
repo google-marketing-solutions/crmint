@@ -3,6 +3,11 @@
 **Make reliable data integration and data processing with Google easy for
 advertisers.**
 
+* [User Documentation](https://google.github.io/crmint)
+* [Deploy Guide](https://github.com/google/crmint/wiki/Deploy-CRMint-on-Google-Cloud-Platform)
+* [Wiki](https://github.com/google/crmint/wiki)
+
+
 | Status | Coverage | Branch | Description |
 | :----- | :--------- | :----- | :---------- |
 | [![Build Status](https://travis-ci.org/google/crmint.svg?branch=dev)](https://travis-ci.org/google/crmint) | - | [dev](https://github.com/google/crmint/tree/dev) | Latest build, use it at your own risks  |
