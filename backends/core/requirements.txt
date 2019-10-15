@@ -1,3 +1,4 @@
+--no-binary MySQL-python
 urllib3==1.23
 Flask==0.12.2
 Flask-Cors==3.0.2
