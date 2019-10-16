@@ -1031,7 +1031,7 @@ class AdsAPIWorker(Worker):
 
 
 class AdsAPISettingsBuilder(object):
-  """Class that build a YAML string from the params of a worker"""
+  """Class that builds a YAML string from a dictionary"""
   @staticmethod
   def build(params):
     string = "adwords:\n"
@@ -1055,7 +1055,7 @@ class CustomerMatchWorker(AdsAPIWorker):
   LAST_NAME = 'LastName'
   COUNTRY_CODE = 'CountryCode'
   ZIP_CODE = 'ZipCode'
-  LIST_NAME = 'List'
+  LIST_LABEL = 'List'
   IS_DATA_ENCRYPTED = False
 
   # Default Values
@@ -1086,11 +1086,13 @@ class CustomerMatchWorker(AdsAPIWorker):
     return data_structure
 
 
-  def _read_query_data(self, query_data, fields):
+  def _read_query_data(self, query_data, fields, worker_params):
     """Reads customer data from query_data and stores it in memory.
 
     Args:
-      query_data: BQ table page.
+      query_data: BQ table page data.
+      fields: columns names
+      worker_params: params from worker's UI
     Returns:
       customer_data: Processed data from BQ table page.
     """
@@ -1101,15 +1103,10 @@ class CustomerMatchWorker(AdsAPIWorker):
     for row in query_data:
       data = dict(zip(fields, row))
 
-      if data.get(self.LIST_NAME):
-        if not customer_data.get(data[self.LIST_NAME]):
-          customer_data[data[self.LIST_NAME]] = self._generate_list_data_structure()
-        list_data = customer_data[data[self.LIST_NAME]]
-      else:
-        # Use generic list
-        if not customer_data.get(self.GENERIC_LIST):
-          customer_data[self.GENERIC_LIST] = self._generate_list_data_structure()
-        list_data = customer_data[self.GENERIC_LIST]
+      if not customer_data.get(worker_params["list_name"]):
+        # init customer_data if needed
+        customer_data[worker_params["list_name"]] = self._generate_list_data_structure()
+      list_data = customer_data[worker_params["list_name"]]
 
       if data.get(self.EMAIL):
         if self.IS_DATA_ENCRYPTED:
@@ -1147,7 +1144,7 @@ class CustomerMatchWorker(AdsAPIWorker):
 
     return customer_data
 
-  def _upload_data(self, list_name, customer_data):
+  def _upload_data(self, list_name, customer_data, is_remove_data):
     """Uploads processed data to the specified list and creates it if necessary.
 
     Args:
@@ -1181,7 +1178,7 @@ class CustomerMatchWorker(AdsAPIWorker):
       user_list = {
           'xsi_type': 'CrmBasedUserList',
           'name': list_name,
-          'description': 'This is a list of users uploaded from Adwords API',
+          'description': 'This is a list of users uploaded from CRMint',
           # CRM-based user lists can use a membershipLifeSpan of 10000 to indicate
           # unlimited; otherwise normal values apply.
           'membershipLifeSpan': 10000,
@@ -1219,16 +1216,22 @@ class CustomerMatchWorker(AdsAPIWorker):
               'userListId': user_list_id,
               'membersList': members_to_upload
           },
-          'operator': 'ADD'
       }
+      operation_string = ""
+      if is_remove_data:
+        mutate_members_operation["operator"] = 'REMOVE'
+        operation_string = "removed"
+      else:
+        mutate_members_operation["operator"] = 'ADD'
+        operation_string = "added"
 
       response = user_list_service.mutateMembers([mutate_members_operation])
 
       if 'userLists' in response:
         for user_list in response['userLists']:
           self.log_info(
-              '%d members were added to user list with name "%s" & ID "%d".',
-              len(members_to_upload), user_list['name'], user_list['id'])
+              '%d members were %s to user list with name "%s" & ID "%d".',
+              len(members_to_upload), operation_string, user_list['name'], user_list['id'])
         total_uploaded += len(members_to_upload)
 
 
@@ -1242,6 +1245,7 @@ class BQToCM(BQWorker, AdsAPIWorker):
       ('client_customer_id', 'string', True, '', 'Google Ads Customer ID'),
       ('list_name', 'string', True, '', 'Audience List Name'),
       ('encrypted_data', 'boolean', True, False, 'Are fields hashed already?'),
+      ('remove_data', 'boolean', True, False, 'Remove data from existing Audience List'),
   ]
 
   GLOBAL_SETTINGS = ['google_ads_refresh_token', 'client_id', 'client_secret', 'developer_token']
@@ -1300,15 +1304,6 @@ class BQToCM(BQWorker, AdsAPIWorker):
 class BQToCMProcessor(BQWorker, CustomerMatchWorker):
   """Worker pushing to Customer Match the first page only of a query"""
 
-  def _process_query_results(self, query_data, query_schema):
-    """Sends event hits from query data."""
-    fields = [f.name for f in query_schema]
-    payload_list = []
-    customer_data = self._read_query_data(query_data, fields)
-    for name in customer_data:
-        self._upload_data(name, customer_data[name])
-
-
   def _execute(self):
     self._bq_setup()
     self._table.reload()
@@ -1319,3 +1314,11 @@ class BQToCMProcessor(BQWorker, CustomerMatchWorker):
         page_token=page_token)
     query_first_page = next(query_iterator.pages)
     self._process_query_results(query_first_page, query_iterator.schema)
+
+  def _process_query_results(self, query_data, query_schema):
+    """Sends event hits from query data."""
+    fields = [f.name for f in query_schema]
+    payload_list = []
+    customer_data = self._read_query_data(query_data, fields, self._params)
+    for name in customer_data:
+        self._upload_data(name, customer_data[name], self._params["remove_data"])
