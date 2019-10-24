@@ -1010,7 +1010,7 @@ class BQMLTrainer(BQWorker):
 
 class AdsAPIWorker(Worker):
   """Abstract Customer Match worker."""
-  _MAX_ITEMS_PER_CALL = 990
+  _MAX_ITEMS_PER_CALL = 10000
 
   # def _get_ads_api_client(self):
 	# 	global _ADS_API_CLIENT
@@ -1250,8 +1250,8 @@ class BQToCM(BQWorker, AdsAPIWorker):
 
   GLOBAL_SETTINGS = ['google_ads_refresh_token', 'client_id', 'client_secret', 'developer_token']
 
-  # BigQuery batch size for querying results. Default to 1000.
-  BQ_BATCH_SIZE = int(1000)
+  # BigQuery batch size for querying results. Default to 10000.
+  BQ_BATCH_SIZE = int(10000)
 
   # Maximum number of jobs to enqueued before spawning a new scheduler.
   MAX_ENQUEUED_JOBS = 50
