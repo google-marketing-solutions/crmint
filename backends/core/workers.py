@@ -1062,9 +1062,9 @@ class CustomerMatchWorker(AdsAPIWorker):
   GENERIC_LIST = 'CM TEST - Generic List from the API'
 
   def _execute(self):
-    self.IS_DATA_ENCRYPTED = self._params['success']
+    self.IS_DATA_ENCRYPTED = self._params['encrypted_data']
     self._generate_list_data_structure()
-    
+
   def _normalize_and_sha256(self, input_string):
     """Normalizes (lowercase, remove whitespace) and hashes a string with SHA-256.
 
