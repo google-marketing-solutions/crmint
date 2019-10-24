@@ -1043,8 +1043,23 @@ class AdsAPISettingsBuilder(object):
     return string
 
 
-class CustomerMatchWorker(AdsAPIWorker):
+class BQToCM(AdsAPIWorker, BQWorker):
   """Customer Match worker."""
+
+  PARAMS = [
+      ('bq_project_id', 'string', False, '', 'BQ Project ID'),
+      ('bq_dataset_id', 'string', True, '', 'BQ Dataset ID'),
+      ('bq_table_id', 'string', True, '', 'BQ Table ID'),
+      ('client_customer_id', 'string', True, '', 'Google Ads Customer ID'),
+      ('list_name', 'string', True, '', 'Audience List Name'),
+      ('encrypted_data', 'boolean', True, False, 'Are fields hashed already?'),
+      ('remove_data', 'boolean', True, False, 'Remove data from existing Audience List'),
+  ]
+
+  GLOBAL_SETTINGS = ['google_ads_refresh_token', 'client_id', 'client_secret', 'developer_token']
+
+  # BigQuery batch size for querying results. Default to 10000.
+  BQ_BATCH_SIZE = int(10000)
 
   # Customer Match list fields
   EMAIL = 'Email'
@@ -1056,14 +1071,9 @@ class CustomerMatchWorker(AdsAPIWorker):
   COUNTRY_CODE = 'CountryCode'
   ZIP_CODE = 'ZipCode'
   LIST_LABEL = 'List'
-  IS_DATA_ENCRYPTED = False
 
   # Default Values
   GENERIC_LIST = 'CM TEST - Generic List from the API'
-
-  def _execute(self):
-    self.IS_DATA_ENCRYPTED = self._params['encrypted_data']
-    self._generate_list_data_structure()
 
   def _normalize_and_sha256(self, input_string):
     """Normalizes (lowercase, remove whitespace) and hashes a string with SHA-256.
@@ -1109,13 +1119,13 @@ class CustomerMatchWorker(AdsAPIWorker):
       list_data = customer_data[worker_params["list_name"]]
 
       if data.get(self.EMAIL):
-        if self.IS_DATA_ENCRYPTED:
+        if self._params['encrypted_data']:
           list_data['emails'].append({'hashedEmail': data[self.EMAIL]})
         else:
           list_data['emails'].append({'hashedEmail': self._normalize_and_sha256(data[self.EMAIL])})
 
       if data.get(self.PHONE):
-        if self.IS_DATA_ENCRYPTED:
+        if self._params['encrypted_data']:
           list_data['phones'].append({'hashedPhoneNumber': data[self.PHONE]})
         else:
           list_data['phones'].append(
@@ -1128,7 +1138,7 @@ class CustomerMatchWorker(AdsAPIWorker):
       if (data.get(self.FIRST_NAME) and data.get(self.LAST_NAME) and
           data.get(self.COUNTRY_CODE) and data.get(self.ZIP_CODE)):
         address = {}
-        if self.IS_DATA_ENCRYPTED:
+        if self._params['encrypted_data']:
           address['hashedFirstName'] = data[self.FIRST_NAME]
           address['hashedLastName'] = data[self.LAST_NAME]
         else:
@@ -1234,59 +1244,6 @@ class CustomerMatchWorker(AdsAPIWorker):
               len(members_to_upload), operation_string, user_list['name'], user_list['id'])
         total_uploaded += len(members_to_upload)
 
-
-class BQToCM(BQWorker, AdsAPIWorker):
-  """Worker to push data through Measurement Protocol"""
-
-  PARAMS = [
-      ('bq_project_id', 'string', False, '', 'BQ Project ID'),
-      ('bq_dataset_id', 'string', True, '', 'BQ Dataset ID'),
-      ('bq_table_id', 'string', True, '', 'BQ Table ID'),
-      ('client_customer_id', 'string', True, '', 'Google Ads Customer ID'),
-      ('list_name', 'string', True, '', 'Audience List Name'),
-      ('encrypted_data', 'boolean', True, False, 'Are fields hashed already?'),
-      ('remove_data', 'boolean', True, False, 'Remove data from existing Audience List'),
-  ]
-
-  GLOBAL_SETTINGS = ['google_ads_refresh_token', 'client_id', 'client_secret', 'developer_token']
-
-  # BigQuery batch size for querying results. Default to 10000.
-  BQ_BATCH_SIZE = int(10000)
-
-  # Maximum number of jobs to enqueued before spawning a new scheduler.
-  MAX_ENQUEUED_JOBS = 50
-
-  def _execute(self):
-    self._check_global_params()
-    self._get_ads_api_client()
-    self._bq_setup()
-    self._table.reload()
-    page_token = self._params.get('bq_page_token', None)
-    batch_size = self.BQ_BATCH_SIZE
-    query_iterator = self.retry(self._table.fetch_data, max_retries=1)(
-        max_results=batch_size,
-        page_token=page_token)
-
-    enqueued_jobs_count = 0
-    for query_page in query_iterator.pages:  # pylint: disable=unused-variable
-      # Enqueue job for this page
-      worker_params = self._params.copy()
-      worker_params['bq_page_token'] = page_token
-      worker_params['bq_batch_size'] = self.BQ_BATCH_SIZE
-      self._enqueue('BQToCMProcessor', worker_params, 0)
-      enqueued_jobs_count += 1
-
-      # Updates the page token reference for the next iteration.
-      page_token = query_iterator.next_page_token
-
-      # Spawns a new job to schedule the remaining pages.
-      if (enqueued_jobs_count >= self.MAX_ENQUEUED_JOBS
-          and page_token is not None):
-        worker_params = self._params.copy()
-        worker_params['bq_page_token'] = page_token
-        self._enqueue(self.__class__.__name__, worker_params, 0)
-        return
-
   def _check_global_params(self):
     """If one or more global params are missing, we need to raise an exception and alert the user"""
     if \
@@ -1300,21 +1257,6 @@ class BQToCM(BQWorker, AdsAPIWorker):
     or self._params['developer_token']=="":
       raise WorkerException("One or more global parameters are missing.")
 
-
-class BQToCMProcessor(BQWorker, CustomerMatchWorker):
-  """Worker pushing to Customer Match the first page only of a query"""
-
-  def _execute(self):
-    self._bq_setup()
-    self._table.reload()
-    page_token = self._params['bq_page_token'] or None
-    batch_size = self._params['bq_batch_size']
-    query_iterator = self.retry(self._table.fetch_data, max_retries=1)(
-        max_results=batch_size,
-        page_token=page_token)
-    query_first_page = next(query_iterator.pages)
-    self._process_query_results(query_first_page, query_iterator.schema)
-
   def _process_query_results(self, query_data, query_schema):
     """Sends event hits from query data."""
     fields = [f.name for f in query_schema]
@@ -1322,3 +1264,20 @@ class BQToCMProcessor(BQWorker, CustomerMatchWorker):
     customer_data = self._read_query_data(query_data, fields, self._params)
     for name in customer_data:
         self._upload_data(name, customer_data[name], self._params["remove_data"])
+
+  def _execute(self):
+    self._check_global_params()
+    self._get_ads_api_client()
+    self._bq_setup()
+    self._table.reload()
+    page_token = self._params.get('bq_page_token', None)
+    query_iterator = self.retry(self._table.fetch_data, max_retries=1)(
+        max_results=self.BQ_BATCH_SIZE,
+        page_token=page_token)
+    query_first_page = next(query_iterator.pages)
+    self._process_query_results(query_first_page, query_iterator.schema)
+    # Updates the page token reference for the next iteration.
+    page_token = query_iterator.next_page_token
+    if page_token:   
+      self._params['bq_page_token'] = page_token
+      self._enqueue(self.__class__.__name__, self._params, 0)
