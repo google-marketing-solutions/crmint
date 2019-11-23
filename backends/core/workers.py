@@ -486,29 +486,35 @@ class GAToBQImporter(BQWorker, GAWorker):
           'start_date': start_date,
           'end_date': end_date,
       }
-      for row in report['data']['rows']:
-        for dimension, value in zip(dimensions, row['dimensions']):
-          ga_row[dimension] = value
-        for metric, value in zip(metrics, row['metrics'][0]['values']):
-          ga_row[metric] = value
-        bq_row = []
-        for field in self._table.schema:
-          try:
-            bq_row.append(ga_row[field.name])
-          except KeyError:
-            bq_row.append(None)
-        self._bq_rows.append(tuple(bq_row))
-      self._flush()
-      rows_fetched += len(report['data']['rows'])
       try:
-        self._request['pageToken'] = report['nextPageToken']
-      except KeyError:
+        for row in report['data']['rows']:
+          for dimension, value in zip(dimensions, row['dimensions']):
+            ga_row[dimension] = value
+          for metric, value in zip(metrics, row['metrics'][0]['values']):
+            ga_row[metric] = value
+          bq_row = []
+          for field in self._table.schema:
+            try:
+              bq_row.append(ga_row[field.name])
+            except KeyError:
+              bq_row.append(None)
+          self._bq_rows.append(tuple(bq_row))
+        self._flush()
+        rows_fetched += len(report['data']['rows'])
         try:
-          del self._request['pageToken']
+          self._request['pageToken'] = report['nextPageToken']
         except KeyError:
-          pass
+          try:
+            del self._request['pageToken']
+          except KeyError:
+            pass
+          break
+      except KeyError:
         break
-    self.log_info('%i rows of data fetched for %s', rows_fetched, log_str)
+    if rows_fetched:
+      self.log_info('%i rows of data fetched for %s', rows_fetched, log_str)
+    else:
+      self.log_warn('No rows of data fetched for %s', log_str)
 
   def _flush(self, forced=False):
     if self._bq_rows:
