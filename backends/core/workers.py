@@ -847,20 +847,12 @@ class MLTrainer(MLWorker):
        '(e.g. gs://bucket/folder)'),
       ('packageUris', 'string', True, '',
        'URI of python package e.g. gs://bucket/folder/filename.tar.gz'),
-      ('trainFile', 'string', True, '',
-       'URI of file containing the training data e.g.a '
-       'gs://bucket/folder/filename.extension'),
-      ('evalFile', 'string', True, '',
-       'URI of file containing the evaluation data e.g. '
-       'gs://bucket/folder/filename.extension'),
       ('scaleTier', 'string', True, '',
        'Scale Tier e.g. BASIC, STANDARD_1'),
       ('runtimeVersion', 'string', True, '',
        'Runtime version e.g. 1.10'),
       ('pythonModule', 'string', True, '',
        'Name of python module e.g. trainer.task'),
-      ('trainSteps', 'number', True, 1000, 'Number of train steps e.g. 1000'),
-      ('evalSteps', 'number', True, 100, 'Number of eval steps e.g. 100'),
       ('args', 'string_list', True, '',
        'Enter the arguments to be passed to the python package. '
        'Key in one line, value in the next.')
