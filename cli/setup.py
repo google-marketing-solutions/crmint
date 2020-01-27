@@ -29,7 +29,7 @@ setup(
     install_requires=[
         "Click==7.0",
         "Flask==0.12.2",
-        "requests==2.18.4",
+        "requests==2.20.0",
     ],
     entry_points="""
         [console_scripts]
