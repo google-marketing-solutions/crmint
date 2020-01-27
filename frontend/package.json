@@ -28,7 +28,7 @@
     "core-js": "2.5.3",
     "konva": "1.6.3",
     "later": "github:RickCarlino/later#fc9ceb582728f75edbf9581e4f53da5fbb8cd4ac",
-    "lodash": "4.17.4",
+    "lodash": "4.17.15",
     "moment": "2.20.1",
     "ng-click-outside": "2.4.1",
     "ng2-ace-editor": "0.2.5",
