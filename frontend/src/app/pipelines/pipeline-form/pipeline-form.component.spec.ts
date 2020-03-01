@@ -14,9 +14,10 @@
 
 /* tslint:disable:no-unused-variable */
 import { async, ComponentFixture, TestBed } from '@angular/core/testing';
-import { By } from '@angular/platform-browser';
-import { DebugElement } from '@angular/core';
-
+import { RouterModule } from '@angular/router';
+import { HttpClientModule } from '@angular/common/http';
+import { FormsModule, ReactiveFormsModule } from '@angular/forms';
+import { PipelinesService } from '../../pipelines/shared/pipelines.service';
 import { PipelineFormComponent } from './pipeline-form.component';
 
 describe('PipelineFormComponent', () => {
@@ -25,6 +26,15 @@ describe('PipelineFormComponent', () => {
 
   beforeEach(async(() => {
     TestBed.configureTestingModule({
+      imports: [
+        FormsModule,
+        HttpClientModule,
+        ReactiveFormsModule,
+        RouterModule.forRoot([])
+      ],
+      providers: [
+        PipelinesService
+      ],
       declarations: [ PipelineFormComponent ]
     })
     .compileComponents();

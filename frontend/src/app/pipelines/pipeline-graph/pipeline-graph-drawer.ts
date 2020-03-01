@@ -12,11 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { ElementRef } from '@angular/core';
-import * as Konva from 'konva';
+import Konva from 'konva';
 import { PipelineGraph } from './pipeline-graph';
-
-import { Pipeline } from 'app/models/pipeline';
 import { Job } from 'app/models/job';
 
 export class PipelineGraphDrawer {

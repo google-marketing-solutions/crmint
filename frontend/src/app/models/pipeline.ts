@@ -27,6 +27,7 @@ export class Pipeline {
   updated_at: string;
   run_on_schedule: boolean;
   sid: string;
+  has_jobs: boolean;
 
   @Type(() => Schedule)
   schedules: Schedule[] = [];

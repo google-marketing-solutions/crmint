@@ -14,8 +14,7 @@
 
 import { Router, ActivatedRoute } from '@angular/router';
 import { Component, OnInit, ViewChild } from '@angular/core';
-import { classToClass, plainToClass } from 'class-transformer';
-import { Observable } from 'rxjs/Observable';
+import { plainToClass } from 'class-transformer';
 
 import { Job } from 'app/models/job';
 import { JobsService } from 'app/jobs/shared/jobs.service';
@@ -28,8 +27,8 @@ import { Pipeline } from 'app/models/pipeline';
   styleUrls: ['./pipeline-view.component.sass'],
 })
 export class PipelineViewComponent implements OnInit {
-  @ViewChild('graph') graph;
-  @ViewChild('pipelineLogs') pipelineLogs;
+  @ViewChild('graph', { static: false }) graph;
+  @ViewChild('pipelineLogs', { static: false }) pipelineLogs;
   pipeline: Pipeline = new Pipeline();
   jobs: Job[] = [];
   state = 'loading'; // State has one of values: loading, loaded, error
@@ -65,7 +64,7 @@ export class PipelineViewComponent implements OnInit {
     const promise2 = this.jobsService.getJobsByPipeline(pipeline_id)
                                      .then(data => this.jobs = plainToClass(Job, data as Job[]));
 
-    return Promise.all([promise1, promise2]).then(results => {
+    return Promise.all([promise1, promise2]).then(() => {
       this.state = 'loaded';
       setTimeout(() => {
         this.updateGraph();
@@ -89,7 +88,7 @@ export class PipelineViewComponent implements OnInit {
 
       this.jobsService.deleteJob(job.id)
           .then(null,
-          err => {
+          () => {
             alert('Could not delete job.');
             // Revert the view back to its original state
             this.jobs.splice(index, 0, job);
@@ -101,7 +100,7 @@ export class PipelineViewComponent implements OnInit {
   startJob(job_id) {
     const job = this.jobs.find(obj => obj.id === Number(job_id)) as Job;
     this.jobsService.startJob(job.id)
-                    .then(data => {
+                    .then(() => {
                       this.loadJobs(this.pipeline.id);
                     });
   }
@@ -133,7 +132,7 @@ export class PipelineViewComponent implements OnInit {
   export() {
     this.pipelinesService.exportPipeline(this.pipeline.id)
                          .then(res => {
-                           const blob = new Blob([JSON.stringify(res.json(), null, 2)], { type: 'application/json' });
+                           const blob = new Blob([JSON.stringify(res, null, 2)], { type: 'application/json' });
                            const a = document.getElementById('crmi-download');
                            const url = window.URL.createObjectURL(blob);
                            a.setAttribute('href', url);

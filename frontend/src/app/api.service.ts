@@ -13,18 +13,18 @@
 // limitations under the License.
 
 import { Injectable } from '@angular/core';
-import { Headers, Http, RequestOptions } from '@angular/http';
-import 'rxjs/add/operator/toPromise';
-import { Config } from './config';
+import { HttpClient } from '@angular/common/http';
 
 @Injectable()
 export class ApiService {
 
   protected host = this.getHost();
-  protected headers = new Headers({ 'Content-Type': 'application/json' });
-  protected options = new RequestOptions({ headers: this.headers });
+  protected options = {
+    headers: { 'Content-Type': 'application/json' },
+    params: {}
+  };
 
-  constructor(protected http: Http) { }
+  constructor(protected http: HttpClient) { }
 
   // Trick for detection of api domain
   protected getHost() {

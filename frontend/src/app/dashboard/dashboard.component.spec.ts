@@ -15,6 +15,9 @@
 import { async, ComponentFixture, TestBed } from '@angular/core/testing';
 
 import { DashboardComponent } from './dashboard.component';
+import { HttpClientModule } from '@angular/common/http';
+import { StagesService } from './shared/stages.service';
+import { RouterModule } from '@angular/router';
 
 describe('DashboardComponent', () => {
   let component: DashboardComponent;
@@ -22,6 +25,11 @@ describe('DashboardComponent', () => {
 
   beforeEach(async(() => {
     TestBed.configureTestingModule({
+      imports: [
+        RouterModule.forRoot([]),
+        HttpClientModule
+      ],
+      providers: [ StagesService ],
       declarations: [ DashboardComponent ]
     })
     .compileComponents();

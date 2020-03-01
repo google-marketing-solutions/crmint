@@ -89,8 +89,8 @@ export class WorkerParamsComponent implements OnInit {
         if (param) {
           worker_param.value = param.value;
         } else {
-          if (worker_param.type == 'boolean') {
-            worker_param.value = worker_param.default == 'True';
+          if (worker_param.type === 'boolean') {
+            worker_param.value = worker_param.default === 'True';
           } else {
             if (worker_param.default !== undefined) {
               worker_param.value = worker_param.default;

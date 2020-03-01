@@ -14,10 +14,10 @@
 
 /* tslint:disable:no-unused-variable */
 import { async, ComponentFixture, TestBed } from '@angular/core/testing';
-import { By } from '@angular/platform-browser';
-import { DebugElement } from '@angular/core';
 
 import { StagesComponent } from './stages.component';
+import { HttpClientModule } from '@angular/common/http';
+import { StagesService } from '../shared/stages.service';
 
 describe('StagesComponent', () => {
   let component: StagesComponent;
@@ -25,6 +25,8 @@ describe('StagesComponent', () => {
 
   beforeEach(async(() => {
     TestBed.configureTestingModule({
+      imports: [ HttpClientModule ],
+      providers: [ StagesService ],
       declarations: [ StagesComponent ]
     })
     .compileComponents();

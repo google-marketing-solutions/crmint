@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM node:10.11.0-alpine
+FROM node:12.16-alpine
 MAINTAINER Pierre Dulac <dulacp@google.com>
 
 # Copy the app files
@@ -22,7 +22,7 @@ COPY ./frontend/ /app/frontend
 # Start
 WORKDIR /app/frontend
 RUN apk add --no-cache --virtual .bootstrap-deps \
-        git \
+    git \
     && npm install \
     && apk del .bootstrap-deps
 
