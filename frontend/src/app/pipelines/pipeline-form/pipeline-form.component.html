@@ -50,7 +50,7 @@
                 <input matInput placeholder="Cron" formControlName="cron">
                 <mat-hint>{{schedulesLairs.controls[i].get('cron').value | prettycron}}</mat-hint>
               </mat-form-field>
-              <button mat-icon-button type="button" (click)="removeSchedule(i)">
+              <button mat-icon-button type="button" class="close-button" (click)="removeSchedule(i)">
                 <mat-icon>close</mat-icon>
               </button>
             </div>

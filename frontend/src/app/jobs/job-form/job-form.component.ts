@@ -27,7 +27,7 @@ import { Pipeline } from 'app/models/pipeline';
 @Component({
   selector: 'app-job-form',
   templateUrl: './job-form.component.html',
-  styleUrls: ['./job-form.component.css']
+  styleUrls: ['./job-form.component.sass']
 })
 export class JobFormComponent implements OnInit {
 

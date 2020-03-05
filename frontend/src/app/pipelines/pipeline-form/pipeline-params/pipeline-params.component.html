@@ -5,14 +5,14 @@
   <div formArrayName="paramsLairs" class="crmi-form-variables-section">
     <div *ngFor="let parameter of paramsLairs.controls; let i=index" class="crmi-form-group-row crmi-form-offset" [formGroupName]="i">
       <div class="crmi-form-variable-row">
-        <button mat-icon-button type="button" (click)="removeParam(i)">
-          <mat-icon>close</mat-icon>
-        </button>
         <div class="crmi-form-variable-name-wrapper">
           <mat-form-field>
             <input matInput placeholder="Name" formControlName="name">
             <mat-hint>Latin letters or digits only</mat-hint>
           </mat-form-field>
+          <button mat-icon-button type="button" (click)="removeParam(i)">
+            <mat-icon>close</mat-icon>
+          </button>
         </div>
         <div>
           <mat-form-field>

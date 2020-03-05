@@ -15,16 +15,13 @@
 import { FormGroup, FormArray, FormBuilder, Validators } from '@angular/forms';
 import { Component, OnInit, Input, SimpleChanges, SimpleChange, HostBinding } from '@angular/core';
 
-import { JobsService } from 'app/jobs/shared/jobs.service';
-
-import { Job } from 'app/models/job';
 import { Param } from 'app/models/param';
 import { WorkersService } from 'app/jobs/shared/workers.service';
 
 @Component({
   selector: 'app-worker-params',
   templateUrl: './worker-params.component.html',
-  styleUrls: ['./worker-params.component.css']
+  styleUrls: ['./worker-params.component.sass']
 })
 export class WorkerParamsComponent implements OnInit {
   @Input() jobForm: FormGroup;

@@ -15,7 +15,6 @@
 import { Injectable } from '@angular/core';
 
 import { ApiService } from 'app/api.service';
-import { Pipeline } from 'app/models/pipeline';
 
 @Injectable()
 export class PipelinesService extends ApiService {
