@@ -21,8 +21,7 @@ import { Config } from './config';
 export class ApiService {
 
   protected host = this.getHost();
-  protected headers = new Headers({ 'Content-Type': 'application/json' });
-  protected options = new RequestOptions({ headers: this.headers });
+  protected options = new RequestOptions({ headers: new Headers() });
 
   constructor(protected http: Http) { }
 
@@ -35,5 +34,13 @@ export class ApiService {
   protected handleError(error: any): Promise<any> {
     console.error('An error occurred', error); // for demo purposes only
     return Promise.reject(error.message || error);
+  }
+
+  protected addContentTypeHeader() {
+    this.options.headers.set('Content-Type', 'application/json');
+  }
+
+  protected removeContentTypeHeader() {
+    this.options.headers.delete('Content-Type');
   }
 }

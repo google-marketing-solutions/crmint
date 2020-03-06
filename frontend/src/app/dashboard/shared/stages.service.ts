@@ -24,6 +24,7 @@ export class StagesService extends ApiService {
   private url = `${this.getHost()}/stages`;
 
   getStages() {
+    this.removeContentTypeHeader();
     return this.http.get(this.url, this.options)
                     .toPromise()
                     .then(res => res.json() as Stage[])
@@ -31,6 +32,7 @@ export class StagesService extends ApiService {
   }
 
   addStage(stage_data) {
+    this.addContentTypeHeader();
     return this.http.post(this.url, JSON.stringify(stage_data), this.options)
                     .toPromise()
                     .then(res => res.json() as Stage)
@@ -38,6 +40,7 @@ export class StagesService extends ApiService {
   }
 
   deleteStage(id) {
+    this.removeContentTypeHeader();
     return this.http.delete(this.getStageUrl(id))
                     .toPromise()
                     .catch(this.handleError);
@@ -52,6 +55,7 @@ export class StagesService extends ApiService {
   }
 
   getPipelinesForStage(stage) {
+    this.removeContentTypeHeader();
     return this.http.get(this.getPipelinesUrl(stage.sid), this.options)
                     .toPromise()
                     .then(res => {
