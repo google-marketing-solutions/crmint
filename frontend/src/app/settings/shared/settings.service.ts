@@ -34,6 +34,7 @@ export class SettingsService extends ApiService {
   }
 
   saveVariables(variables: Param[]): Promise<Param[]> {
+    this.addContentTypeHeader();
     return this.http.put(this.variablesUrl, {variables: variables})
                .toPromise()
                .then(response => response.json() as Param[])
@@ -41,6 +42,7 @@ export class SettingsService extends ApiService {
   }
 
   saveSettings(settings: Setting[]) {
+    this.addContentTypeHeader();
     return this.http.put(this.settingsUrl, {settings: settings})
                .toPromise()
                .then(response => response.json())

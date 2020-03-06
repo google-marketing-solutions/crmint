@@ -39,6 +39,7 @@ export class PipelinesService extends ApiService {
   }
 
   addPipeline(pipeline) {
+    this.addContentTypeHeader();
     return this.http.post(this.url, JSON.stringify(pipeline), this.options)
                     .toPromise()
                     .then(res => res.json() as Pipeline)
@@ -46,6 +47,7 @@ export class PipelinesService extends ApiService {
   }
 
   updatePipeline(pipeline) {
+    this.addContentTypeHeader();
     return this.http.put(this.getPipelineUrl(pipeline.id), JSON.stringify(pipeline), this.options)
                     .toPromise()
                     .then(res => res.json() as Pipeline)
@@ -53,12 +55,14 @@ export class PipelinesService extends ApiService {
   }
 
   deletePipeline(id) {
+    this.addContentTypeHeader();
     return this.http.delete(this.getPipelineUrl(id))
                     .toPromise()
                     .catch(this.handleError);
   }
 
   startPipeline(id) {
+    this.addContentTypeHeader();
     return this.http.post(this.getPipelineUrl(id) + '/start', {}, this.options)
                     .toPromise()
                     .then(res => res.json() as Pipeline)
@@ -66,6 +70,7 @@ export class PipelinesService extends ApiService {
   }
 
   stopPipeline(id) {
+    this.addContentTypeHeader();
     return this.http.post(this.getPipelineUrl(id) + '/stop', {}, this.options)
                     .toPromise()
                     .then(res => res.json() as Pipeline)
@@ -90,6 +95,7 @@ export class PipelinesService extends ApiService {
   }
 
   updateRunOnSchedule(id, run_on_schedule) {
+    this.addContentTypeHeader();
     return this.http.patch(this.getPipelineUrl(id) + '/run_on_schedule', {run_on_schedule: run_on_schedule}, this.options)
                     .toPromise()
                     .then(res => res.json() as Pipeline)
@@ -110,6 +116,7 @@ export class PipelinesService extends ApiService {
     }
 
     this.options.search = p;
+    this.addContentTypeHeader();
     return this.http.get(url, this.options)
                     .toPromise()
                     .then(res => res.json())

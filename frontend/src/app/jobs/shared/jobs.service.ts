@@ -43,6 +43,7 @@ export class JobsService extends ApiService {
   }
 
   addJob(job) {
+    this.addContentTypeHeader();
     return this.http.post(this.url, serialize(job), { headers: this.headers })
                     .toPromise()
                     .then(res => res.json())
@@ -50,6 +51,7 @@ export class JobsService extends ApiService {
   }
 
   updateJob(job) {
+    this.addContentTypeHeader();
     return this.http.put(this.getJobUrl(job.id), serialize(job), { headers: this.headers })
                     .toPromise()
                     .then(res => res.json())
@@ -57,6 +59,7 @@ export class JobsService extends ApiService {
   }
 
   deleteJob(id) {
+    this.addContentTypeHeader();
     return this.http.delete(this.getJobUrl(id))
                     .toPromise()
                     .then(res => res.json())
@@ -64,6 +67,7 @@ export class JobsService extends ApiService {
   }
 
   startJob(id) {
+    this.addContentTypeHeader();
     return this.http.post(this.getJobUrl(id) + '/start', null, { headers: this.headers })
                     .toPromise()
                     .then(res => res.json())

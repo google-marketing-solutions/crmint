@@ -31,6 +31,7 @@ export class StagesService extends ApiService {
   }
 
   addStage(stage_data) {
+    this.addContentTypeHeader();
     return this.http.post(this.url, JSON.stringify(stage_data), this.options)
                     .toPromise()
                     .then(res => res.json() as Stage)
@@ -38,6 +39,7 @@ export class StagesService extends ApiService {
   }
 
   deleteStage(id) {
+    this.addContentTypeHeader();
     return this.http.delete(this.getStageUrl(id))
                     .toPromise()
                     .catch(this.handleError);
