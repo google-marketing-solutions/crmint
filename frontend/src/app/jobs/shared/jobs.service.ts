@@ -29,6 +29,7 @@ export class JobsService extends ApiService {
     const params = new URLSearchParams();
     params.set('pipeline_id', pipeline_id);
     this.options.search = params;
+    this.removeContentTypeHeader();
     return this.http.get(this.url, this.options)
                     .toPromise()
                     .then(res => res.json())
@@ -36,6 +37,7 @@ export class JobsService extends ApiService {
   }
 
   getJob(id) {
+    this.removeContentTypeHeader();
     return this.http.get(this.getJobUrl(id))
                     .toPromise()
                     .then(res => res.json())
@@ -44,7 +46,7 @@ export class JobsService extends ApiService {
 
   addJob(job) {
     this.addContentTypeHeader();
-    return this.http.post(this.url, serialize(job), { headers: this.headers })
+    return this.http.post(this.url, serialize(job), { headers: this.options.headers })
                     .toPromise()
                     .then(res => res.json())
                     .catch(this.handleError);
@@ -52,14 +54,14 @@ export class JobsService extends ApiService {
 
   updateJob(job) {
     this.addContentTypeHeader();
-    return this.http.put(this.getJobUrl(job.id), serialize(job), { headers: this.headers })
+    return this.http.put(this.getJobUrl(job.id), serialize(job), { headers: this.options.headers })
                     .toPromise()
                     .then(res => res.json())
                     .catch(this.handleError);
   }
 
   deleteJob(id) {
-    this.addContentTypeHeader();
+    this.removeContentTypeHeader();
     return this.http.delete(this.getJobUrl(id))
                     .toPromise()
                     .then(res => res.json())
@@ -68,7 +70,7 @@ export class JobsService extends ApiService {
 
   startJob(id) {
     this.addContentTypeHeader();
-    return this.http.post(this.getJobUrl(id) + '/start', null, { headers: this.headers })
+    return this.http.post(this.getJobUrl(id) + '/start', null, { headers: this.options.headers })
                     .toPromise()
                     .then(res => res.json())
                     .catch(this.handleError);

@@ -27,6 +27,7 @@ export class SettingsService extends ApiService {
   private settingsUrl = `${this.host}/general_settings`;
 
   getConfigData(): Promise<Config> {
+    this.removeContentTypeHeader();
     return this.http.get(this.configUrl)
                .toPromise()
                .then(response => response.json() as Config)

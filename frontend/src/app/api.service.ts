@@ -21,8 +21,7 @@ import { Config } from './config';
 export class ApiService {
 
   protected host = this.getHost();
-  protected headers = new Headers({});
-  protected options = new RequestOptions({ headers: this.headers });
+  protected options = new RequestOptions({ headers: new Headers() });
 
   constructor(protected http: Http) { }
 
@@ -38,6 +37,10 @@ export class ApiService {
   }
 
   protected addContentTypeHeader() {
-    this.headers.set('Content-Type', 'application/json');
+    this.options.headers.set('Content-Type', 'application/json');
+  }
+
+  protected removeContentTypeHeader() {
+    this.options.headers.delete('Content-Type');
   }
 }
