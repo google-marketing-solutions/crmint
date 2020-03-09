@@ -23,8 +23,7 @@ export class JobsService extends ApiService {
   private url = `${this.getHost()}/jobs`;
 
   getJobsByPipeline(pipeline_id) {
-    const options = Object.assign({}, this.options, { params: { pipeline_id: pipeline_id } });
-    return this.http.get(this.url, options)
+    return this.http.get(this.getJobsByPipelineUrl(pipeline_id))
                     .toPromise()
                     .catch(this.handleError);
   }
@@ -61,6 +60,10 @@ export class JobsService extends ApiService {
 
   private getJobUrl(id) {
     return this.url + '/' + id;
+  }
+
+  private getJobsByPipelineUrl(pipeline_id) {
+    return `${this.url}?pipeline_id=${pipeline_id}`;
   }
 
 }
