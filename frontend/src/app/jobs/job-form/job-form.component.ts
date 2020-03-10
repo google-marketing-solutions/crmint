@@ -189,11 +189,11 @@ export class JobFormComponent implements OnInit {
       result = this.jobsService.addJob(this.job);
     }
 
-    result.then(data => {
+    result.then(() => {
       this.router.navigate(['pipelines', this.job.pipeline_id]);
       this.error_message = '';
     }).catch(response => {
-      this.error_message = response.json().message;
+      this.error_message = response || 'An error occurred';
     });
   }
 

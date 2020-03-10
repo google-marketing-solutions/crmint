@@ -143,22 +143,19 @@ export class PipelineFormComponent implements OnInit {
   }
 
   save() {
-    let result;
     this.prepareSavePipeline();
 
     if (this.pipeline.id) {
-      result = this.pipelinesService.updatePipeline(this.pipeline);
-      result.then(data => {
-        this.router.navigate(['pipelines', this.pipeline.id]);
-        this.error_message = '';
-      }).catch(response => {
-        if (response.json().message) {
-          this.error_message = response.json().message;
-        }
-      });
+      this.pipelinesService.updatePipeline(this.pipeline)
+        .then(() => {
+          this.router.navigate(['pipelines', this.pipeline.id]);
+          this.error_message = '';
+        }).catch(response => {
+          this.error_message = response || 'An error occurred';
+        });
     } else {
-      result = this.pipelinesService.addPipeline(this.pipeline);
-      result.then(pipeline => this.router.navigate(['pipelines']));
+      this.pipelinesService.addPipeline(this.pipeline)
+        .then(() => this.router.navigate(['pipelines']));
     }
   }
 
