@@ -26,18 +26,21 @@ export class SettingsService extends ApiService {
   private settingsUrl = `${this.host}/general_settings`;
 
   getConfigData(): Promise<Config> {
+    this.removeContentTypeHeader();
     return this.http.get(this.configUrl)
                .toPromise()
                .catch(this.handleError);
   }
 
   saveVariables(variables: Param[]): Promise<Param[]> {
+    this.addContentTypeHeader();
     return this.http.put(this.variablesUrl, {variables: variables})
                .toPromise()
                .catch(this.handleError);
   }
 
   saveSettings(settings: Setting[]) {
+    this.addContentTypeHeader();
     return this.http.put(this.settingsUrl, {settings: settings})
                .toPromise()
                .catch(this.handleError);

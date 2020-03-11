@@ -23,47 +23,50 @@ export class JobsService extends ApiService {
   private url = `${this.getHost()}/jobs`;
 
   getJobsByPipeline(pipeline_id) {
-    return this.http.get(this.getJobsByPipelineUrl(pipeline_id))
+    this.options.params = {'pipeline_id': pipeline_id};
+    this.removeContentTypeHeader();
+    return this.http.get(this.url, this.options)
                     .toPromise()
                     .catch(this.handleError);
   }
 
   getJob(id) {
+    this.removeContentTypeHeader();
     return this.http.get(this.getJobUrl(id))
                     .toPromise()
                     .catch(this.handleError);
   }
 
   addJob(job) {
-    return this.http.post(this.url, serialize(job), this.options)
+    this.addContentTypeHeader();
+    return this.http.post(this.url, serialize(job), { headers: this.options.headers })
                     .toPromise()
                     .catch(this.handleError);
   }
 
   updateJob(job) {
-    return this.http.put(this.getJobUrl(job.id), serialize(job), this.options)
+    this.addContentTypeHeader();
+    return this.http.put(this.getJobUrl(job.id), serialize(job), { headers: this.options.headers })
                     .toPromise()
                     .catch(this.handleError);
   }
 
   deleteJob(id) {
+    this.removeContentTypeHeader();
     return this.http.delete(this.getJobUrl(id))
                     .toPromise()
                     .catch(this.handleError);
   }
 
   startJob(id) {
-    return this.http.post(this.getJobUrl(id) + '/start', null, this.options)
+    this.addContentTypeHeader();
+    return this.http.post(this.getJobUrl(id) + '/start', null, { headers: this.options.headers })
                     .toPromise()
                     .catch(this.handleError);
   }
 
   private getJobUrl(id) {
     return this.url + '/' + id;
-  }
-
-  private getJobsByPipelineUrl(pipeline_id) {
-    return `${this.url}?pipeline_id=${pipeline_id}`;
   }
 
 }

@@ -22,42 +22,49 @@ export class PipelinesService extends ApiService {
   private url = `${this.getHost()}/pipelines`;
 
   getPipelines() {
+    this.removeContentTypeHeader();
     return this.http.get(this.url, this.options)
                     .toPromise()
                     .catch(this.handleError);
   }
 
   getPipeline(id) {
+    this.removeContentTypeHeader();
     return this.http.get(this.getPipelineUrl(id))
                     .toPromise()
                     .catch(this.handleError);
   }
 
   addPipeline(pipeline) {
+    this.addContentTypeHeader();
     return this.http.post(this.url, JSON.stringify(pipeline), this.options)
                     .toPromise()
                     .catch(this.handleError);
   }
 
   updatePipeline(pipeline) {
+    this.addContentTypeHeader();
     return this.http.put(this.getPipelineUrl(pipeline.id), JSON.stringify(pipeline), this.options)
                     .toPromise()
                     .catch(this.handleError);
   }
 
   deletePipeline(id) {
+    this.removeContentTypeHeader();
     return this.http.delete(this.getPipelineUrl(id))
                     .toPromise()
                     .catch(this.handleError);
   }
 
   startPipeline(id) {
+    this.addContentTypeHeader();
     return this.http.post(this.getPipelineUrl(id) + '/start', {}, this.options)
                     .toPromise()
                     .catch(this.handleError);
   }
 
   stopPipeline(id) {
+    this.addContentTypeHeader();
     return this.http.post(this.getPipelineUrl(id) + '/stop', {}, this.options)
                     .toPromise()
                     .catch(this.handleError);
@@ -66,18 +73,21 @@ export class PipelinesService extends ApiService {
   importPipeline(file: File) {
     const formData: FormData = new FormData();
     formData.append('upload_file', file, file.name);
+    this.removeContentTypeHeader();
     return this.http.post(this.url + '/import', formData)
                     .toPromise()
                     .catch(this.handleError);
   }
 
   exportPipeline(id) {
+    this.removeContentTypeHeader();
     return this.http.get(this.getPipelineUrl(id) + '/export', {observe: 'response'})
                     .toPromise()
                     .catch(this.handleError);
   }
 
   updateRunOnSchedule(id, run_on_schedule) {
+    this.addContentTypeHeader();
     return this.http.patch(this.getPipelineUrl(id) + '/run_on_schedule', {run_on_schedule: run_on_schedule}, this.options)
                     .toPromise()
                     .catch(this.handleError);
@@ -88,14 +98,16 @@ export class PipelinesService extends ApiService {
   }
 
   getLogs(id, params) {
-    const url = this.getPipelineUrl(id) + '/logs';
-    // for (const k of Object.keys(params)) {
-    //   if (!this.options.params.has(k)) {
-    //     this.options.params.set(k, params[k]);
-    //   }
-    // }
-    this.options.params = Object.assign({}, params, this.options.params);
+    const url = this.getPipelineUrl(id) + '/logs'
+    const p = {};
+    for (const k of Object.keys(params)) {
+      if (params[k] !== null) {
+        p[k] = params[k];
+      }
+    }
 
+    this.options.params = p;
+    this.removeContentTypeHeader();
     return this.http.get(url, this.options)
                     .toPromise()
                     .catch(this.handleError);

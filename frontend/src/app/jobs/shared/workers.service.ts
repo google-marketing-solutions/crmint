@@ -22,12 +22,14 @@ export class WorkersService extends ApiService {
   private url = `${this.getHost()}/workers`;
 
   getParamsForWorkerClass(worker_class) {
+    this.removeContentTypeHeader();
     return this.http.get(this.getWorkerParamsUrl(worker_class))
                     .toPromise()
                     .catch(this.handleError);
   }
 
   getWorkers() {
+    this.removeContentTypeHeader();
     return this.http.get(this.url)
                     .toPromise()
                     .catch(this.handleError);

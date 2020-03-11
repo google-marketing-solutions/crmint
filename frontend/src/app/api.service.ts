@@ -19,9 +19,8 @@ import { HttpClient } from '@angular/common/http';
 export class ApiService {
 
   protected host = this.getHost();
-  protected options = {
-    headers: { 'Content-Type': 'application/json' },
-    params: {}
+  protected options: any = {
+    headers: {}
   };
 
   constructor(protected http: HttpClient) { }
@@ -35,5 +34,13 @@ export class ApiService {
   protected handleError(error: any): Promise<any> {
     console.error('An error occurred', error); // for demo purposes only
     return Promise.reject((error.error && error.error.message) || error.message || error);
+  }
+
+  protected addContentTypeHeader() {
+    this.options.headers['Content-Type'] = 'application/json';
+  }
+
+  protected removeContentTypeHeader() {
+    delete this.options.headers['Content-Type'];
   }
 }
