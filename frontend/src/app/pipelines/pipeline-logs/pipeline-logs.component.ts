@@ -119,7 +119,7 @@ export class PipelineLogsComponent implements OnInit {
 
   getFilters() {
     const filters = Object.assign({}, this.filters);
-    for (var propName in filters) {
+    for (const propName in filters) {
       if (filters[propName] === null || filters[propName] === undefined) {
         delete filters[propName];
       }
