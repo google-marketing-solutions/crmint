@@ -52,8 +52,7 @@ export class PipelinesComponent implements OnInit {
       this.pipelines.splice(index, 1);
 
       this.pipelinesService.deletePipeline(pipeline.id)
-          .then(null,
-          err => {
+          .catch(err => {
             console.log('error', err);
             const defaultMessage = 'Could not delete pipeline.';
             let message;

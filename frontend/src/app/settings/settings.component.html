@@ -2,7 +2,7 @@
   <mat-card>
     <mat-card-title>Service Account Email</mat-card-title>
     <span>{{config.sa_email}}</span>
-    <button type="button" ngxClipboard [cbContent]="config.sa_email">copy</button>
+    <button type="button" class="copy-sa-button" ngxClipboard [cbContent]="config.sa_email">copy</button>
   </mat-card>
   <mat-card class="crmi-settings-global">
     <mat-card-title>General Settings</mat-card-title>
@@ -27,13 +27,13 @@
     <form [formGroup]="gVarsForm" novalidate (ngSubmit)="saveGVars()">
       <div formArrayName="variablesLairs">
         <div *ngFor="let gVar of variablesLairs.controls; let i=index" [formGroupName]="i" class="crmi-form-variable-row">
-          <button mat-icon-button type="button" (click)="removeGVar(i)">
-            <mat-icon>close</mat-icon>
-          </button>
           <div class="crmi-form-variable-name-wrapper">
             <mat-form-field>
               <input matInput placeholder="Name" formControlName="name">
             </mat-form-field>
+            <button mat-icon-button type="button" (click)="removeGVar(i)">
+              <mat-icon>close</mat-icon>
+            </button>
           </div>
           <mat-form-field>
             <textarea matInput matTextareaAutosize placeholder="Value" formControlName="value"></textarea>

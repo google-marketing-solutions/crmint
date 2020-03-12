@@ -59,7 +59,7 @@ COPY ./backends/core/requirements_dev.txt /app/backends/core/requirements_dev.tx
 # Install python dependencies
 WORKDIR /app/backends
 RUN apk add --update mariadb-client-libs \
-    && apk add --no-cache --virtual .bootstrap-deps \
+    && apk add --no-cache --virtual .bootstrap-deps linux-headers \
         bash curl python-dev musl-dev mariadb-dev gcc build-base \
     && pip install -r core/requirements_dev.txt -t lib_dev \
     && pip install -r ibackend/requirements.txt -t lib \

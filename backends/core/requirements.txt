@@ -15,4 +15,3 @@ GoogleAppEngineCloudStorageClient==1.9.22.1
 pyyaml==3.12
 httplib2<0.16.0
 Werkzeug==0.16.1
-

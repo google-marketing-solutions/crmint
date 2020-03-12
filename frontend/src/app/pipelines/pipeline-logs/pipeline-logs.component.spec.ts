@@ -14,9 +14,10 @@
 
 /* tslint:disable:no-unused-variable */
 import { async, ComponentFixture, TestBed } from '@angular/core/testing';
-import { By } from '@angular/platform-browser';
-import { DebugElement } from '@angular/core';
-
+import { RouterModule } from '@angular/router';
+import { HttpClientModule } from '@angular/common/http';
+import { PipelinesService } from '../../pipelines/shared/pipelines.service';
+import { WorkersService } from '../../jobs/shared/workers.service';
 import { PipelineLogsComponent } from './pipeline-logs.component';
 
 describe('PipelineLogsComponent', () => {
@@ -25,6 +26,14 @@ describe('PipelineLogsComponent', () => {
 
   beforeEach(async(() => {
     TestBed.configureTestingModule({
+      imports: [
+        HttpClientModule,
+        RouterModule.forRoot([])
+      ],
+      providers: [
+        PipelinesService,
+        WorkersService
+      ],
       declarations: [ PipelineLogsComponent ]
     })
     .compileComponents();

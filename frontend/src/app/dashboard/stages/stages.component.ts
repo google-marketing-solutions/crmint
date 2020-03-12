@@ -49,7 +49,6 @@ export class StagesComponent implements OnInit {
   }
 
   deleteStage(stage) {
-    console.log('deleteStage', stage.id);
     const index = this.stages.indexOf(stage);
     this.stages.splice(index, 1);
     this.stagesService.deleteStage(stage.id);

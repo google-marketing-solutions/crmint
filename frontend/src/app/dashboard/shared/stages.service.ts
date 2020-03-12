@@ -15,8 +15,6 @@
 import { Injectable } from '@angular/core';
 
 import { ApiService } from 'app/api.service';
-import { Stage } from 'app/models/stage';
-import { Pipeline } from 'app/models/pipeline';
 
 @Injectable()
 export class StagesService extends ApiService {
@@ -27,7 +25,6 @@ export class StagesService extends ApiService {
     this.removeContentTypeHeader();
     return this.http.get(this.url, this.options)
                     .toPromise()
-                    .then(res => res.json() as Stage[])
                     .catch(this.handleError);
   }
 
@@ -35,7 +32,6 @@ export class StagesService extends ApiService {
     this.addContentTypeHeader();
     return this.http.post(this.url, JSON.stringify(stage_data), this.options)
                     .toPromise()
-                    .then(res => res.json() as Stage)
                     .catch(this.handleError);
   }
 
@@ -58,8 +54,7 @@ export class StagesService extends ApiService {
     this.removeContentTypeHeader();
     return this.http.get(this.getPipelinesUrl(stage.sid), this.options)
                     .toPromise()
-                    .then(res => {
-                      const pipelines = res.json() as Pipeline[];
+                    .then((pipelines: any) => {
                       for (const pipeline of pipelines) {
                         pipeline.sid = stage.sid;
                       }

@@ -15,11 +15,13 @@
 /* tslint:disable:no-unused-variable */
 
 import { TestBed, async, inject } from '@angular/core/testing';
+import { HttpClientModule } from '@angular/common/http';
 import { JobsService } from './jobs.service';
 
 describe('Service: Job', () => {
   beforeEach(() => {
     TestBed.configureTestingModule({
+      imports: [ HttpClientModule ],
       providers: [JobsService]
     });
   });

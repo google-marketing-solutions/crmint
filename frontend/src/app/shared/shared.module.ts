@@ -13,18 +13,18 @@
 // limitations under the License.
 
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
-import { MatButtonModule,
-         MatDatepickerModule,
-         MatNativeDateModule,
-         MatInputModule,
-         MatProgressSpinnerModule,
-         MatIconModule,
-         MatCardModule,
-         MatSlideToggleModule,
-         MatSelectModule,
-         MatToolbarModule,
-         MatTabsModule,
-         MatCheckboxModule} from '@angular/material';
+import { MatButtonModule } from '@angular/material/button';
+import { MatDatepickerModule } from '@angular/material/datepicker';
+import { MatNativeDateModule } from '@angular/material/core';
+import { MatInputModule } from '@angular/material/input';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatIconModule } from '@angular/material/icon';
+import { MatCardModule } from '@angular/material/card';
+import { MatSlideToggleModule } from '@angular/material/slide-toggle';
+import { MatSelectModule } from '@angular/material/select';
+import { MatToolbarModule } from '@angular/material/toolbar';
+import { MatTabsModule } from '@angular/material/tabs';
+import { MatCheckboxModule } from '@angular/material/checkbox';
 import { NgModule } from '@angular/core';
 import { CommonModule } from '@angular/common';
 

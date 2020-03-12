@@ -5,7 +5,7 @@
       <div class="crmi-loading-block">
         <mat-progress-spinner
           strokeWidth="10"
-          style="width:50px;height:50px"
+          style="width:100px;height:100px;"
           mode="indeterminate">
         </mat-progress-spinner>
         Loading jobs...
@@ -45,7 +45,7 @@
           <mat-slide-toggle [checked]="pipeline.run_on_schedule" (change)="updateRunOnSchedule($event)">{{pipeline.run_on_schedule_next_date(true)}}</mat-slide-toggle>
         </div>
 
-        <mat-tab-group dynamicHeight disableRipple (selectChange)="tabChange($event)" class="crmi-card-tabs">
+        <mat-tab-group dynamicHeight disableRipple (selectedTabChange)="tabChange($event)" class="crmi-card-tabs">
           <mat-tab>
             <ng-template mat-tab-label>Pipeline</ng-template>
             <app-pipeline-graph #graph [(pipeline)]="pipeline" [(jobs)]="jobs" (deleteClicked)="deleteJob($event)" (jobStartClicked)="startJob($event)"></app-pipeline-graph>

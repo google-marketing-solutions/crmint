@@ -73,6 +73,23 @@ body {
 }
 
 // Overwrite
+body {
+  .mat-card {
+    padding: 24px;
+  }
+  .mat-card-title {
+    margin-bottom: 16px;
+    font-weight: 400;
+  }
+  .mat-raised-button {
+    min-width: 88px;
+  }
+  .mat-button-base+.mat-button-base {
+    margin-left: 5px;
+  }
+} 
+
+// Overwrite
 .mat-card-title {
   margin-top: -5px;
   & > .crmi-card-breadcrumb {
@@ -257,6 +274,7 @@ $crmi-form-label-field: 750px;
   margin-bottom: 5px;
   &.crmi-form-message-error {
     color: #f50057;
+    margin-bottom: 10px
   }
 }
 

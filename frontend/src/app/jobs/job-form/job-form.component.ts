@@ -27,7 +27,7 @@ import { Pipeline } from 'app/models/pipeline';
 @Component({
   selector: 'app-job-form',
   templateUrl: './job-form.component.html',
-  styleUrls: ['./job-form.component.css']
+  styleUrls: ['./job-form.component.sass']
 })
 export class JobFormComponent implements OnInit {
 
@@ -189,11 +189,11 @@ export class JobFormComponent implements OnInit {
       result = this.jobsService.addJob(this.job);
     }
 
-    result.then(data => {
+    result.then(() => {
       this.router.navigate(['pipelines', this.job.pipeline_id]);
       this.error_message = '';
     }).catch(response => {
-      this.error_message = response.json().message;
+      this.error_message = response || 'An error occurred';
     });
   }
 

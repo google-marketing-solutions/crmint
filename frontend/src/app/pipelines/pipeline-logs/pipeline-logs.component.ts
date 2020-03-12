@@ -75,7 +75,7 @@ export class PipelineLogsComponent implements OnInit {
                                             }
                                           });
     const promise2 = this.workersService.getWorkers().then(data => this.worker_classes = data);
-    Promise.all([promise1, promise2]).then(results => {
+    Promise.all([promise1, promise2]).then(() => {
       this.state = 'loaded';
       this.btnState = 'pending';
     }).catch(reason => {
@@ -101,7 +101,7 @@ export class PipelineLogsComponent implements OnInit {
                                             }
                                             this.filters.next_page_token = logs.next_page_token;
                                           });
-    Promise.all([promise1]).then(results => {
+    Promise.all([promise1]).then(() => {
       this.state = 'loaded';
       this.btnNewestState = 'pending';
     }).catch(reason => {
@@ -119,6 +119,11 @@ export class PipelineLogsComponent implements OnInit {
 
   getFilters() {
     const filters = Object.assign({}, this.filters);
+    for (const propName in filters) {
+      if (filters[propName] === null || filters[propName] === undefined) {
+        delete filters[propName];
+      }
+    }
     if (filters.fromdate) {
       filters.fromdate = filters.fromdate.toISOString();
     }
