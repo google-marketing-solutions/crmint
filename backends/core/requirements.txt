@@ -12,6 +12,6 @@ Flask-RESTful==0.3.5
 google-api-python-client==1.6.5
 google-cloud-logging==1.6.0
 GoogleAppEngineCloudStorageClient==1.9.22.1
-pyyaml==3.12
+pyyaml==5.1
 httplib2<0.16.0
 Werkzeug==0.16.1
