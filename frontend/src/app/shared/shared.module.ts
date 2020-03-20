@@ -25,6 +25,7 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatToolbarModule } from '@angular/material/toolbar';
 import { MatTabsModule } from '@angular/material/tabs';
 import { MatCheckboxModule } from '@angular/material/checkbox';
+import { MatMenuModule } from '@angular/material/menu';
 import { NgModule } from '@angular/core';
 import { CommonModule } from '@angular/common';
 
@@ -45,7 +46,8 @@ import { StatusComponent } from './status/status.component';
     BrowserAnimationsModule,
     MatToolbarModule,
     MatTabsModule,
-    MatCheckboxModule
+    MatCheckboxModule,
+    MatMenuModule
   ],
   declarations: [
     StatusComponent
@@ -64,7 +66,8 @@ import { StatusComponent } from './status/status.component';
     BrowserAnimationsModule,
     MatToolbarModule,
     MatTabsModule,
-    MatCheckboxModule
+    MatCheckboxModule,
+    MatMenuModule
   ]
 })
 export class SharedModule { }
