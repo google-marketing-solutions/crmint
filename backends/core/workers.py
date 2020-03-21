@@ -21,15 +21,22 @@ from functools import wraps
 import hashlib
 import json
 import os
-from random import random
 import re
+from random import random
 import time
 import urllib
 import uuid
+import yaml
 
+from apiclient.discovery import build
+from apiclient.errors import HttpError
+from apiclient.http import MediaIoBaseUpload
+import cloudstorage as gcs
 from google.cloud import bigquery
 from google.cloud.exceptions import ClientError
 from googleads import adwords
+from oauth2client.service_account import ServiceAccountCredentials
+import requests
 import zeep.cache
 
 
@@ -38,6 +45,7 @@ _KEY_FILE = os.path.join(os.path.dirname(__file__), '..', 'data',
 AVAILABLE = (
     'BQMLTrainer',
     'BQQueryLauncher',
+    'BQToCM',
     'BQToMeasurementProtocol',
     'BQToStorageExporter',
     'Commenter',
@@ -50,7 +58,6 @@ AVAILABLE = (
     'StorageChecker',
     'StorageCleaner',
     'StorageToBQImporter',
-    'BQToCM',
 )
 
 # Defines how many times to retry on failure, default to 5 times.
@@ -324,7 +331,7 @@ class StorageChecker(StorageWorker):
       raise WorkerException('Files matching the patterns were not found')
     size = reduce(lambda total, stat: total + stat.st_size, stats, 0)
     if size < min_size:
-      raise WorkerException( 'Files matching the patterns are too small')
+      raise WorkerException('Files matching the patterns are too small')
 
 
 
@@ -936,90 +943,6 @@ class MeasurementProtocolException(WorkerException):
   pass
 
 
-class MeasurementProtocolWorker(Worker):
-  """Abstract Measurement Protocol worker."""
-
-  def _flatten(self, data):
-    flat = False
-    while not flat:
-      flat = True
-      for k in data.keys():
-        if data[k] is None:
-          del data[k]
-        elif isinstance(data[k], list):
-          for i, v in enumerate(data[k]):
-            data['%s%i' % (k, i + 1)] = v
-          del data[k]
-          flat = False
-        elif isinstance(data[k], dict):
-          for l in data[k]:
-            data['%s%s' % (k, l)] = data[k][l]
-          del data[k]
-          flat = False
-
-  def _get_payload_from_data(self, data):
-    self._flatten(data)
-    payload = {'v': 1}  # Use version 1
-    payload.update(data)
-    return payload
-
-  def _prepare_payloads_for_batch_request(self, payloads):
-    """Merges payloads to send them in a batch request.
-
-    Args:
-        payloads: list of payload, each payload being a dictionary.
-
-    Returns:
-        Concatenated url-encoded payloads. For example:
-
-          param1=value10&param2=value20
-          param1=value11&param2=value21
-    """
-    assert isinstance(payloads, list) or isinstance(payloads, tuple)
-    payloads_utf8 = [sorted([(k, unicode(p[k]).encode('utf-8')) for k in p],
-                            key=lambda t: t[0]) for p in payloads]
-    return '\n'.join([urllib.urlencode(p) for p in payloads_utf8])
-
-  def _send_batch_hits(self, batch_payload, user_agent='CRMint / 0.1'):
-    """Sends a batch request to the Measurement Protocol endpoint.
-
-    NB: Use the the HitBuilder service to validate a Measurement Protocol
-        hit format with the Measurement Protocol Validation Server.
-
-        https://ga-dev-tools.appspot.com/hit-builder/
-
-    Args:
-        batch_payload: list of payloads, each payload being a list of key/values
-            tuples to pass to the Measurement Protocol batch endpoint.
-        user_agent: string representing the client User Agent.
-
-    Raises:
-        MeasurementProtocolException: if the HTTP request fails.
-    """
-    headers = {'user-agent': user_agent}
-    if self._debug:
-      for payload in batch_payload.split('\n'):
-        response = requests.post(
-            'https://www.google-analytics.com/debug/collect',
-            headers=headers,
-            data=payload)
-        result = json.loads(response.text)
-        if (not result['hitParsingResult'] or
-            not result['hitParsingResult'][0]['valid']):
-          message = ('Invalid payload ("&" characters replaced with new lines):'
-                     '\n\n%s\n\nValidation response:\n\n%s')
-          readable_payload = payload.replace('&', '\n')
-          self.log_warn(message, readable_payload, response.text)
-    else:
-      response = requests.post('https://www.google-analytics.com/batch',
-                               headers=headers,
-                               data=batch_payload)
-
-      if response.status_code != requests.codes.ok:
-        raise MeasurementProtocolException(
-            'Failed to send event hit with status code (%s) and parameters: %s'
-            % (response.status_code, batch_payload))
-
 class BQToMeasurementProtocol(BQWorker):
   """Worker to push data through Measurement Protocol."""
 
@@ -1068,8 +991,89 @@ class BQToMeasurementProtocol(BQWorker):
         return
 
 
-class BQToMeasurementProtocolProcessor(BQWorker, MeasurementProtocolWorker):
+class BQToMeasurementProtocolProcessor(BQWorker):
   """Worker pushing to Measurement Protocol the first page only of a query."""
+
+  def _flatten(self, data):
+    flat = False
+    while not flat:
+      flat = True
+      for k in data.keys():
+        if data[k] is None:
+          del data[k]
+        elif isinstance(data[k], list):
+          for i, v in enumerate(data[k]):
+            data['%s%i' % (k, i + 1)] = v
+          del data[k]
+          flat = False
+        elif isinstance(data[k], dict):
+          for l in data[k]:
+            data['%s%s' % (k, l)] = data[k][l]
+          del data[k]
+          flat = False
+
+  def _get_payload_from_data(self, data):
+    self._flatten(data)
+    payload = {'v': 1}  # Use version 1
+    payload.update(data)
+    return payload
+
+  def _prepare_payloads_for_batch_request(self, payloads):
+    """Merges payloads to send them in a batch request.
+
+    Args:
+        payloads: list of payload, each payload being a dictionary.
+
+    Returns:
+        Concatenated url-encoded payloads. For example:
+
+          param1=value10&param2=value20
+          param1=value11&param2=value21
+    """
+    assert isinstance(payloads, (list, tuple))
+    payloads_utf8 = [sorted([(k, unicode(p[k]).encode('utf-8')) for k in p],
+                            key=lambda t: t[0]) for p in payloads]
+    return '\n'.join([urllib.urlencode(p) for p in payloads_utf8])
+
+  def _send_batch_hits(self, batch_payload, user_agent='CRMint / 0.1'):
+    """Sends a batch request to the Measurement Protocol endpoint.
+
+    NB: Use the the HitBuilder service to validate a Measurement Protocol
+        hit format with the Measurement Protocol Validation Server.
+
+        https://ga-dev-tools.appspot.com/hit-builder/
+
+    Args:
+        batch_payload: list of payloads, each payload being a list of key/values
+            tuples to pass to the Measurement Protocol batch endpoint.
+        user_agent: string representing the client User Agent.
+
+    Raises:
+        MeasurementProtocolException: if the HTTP request fails.
+    """
+    headers = {'user-agent': user_agent}
+    if self._debug:
+      for payload in batch_payload.split('\n'):
+        response = requests.post(
+            'https://www.google-analytics.com/debug/collect',
+            headers=headers,
+            data=payload)
+        result = json.loads(response.text)
+        if (not result['hitParsingResult'] or
+            not result['hitParsingResult'][0]['valid']):
+          message = ('Invalid payload ("&" characters replaced with new lines):'
+                     '\n\n%s\n\nValidation response:\n\n%s')
+          readable_payload = payload.replace('&', '\n')
+          self.log_warn(message, readable_payload, response.text)
+    else:
+      response = requests.post('https://www.google-analytics.com/batch',
+                               headers=headers,
+                               data=batch_payload)
+
+      if response.status_code != requests.codes.ok:
+        raise MeasurementProtocolException(
+            'Failed to send event hit with status code (%s) and parameters: %s'
+            % (response.status_code, batch_payload))
 
   def _send_payload_list(self, payload_list):
     batch_payload = self._prepare_payloads_for_batch_request(payload_list)
@@ -1124,42 +1128,37 @@ class BQMLTrainer(BQWorker):
     self._begin_and_wait(job)
 
 
-class AdsAPIWorker(Worker):
-  """Abstract Customer Match worker."""
+class AWWorker(Worker):
+  """Abstract AdWords API worker."""
   _MAX_ITEMS_PER_CALL = 10000
 
-  # def _get_ads_api_client(self):
-	# 	global _ADS_API_CLIENT
-	# 	token_client = self._get_token_client()
-	# 	if not _ADS_API_CLIENT:
-	# 		_ADS_API_CLIENT = adwords.AdWordsClient(
-  #       developer_token=self._params['developer_token'].strip(),
-  #       oauth2_client=token_client,
-  #       user_agent="CRMint",
-  #       client_customer_id=self._params['client_customer_id'].strip(),
-  #       cache=zeep.cache.InMemoryCache()
-  #     )
-  def _get_ads_api_client(self):
-    yaml_string = AdsAPISettingsBuilder.build(self._params)
-    ads_api_client = adwords.AdWordsClient.LoadFromString(yaml_string)
-    ads_api_client.cache = zeep.cache.InMemoryCache()
-    return ads_api_client
+  GLOBAL_SETTINGS = ['google_ads_refresh_token', 'client_id', 'client_secret',
+                     'developer_token']
 
 
-class AdsAPISettingsBuilder(object):
-  """Class that builds a YAML string from a dictionary"""
-  @staticmethod
-  def build(params):
-    string = "adwords:\n"
-    string += '  client_customer_id: ' + params['client_customer_id'].strip() + '\n'
-    string += '  developer_token: ' + params['developer_token'].strip() + '\n'
-    string += '  client_id: ' + params['client_id'].strip() + '\n'
-    string += '  client_secret: ' + params['client_secret'].strip() + '\n'
-    string += '  refresh_token: ' + params['google_ads_refresh_token'].strip()
-    return string
+  def _aw_setup(self):
+    """Create AdWords API client."""
+    # Throw exception if one or more AdWords global params are missing.
+    for name in self.GLOBAL_SETTINGS:
+      if not name in self._params or not self._params[name]:
+        raise WorkerException(
+            "One or more AdWords API global parameters are missing.")
+    client_params_dict = {
+        'adwords': {
+            'client_customer_id': self._params['client_customer_id'].strip(),
+            'developer_token': self._params['developer_token'].strip(),
+            'client_id': self._params['client_id'].strip(),
+            'client_secret': self._params['client_secret'].strip(),
+            'refresh_token': self._params['google_ads_refresh_token'].strip(),
+        }
+    }
+    client_params_yaml = yaml.safe_dump(client_params_dict, encoding='utf-8',
+                                        allow_unicode=True)
+    self._aw_client = adwords.AdWordsClient.LoadFromString(client_params_yaml)
+    self._aw_client.cache = zeep.cache.InMemoryCache()
 
 
-class BQToCM(AdsAPIWorker, BQWorker):
+class BQToCM(AWWorker, BQWorker):
   """Customer Match worker."""
 
   PARAMS = [
@@ -1168,232 +1167,147 @@ class BQToCM(AdsAPIWorker, BQWorker):
       ('bq_table_id', 'string', True, '', 'BQ Table ID'),
       ('client_customer_id', 'string', True, '', 'Google Ads Customer ID'),
       ('list_name', 'string', True, '', 'Audience List Name'),
-      ('encrypted_data', 'boolean', True, False, 'Are fields hashed already?'),
-      ('remove_data', 'boolean', True, False, 'Remove data from existing Audience List'),
+      ('upload_key_type', 'string', True, 'CONTACT_INFO',
+       'Matching key type: CONTACT_INFO, CRM_ID, or MOBILE_ADVERTISING_ID'),
+      ('membership_life_span', 'number', True, 10000,
+       'Membership Life Span, days'),
+      ('remove_data', 'boolean', True, False,
+       'Remove data from existing Audience List'),
+      ('app_id', 'string', False, '', 'Mobile application ID'),
   ]
-
-  GLOBAL_SETTINGS = ['google_ads_refresh_token', 'client_id', 'client_secret', 'developer_token']
 
   # BigQuery batch size for querying results. Default to 10000.
   BQ_BATCH_SIZE = int(10000)
 
   # Customer Match list fields
-  EMAIL = 'Email'
-  PHONE = 'Phone'
-  MOBILE_ID = 'MobileId'
-  USER_ID = 'UserId'
-  FIRST_NAME = 'FirstName'
-  LAST_NAME = 'LastName'
-  COUNTRY_CODE = 'CountryCode'
-  ZIP_CODE = 'ZipCode'
-  LIST_LABEL = 'List'
+  FIELDS = {
+      'hashedEmail': False,
+      'hashedPhoneNumber': False,
+      'hashedFirstName': True,
+      'hashedLastName': True,
+      'countryCode': True,
+      'zipCode': True,
+      'mobileId': False,
+      'userId': False,
+  }
 
-  # Default Values
-  GENERIC_LIST = 'CM TEST - Generic List from the API'
+  def _to_camel_case(self, input_string):
+    """Convert input string to snake case."""
+    camel = re.sub(r'_\w', lambda m: m.group()[1].upper(), input_string)
+    return camel[0].lower() + camel[1:]
 
   def _normalize_and_sha256(self, input_string):
-    """Normalizes (lowercase, remove whitespace) and hashes a string with SHA-256.
-
-    Args:
-      s: The string to perform this operation on.
-
-    Returns:
-      A normalized and SHA-256 hashed string.
-    """
+    """Strip whitespaces, lowercase, and return SHA-256 hash."""
     return hashlib.sha256(input_string.strip().lower()).hexdigest()
 
-  def _generate_list_data_structure(self):
-    data_structure = {}
-    data_structure['emails'] = []
-    data_structure['phones'] = []
-    data_structure['mobile_ids'] = []
-    data_structure['user_ids'] = []
-    data_structure['addresses'] = []
-    return data_structure
-
-
-  def _read_query_data(self, query_data, fields, worker_params):
-    """Reads customer data from query_data and stores it in memory.
+  def _read_page_data(self, page_data, fields):
+    """Reads user list members from data fetched from a BigQuery table.
 
     Args:
-      query_data: BQ table page data.
-      fields: columns names
-      worker_params: params from worker's UI
+      page_data: BQ table page data.
+      fields: Columns names.
+
     Returns:
-      customer_data: Processed data from BQ table page.
+      members: User list member dicts read from the BQ table page.
     """
-    customer_data = {}
-    list_data = []
+    fields_camel_case = [self._to_camel_case(f) for f in fields]
+    members = []
+    for row in page_data:
+      data = dict(zip(fields_camel_case, row))
+      member = {}
+      for field in self.FIELDS:
+        if field in data and data[field]:
+          if self.FIELDS[field]:
+            try:
+              member['addressInfo'][field] = data[field]
+            except KeyError:
+              member['addressInfo'] = {field: data[field]}
+          else:
+            member[field] = data[field]
+      if member:
+        members.append(member)
+    self.log_info('%d user list members has been read from %d table lines.',
+                  len(members), page_data.num_items)
+    return members
 
-    line_count = 0
-    for row in query_data:
-      data = dict(zip(fields, row))
-
-      if not customer_data.get(worker_params["list_name"]):
-        # init customer_data if needed
-        customer_data[worker_params["list_name"]] = self._generate_list_data_structure()
-      list_data = customer_data[worker_params["list_name"]]
-
-      if data.get(self.EMAIL):
-        if self._params['encrypted_data']:
-          list_data['emails'].append({'hashedEmail': data[self.EMAIL]})
-        else:
-          list_data['emails'].append({'hashedEmail': self._normalize_and_sha256(data[self.EMAIL])})
-
-      if data.get(self.PHONE):
-        if self._params['encrypted_data']:
-          list_data['phones'].append({'hashedPhoneNumber': data[self.PHONE]})
-        else:
-          list_data['phones'].append(
-              {'hashedPhoneNumber': self._normalize_and_sha256(data[self.PHONE])})
-
-      if data.get(self.MOBILE_ID):
-        list_data['mobile_ids'].append({'mobileId': data[self.MOBILE_ID]})
-      if data.get(self.USER_ID):
-        list_data['user_ids'].append({'userId': data[self.USER_ID]})
-      if (data.get(self.FIRST_NAME) and data.get(self.LAST_NAME) and
-          data.get(self.COUNTRY_CODE) and data.get(self.ZIP_CODE)):
-        address = {}
-        if self._params['encrypted_data']:
-          address['hashedFirstName'] = data[self.FIRST_NAME]
-          address['hashedLastName'] = data[self.LAST_NAME]
-        else:
-          address['hashedFirstName'] = self._normalize_and_sha256(data[self.FIRST_NAME])
-          address['hashedLastName'] = self._normalize_and_sha256(data[self.LAST_NAME])
-        address['CountryCode'] = data[self.COUNTRY_CODE]
-        address['ZipCode'] = data[self.ZIP_CODE]
-        list_data['addresses'].append(address)
-
-      line_count += 1
-
-    self.log_info('Processed %d lines from table.', line_count)
-
-    return customer_data
-
-  def _upload_data(self, list_name, customer_data, is_remove_data):
-    """Uploads processed data to the specified list and creates it if necessary.
-
-    Args:
-      client: Adwords API client used to create and mutate the user list.
-      list_name: The name of the user list to modify.
-      customer_data: Processed customer data to be uploaded.
-    Returns:
-      None.
-    """
-    ads_api_client = self._get_ads_api_client()
-    # Initialize appropriate services.
-    user_list_service = ads_api_client.GetService('AdwordsUserListService', 'v201809')
-
-    # Check if the list already exists
+  def _get_user_list(self, user_list_service):
+    """Get or create the Customer Match list."""
+    # Check if the list already exists.
     selector = {
         'fields': ['Name', 'Id'],
         'predicates': [{
             'field': 'Name',
             'operator': 'EQUALS',
-            'values': list_name
+            'values': self._params['list_name'],
         }],
     }
     result = user_list_service.get(selector)
     if result['entries']:
-      self.log_info(
-          'The user list %s is already created and its info was retrieved.',
-          list_name)
-      user_list_id = result['entries'][0]['id']
-    else:
-      self.log_info('The user list %s will be created.', list_name)
-      user_list = {
-          'xsi_type': 'CrmBasedUserList',
-          'name': list_name,
-          'description': 'This is a list of users uploaded from CRMint',
-          # CRM-based user lists can use a membershipLifeSpan of 10000 to indicate
-          # unlimited; otherwise normal values apply.
-          'membershipLifeSpan': 10000,
-          'uploadKeyType': 'CONTACT_INFO'
-      }
+      user_list = result['entries'][0]
+      self.log_info('User list "%s" with ID = %d was found.',
+                    user_list['name'], user_list['id'])
+      return user_list['id']
+    # The list doesn't exist, have to create one.
+    user_list = {
+        'xsi_type': 'CrmBasedUserList',
+        'name': self._params['list_name'],
+        'description': 'This is a list of users created by CRMint',
+        'membershipLifeSpan': self._params['membership_life_span'],
+        'uploadKeyType': self._params['upload_key_type'],
+    }
+    if self._params['upload_key_type'] == 'MOBILE_ADVERTISING_ID':
+      user_list['appId'] = self._params['app_id']
+    # Create an operation to add the user list.
+    operations = [{'operator': 'ADD', 'operand': user_list}]
+    result = user_list_service.mutate(operations)
+    user_list = result['value'][0]
+    self.log_info('The user list "%s" with ID = %d has been created.',
+                  user_list['name'], user_list['id'])
+    return user_list['id']
 
-      # Create an operation to add the user list.
-      operations = [{'operator': 'ADD', 'operand': user_list}]
-      result = user_list_service.mutate(operations)
-      user_list_id = result['value'][0]['id']
-
-    members = []
-    if customer_data['emails']:
-      members.extend(customer_data['emails'])
-    if customer_data['phones']:
-      members.extend(customer_data['phones'])
-    if customer_data['mobile_ids']:
-      members.extend(customer_data['mobile_ids'])
-    if customer_data['user_ids']:
-      members.extend(customer_data['user_ids'])
-    if customer_data['addresses']:
-      members.extend(customer_data['addresses'])
-
-    total_uploaded = 0
-    # Flow control to keep calls within usage limits
+  def _process_page(self, page_data, page_schema):
+    """Upload data fetched from BigQuery table to the Customer Match list."""
+    fields = [f.name for f in page_schema]
+    members = self._read_page_data(page_data, fields)
+    user_list_service = self._aw_client.GetService('AdwordsUserListService',
+                                                   'v201809')
+    user_list_id = self._get_user_list(user_list_service)
+    # Flow control to keep calls within usage limits.
     self.log_info('Starting upload.')
     for i in range(0, len(members), self._MAX_ITEMS_PER_CALL):
-      start = i
-      end = i + self._MAX_ITEMS_PER_CALL
-
-      members_to_upload = members[start:end]
-
+      members_to_upload = members[i:i + self._MAX_ITEMS_PER_CALL]
       mutate_members_operation = {
           'operand': {
               'userListId': user_list_id,
-              'membersList': members_to_upload
+              'membersList': members_to_upload,
           },
       }
-      operation_string = ""
-      if is_remove_data:
-        mutate_members_operation["operator"] = 'REMOVE'
-        operation_string = "removed"
+      if self._params["remove_data"]:
+        mutate_members_operation['operator'] = 'REMOVE'
+        operation_string = 'removed from'
       else:
-        mutate_members_operation["operator"] = 'ADD'
-        operation_string = "added"
-
+        mutate_members_operation['operator'] = 'ADD'
+        operation_string = 'added to'
       response = user_list_service.mutateMembers([mutate_members_operation])
-
       if 'userLists' in response:
-        for user_list in response['userLists']:
-          self.log_info(
-              '%d members were %s to user list with name "%s" & ID "%d".',
-              len(members_to_upload), operation_string, user_list['name'], user_list['id'])
-        total_uploaded += len(members_to_upload)
-
-  def _check_global_params(self):
-    """If one or more global params are missing, we need to raise an exception and alert the user"""
-    if \
-    not self._params['client_id'] \
-    or self._params['client_id']=="" \
-    or not self._params['client_secret'] \
-    or self._params['client_secret']=="" \
-    or not self._params['google_ads_refresh_token'] \
-    or self._params['google_ads_refresh_token']=="" \
-    or not self._params['developer_token'] \
-    or self._params['developer_token']=="":
-      raise WorkerException("One or more global parameters are missing.")
-
-  def _process_query_results(self, query_data, query_schema):
-    """Sends event hits from query data."""
-    fields = [f.name for f in query_schema]
-    payload_list = []
-    customer_data = self._read_query_data(query_data, fields, self._params)
-    for name in customer_data:
-        self._upload_data(name, customer_data[name], self._params["remove_data"])
+        user_list = response['userLists'][0]
+        self.log_info(
+            '%d members were %s user list "%s" with ID = %d.',
+            len(members_to_upload), operation_string, user_list['name'],
+            user_list['id'])
 
   def _execute(self):
-    self._check_global_params()
-    self._get_ads_api_client()
+    self._aw_setup()
     self._bq_setup()
     self._table.reload()
     page_token = self._params.get('bq_page_token', None)
-    query_iterator = self.retry(self._table.fetch_data, max_retries=1)(
+    page_iterator = self.retry(self._table.fetch_data, max_retries=1)(
         max_results=self.BQ_BATCH_SIZE,
         page_token=page_token)
-    query_first_page = next(query_iterator.pages)
-    self._process_query_results(query_first_page, query_iterator.schema)
-    # Updates the page token reference for the next iteration.
-    page_token = query_iterator.next_page_token
-    if page_token:   
+    page = next(page_iterator.pages)
+    self._process_page(page, page_iterator.schema)
+    # Update the page token reference for the next iteration.
+    page_token = page_iterator.next_page_token
+    if page_token:
       self._params['bq_page_token'] = page_token
       self._enqueue(self.__class__.__name__, self._params, 0)
