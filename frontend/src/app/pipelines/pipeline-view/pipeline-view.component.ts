@@ -132,7 +132,7 @@ export class PipelineViewComponent implements OnInit {
   export() {
     this.pipelinesService.exportPipeline(this.pipeline.id)
                          .then(res => {
-                           const blob = new Blob([JSON.stringify(res, null, 2)], { type: 'application/json' });
+                           const blob = new Blob([JSON.stringify(res.body, null, 2)], { type: 'application/json' });
                            const a = document.getElementById('crmi-download');
                            const url = window.URL.createObjectURL(blob);
                            a.setAttribute('href', url);

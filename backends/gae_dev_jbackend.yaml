@@ -13,6 +13,9 @@ libraries:
     version: "latest"
   - name: ssl
     version: "latest"
+  - name: lxml
+    version: "latest"
+
 
 env_variables:
   FLASK_DEBUG: 1
