@@ -13,7 +13,6 @@
 // limitations under the License.
 
 import { Injectable } from '@angular/core';
-import { Http, Headers, RequestOptions } from '@angular/http';
 
 import { ApiService } from 'app/api.service';
 import { Config, Setting } from 'app/config';
@@ -27,23 +26,23 @@ export class SettingsService extends ApiService {
   private settingsUrl = `${this.host}/general_settings`;
 
   getConfigData(): Promise<Config> {
+    this.removeContentTypeHeader();
     return this.http.get(this.configUrl)
                .toPromise()
-               .then(response => response.json() as Config)
                .catch(this.handleError);
   }
 
   saveVariables(variables: Param[]): Promise<Param[]> {
+    this.addContentTypeHeader();
     return this.http.put(this.variablesUrl, {variables: variables})
                .toPromise()
-               .then(response => response.json() as Param[])
                .catch(this.handleError);
   }
 
   saveSettings(settings: Setting[]) {
+    this.addContentTypeHeader();
     return this.http.put(this.settingsUrl, {settings: settings})
                .toPromise()
-               .then(response => response.json())
                .catch(this.handleError);
   }
 }

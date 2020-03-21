@@ -14,9 +14,9 @@
 
 /* tslint:disable:no-unused-variable */
 import { async, ComponentFixture, TestBed } from '@angular/core/testing';
-import { By } from '@angular/platform-browser';
-import { DebugElement } from '@angular/core';
-
+import { HttpClientModule } from '@angular/common/http';
+import { FormsModule, ReactiveFormsModule } from '@angular/forms';
+import { WorkersService } from '../../shared/workers.service';
 import { WorkerParamsComponent } from './worker-params.component';
 
 describe('WorkerParamsComponent', () => {
@@ -25,6 +25,14 @@ describe('WorkerParamsComponent', () => {
 
   beforeEach(async(() => {
     TestBed.configureTestingModule({
+      imports: [
+        FormsModule,
+        HttpClientModule,
+        ReactiveFormsModule
+      ],
+      providers: [
+        WorkersService
+      ],
       declarations: [ WorkerParamsComponent ]
     })
     .compileComponents();

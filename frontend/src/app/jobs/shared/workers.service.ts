@@ -15,8 +15,6 @@
 import { Injectable } from '@angular/core';
 
 import { ApiService } from 'app/api.service';
-import { Param } from 'app/models/param';
-import 'rxjs/add/operator/toPromise';
 
 @Injectable()
 export class WorkersService extends ApiService {
@@ -24,16 +22,16 @@ export class WorkersService extends ApiService {
   private url = `${this.getHost()}/workers`;
 
   getParamsForWorkerClass(worker_class) {
+    this.removeContentTypeHeader();
     return this.http.get(this.getWorkerParamsUrl(worker_class))
                     .toPromise()
-                    .then(res => res.json() as Param[])
                     .catch(this.handleError);
   }
 
   getWorkers() {
+    this.removeContentTypeHeader();
     return this.http.get(this.url)
                     .toPromise()
-                    .then(res => res.json())
                     .catch(this.handleError);
   }
 

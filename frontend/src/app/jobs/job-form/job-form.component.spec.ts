@@ -14,9 +14,12 @@
 
 /* tslint:disable:no-unused-variable */
 import { async, ComponentFixture, TestBed } from '@angular/core/testing';
-import { By } from '@angular/platform-browser';
-import { DebugElement } from '@angular/core';
-
+import { RouterModule } from '@angular/router';
+import { HttpClientModule } from '@angular/common/http';
+import { FormsModule, ReactiveFormsModule } from '@angular/forms';
+import { JobsService } from '../shared/jobs.service';
+import { PipelinesService } from '../../pipelines/shared/pipelines.service';
+import { WorkersService } from '../shared/workers.service';
 import { JobFormComponent } from './job-form.component';
 
 describe('JobFormComponent', () => {
@@ -25,6 +28,17 @@ describe('JobFormComponent', () => {
 
   beforeEach(async(() => {
     TestBed.configureTestingModule({
+      imports: [
+        FormsModule,
+        HttpClientModule,
+        ReactiveFormsModule,
+        RouterModule.forRoot([])
+      ],
+      providers: [
+        JobsService,
+        PipelinesService,
+        WorkersService
+      ],
       declarations: [ JobFormComponent ]
     })
     .compileComponents();

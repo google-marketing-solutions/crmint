@@ -8,7 +8,7 @@
       <div class="crmi-loading-block">
         <mat-progress-spinner
           strokeWidth="10"
-          style="width:50px;height:50px"
+          style="width:100px;height:100px;"
           mode="indeterminate">
         </mat-progress-spinner>
         Loading data...
@@ -50,7 +50,7 @@
                 <input matInput placeholder="Cron" formControlName="cron">
                 <mat-hint>{{schedulesLairs.controls[i].get('cron').value | prettycron}}</mat-hint>
               </mat-form-field>
-              <button mat-icon-button type="button" (click)="removeSchedule(i)">
+              <button mat-icon-button type="button" class="close-button" (click)="removeSchedule(i)">
                 <mat-icon>close</mat-icon>
               </button>
             </div>

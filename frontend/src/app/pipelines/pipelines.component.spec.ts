@@ -13,7 +13,9 @@
 // limitations under the License.
 
 import { async, ComponentFixture, TestBed } from '@angular/core/testing';
-
+import { AppComponent } from './../app.component';
+import { HttpClientModule } from '@angular/common/http';
+import { PipelinesService } from './shared/pipelines.service';
 import { PipelinesComponent } from './pipelines.component';
 
 describe('PipelinesComponent', () => {
@@ -22,7 +24,16 @@ describe('PipelinesComponent', () => {
 
   beforeEach(async(() => {
     TestBed.configureTestingModule({
-      declarations: [ PipelinesComponent ]
+      imports: [
+        HttpClientModule
+      ],
+      providers: [
+        PipelinesService
+      ],
+      declarations: [
+        AppComponent,
+        PipelinesComponent
+      ]
     })
     .compileComponents();
   }));

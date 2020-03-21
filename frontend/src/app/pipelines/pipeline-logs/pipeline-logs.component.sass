@@ -7,7 +7,11 @@
   border-top: 1px solid #eee
   border-bottom: 1px solid #eee
   margin-bottom: 10px
-  padding: 10px 54px 0
+  padding: 10px 35px 0
+  .mat-form-field
+    margin-right: 10px
+  .mat-select
+    margin-right: 10px
   & > .mat-select
     width: 180px
   & > .mat-form-field.search-field
@@ -19,6 +23,8 @@
   // padding-left: 25px
   .crmi-log-load-more-wrap
     text-align: center
+    margin-bottom: 10px
+    margin-top: 10px
   .crmi-log-load-more-btn
     // text-align: center
   .crmi-log-header
@@ -33,7 +39,7 @@
     .crmi-log-header-message
       margin-left: 47px
   .crmi-log-item
-    padding: 7px 52px 1px
+    padding: 7px 52px
     border-bottom: 1px solid #ddd
     &:hover
       background-color: cornsilk
@@ -42,7 +48,7 @@
       vertical-align: top
       width: 1060px
       font-size: 13px
-      padding-top: 6px
+      padding: 6px 0
       .crmi-log-item-timestamp, .crmi-log-item-message, .crmi-log-item-label
         flex: 0 0 auto
         display: inline-block
@@ -73,3 +79,6 @@
     &.crmi-log-item-error
       .mat-icon
         color: #CD3030
+
+.crmi-no-log-items
+  padding-bottom: 10px
