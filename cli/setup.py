@@ -28,7 +28,7 @@ setup(
     include_package_data=True,
     install_requires=[
         "Click==7.0",
-        "Flask==0.12.2",
+        "Flask==1.0",
         "requests==2.18.4",
     ],
     entry_points="""
