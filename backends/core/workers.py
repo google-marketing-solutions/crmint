@@ -340,7 +340,7 @@ class StorageToBQImporter(StorageWorker, BQWorker):
 
   PARAMS = [
       ('source_uris', 'string_list', '', True,
-       'Hello 2 Source CSV or JSON files URIs (e.g. gs://bucket/data.csv)'),
+       'Source CSV or JSON files URIs (e.g. gs://bucket/data.csv)'),
       ('bq_project_id', 'string', False, '', 'BQ Project ID'),
       ('bq_dataset_id', 'string', True, '', 'BQ Dataset ID'),
       ('bq_table_id', 'string', True, '', 'BQ Table ID'),
