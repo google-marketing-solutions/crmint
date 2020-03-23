@@ -1167,11 +1167,11 @@ class BQToCM(AWWorker, BQWorker):
       ('list_name', 'string', True, '', 'Audience List Name'),
       ('upload_key_type', 'string', True, 'CONTACT_INFO',
        'Matching key type: CONTACT_INFO, CRM_ID, or MOBILE_ADVERTISING_ID'),
+      ('app_id', 'string', False, '', 'Mobile application ID'),
       ('membership_life_span', 'number', True, 10000,
        'Membership Life Span, days'),
       ('remove_data', 'boolean', True, False,
        'Remove data from existing Audience List'),
-      ('app_id', 'string', False, '', 'Mobile application ID'),
   ]
 
   # BigQuery batch size for querying results. Default to 10000.
