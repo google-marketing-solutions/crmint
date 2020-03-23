@@ -18,10 +18,8 @@ from datetime import datetime
 from datetime import timedelta
 from fnmatch import fnmatch
 from functools import wraps
-import hashlib
 import json
 import os
-import re
 from random import random
 import time
 import urllib
@@ -1179,57 +1177,6 @@ class BQToCM(AWWorker, BQWorker):
   # BigQuery batch size for querying results. Default to 10000.
   BQ_BATCH_SIZE = int(10000)
 
-  # Customer Match list fields
-  FIELDS = {
-      'hashedEmail': False,
-      'hashedPhoneNumber': False,
-      'hashedFirstName': True,
-      'hashedLastName': True,
-      'countryCode': True,
-      'zipCode': True,
-      'mobileId': False,
-      'userId': False,
-  }
-
-  def _to_camel_case(self, input_string):
-    """Convert input string to snake case."""
-    camel = re.sub(r'_\w', lambda m: m.group()[1].upper(), input_string)
-    return camel[0].lower() + camel[1:]
-
-  def _normalize_and_sha256(self, input_string):
-    """Strip whitespaces, lowercase, and return SHA-256 hash."""
-    return hashlib.sha256(input_string.strip().lower()).hexdigest()
-
-  def _read_page_data(self, page_data, fields):
-    """Reads user list members from data fetched from a BigQuery table.
-
-    Args:
-      page_data: BQ table page data.
-      fields: Columns names.
-
-    Returns:
-      members: User list member dicts read from the BQ table page.
-    """
-    fields_camel_case = [self._to_camel_case(f) for f in fields]
-    members = []
-    for row in page_data:
-      data = dict(zip(fields_camel_case, row))
-      member = {}
-      for field in self.FIELDS:
-        if field in data and data[field]:
-          if self.FIELDS[field]:
-            try:
-              member['addressInfo'][field] = data[field]
-            except KeyError:
-              member['addressInfo'] = {field: data[field]}
-          else:
-            member[field] = data[field]
-      if member:
-        members.append(member)
-    self.log_info('%d user list members has been read from %d table lines.',
-                  len(members), page_data.num_items)
-    return members
-
   def _get_user_list(self, user_list_service):
     """Get or create the Customer Match list."""
     # Check if the list already exists.
@@ -1265,10 +1212,21 @@ class BQToCM(AWWorker, BQWorker):
                   user_list['name'], user_list['id'])
     return user_list['id']
 
-  def _process_page(self, page_data, page_schema):
+  def _process_page(self, page_data):
     """Upload data fetched from BigQuery table to the Customer Match list."""
-    fields = [f.name for f in page_schema]
-    members = self._read_page_data(page_data, fields)
+
+    def remove_nones(obj):
+      """Remove all None and empty dict values from a dict recursively."""
+      if not isinstance(obj, dict):
+        return obj
+      clean_obj = {}
+      for k in obj:
+        v = remove_nones(obj[k])
+        if v is not None:
+          clean_obj[k] = v
+      return clean_obj if clean_obj else None
+
+    members = [remove_nones(row[0]) for row in page_data]
     user_list_service = self._aw_client.GetService('AdwordsUserListService',
                                                    'v201809')
     user_list_id = self._get_user_list(user_list_service)
@@ -1305,7 +1263,7 @@ class BQToCM(AWWorker, BQWorker):
         max_results=self.BQ_BATCH_SIZE,
         page_token=page_token)
     page = next(page_iterator.pages)
-    self._process_page(page, page_iterator.schema)
+    self._process_page(page)
     # Update the page token reference for the next iteration.
     page_token = page_iterator.next_page_token
     if page_token:
