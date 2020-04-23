@@ -1290,27 +1290,27 @@ class AutoMLWorker(Worker):
   def _get_full_model_name(project, location, model):
     """Constructs the fully-qualified name for the given AutoML model."""
     return "projects/{project}/locations/{location}/models/{model}".format(
-      project=project,
-      location=location,
-      model=model,
+        project=project,
+        location=location,
+        model=model,
     )
 
 
 class AutoMLPredictor(AutoMLWorker):
-  """Worker that creates an AutoML batch prediction job."""
+  """Worker to run AutoML batch prediction jobs."""
 
   PARAMS = [
-    ('model_project_id', 'string', True, '', 'AutoML Project ID'),
-    ('model_location', 'string', True, '', 'AutoML Model Location'),
-    ('model_id', 'string', True, '', 'AutoML Model ID'),
-    ('input_bq_uri', 'string', False, '',
-     'Input - BigQuery Table URI (e.g. bq://projectId/dataset/table)'),
-    ('input_gcs_uri', 'string', False, '',
-     'Input - Cloud Storage CSV URI (e.g. gs://bucket/directory/file.csv)'),
-    ('output_bq_project_uri', 'string', False, '',
-     'Output - BigQuery Project URI (e.g. bq://projectId)'),
-    ('output_gcs_uri_prefix', 'string', False, '',
-     'Output - Cloud Storage output directory (e.g. gs://bucket/directory'),
+      ('model_project_id', 'string', True, '', 'AutoML Project ID'),
+      ('model_location', 'string', True, '', 'AutoML Model Location'),
+      ('model_id', 'string', True, '', 'AutoML Model ID'),
+      ('input_bq_uri', 'string', False, '',
+       'Input - BigQuery Table URI (e.g. bq://projectId/dataset/table)'),
+      ('input_gcs_uri', 'string', False, '',
+       'Input - Cloud Storage CSV URI (e.g. gs://bucket/directory/file.csv)'),
+      ('output_bq_project_uri', 'string', False, '',
+       'Output - BigQuery Project URI (e.g. bq://projectId)'),
+      ('output_gcs_uri_prefix', 'string', False, '',
+       'Output - Cloud Storage output directory (e.g. gs://bucket/directory)'),
   ]
 
   def _execute(self):
@@ -1319,8 +1319,8 @@ class AutoMLPredictor(AutoMLWorker):
                                            self._params['model_location'],
                                            self._params['model_id'])
     body = {
-      'inputConfig':  self._generate_input_config(),
-      'outputConfig': self._generate_output_config()
+        'inputConfig': self._generate_input_config(),
+        'outputConfig': self._generate_output_config()
     }
 
     # Launch the prediction and retrieve its operation name so we can track it.
