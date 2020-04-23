@@ -1344,7 +1344,7 @@ class AutoMLPredictor(AutoMLWorker):
     elif input_gcs_uri and not input_bq_uri:
       return {'gcs_source': {'input_uris': [input_gcs_uri]}}
     else:
-      self.log_error('Provide either a BigQuery or GCS input source.')
+      raise WorkerException('Provide either a BigQuery or GCS source.')
 
   def _generate_output_config(self):
     """Constructs the output configuration for the batch prediction request."""
@@ -1356,7 +1356,7 @@ class AutoMLPredictor(AutoMLWorker):
     elif output_gcs_uri_prefix and not output_bq_project_uri:
       return {'gcs_destination': {'output_uri_prefix': output_gcs_uri_prefix}}
     else:
-      self.log_error('Provide either a BigQuery or GCS output destination.')
+      raise WorkerException('Provide either a BigQuery or GCS destination.')
 
 
 class AutoMLWaiter(AutoMLWorker):
@@ -1371,8 +1371,7 @@ class AutoMLWaiter(AutoMLWorker):
 
     if response.get('done'):
       if response.get('error'):
-        # TODO: Make the worker fail when the underlying operation failed
-        self.log_error('AutoML operation failed: %s', response),
+        raise WorkerException('AutoML operation failed: %s' % response)
       else:
         self.log_info('AutoML operation completed successfully: %s', response)
     else:
