@@ -1312,26 +1312,10 @@ class AutoMLPredictor(AutoMLWorker):
   ]
 
   def _execute(self):
-    # TODO: Remove this
-    self._params = {
-      'model_project_id': 'simon-crmint-demo',
-      'model_location': 'us-central1',
-      'model_id': 'TBL979598889650749440',
-      # An URI of a BigQuery table
-      'input_bq_uri': 'bq://simon-crmint-demo.abalone.abalone',
-      # Required. Google Cloud Storage URIs to input files, up to 2000 characters long. Accepted forms: * Full object path, e.g. gs://bucket/directory/object.csv
-      'input_gcs_uri': None,
-      # BigQuery URI to a project, up to 2000 characters long. Accepted forms: * BigQuery path e.g. bq://projectId
-      'output_bq_project_uri': 'bq://simon-crmint-demo',
-      # Required. Google Cloud Storage URI to output directory, up to 2000 characters long. Accepted forms: * Prefix path: gs://bucket/directory The requesting user must have write permission to the bucket. The directory is created if it doesn't exist.
-      'output_gcs_uri_prefix': None,
-    }
-
     # Construct the fully-qualified model name and config for the prediction.
     model_name = self._get_full_model_name(self._params['model_project_id'],
                                            self._params['model_location'],
                                            self._params['model_id'])
-
     body = {
       'inputConfig':  self._generate_input_config(),
       'outputConfig': self._generate_output_config()
