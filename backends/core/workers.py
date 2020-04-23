@@ -1327,8 +1327,6 @@ class AutoMLPredictor(AutoMLWorker):
       'output_gcs_uri_prefix': None,
     }
 
-    client = self._get_automl_client()
-
     # Construct the fully-qualified model name and config for the prediction.
     model_name = self._get_full_model_name(self._params['model_project_id'],
                                            self._params['model_location'],
@@ -1340,13 +1338,16 @@ class AutoMLPredictor(AutoMLWorker):
     }
 
     # Launch the prediction and retrieve its operation name so we can track it.
+    client = self._get_automl_client()
     response = client.projects().locations().models() \
                      .batchPredict(name=model_name, body=body).execute()
-    operation_name = response.get('name')
+
+    self.log_info('Launched batch prediction job: %s -> %s', body, response)
 
     # Since the batch prediction might take more than the 10 minutes the job
     # service has to serve a response to the Push Queue, we can't wait on it
     # here. We thus spawn a worker that waits until the operation is completed.
+    operation_name = response.get('name')
     self._enqueue('AutoMLWaiter', {'operation_name': operation_name}, 60)
 
   def _generate_input_config(self):
@@ -1381,19 +1382,15 @@ class AutoMLWaiter(AutoMLWorker):
     client = self._get_automl_client()
     operation_name = self._params['operation_name']
 
-    # TODO: REmove me
-    #operation_name = 'projects/248682452479/locations/us-central1/operations/TBL3212560770617311232'
-
     response = client.projects().locations().operations() \
                      .get(name=operation_name).execute()
 
     if response.get('done'):
       if response.get('error'):
         # TODO: Make the worker fail when the underlying operation failed
-        self.log_error('AutoML operation %s failed with error %s',
-                       operation_name, response.get('error'))
+        self.log_error('AutoML operation failed: %s', response),
       else:
-        self.log_info('AutoML operation %s completed %s',
-                      operation_name, response.get('metadata'))
+        self.log_info('AutoML operation completed successfully: %s', response)
     else:
+      self.log_info('AutoML operation still running: %s', response)
       self._enqueue('AutoMLWaiter', self._params, 60)
