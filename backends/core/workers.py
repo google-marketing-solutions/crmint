@@ -41,6 +41,7 @@ import zeep.cache
 _KEY_FILE = os.path.join(os.path.dirname(__file__), '..', 'data',
                          'service-account.json')
 AVAILABLE = (
+    'AutoMLPredictor',
     'BQMLTrainer',
     'BQQueryLauncher',
     'BQToCM',
