@@ -1269,3 +1269,130 @@ class BQToCM(AWWorker, BQWorker):
     if page_token:
       self._params['bq_page_token'] = page_token
       self._enqueue(self.__class__.__name__, self._params, 0)
+
+
+class AutoMLWorker(Worker):
+  """Abstract AutoML worker."""
+
+  @staticmethod
+  def _get_automl_client():
+    """Constructs a Resource for interacting with the AutoML API."""
+    # You might be wondering why we're using the discovery-based Google API
+    # client library as opposed to the more modern Google Cloud client library.
+    # The reason is that the modern client libraries (e.g. google-cloud-automl)
+    # are not supported on App Engine's Python 2 runtime.
+    # See: https://github.com/googleapis/google-cloud-python
+    credentials = ServiceAccountCredentials.from_json_keyfile_name(_KEY_FILE)
+    return build('automl', 'v1beta1', credentials=credentials)
+
+  @staticmethod
+  def _get_full_model_name(project, location, model):
+    """Constructs the fully-qualified name for the given AutoML model."""
+    return "projects/{project}/locations/{location}/models/{model}".format(
+      project=project,
+      location=location,
+      model=model,
+    )
+
+
+class AutoMLPredictor(AutoMLWorker):
+  """Worker that creates an AutoML batch prediction job."""
+
+  PARAMS = [
+    ('model_project_id', 'string', True, '', 'AutoML Project ID'),
+    ('model_location', 'string', True, '', 'AutoML Model Location'),
+    ('model_id', 'string', True, '', 'AutoML Model ID'),
+    ('input_bq_uri', 'string', False, '', 'Input - BigQuery Table URI'),
+    ('input_gcs_uri', 'string', False, '', 'Input - Cloud Storage CSV URI'),
+    ('output_bq_project_uri', 'string', False, '',
+     'Output - BigQuery Project URI (e.g. bq://projectId)'),
+    ('output_gcs_uri_prefix', 'string', False, '',
+     'Output - Cloud Storage output directory (e.g. gs://bucket/directory'),
+  ]
+
+  def _execute(self):
+    # TODO: Remove this
+    self._params = {
+      'model_project_id': 'simon-crmint-demo',
+      'model_location': 'us-central1',
+      'model_id': 'TBL979598889650749440',
+      # An URI of a BigQuery table
+      'input_bq_uri': 'bq://simon-crmint-demo.abalone.abalone',
+      # Required. Google Cloud Storage URIs to input files, up to 2000 characters long. Accepted forms: * Full object path, e.g. gs://bucket/directory/object.csv
+      'input_gcs_uri': None,
+      # BigQuery URI to a project, up to 2000 characters long. Accepted forms: * BigQuery path e.g. bq://projectId
+      'output_bq_project_uri': 'bq://simon-crmint-demo',
+      # Required. Google Cloud Storage URI to output directory, up to 2000 characters long. Accepted forms: * Prefix path: gs://bucket/directory The requesting user must have write permission to the bucket. The directory is created if it doesn't exist.
+      'output_gcs_uri_prefix': None,
+    }
+
+    client = self._get_automl_client()
+
+    # Construct the fully-qualified model name and config for the prediction.
+    model_name = self._get_full_model_name(self._params['model_project_id'],
+                                           self._params['model_location'],
+                                           self._params['model_id'])
+
+    body = {
+      'inputConfig':  self._generate_input_config(),
+      'outputConfig': self._generate_output_config()
+    }
+
+    # Launch the prediction and retrieve its operation name so we can track it.
+    response = client.projects().locations().models() \
+                     .batchPredict(name=model_name, body=body).execute()
+    operation_name = response.get('name')
+
+    # Since the batch prediction might take more than the 10 minutes the job
+    # service has to serve a response to the Push Queue, we can't wait on it
+    # here. We thus spawn a worker that waits until the operation is completed.
+    self._enqueue('AutoMLWaiter', {'operation_name': operation_name}, 60)
+
+  def _generate_input_config(self):
+    """Constructs the input configuration for the batch prediction request."""
+    input_bq_uri = self._params['input_bq_uri']
+    input_gcs_uri = self._params['input_gcs_uri']
+
+    if input_bq_uri and not input_gcs_uri:
+      return {'bigquery_source': {'input_uri': input_bq_uri}}
+    elif input_gcs_uri and not input_bq_uri:
+      return {'gcs_source': {'input_uris': [input_gcs_uri]}}
+    else:
+      self.log_error('Provide either a BigQuery or GCS input source.')
+
+  def _generate_output_config(self):
+    """Constructs the output configuration for the batch prediction request."""
+    output_bq_project_uri = self._params['output_bq_project_uri']
+    output_gcs_uri_prefix = self._params['output_gcs_uri_prefix']
+
+    if output_bq_project_uri and not output_gcs_uri_prefix:
+      return {'bigquery_destination': {'output_uri': output_bq_project_uri}}
+    elif output_gcs_uri_prefix and not output_bq_project_uri:
+      return {'gcs_destination': {'output_uri_prefix': output_gcs_uri_prefix}}
+    else:
+      self.log_error('Provide either a BigQuery or GCS output destination.')
+
+
+class AutoMLWaiter(AutoMLWorker):
+  """Worker that keeps respawning until an AutoML operation is completed."""
+
+  def _execute(self):
+    client = self._get_automl_client()
+    operation_name = self._params['operation_name']
+
+    # TODO: REmove me
+    #operation_name = 'projects/248682452479/locations/us-central1/operations/TBL3212560770617311232'
+
+    response = client.projects().locations().operations() \
+                     .get(name=operation_name).execute()
+
+    if response.get('done'):
+      if response.get('error'):
+        # TODO: Make the worker fail when the underlying operation failed
+        self.log_error('AutoML operation %s failed with error %s',
+                       operation_name, response.get('error'))
+      else:
+        self.log_info('AutoML operation %s completed %s',
+                      operation_name, response.get('metadata'))
+    else:
+      self._enqueue('AutoMLWaiter', self._params, 60)
