@@ -30,6 +30,9 @@ OAUTH2_REFRESH_HEADERS = {
 
 
 def get_url(client_id):
+  """ Create oauth client and use this to generate the URL to get the authorisation
+  code using client_id """
+
   oauthlib_client = oauth2.WebApplicationClient(client_id)
   # This is the URL construction for getting the authorisation code
   authorize_url = oauthlib_client.prepare_request_uri(
@@ -39,6 +42,10 @@ def get_url(client_id):
 
 
 def get_token(client_id, client_secret, ads_code):
+  """ Using authentication code retrieved from URL, take code, client_id and
+  client_secret to send HTTP request to fetch refresh token taken from parsed
+  response """
+
   oauthlib_client = oauth2.WebApplicationClient(client_id)
   # Prepare the access token request body --> makes a
   # request to the token endpoint by adding the following parameters

@@ -23,6 +23,7 @@ import os
 from random import random
 import time
 import urllib
+from urllib2 import HTTPError
 import uuid
 import yaml
 
@@ -43,6 +44,7 @@ _KEY_FILE = os.path.join(os.path.dirname(__file__), '..', 'data',
 AVAILABLE = (
     'BQMLTrainer',
     'BQQueryLauncher',
+    'BQToAppConversionAPI',
     'BQToCM',
     'BQToMeasurementProtocol',
     'BQToStorageExporter',
@@ -58,8 +60,8 @@ AVAILABLE = (
     'StorageToBQImporter',
 )
 
-# Defines how many times to retry on failure, default to 5 times.
-DEFAULT_MAX_RETRIES = os.environ.get('MAX_RETRIES', 5)
+# Defines how many times to retry on failure, default to 3 times.
+DEFAULT_MAX_RETRIES = os.environ.get('MAX_RETRIES', 3)
 
 # pylint: disable=too-few-public-methods
 
@@ -80,7 +82,7 @@ class Worker(object):
   GLOBAL_SETTINGS = []
 
   # Maximum number of execution attempts.
-  MAX_ATTEMPTS = 3
+  MAX_ATTEMPTS = 1
 
   def __init__(self, params, pipeline_id, job_id):
     self._pipeline_id = pipeline_id
@@ -141,7 +143,7 @@ class Worker(object):
       while tries < max_retries:
         try:
           return func(*args, **kwargs)
-        except HttpError as e:
+        except HTTPError as e:
           # If it is a client side error, then there's no reason to retry.
           if e.resp.status > 399 and e.resp.status < 500:
             raise e
@@ -964,7 +966,7 @@ class BQToMeasurementProtocol(BQWorker):
     self._table.reload()
     page_token = self._params.get('bq_page_token', None)
     batch_size = self.BQ_BATCH_SIZE
-    query_iterator = self.retry(self._table.fetch_data, max_retries=1)(
+    query_iterator = self.retry(self._table.fetch_data)(
         max_results=batch_size,
         page_token=page_token)
 
@@ -1102,7 +1104,7 @@ class BQToMeasurementProtocolProcessor(BQWorker):
     self._debug = self._params['debug']
     page_token = self._params['bq_page_token'] or None
     batch_size = self._params['bq_batch_size']
-    query_iterator = self.retry(self._table.fetch_data, max_retries=1)(
+    query_iterator = self.retry(self._table.fetch_data)(
         max_results=batch_size,
         page_token=page_token)
     query_first_page = next(query_iterator.pages)
@@ -1259,11 +1261,127 @@ class BQToCM(AWWorker, BQWorker):
     self._bq_setup()
     self._table.reload()
     page_token = self._params.get('bq_page_token', None)
-    page_iterator = self.retry(self._table.fetch_data, max_retries=1)(
+    page_iterator = self.retry(self._table.fetch_data)(
         max_results=self.BQ_BATCH_SIZE,
         page_token=page_token)
     page = next(page_iterator.pages)
     self._process_page(page)
+    # Update the page token reference for the next iteration.
+    page_token = page_iterator.next_page_token
+    if page_token:
+      self._params['bq_page_token'] = page_token
+      self._enqueue(self.__class__.__name__, self._params, 0)
+
+
+class BQToAppConversionAPI(BQWorker):
+  """Worker that sends app conversions to App Conversion Tracking API."""
+
+  PARAMS = [
+      ('bq_project_id', 'string', False, '', 'BQ Project ID'),
+      ('bq_dataset_id', 'string', True, '', 'BQ Dataset ID'),
+      ('bq_table_id', 'string', True, '', 'BQ Table ID'),
+  ]
+  GLOBAL_SETTINGS = ['app_conversion_api_developer_token']
+  CONTENT_TYPE = 'application/json; charset=utf-8'
+  HEADER_PARAMS = ['User_Agent', 'X_Forwarded_For']
+  BODY_PARAM = 'app_event_data'
+  REQUIRED_PARAMS = ['rdid', 'id_type', 'lat', 'app_version', 'os_version',
+                     'sdk_version', 'timestamp', 'link_id', 'app_event_type']
+  OPTIONAL_PARAMS = ['value', 'app_event_name', 'currency_code', 'gclid']
+  API_URL = 'https://www.googleadservices.com/pagead/conversion/app/1.0'
+  # BigQuery batch size for querying results. Default to 10000.
+  BQ_BATCH_SIZE = int(10000)
+
+  def _send_api_requests(self, headers, params, body=None):
+    """Sends app conversion and cross-network attribution requests."""
+    response = requests.post(self.API_URL, headers=headers, params=params,
+                             json=body)
+    if response.status_code != requests.codes.ok:
+      self.log_warn(
+          'Failed to send app conversion request, status code %s.\n'
+          '  Headers: %s\n  Parameters: %s\n  Body: %s'
+          % (response.status_code, headers, params, body)
+      )
+      return
+    result = json.loads(response.text)
+    if not result['attributed']:
+      self.log_warn(
+          'App conversion was not attributed to Google Ads.\n'
+          '  Headers: %s\n  Parameters: %s\n  Body: %s\n  Errors: %s'
+          % (headers, params, body, result['errors'])
+      )
+      return
+
+    self.log_info(
+        'App conversion was attributed to Google Ads.\n'
+        '  Headers: %s\n  Parameters: %s\n  Body: %s\n  Errors: %s'
+        % (headers, params, body, result['errors'])
+    )
+
+    params['ad_event_id'] = result['ad_events'][0]['ad_event_id']
+    params['attributed'] = 1
+    response = requests.post('%s/cross_network' % self.API_URL,
+                             headers=headers, params=params, json=body)
+    if response.status_code != requests.codes.ok:
+      self.log_warn(
+          'Failed to send cross-network attribution request, status code %s.\n'
+          '  Headers: %s\n  Parameters: %s\n  Body: %s'
+          % (response.status_code, headers, params, body)
+      )
+
+  def _process_page(self, page, fields):
+    """Send each row of a BQ table page as a single app conversion."""
+    for values in page:
+      row = dict(zip(fields, values))
+      headers = {'Content-Type': self.CONTENT_TYPE}
+      for param in self.HEADER_PARAMS:
+        if row[param] is not None:
+          headers[param.replace('_', '-')] = row[param]
+        else:
+          self.log_warn(
+              'Missing value for the required header "%s" in table "%s.%s"' % (
+                  param.replace('_', '-'), self._params['bq_dataset_id'],
+                  self._params['bq_table_id']))
+      params = {'dev_token': self._params['app_conversion_api_developer_token']}
+      for param in self.REQUIRED_PARAMS:
+        if row[param] is not None:
+          params[param] = row[param]
+        else:
+          self.log_warn(
+              'Missing value for the required param "%s" in table "%s.%s"' % (
+                  param, self._params['bq_dataset_id'],
+                  self._params['bq_table_id']))
+      for param in self.OPTIONAL_PARAMS:
+        if param in row and row[param] is not None:
+          params[param] = row[param]
+      if self.BODY_PARAM in row and row[self.BODY_PARAM] is not None:
+        body = {self.BODY_PARAM: row[self.BODY_PARAM]}
+      else:
+        body = None
+        headers['Content-Length'] = '0'
+
+      self._send_api_requests(headers, params, body)
+
+  def _execute(self):
+    """Fetch a BQ table page, process it, schedule self for the next page."""
+    if not self._params.get('app_conversion_api_developer_token'):
+      raise WorkerException('App Conversion API developer token is not '
+                            'specified in General Settings.')
+    self._bq_setup()
+    self._table.reload()
+    page_token = self._params.get('bq_page_token', None)
+    page_iterator = self.retry(self._table.fetch_data)(
+        max_results=self.BQ_BATCH_SIZE,
+        page_token=page_token)
+    fields = [field.name for field in page_iterator.schema]
+    for param in self.REQUIRED_PARAMS + self.HEADER_PARAMS:
+      if param not in fields:
+        raise WorkerException(
+            'Required field "%s" not found in table "%s.%s"' % (
+                param, self._params['bq_dataset_id'],
+                self._params['bq_table_id']))
+    page = next(page_iterator.pages)
+    self._process_page(page, fields)
     # Update the page token reference for the next iteration.
     page_token = page_iterator.next_page_token
     if page_token:
