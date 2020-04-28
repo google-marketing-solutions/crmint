@@ -60,7 +60,8 @@ AVAILABLE = (
     'StorageToBQImporter',
 )
 
-# Defines how many times to retry on failure, default to 3 times.
+# Defines how many times to retry a function wrapped in Worker.retry()
+# on failure, 3 times by default.
 DEFAULT_MAX_RETRIES = os.environ.get('MAX_RETRIES', 3)
 
 # pylint: disable=too-few-public-methods
@@ -81,7 +82,7 @@ class Worker(object):
 
   GLOBAL_SETTINGS = []
 
-  # Maximum number of execution attempts.
+  # Maximum number of worker execution attempts.
   MAX_ATTEMPTS = 1
 
   def __init__(self, params, pipeline_id, job_id):
@@ -145,7 +146,7 @@ class Worker(object):
           return func(*args, **kwargs)
         except HTTPError as e:
           # If it is a client side error, then there's no reason to retry.
-          if e.resp.status > 399 and e.resp.status < 500:
+          if e.code > 399 and e.code < 500:
             raise e
         except Exception as e:  # pylint: disable=broad-except
           tries += 1
