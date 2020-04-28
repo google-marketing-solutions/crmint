@@ -132,7 +132,7 @@ class TestAbstractWorker(unittest.TestCase):
     fake_request = mock.Mock()
     fake_request.__name__ = 'foo'
     fake_request.side_effect = _raise_value_error_exception
-    with self.assertRaises(HttpError):
+    with self.assertRaises(HTTPError):
       worker.retry(fake_request)()
     self.assertEqual(fake_request.call_count, 1)
 
