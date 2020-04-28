@@ -18,9 +18,9 @@ import unittest
 from apiclient.errors import HttpError
 import cloudstorage
 from google.appengine.ext import testbed
-from google.cloud.bigquery.dataset import Dataset
 from google.cloud.bigquery.table import Table
 from google.cloud.exceptions import ClientError
+from urllib2 import HTTPError
 import mock
 
 from core import workers
@@ -114,7 +114,7 @@ class TestAbstractWorker(unittest.TestCase):
       worker.retry(fake_request)()
     self.assertGreaterEqual(fake_request.call_count, 2)
 
-  def test_retry_raises_error_if_bad_request_error(self):
+  def test_retry_raises_error_if_bad_request_error_in_apiclient(self):
     worker = workers.Worker({}, 1, 1)
     def _raise_value_error_exception(*args, **kwargs):
       raise HttpError(mock.Mock(status=400), '')
@@ -122,6 +122,17 @@ class TestAbstractWorker(unittest.TestCase):
     fake_request.__name__ = 'foo'
     fake_request.side_effect = _raise_value_error_exception
     with self.assertRaises(HttpError):
+      worker.retry(fake_request)()
+    self.assertEqual(fake_request.call_count, 1)
+
+  def test_retry_raises_error_if_bad_request_error_in_urllib(self):
+    worker = workers.Worker({}, 1, 1)
+    def _raise_value_error_exception(*args, **kwargs):
+      raise HTTPError('http://example.com/', 400, '', [], None)
+    fake_request = mock.Mock()
+    fake_request.__name__ = 'foo'
+    fake_request.side_effect = _raise_value_error_exception
+    with self.assertRaises(HTTPError):
       worker.retry(fake_request)()
     self.assertEqual(fake_request.call_count, 1)
 
