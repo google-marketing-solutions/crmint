@@ -144,6 +144,10 @@ class Worker(object):
       while tries < max_retries:
         try:
           return func(*args, **kwargs)
+        except HttpError as e:
+          # If it is a client side error, then there's no reason to retry.
+          if e.resp.status > 399 and e.resp.status < 500:
+            raise e
         except HTTPError as e:
           # If it is a client side error, then there's no reason to retry.
           if e.code > 399 and e.code < 500:
