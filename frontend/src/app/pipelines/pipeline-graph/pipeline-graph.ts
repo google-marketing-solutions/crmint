@@ -29,13 +29,10 @@ export class PipelineGraph {
   public ctxMenuItemHeight = 36;
 
   // Stage calculated sizes
-  public stWidth = 0;
+  public stWidth = 1200;
   public stHeight = 0;
 
-  constructor(
-    private element: ElementRef
-  ) {
-    this.stWidth = element.nativeElement.firstElementChild.getBoundingClientRect().width - 48;
+  constructor() {
     // const height = this.element.nativeElement.firstElementChild.getBoundingClientRect().height;
   }
 

@@ -1,5 +1,42 @@
-#crmi-pipeline-graph
+.crmi-pipeline-graph
   background: #F5F5F5
   border-top: 1px solid #b2b2b2
-  margin: -24px
-  padding: 24px
+  position: relative
+  overflow: scroll
+  .graph-line
+    position: absolute
+    border: 1px solid #CFD8DC
+    height: 0
+  .job-box
+    width: 220px
+    height: 42px
+    position: absolute
+    border-radius: 5px
+    border: 1px solid #CFD8DC
+    background-color: #fff
+    cursor: pointer
+    color: #212121
+    font-size: 15px
+    display: flex
+    align-items: center
+    &:hover
+      border-color: #21CCCB
+      color: #21CCCB
+    .job-status-icon
+      margin: 0 7px 0 10px
+    .job-name
+      display: block
+      white-space: nowrap
+      overflow: hidden
+      text-overflow: ellipsis
+      flex-grow: 1
+    .job-menu
+      color: #212121
+      height: 42px
+      border-radius: 0 3px 3px 0
+      &:hover
+        background-color: #21CCCB
+      .mat-icon
+        height: 24px
+        width: 24px
+        transform: scale(0.8)
