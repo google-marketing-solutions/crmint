@@ -26,7 +26,21 @@ from cli.utils import constants
 from cli.utils import spinner
 
 
-def execute_command(step_name, command, cwd='.', report_empty_err=True, debug=False, stream_output_in_debug=True, force_std_out=False):
+def execute_command(step_name, command, cwd='.', report_empty_err=True,
+                    debug=False, stream_output_in_debug=True, force_std_out=False):
+  """
+  Wrapper that runs a shell command and captures if needed the standard outputs.
+  
+  Args:
+    step_name: String to display the name of the step we are running.
+    command: String representation of the command to run with its options.
+    cwd: String path representing the current working directory.
+    report_empty_err: Boolean to disable the reporting of empty errors.
+    debug: Boolean to force a more verbose output.
+    stream_output_in_debug: Boolean to configure the debug display mode.
+    force_std_out: Boolean to display everything that the command would have displayed
+        if run in a terminal.
+  """
   assert isinstance(command, basestring)
   pipe_output = (None if (debug and stream_output_in_debug) else subprocess.PIPE)
   if force_std_out:
@@ -56,6 +70,12 @@ def execute_command(step_name, command, cwd='.', report_empty_err=True, debug=Fa
 
 
 def get_default_stage_name(debug=False):
+  """
+  Computes the default stage filename, derived from the GCP project name.
+  
+  Args:
+    debug: Boolean to enable debug mode outputs.
+  """
   gcloud_command = "$GOOGLE_CLOUD_SDK/bin/gcloud --quiet"
   command = "{gcloud_bin} config get-value project 2>/dev/null".format(
       gcloud_bin=gcloud_command)
@@ -98,7 +118,7 @@ def check_service_account_file(stage):
 
 def before_hook(stage, stage_name):
   """
-  Adds variables to the stage object
+  Adds variables to the stage object.
   """
   stage.stage_name = stage_name
 
