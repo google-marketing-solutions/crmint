@@ -43,6 +43,7 @@ import zeep.cache
 _KEY_FILE = os.path.join(os.path.dirname(__file__), '..', 'data',
                          'service-account.json')
 AVAILABLE = (
+    'AutoMLImporter',
     'AutoMLPredictor',
     'BQMLTrainer',
     'BQQueryLauncher',
@@ -1418,6 +1419,15 @@ class AutoMLWorker(Worker):
         location=location,
         model=model,
     )
+  
+  @staticmethod
+  def _get_full_dataset_name(project, location, dataset):
+    """Constructs the fully-qualified name for the given AutoML dataset."""
+    return "projects/{project}/locations/{location}/datasets/{dataset}".format(
+        project=project,
+        location=location,
+        dataset=dataset,
+    )
 
 
 class AutoMLPredictor(AutoMLWorker):
@@ -1428,7 +1438,7 @@ class AutoMLPredictor(AutoMLWorker):
       ('model_location', 'string', True, '', 'AutoML Model Location'),
       ('model_id', 'string', True, '', 'AutoML Model ID'),
       ('input_bq_uri', 'string', False, '',
-       'Input - BigQuery Table URI (e.g. bq://projectId/dataset/table)'),
+       'Input - BigQuery Table URI (e.g. bq://projectId.dataset.table)'),
       ('input_gcs_uri', 'string', False, '',
        'Input - Cloud Storage CSV URI (e.g. gs://bucket/directory/file.csv)'),
       ('output_bq_project_uri', 'string', False, '',
@@ -1503,3 +1513,78 @@ class AutoMLWaiter(AutoMLWorker):
     else:
       self.log_info('AutoML operation still running: %s', response)
       self._enqueue('AutoMLWaiter', self._params, 60)
+
+
+class AutoMLImporter(AutoMLWorker):
+  """Worker to create AutoML datasets by importing data from Bigquery or GCS."""
+
+  PARAMS = [
+      ('dataset_project_id', 'string', True, '', 'AutoML Project ID'),
+      ('dataset_location', 'string', True, '', 'AutoML Dataset Location'),
+      ('dataset_name', 'string', True, '', 'AutoML Dataset Name'),
+      ('strftime_format', 'string', True, '', 'strftime format code (appended to name for uniqueness)'),
+      ('input_bq_uri', 'string', False, '',
+       'Input - BigQuery Table URI (e.g. bq://projectId.dataset.table)'),
+      ('input_gcs_uri', 'string', False, '',
+       'Input - Cloud Storage CSV URI (e.g. gs://bucket/directory/file.csv)'),
+  ]
+
+  def _execute(self):
+    strftime_format = datetime.now().strftime(self._params['strftime_format'])
+    name = self._params['dataset_name'] + strftime_format
+
+    # Construct the fully-qualified dataset name and config for the import.
+    dataset_name = self._get_full_dataset_name(self._params['dataset_project_id'],
+                                           self._params['dataset_location'],
+                                           name)
+
+    # Launch the import and retrieve its operation name so we can track it.
+    client = self._get_automl_client()
+    response = client.projects().locations().datasets() \
+                     .create(name=dataset_name).execute()
+
+    self.log_info('Launched dataset creation job: %s -> %s', body, response)
+
+    worker_params = self._params.copy()
+    worker_params['strftime_format'] = strftime_format
+    self._enqueue('AutoMLImportProcessor', worker_params, 1)
+
+
+class AutoMLImportProcessor(AutoMLWorker):
+  """Worker to do the actual import into AutoML tables from Bigquery or GCS."""
+
+  def _execute(self):
+    name = self._params['dataset_name'] + self._params['strftime_format']
+
+    # Construct the fully-qualified dataset name and config for the import.
+    dataset_name = self._get_full_dataset_name(self._params['dataset_project_id'],
+                                           self._params['dataset_location'],
+                                           name)
+    body = {
+        'inputConfig': self._generate_input_config()
+    }
+
+    # Launch the import and retrieve its operation name so we can track it.
+    client = self._get_automl_client()
+    response = client.projects().locations().datasets() \
+                     .importData(name=dataset_name, body=body).execute()
+
+    self.log_info('Launched data import job: %s -> %s', body, response)
+
+    # Since the data import might take more than the 15 minutes the job
+    # service has to serve a response to the Push Queue, we can't wait on it
+    # here. We thus spawn a worker that waits until the operation is completed.
+    operation_name = response.get('name')
+    self._enqueue('AutoMLWaiter', {'operation_name': operation_name}, 15)
+
+  def _generate_input_config(self):
+    """Constructs the input configuration for the data import request."""
+    input_bq_uri = self._params['input_bq_uri']
+    input_gcs_uri = self._params['input_gcs_uri']
+
+    if input_bq_uri and not input_gcs_uri:
+      return {'bigquery_source': {'input_uri': input_bq_uri}}
+    elif input_gcs_uri and not input_bq_uri:
+      return {'gcs_source': {'input_uris': [input_gcs_uri]}}
+    else:
+      raise WorkerException('Provide either a BigQuery or GCS source.')
