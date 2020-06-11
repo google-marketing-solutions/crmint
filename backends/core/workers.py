@@ -1410,22 +1410,28 @@ class AutoMLWorker(Worker):
     # See: https://github.com/googleapis/google-cloud-python
     credentials = ServiceAccountCredentials.from_json_keyfile_name(_KEY_FILE)
     return build('automl', 'v1beta1', credentials=credentials)
+  
+  @staticmethod
+  def _get_dataset_parent_name(project, location):
+    """Constructs the parent location path."""
+    return "projects/{project}/locations/{location}".format(
+        project=project,
+        location=location,
+    )
 
   @staticmethod
   def _get_full_model_name(project, location, model):
     """Constructs the fully-qualified name for the given AutoML model."""
-    return "projects/{project}/locations/{location}/models/{model}".format(
-        project=project,
-        location=location,
+    return "{parent}/models/{model}".format(
+        parent=AutoMLWorker._get_dataset_parent_name(project, location),
         model=model,
     )
   
   @staticmethod
   def _get_full_dataset_name(project, location, dataset):
     """Constructs the fully-qualified name for the given AutoML dataset."""
-    return "projects/{project}/locations/{location}/datasets/{dataset}".format(
-        project=project,
-        location=location,
+    return "{parent}/datasets/{dataset}".format(
+        parent=AutoMLWorker._get_dataset_parent_name(project, location),
         dataset=dataset,
     )
 
@@ -1512,7 +1518,7 @@ class AutoMLWaiter(AutoMLWorker):
         self.log_info('AutoML operation completed successfully: %s', response)
     else:
       self.log_info('AutoML operation still running: %s', response)
-      self._enqueue('AutoMLWaiter', self._params, 60)
+      self._enqueue('AutoMLWaiter', self._params, self._params.get('delay') or 60)
 
 
 class AutoMLImporter(AutoMLWorker):
@@ -1521,8 +1527,9 @@ class AutoMLImporter(AutoMLWorker):
   PARAMS = [
       ('dataset_project_id', 'string', True, '', 'AutoML Project ID'),
       ('dataset_location', 'string', True, '', 'AutoML Dataset Location'),
-      ('dataset_name', 'string', True, '', 'AutoML Dataset Name'),
+      ('dataset_name', 'string', True, '', 'Dataset Name'),
       ('strftime_format', 'string', True, '', 'strftime format code (appended to name for uniqueness)'),
+      ('dataset_metadata', 'text', True, '', 'Dataset metadata in JSON'),
       ('input_bq_uri', 'string', False, '',
        'Input - BigQuery Table URI (e.g. bq://projectId.dataset.table)'),
       ('input_gcs_uri', 'string', False, '',
@@ -1531,51 +1538,42 @@ class AutoMLImporter(AutoMLWorker):
 
   def _execute(self):
     strftime_format = datetime.now().strftime(self._params['strftime_format'])
-    name = self._params['dataset_name'] + strftime_format
+    display_name = self._params['dataset_name'] + strftime_format
 
     # Construct the fully-qualified dataset name and config for the import.
-    dataset_name = self._get_full_dataset_name(self._params['dataset_project_id'],
-                                           self._params['dataset_location'],
-                                           name)
+    dataset_parent = self._get_dataset_parent_name(self._params['dataset_project_id'],
+                                           self._params['dataset_location'])
+                                      
+    body = {
+      'displayName': display_name,
+      'tablesDatasetMetadata': json.loads(self._params['dataset_metadata'])
+    }
 
-    # Launch the import and retrieve its operation name so we can track it.
+    # Launch the dataset creation and retrieve the fully qualified name.
     client = self._get_automl_client()
     response = client.projects().locations().datasets() \
-                     .create(name=dataset_name).execute()
-
+                     .create(parent=dataset_parent, body=body).execute()
+    
     self.log_info('Launched dataset creation job: %s -> %s', body, response)
 
-    worker_params = self._params.copy()
-    worker_params['strftime_format'] = strftime_format
-    self._enqueue('AutoMLImportProcessor', worker_params, 1)
+    dataset_name = response.get('name')
 
+    self.log_info('Created dataset at: %s', dataset_name)
 
-class AutoMLImportProcessor(AutoMLWorker):
-  """Worker to do the actual import into AutoML tables from Bigquery or GCS."""
-
-  def _execute(self):
-    name = self._params['dataset_name'] + self._params['strftime_format']
-
-    # Construct the fully-qualified dataset name and config for the import.
-    dataset_name = self._get_full_dataset_name(self._params['dataset_project_id'],
-                                           self._params['dataset_location'],
-                                           name)
     body = {
         'inputConfig': self._generate_input_config()
     }
 
-    # Launch the import and retrieve its operation name so we can track it.
+    # Launch the data import and retrieve its operation name so we can track it.
     client = self._get_automl_client()
     response = client.projects().locations().datasets() \
                      .importData(name=dataset_name, body=body).execute()
-
+    
     self.log_info('Launched data import job: %s -> %s', body, response)
 
-    # Since the data import might take more than the 15 minutes the job
-    # service has to serve a response to the Push Queue, we can't wait on it
-    # here. We thus spawn a worker that waits until the operation is completed.
     operation_name = response.get('name')
-    self._enqueue('AutoMLWaiter', {'operation_name': operation_name}, 15)
+    waiter_params = {'operation_name': operation_name, 'delay': 15}
+    self._enqueue('AutoMLWaiter', waiter_params, 15)
 
   def _generate_input_config(self):
     """Constructs the input configuration for the data import request."""
