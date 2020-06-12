@@ -1574,9 +1574,12 @@ class AutoMLImporter(AutoMLWorker):
     
     self.log_info('Launched data import job: %s -> %s', body, response)
 
+    # Since the data import might take more than the 10 minutes the job
+    # service has to serve a response to the Push Queue, we can't wait on it
+    # here. We thus spawn a worker that waits until the operation is completed.
     operation_name = response.get('name')
-    waiter_params = {'operation_name': operation_name, 'delay': 15}
-    self._enqueue('AutoMLWaiter', waiter_params, 15)
+    waiter_params = {'operation_name': operation_name, 'delay': 5 * 60}
+    self._enqueue('AutoMLWaiter', waiter_params, 60)
 
   def _generate_input_config(self):
     """Constructs the input configuration for the data import request."""
