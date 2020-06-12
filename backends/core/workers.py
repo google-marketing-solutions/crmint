@@ -1412,7 +1412,7 @@ class AutoMLWorker(Worker):
     return build('automl', 'v1beta1', credentials=credentials)
   
   @staticmethod
-  def _get_dataset_parent_name(project, location):
+  def _get_automl_parent_name(project, location):
     """Constructs the parent location path."""
     return "projects/{project}/locations/{location}".format(
         project=project,
@@ -1423,7 +1423,7 @@ class AutoMLWorker(Worker):
   def _get_full_model_name(project, location, model):
     """Constructs the fully-qualified name for the given AutoML model."""
     return "{parent}/models/{model}".format(
-        parent=AutoMLWorker._get_dataset_parent_name(project, location),
+        parent=AutoMLWorker._get_automl_parent_name(project, location),
         model=model,
     )
   
@@ -1431,7 +1431,7 @@ class AutoMLWorker(Worker):
   def _get_full_dataset_name(project, location, dataset):
     """Constructs the fully-qualified name for the given AutoML dataset."""
     return "{parent}/datasets/{dataset}".format(
-        parent=AutoMLWorker._get_dataset_parent_name(project, location),
+        parent=AutoMLWorker._get_automl_parent_name(project, location),
         dataset=dataset,
     )
 
@@ -1529,7 +1529,7 @@ class AutoMLImporter(AutoMLWorker):
     ('dataset_location', 'string', True, '', 'AutoML Dataset Location'),
     ('dataset_name', 'string', True, '', 'Dataset Name'),
     ('strftime_format', 'string', False, '', 'strftime format code (appended to name for uniqueness)'),
-    ('dataset_metadata', 'text', True, '', 'Dataset metadata in JSON'),
+    ('dataset_metadata', 'text', False, '', 'Dataset metadata in JSON'),
     ('input_bq_uri', 'string', False, '',
       'Input - BigQuery Table URI (e.g. bq://projectId.dataset.table)'),
     ('input_gcs_uri', 'string', False, '',
@@ -1543,9 +1543,8 @@ class AutoMLImporter(AutoMLWorker):
       strftime = datetime.now().strftime(self._params['strftime_format'])
       display_name += strftime
 
-    # Construct the fully-qualified dataset name and config for the import.
-    dataset_parent = self._get_dataset_parent_name(self._params['dataset_project_id'], 
-                                                   self._params['dataset_location'])
+    parent = self._get_automl_parent_name(self._params['dataset_project_id'], 
+                                                  self._params['dataset_location'])
 
     dataset_metadata = self._params['dataset_metadata']
     if dataset_metadata:
@@ -1561,7 +1560,7 @@ class AutoMLImporter(AutoMLWorker):
     # Launch the dataset creation and retrieve the fully qualified name.
     client = self._get_automl_client()
     response = client.projects().locations().datasets() \
-                     .create(parent=dataset_parent, body=body).execute()
+                     .create(parent=parent, body=body).execute()
     
     self.log_info('Launched dataset creation job: %s -> %s', body, response)
 
