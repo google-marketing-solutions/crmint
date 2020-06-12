@@ -1525,24 +1525,27 @@ class AutoMLImporter(AutoMLWorker):
   """Worker to create AutoML datasets by importing data from Bigquery or GCS."""
 
   PARAMS = [
-      ('dataset_project_id', 'string', True, '', 'AutoML Project ID'),
-      ('dataset_location', 'string', True, '', 'AutoML Dataset Location'),
-      ('dataset_name', 'string', True, '', 'Dataset Name'),
-      ('strftime_format', 'string', True, '', 'strftime format code (appended to name for uniqueness)'),
-      ('dataset_metadata', 'text', True, '', 'Dataset metadata in JSON'),
-      ('input_bq_uri', 'string', False, '',
-       'Input - BigQuery Table URI (e.g. bq://projectId.dataset.table)'),
-      ('input_gcs_uri', 'string', False, '',
-       'Input - Cloud Storage CSV URI (e.g. gs://bucket/directory/file.csv)'),
+    ('dataset_project_id', 'string', True, '', 'AutoML Project ID'),
+    ('dataset_location', 'string', True, '', 'AutoML Dataset Location'),
+    ('dataset_name', 'string', True, '', 'Dataset Name'),
+    ('strftime_format', 'string', False, '', 'strftime format code (appended to name for uniqueness)'),
+    ('dataset_metadata', 'text', True, '', 'Dataset metadata in JSON'),
+    ('input_bq_uri', 'string', False, '',
+      'Input - BigQuery Table URI (e.g. bq://projectId.dataset.table)'),
+    ('input_gcs_uri', 'string', False, '',
+      'Input - Cloud Storage CSV URI (e.g. gs://bucket/directory/file.csv)'),
   ]
 
   def _execute(self):
-    strftime_format = datetime.now().strftime(self._params['strftime_format'])
-    display_name = self._params['dataset_name'] + strftime_format
+    display_name = self._params['dataset_name']
+    strftime_format = self._params['strftime_format']
+    if strftime_format:
+      strftime = datetime.now().strftime(self._params['strftime_format'])
+      display_name += strftime
 
     # Construct the fully-qualified dataset name and config for the import.
-    dataset_parent = self._get_dataset_parent_name(self._params['dataset_project_id'],
-                                           self._params['dataset_location'])
+    dataset_parent = self._get_dataset_parent_name(self._params['dataset_project_id'], 
+                                                   self._params['dataset_location'])
                                       
     body = {
       'displayName': display_name,
@@ -1561,7 +1564,7 @@ class AutoMLImporter(AutoMLWorker):
     self.log_info('Created dataset at: %s', dataset_name)
 
     body = {
-        'inputConfig': self._generate_input_config()
+      'inputConfig': self._generate_input_config()
     }
 
     # Launch the data import and retrieve its operation name so we can track it.
