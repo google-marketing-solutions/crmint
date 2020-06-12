@@ -1546,10 +1546,16 @@ class AutoMLImporter(AutoMLWorker):
     # Construct the fully-qualified dataset name and config for the import.
     dataset_parent = self._get_dataset_parent_name(self._params['dataset_project_id'], 
                                                    self._params['dataset_location'])
+
+    dataset_metadata = self._params['dataset_metadata']
+    if dataset_metadata:
+      metadata = json.loads(dataset_metadata)
+    else:
+      metadata = {}
                                       
     body = {
       'displayName': display_name,
-      'tablesDatasetMetadata': json.loads(self._params['dataset_metadata'])
+      'tablesDatasetMetadata': metadata
     }
 
     # Launch the dataset creation and retrieve the fully qualified name.
