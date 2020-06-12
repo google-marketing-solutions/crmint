@@ -45,6 +45,7 @@ _KEY_FILE = os.path.join(os.path.dirname(__file__), '..', 'data',
 AVAILABLE = (
     'AutoMLImporter',
     'AutoMLPredictor',
+    'AutoMLTrainer',
     'BQMLTrainer',
     'BQQueryLauncher',
     'BQToAppConversionAPI',
@@ -1435,7 +1436,6 @@ class AutoMLWorker(Worker):
         dataset=dataset,
     )
 
-
 class AutoMLPredictor(AutoMLWorker):
   """Worker to run AutoML batch prediction jobs."""
 
@@ -1597,3 +1597,56 @@ class AutoMLImporter(AutoMLWorker):
       return {'gcs_source': {'input_uris': [input_gcs_uri]}}
     else:
       raise WorkerException('Provide either a BigQuery or GCS source.')
+
+
+class AutoMLTrainer(AutoMLWorker):
+  """Worker to train AutoML models."""
+
+  PARAMS = [
+      ('model_project_id', 'string', True, '', 'AutoML Project ID'),
+      ('model_location', 'string', True, '', 'AutoML Model Location'),
+      ('model_name', 'string', True, '', 'AutoML Model Name'),
+      ('strftime_format', 'string', False, '', 'strftime format code (appended to name for uniqueness)'),
+      ('dataset_id', 'string', True, '', 'AutoML Dataset ID'),
+      ('target_column', 'string', True, '', 'Target Column name (remaining are used for input)'),
+      ('optimization_objective', 'string', False, '', 'Optimization objective'),
+      ('training_budget', 'number', True, '', 'Training budget (in hours)'),
+      ('stop_early', 'boolean', True, False, 'Stop training early (if possible)'),
+  ]
+
+  def _execute(self):
+    display_name = self._params['model_name']
+    strftime_format = self._params['strftime_format']
+    if strftime_format:
+      strftime = datetime.now().strftime(self._params['strftime_format'])
+      display_name += strftime
+
+    parent = self._get_automl_parent_name(self._params['model_project_id'], 
+                                          self._params['model_location'])
+
+    body = {
+      'displayName': display_name,
+      'datasetId': self._params['dataset_id'],
+      'tablesModelMetadata': self._generate_model_metadata()
+    }
+
+    # Launch the prediction and retrieve its operation name so we can track it.
+    client = self._get_automl_client()
+    response = client.projects().locations().models() \
+                     .create(parent=parent, body=body).execute()
+
+    self.log_info('Launched model training job: %s -> %s', body, response)
+
+    # Since the model training might take more than the 10 minutes the job
+    # service has to serve a response to the Push Queue, we can't wait on it
+    # here. We thus spawn a worker that waits until the operation is completed.
+    operation_name = response.get('name')
+    waiter_params = {'operation_name': operation_name, 'delay': self._params['training_budget'] * 60 * 30}
+    self._enqueue('AutoMLWaiter', waiter_params, 60)
+
+  def _generate_model_metadata(self):
+    return {
+      'targetColumnSpec': {'displayName': self._params['target_column']},
+      'trainBudgetMilliNodeHours': self._params['training_budget'] * 1000,
+      'disableEarlyStopping': not self._params['stop_early']
+    }
