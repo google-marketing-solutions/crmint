@@ -1411,7 +1411,7 @@ class AutoMLWorker(Worker):
     # See: https://github.com/googleapis/google-cloud-python
     credentials = ServiceAccountCredentials.from_json_keyfile_name(_KEY_FILE)
     return build('automl', 'v1beta1', credentials=credentials)
-  
+
   @staticmethod
   def _get_automl_parent_name(project, location):
     """Constructs the parent location path."""
@@ -1427,7 +1427,7 @@ class AutoMLWorker(Worker):
         parent=AutoMLWorker._get_automl_parent_name(project, location),
         model=model,
     )
-  
+
   @staticmethod
   def _get_full_dataset_name(project, location, dataset):
     """Constructs the fully-qualified name for the given AutoML dataset."""
@@ -1436,13 +1436,49 @@ class AutoMLWorker(Worker):
         dataset=dataset,
     )
 
+  @staticmethod
+  def _build_display_name(name, strftime_format):
+    """ Constructs an strftime formatted display name"""
+    display_name = name
+    if strftime_format:
+      strftime = datetime.now().strftime(strftime_format)
+      display_name += strftime
+    return display_name
+
+  @staticmethod
+  def _get_latest_dataset_id(client, parent, display_name):
+    """Finds the latest dataset matching the given name"""
+    response = client.projects().locations().datasets() \
+                     .list(parent=parent).execute()
+
+    for dataset in response['datasets']:
+      if dataset['displayName'] == display_name:
+        return dataset['name'].split('/')[-1]
+    else:
+      raise WorkerException('Dataset with given name was not found: %s' % display_name)
+
+  @staticmethod
+  def _get_latest_model_id(client, parent, display_name):
+    """Finds the latest model matching the given name"""
+    response = client.projects().locations().models() \
+                     .list(parent=parent).execute()
+
+    for model in response['model']:
+      if model['displayName'] == display_name:
+        return model['name'].split('/')[-1]
+    else:
+      raise WorkerException('Model with given name was not found: %s' % display_name)
+
+
 class AutoMLPredictor(AutoMLWorker):
   """Worker to run AutoML batch prediction jobs."""
 
   PARAMS = [
       ('model_project_id', 'string', True, '', 'AutoML Project ID'),
       ('model_location', 'string', True, '', 'AutoML Model Location'),
-      ('model_id', 'string', True, '', 'AutoML Model ID'),
+      ('model_id', 'string', False, '', 'AutoML Model ID'),
+      ('model_name', 'string', False, '', 'AutoML Model Name'),
+      ('strftime_format', 'string', False, '', 'AutoML Model strftime format'),
       ('input_bq_uri', 'string', False, '',
        'Input - BigQuery Table URI (e.g. bq://projectId.dataset.table)'),
       ('input_gcs_uri', 'string', False, '',
@@ -1454,21 +1490,28 @@ class AutoMLPredictor(AutoMLWorker):
   ]
 
   def _execute(self):
+    parent = self._get_automl_parent_name(self._params['model_project_id'],
+                                          self._params['model_location'])
+
+    client = self._get_automl_client()
+
+    model_id = self._get_model_id(client, parent)
+
     # Construct the fully-qualified model name and config for the prediction.
     model_name = self._get_full_model_name(self._params['model_project_id'],
                                            self._params['model_location'],
-                                           self._params['model_id'])
+                                           model_id)
     body = {
         'inputConfig': self._generate_input_config(),
         'outputConfig': self._generate_output_config()
     }
 
     # Launch the prediction and retrieve its operation name so we can track it.
+    self.log_info('Launching batch prediction job: %s', body)
     client = self._get_automl_client()
     response = client.projects().locations().models() \
                      .batchPredict(name=model_name, body=body).execute()
-
-    self.log_info('Launched batch prediction job: %s -> %s', body, response)
+    self.log_info('Launched batch prediction job: %s', response)
 
     # Since the batch prediction might take more than the 10 minutes the job
     # service has to serve a response to the Push Queue, we can't wait on it
@@ -1500,6 +1543,22 @@ class AutoMLPredictor(AutoMLWorker):
     else:
       raise WorkerException('Provide either a BigQuery or GCS destination.')
 
+  def _get_model_id(self, client, parent):
+    model_id = self._params['model_id']
+    model_name = self._params['model_name']
+    strftime_format = self._params['strftime_format']
+
+    if model_id and not (model_name and strftime_format):
+      self.log_info('Using Model with ID: %s', model_id)
+    elif (model_name and strftime_format) and not model_id:
+      model_display_name = self._build_display_name(model_name, strftime_format)
+      self.log_info('Searching for Model name matching: %s', model_display_name)
+      model_id = self._get_latest_model_id(client, parent, model_display_name)
+      self.log_info('Found Model with ID: %s', model_id)
+    else:
+      raise WorkerException('Provide either a Model ID or name & strftime format.')
+    return model_id
+
 
 class AutoMLWaiter(AutoMLWorker):
   """Worker that keeps respawning until an AutoML operation is completed."""
@@ -1528,7 +1587,7 @@ class AutoMLImporter(AutoMLWorker):
     ('dataset_project_id', 'string', True, '', 'AutoML Project ID'),
     ('dataset_location', 'string', True, '', 'AutoML Dataset Location'),
     ('dataset_name', 'string', True, '', 'Dataset Name'),
-    ('strftime_format', 'string', False, '', 'strftime format code (appended to name for uniqueness)'),
+    ('strftime_format', 'string', False, '', 'strftime format (appended to name for uniqueness)'),
     ('dataset_metadata', 'text', False, '', 'Dataset metadata in JSON'),
     ('input_bq_uri', 'string', False, '',
       'Input - BigQuery Table URI (e.g. bq://projectId.dataset.table)'),
@@ -1537,32 +1596,29 @@ class AutoMLImporter(AutoMLWorker):
   ]
 
   def _execute(self):
-    display_name = self._params['dataset_name']
-    strftime_format = self._params['strftime_format']
-    if strftime_format:
-      strftime = datetime.now().strftime(self._params['strftime_format'])
-      display_name += strftime
+    display_name = self._build_display_name(self._params['dataset_name'],
+                                            self._params['strftime_format'])
 
-    parent = self._get_automl_parent_name(self._params['dataset_project_id'], 
-                                                  self._params['dataset_location'])
+    parent = self._get_automl_parent_name(self._params['dataset_project_id'],
+                                          self._params['dataset_location'])
 
     dataset_metadata = self._params['dataset_metadata']
     if dataset_metadata:
       metadata = json.loads(dataset_metadata)
     else:
       metadata = {}
-                                      
+
     body = {
       'displayName': display_name,
       'tablesDatasetMetadata': metadata
     }
 
     # Launch the dataset creation and retrieve the fully qualified name.
+    self.log_info('Launching dataset creation job: %s', body)
     client = self._get_automl_client()
     response = client.projects().locations().datasets() \
                      .create(parent=parent, body=body).execute()
-    
-    self.log_info('Launched dataset creation job: %s -> %s', body, response)
+    self.log_info('Launched dataset creation job: %s', response)
 
     dataset_name = response.get('name')
 
@@ -1573,11 +1629,11 @@ class AutoMLImporter(AutoMLWorker):
     }
 
     # Launch the data import and retrieve its operation name so we can track it.
+    self.log_info('Launching data import job: %s', body)
     client = self._get_automl_client()
     response = client.projects().locations().datasets() \
                      .importData(name=dataset_name, body=body).execute()
-    
-    self.log_info('Launched data import job: %s -> %s', body, response)
+    self.log_info('Launched data import job: %s', response)
 
     # Since the data import might take more than the 10 minutes the job
     # service has to serve a response to the Push Queue, we can't wait on it
@@ -1606,8 +1662,10 @@ class AutoMLTrainer(AutoMLWorker):
       ('model_project_id', 'string', True, '', 'AutoML Project ID'),
       ('model_location', 'string', True, '', 'AutoML Model Location'),
       ('model_name', 'string', True, '', 'AutoML Model Name'),
-      ('strftime_format', 'string', False, '', 'strftime format code (appended to name for uniqueness)'),
-      ('dataset_id', 'string', True, '', 'AutoML Dataset ID'),
+      ('model_strftime_format', 'string', False, '', 'strftime format (appended to name for uniqueness)'),
+      ('dataset_id', 'string', False, '', 'AutoML Dataset ID'),
+      ('dataset_name', 'string', False, '', 'AutoML Dataset Name'),
+      ('dataset_strftime_format', 'string', False, '', 'AutoML Dataset strftime format'),
       ('target_column', 'string', True, '', 'Target Column name (remaining are used for input)'),
       ('optimization_objective', 'string', False, '', 'Optimization objective'),
       ('training_budget', 'number', True, '', 'Training budget (in hours)'),
@@ -1615,27 +1673,31 @@ class AutoMLTrainer(AutoMLWorker):
   ]
 
   def _execute(self):
-    display_name = self._params['model_name']
-    strftime_format = self._params['strftime_format']
-    if strftime_format:
-      strftime = datetime.now().strftime(self._params['strftime_format'])
-      display_name += strftime
+    display_name = self._build_display_name(self._params['model_name'],
+                                            self._params['model_strftime_format'])
 
-    parent = self._get_automl_parent_name(self._params['model_project_id'], 
+    parent = self._get_automl_parent_name(self._params['model_project_id'],
                                           self._params['model_location'])
+
+    client = self._get_automl_client()
+
+    dataset_id = self._get_dataset_id(client, parent)
+    dataset_resource_name = self._get_full_dataset_name(self._params['model_project_id'],
+                                                        self._params['model_location'],
+                                                        dataset_id)
+    self._set_target_column(client, dataset_resource_name)
 
     body = {
       'displayName': display_name,
-      'datasetId': self._params['dataset_id'],
+      'datasetId': dataset_id,
       'tablesModelMetadata': self._generate_model_metadata()
     }
 
     # Launch the prediction and retrieve its operation name so we can track it.
-    client = self._get_automl_client()
+    self.log_info('Launching model training job: %s', body)
     response = client.projects().locations().models() \
                      .create(parent=parent, body=body).execute()
-
-    self.log_info('Launched model training job: %s -> %s', body, response)
+    self.log_info('Launched model training job: %s', response)
 
     # Since the model training might take more than the 10 minutes the job
     # service has to serve a response to the Push Queue, we can't wait on it
@@ -1650,3 +1712,49 @@ class AutoMLTrainer(AutoMLWorker):
       'trainBudgetMilliNodeHours': self._params['training_budget'] * 1000,
       'disableEarlyStopping': not self._params['stop_early']
     }
+
+  def _get_dataset_id(self, client, parent):
+    dataset_id = self._params['dataset_id']
+    dataset_name = self._params['dataset_name']
+    dataset_strftime_format = self._params['dataset_strftime_format']
+
+    if dataset_id and not (dataset_name and dataset_strftime_format):
+      self.log_info('Using dataset with ID: %s', dataset_id)
+    elif (dataset_name and dataset_strftime_format) and not dataset_id:
+      dataset_display_name = self._build_display_name(dataset_name, dataset_strftime_format)
+      self.log_info('Searching for dataset name matching: %s', dataset_display_name)
+      dataset_id = self._get_latest_dataset_id(client, parent, dataset_display_name)
+      self.log_info('Found dataset with ID: %s', dataset_id)
+    else:
+      raise WorkerException('Provide either a Dataset ID or name & strftime format.')
+    return dataset_id
+
+  def _set_target_column(self, client, dataset_resource_name):
+    target_column = self._params['target_column']
+    self.log_info('Searching dataset for target column: %s', target_column)
+    # Find table spec ID for dataset
+    response = client.projects().locations().datasets() \
+                     .get(name=dataset_resource_name).execute()
+
+    table_spec_id = response['tablesDatasetMetadata']['primaryTableSpecId']
+    table_resource_name = '{parent}/tableSpecs/{table}'.format(parent=dataset_resource_name,
+                                                               table=table_spec_id)
+    # Find column spec ID for target column
+    response = client.projects().locations().datasets().tableSpecs().columnSpecs() \
+                     .list(parent=table_resource_name).execute()
+
+    for column_spec in response['columnSpecs']:
+      if column_spec['displayName'] == target_column:
+        target_column_spec_id = column_spec['name'].split('/')[-1]
+        break
+    else:
+      raise WorkerException('Target column with given name not found: %s' % target_column)
+
+    body = {
+      'tablesDatasetMetadata': {'targetColumnSpecId': target_column_spec_id}
+    }
+    # Set target column for dataset
+    self.log_info('Modifying target column for dataset: %s', body)
+    response = client.projects().locations().datasets() \
+                     .patch(name=dataset_resource_name, body=body).execute()
+    self.log_info('Modified target column for dataset: %s', response)
