@@ -1402,15 +1402,20 @@ class AutoMLWorker(Worker):
   """Abstract AutoML worker."""
 
   @staticmethod
-  def _get_automl_client():
+  def _get_automl_client(location=''):
     """Constructs a Resource for interacting with the AutoML API."""
     # You might be wondering why we're using the discovery-based Google API
     # client library as opposed to the more modern Google Cloud client library.
     # The reason is that the modern client libraries (e.g. google-cloud-automl)
     # are not supported on App Engine's Python 2 runtime.
     # See: https://github.com/googleapis/google-cloud-python
+    if location == 'eu':
+      endpoint = 'eu-automl'
+    else:  # global: us-central1, etc
+      endpoint = 'automl'
+    client_options = {'api_endpoint': 'https://{}.googleapis.com'.format(endpoint)}
     credentials = ServiceAccountCredentials.from_json_keyfile_name(_KEY_FILE)
-    return build('automl', 'v1beta1', credentials=credentials)
+    return build(endpoint, 'v1beta1', credentials=credentials, client_options=client_options)
 
   @staticmethod
   def _get_automl_parent_name(project, location):
@@ -1490,16 +1495,17 @@ class AutoMLPredictor(AutoMLWorker):
   ]
 
   def _execute(self):
+    model_location = self._params['model_location']
     parent = self._get_automl_parent_name(self._params['model_project_id'],
-                                          self._params['model_location'])
+                                          model_location)
 
-    client = self._get_automl_client()
+    client = self._get_automl_client(location=model_location)
 
     model_id = self._get_model_id(client, parent)
 
     # Construct the fully-qualified model name and config for the prediction.
     model_name = self._get_full_model_name(self._params['model_project_id'],
-                                           self._params['model_location'],
+                                           model_location,
                                            model_id)
     body = {
         'inputConfig': self._generate_input_config(),
@@ -1508,7 +1514,7 @@ class AutoMLPredictor(AutoMLWorker):
 
     # Launch the prediction and retrieve its operation name so we can track it.
     self.log_info('Launching batch prediction job: %s', body)
-    client = self._get_automl_client()
+    client = self._get_automl_client(location=model_location)
     response = client.projects().locations().models() \
                      .batchPredict(name=model_name, body=body).execute()
     self.log_info('Launched batch prediction job: %s', response)
@@ -1517,7 +1523,8 @@ class AutoMLPredictor(AutoMLWorker):
     # service has to serve a response to the Push Queue, we can't wait on it
     # here. We thus spawn a worker that waits until the operation is completed.
     operation_name = response.get('name')
-    self._enqueue('AutoMLWaiter', {'operation_name': operation_name}, 60)
+    waiter_params = {'operation_name': operation_name, 'location': model_location}
+    self._enqueue('AutoMLWaiter', waiter_params, 60)
 
   def _generate_input_config(self):
     """Constructs the input configuration for the batch prediction request."""
@@ -1564,7 +1571,7 @@ class AutoMLWaiter(AutoMLWorker):
   """Worker that keeps respawning until an AutoML operation is completed."""
 
   def _execute(self):
-    client = self._get_automl_client()
+    client = self._get_automl_client(location=self._params['location'])
     operation_name = self._params['operation_name']
 
     response = client.projects().locations().operations() \
@@ -1596,11 +1603,12 @@ class AutoMLImporter(AutoMLWorker):
   ]
 
   def _execute(self):
+    dataset_location = self._params['dataset_location']
     display_name = self._build_display_name(self._params['dataset_name'],
                                             self._params['strftime_format'])
 
     parent = self._get_automl_parent_name(self._params['dataset_project_id'],
-                                          self._params['dataset_location'])
+                                          dataset_location)
 
     dataset_metadata = self._params['dataset_metadata']
     if dataset_metadata:
@@ -1615,7 +1623,7 @@ class AutoMLImporter(AutoMLWorker):
 
     # Launch the dataset creation and retrieve the fully qualified name.
     self.log_info('Launching dataset creation job: %s', body)
-    client = self._get_automl_client()
+    client = self._get_automl_client(location=dataset_location)
     response = client.projects().locations().datasets() \
                      .create(parent=parent, body=body).execute()
     self.log_info('Launched dataset creation job: %s', response)
@@ -1630,7 +1638,7 @@ class AutoMLImporter(AutoMLWorker):
 
     # Launch the data import and retrieve its operation name so we can track it.
     self.log_info('Launching data import job: %s', body)
-    client = self._get_automl_client()
+    client = self._get_automl_client(location=dataset_location)
     response = client.projects().locations().datasets() \
                      .importData(name=dataset_name, body=body).execute()
     self.log_info('Launched data import job: %s', response)
@@ -1639,7 +1647,11 @@ class AutoMLImporter(AutoMLWorker):
     # service has to serve a response to the Push Queue, we can't wait on it
     # here. We thus spawn a worker that waits until the operation is completed.
     operation_name = response.get('name')
-    waiter_params = {'operation_name': operation_name, 'delay': 5 * 60}
+    waiter_params = {
+      'operation_name': operation_name,
+      'delay': 5 * 60,
+      'location': dataset_location,
+    }
     self._enqueue('AutoMLWaiter', waiter_params, 60)
 
   def _generate_input_config(self):
@@ -1673,17 +1685,18 @@ class AutoMLTrainer(AutoMLWorker):
   ]
 
   def _execute(self):
+    model_location = self._params['model_location']
     display_name = self._build_display_name(self._params['model_name'],
                                             self._params['model_strftime_format'])
 
     parent = self._get_automl_parent_name(self._params['model_project_id'],
-                                          self._params['model_location'])
+                                          model_location)
 
-    client = self._get_automl_client()
+    client = self._get_automl_client(location=model_location)
 
     dataset_id = self._get_dataset_id(client, parent)
     dataset_resource_name = self._get_full_dataset_name(self._params['model_project_id'],
-                                                        self._params['model_location'],
+                                                        model_location,
                                                         dataset_id)
     self._set_target_column(client, dataset_resource_name)
 
@@ -1691,7 +1704,7 @@ class AutoMLTrainer(AutoMLWorker):
       'displayName': display_name,
       'datasetId': dataset_id,
       'tablesModelMetadata': self._generate_model_metadata()
-    }
+   }
 
     # Launch the prediction and retrieve its operation name so we can track it.
     self.log_info('Launching model training job: %s', body)
@@ -1703,7 +1716,11 @@ class AutoMLTrainer(AutoMLWorker):
     # service has to serve a response to the Push Queue, we can't wait on it
     # here. We thus spawn a worker that waits until the operation is completed.
     operation_name = response.get('name')
-    waiter_params = {'operation_name': operation_name, 'delay': self._params['training_budget'] * 60 * 30}
+    waiter_params = {
+      'operation_name': operation_name,
+      'delay': self._params['training_budget'] * 60 * 30,
+      'location': model_location,
+    }
     self._enqueue('AutoMLWaiter', waiter_params, 60)
 
   def _generate_model_metadata(self):
