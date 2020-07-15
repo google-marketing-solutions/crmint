@@ -1401,19 +1401,23 @@ class BQToAppConversionAPI(BQWorker):
 class AutoMLWorker(Worker):
   """Abstract AutoML worker."""
 
-  def _get_automl_client(self, location=''):
+  def _get_automl_client(self, location):
     """Constructs a Resource for interacting with the AutoML API."""
+    # Use the location-appropriate AutoML endpoint
+    # Otherwise, API calls fail with HttpError 400
+    if location == 'eu':
+      endpoint = 'eu-automl'
+    else:  # global: us-central1, etc
+      endpoint = 'automl'
+    api_endpoint = 'https://{}.googleapis.com'.format(endpoint)
+    self.log_info('Using AutoML client with endpoint: %s', api_endpoint)
+
     # You might be wondering why we're using the discovery-based Google API
     # client library as opposed to the more modern Google Cloud client library.
     # The reason is that the modern client libraries (e.g. google-cloud-automl)
     # are not supported on App Engine's Python 2 runtime.
     # See: https://github.com/googleapis/google-cloud-python
-    if location == 'eu':
-      endpoint = 'eu-automl'
-    else:  # global: us-central1, etc
-      endpoint = 'automl'
-    client_options = {'api_endpoint': 'https://{}.googleapis.com'.format(endpoint)}
-    self.log_info('Creating AutoML client for endpoint: %s', client_options['api_endpoint'])
+    client_options = {'api_endpoint': api_endpoint}
     credentials = ServiceAccountCredentials.from_json_keyfile_name(_KEY_FILE)
     return build(endpoint, 'v1beta1', credentials=credentials, client_options=client_options)
 
