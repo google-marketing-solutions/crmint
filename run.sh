@@ -1,0 +1,1 @@
+sudo APPLICATION_ID='booking-argon' docker-compose up

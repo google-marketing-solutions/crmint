@@ -1401,8 +1401,7 @@ class BQToAppConversionAPI(BQWorker):
 class AutoMLWorker(Worker):
   """Abstract AutoML worker."""
 
-  @staticmethod
-  def _get_automl_client(location=''):
+  def _get_automl_client(self, location=''):
     """Constructs a Resource for interacting with the AutoML API."""
     # You might be wondering why we're using the discovery-based Google API
     # client library as opposed to the more modern Google Cloud client library.
@@ -1414,6 +1413,7 @@ class AutoMLWorker(Worker):
     else:  # global: us-central1, etc
       endpoint = 'automl'
     client_options = {'api_endpoint': 'https://{}.googleapis.com'.format(endpoint)}
+    self.log_info('Creating AutoML client for endpoint: %s', client_options['api_endpoint'])
     credentials = ServiceAccountCredentials.from_json_keyfile_name(_KEY_FILE)
     return build(endpoint, 'v1beta1', credentials=credentials, client_options=client_options)
 
@@ -1622,7 +1622,7 @@ class AutoMLImporter(AutoMLWorker):
     }
 
     # Launch the dataset creation and retrieve the fully qualified name.
-    self.log_info('Launching dataset creation job: %s', body)
+    self.log_info('Launching dataset creation job @ %s: %s', parent, body)
     client = self._get_automl_client(location=dataset_location)
     response = client.projects().locations().datasets() \
                      .create(parent=parent, body=body).execute()
@@ -1637,7 +1637,7 @@ class AutoMLImporter(AutoMLWorker):
     }
 
     # Launch the data import and retrieve its operation name so we can track it.
-    self.log_info('Launching data import job: %s', body)
+    self.log_info('Launching data import job @ %s: %s', parent, body)
     client = self._get_automl_client(location=dataset_location)
     response = client.projects().locations().datasets() \
                      .importData(name=dataset_name, body=body).execute()
@@ -1704,7 +1704,7 @@ class AutoMLTrainer(AutoMLWorker):
       'displayName': display_name,
       'datasetId': dataset_id,
       'tablesModelMetadata': self._generate_model_metadata()
-   }
+    }
 
     # Launch the prediction and retrieve its operation name so we can track it.
     self.log_info('Launching model training job: %s', body)
