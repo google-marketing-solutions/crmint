@@ -1517,7 +1517,7 @@ class AutoMLPredictor(AutoMLWorker):
     }
 
     # Launch the prediction and retrieve its operation name so we can track it.
-    self.log_info('Launching batch prediction job: %s', body)
+    self.log_info('Launching batch prediction job @ %s: %s', parent, body)
     client = self._get_automl_client(location=model_location)
     response = client.projects().locations().models() \
                      .batchPredict(name=model_name, body=body).execute()
@@ -1711,7 +1711,7 @@ class AutoMLTrainer(AutoMLWorker):
     }
 
     # Launch the prediction and retrieve its operation name so we can track it.
-    self.log_info('Launching model training job: %s', body)
+    self.log_info('Launching model training job @ %s: %s', parent, body)
     response = client.projects().locations().models() \
                      .create(parent=parent, body=body).execute()
     self.log_info('Launched model training job: %s', response)
