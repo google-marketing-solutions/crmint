@@ -140,22 +140,26 @@ def _check_if_mysql_user_exists(stage, debug=False):
 
 
 def create_mysql_user_if_needed(stage, debug=False):
+  gcloud_command = "$GOOGLE_CLOUD_SDK/bin/gcloud --quiet"
   if _check_if_mysql_user_exists(stage, debug=debug):
     click.echo("     MySQL user already exists.")
-    return
-
-  gcloud_command = "$GOOGLE_CLOUD_SDK/bin/gcloud --quiet"
-  command = "{gcloud_bin} sql users create {db_username} \
+    sql_users_command = "set-password"
+    message = "Setting MySQL user's password"
+  else:
+    sql_users_command = "create"
+    message = "Creating MySQL user"
+  command = "{gcloud_bin} sql users {sql_users_command} {db_username} \
     --host % \
     --instance={db_instance_name} \
     --password={db_password} \
     --project={project_id}".format(
       gcloud_bin=gcloud_command,
+      sql_users_command=sql_users_command,
       project_id=stage.project_id_gae,
       db_instance_name=stage.db_instance_name,
       db_username=stage.db_username,
       db_password=stage.db_password)
-  shared.execute_command("Creating MySQL user", command, debug=debug)
+  shared.execute_command(message, command, debug=debug)
 
 
 def _check_if_mysql_database_exists(stage, debug=False):
