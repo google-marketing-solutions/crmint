@@ -24,7 +24,7 @@
     "@angular/platform-server": "~9.0.4",
     "@angular/router": "~9.0.4",
     "angular-material-prefix-updater": "0.0.6",
-    "class-transformer": "^0.2.3",
+    "class-transformer": "^0.3.1",
     "core-js": "^2.6.11",
     "later": "github:RickCarlino/later#fc9ceb582728f75edbf9581e4f53da5fbb8cd4ac",
     "lodash": "^4.17.15",
