@@ -1,1 +1,1 @@
-sudo APPLICATION_ID='booking-argon' docker-compose build --no-cache
+sudo APPLICATION_ID='<GCP-PROJECT-ID>' docker-compose build --no-cache
