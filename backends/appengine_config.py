@@ -17,7 +17,11 @@ Initialize the App Engine sdk.
 """
 
 import os
+
+import future_fstrings
 from google.appengine.ext import vendor
+
+future_fstrings.register()
 
 
 # Add any libraries install in the "lib" folder.
