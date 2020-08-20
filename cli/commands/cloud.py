@@ -348,8 +348,8 @@ def install_backends_dependencies(stage, debug=False):
   commands = [
       "virtualenv --python=python2 env",
       "mkdir -p lib",
-      "pip install -r ibackend/requirements.txt -t lib -q",
-      "pip install -r jbackend/requirements.txt -t lib -q",
+      "pip install -r ibackend/requirements.txt -t lib",
+      "pip install -r jbackend/requirements.txt -t lib",
       # Applying patches requered in GAE environment (alas!).
       "cp -r \"%(patches_dir)s\"/lib/* lib/" % dict(patches_dir=constants.PATCHES_DIR),
       "find \"%(workdir)s\" -name '*.pyc' -exec rm {} \;" % dict(workdir=stage.workdir),
