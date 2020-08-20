@@ -1,4 +1,4 @@
---no-binary MySQL-python
+--no-binary mysqlclient
 urllib3==1.25.10
 Flask==1.1.2
 Flask-Cors==3.0.2
@@ -6,8 +6,9 @@ Flask-Migrate==2.0.3
 #Flask-SQLAlchemy==2.3.2
 # NB: Flask SQLAlchemy is only compatible with Flask 1.0+ in master branch for now
 git+https://github.com/dulacp/flask-sqlalchemy.git@python27-compat#egg=Flask-SQLAlchemy
-MySQL-python==1.2.5
-sqlalchemy_mixins==0.2.2
+SQLAlchemy==1.3.18
+mysqlclient==1.4.6
+sqlalchemy_mixins==1.2.1
 google-cloud-bigquery==0.27
 simpleeval==0.9.5
 Flask-RESTful==0.3.5
