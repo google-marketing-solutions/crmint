@@ -1728,11 +1728,16 @@ class AutoMLTrainer(AutoMLWorker):
     self._enqueue('AutoMLWaiter', waiter_params, 60)
 
   def _generate_model_metadata(self):
-    return {
+    model_metadata = {
       'targetColumnSpec': {'displayName': self._params['target_column']},
       'trainBudgetMilliNodeHours': self._params['training_budget'] * 1000,
       'disableEarlyStopping': not self._params['stop_early']
     }
+
+    if self._params['optimization_objective']:
+      model_metadata['optimizationObjective'] = self._params['optimization_objective']
+
+    return model_metadata
 
   def _get_dataset_id(self, client, parent):
     dataset_id = self._params['dataset_id']
