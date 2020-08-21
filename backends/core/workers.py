@@ -1733,6 +1733,7 @@ class AutoMLTrainer(AutoMLWorker):
       'trainBudgetMilliNodeHours': self._params['training_budget'] * 1000,
       'disableEarlyStopping': not self._params['stop_early']
     }
+    
     if self._params['optimization_objective']:
       model_metadata['optimizationObjective'] = self._params['optimization_objective']
 
