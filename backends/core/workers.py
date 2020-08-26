@@ -1528,7 +1528,7 @@ class AutoMLPredictor(AutoMLWorker):
     # here. We thus spawn a worker that waits until the operation is completed.
     operation_name = response.get('name')
     waiter_params = {'operation_name': operation_name, 'location': model_location}
-    self._enqueue('AutoMLWaiter', waiter_params, 60)
+    self._enqueue('AutoMLWaiter', waiter_params, 5 * 60)
 
   def _generate_input_config(self):
     """Constructs the input configuration for the batch prediction request."""
@@ -1588,7 +1588,7 @@ class AutoMLWaiter(AutoMLWorker):
         self.log_info('AutoML operation completed successfully: %s', response)
     else:
       self.log_info('AutoML operation still running: %s', response)
-      self._enqueue('AutoMLWaiter', self._params, self._params.get('delay') or 60)
+      self._enqueue('AutoMLWaiter', self._params, self._params.get('delay', 60))
 
 
 class AutoMLImporter(AutoMLWorker):
@@ -1653,10 +1653,10 @@ class AutoMLImporter(AutoMLWorker):
     operation_name = response.get('name')
     waiter_params = {
       'operation_name': operation_name,
-      'delay': 5 * 60,
+      'delay': 15 * 60,
       'location': dataset_location,
     }
-    self._enqueue('AutoMLWaiter', waiter_params, 60)
+    self._enqueue('AutoMLWaiter', waiter_params, 5 * 60)
 
   def _generate_input_config(self):
     """Constructs the input configuration for the data import request."""
@@ -1733,10 +1733,10 @@ class AutoMLTrainer(AutoMLWorker):
     operation_name = response.get('name')
     waiter_params = {
       'operation_name': operation_name,
-      'delay': self._params['training_budget'] * 60 * 30,
+      'delay': self._params['training_budget'] * 60 * 30 - 5 * 60,
       'location': model_location,
     }
-    self._enqueue('AutoMLWaiter', waiter_params, 60)
+    self._enqueue('AutoMLWaiter', waiter_params, 5 * 60)
 
   def _generate_model_metadata(self, target_column_spec, training_columns_specs):
     model_metadata = {
