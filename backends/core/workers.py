@@ -1682,6 +1682,7 @@ class AutoMLTrainer(AutoMLWorker):
       ('dataset_id', 'string', False, '', 'AutoML Dataset ID'),
       ('dataset_name', 'string', False, '', 'AutoML Dataset Name'),
       ('dataset_strftime_format', 'string', False, '', 'AutoML Dataset strftime format'),
+      ('training_columns', 'string_list', False, '', 'Training Column names (else, all are used)'),
       ('target_column', 'string', True, '', 'Target Column name (remaining are used for input)'),
       ('optimization_objective', 'string', False, '', 'Optimization objective'),
       ('training_budget', 'number', True, '', 'Training budget (in hours)'),
@@ -1702,12 +1703,22 @@ class AutoMLTrainer(AutoMLWorker):
     dataset_resource_name = self._get_full_dataset_name(self._params['model_project_id'],
                                                         model_location,
                                                         dataset_id)
-    self._set_target_column(client, dataset_resource_name)
+
+    column_specs = self._get_column_specs(client, dataset_resource_name)
+
+    target_column_spec = self._get_column_spec(column_specs, self._params['target_column'])
+    self._set_target_column(client, dataset_resource_name, target_column_spec)
+
+    training_columns = filter(None, map(lambda column: column.strip(),
+                                        self._params['training_columns']))
+    training_columns_specs = map(
+      lambda column: self._get_column_spec(column_specs, column), training_columns)
 
     body = {
       'displayName': display_name,
       'datasetId': dataset_id,
-      'tablesModelMetadata': self._generate_model_metadata()
+      'tablesModelMetadata': self._generate_model_metadata(target_column_spec,
+                                                           training_columns_specs)
     }
 
     # Launch the prediction and retrieve its operation name so we can track it.
@@ -1727,13 +1738,17 @@ class AutoMLTrainer(AutoMLWorker):
     }
     self._enqueue('AutoMLWaiter', waiter_params, 60)
 
-  def _generate_model_metadata(self):
+  def _generate_model_metadata(self, target_column_spec, training_columns_specs):
     model_metadata = {
-      'targetColumnSpec': {'displayName': self._params['target_column']},
+      'targetColumnSpec': {'name': target_column_spec},
       'trainBudgetMilliNodeHours': self._params['training_budget'] * 1000,
       'disableEarlyStopping': not self._params['stop_early']
     }
-    
+
+    if len(training_columns_specs) > 0:
+      model_metadata['inputFeatureColumnSpecs'] = map(lambda cid: {'name': cid},
+                                                      training_columns_specs)
+
     if self._params['optimization_objective']:
       model_metadata['optimizationObjective'] = self._params['optimization_objective']
 
@@ -1755,29 +1770,28 @@ class AutoMLTrainer(AutoMLWorker):
       raise WorkerException('Provide either a Dataset ID or name & strftime format.')
     return dataset_id
 
-  def _set_target_column(self, client, dataset_resource_name):
-    target_column = self._params['target_column']
-    self.log_info('Searching dataset for target column: %s', target_column)
-    # Find table spec ID for dataset
+  def _get_column_specs(self, client, dataset_resource_name):
     response = client.projects().locations().datasets() \
                      .get(name=dataset_resource_name).execute()
 
     table_spec_id = response['tablesDatasetMetadata']['primaryTableSpecId']
     table_resource_name = '{parent}/tableSpecs/{table}'.format(parent=dataset_resource_name,
                                                                table=table_spec_id)
-    # Find column spec ID for target column
+
     response = client.projects().locations().datasets().tableSpecs().columnSpecs() \
                      .list(parent=table_resource_name).execute()
+    return response['columnSpecs']
 
-    for column_spec in response['columnSpecs']:
-      if column_spec['displayName'] == target_column:
-        target_column_spec_id = column_spec['name'].split('/')[-1]
-        break
+  def _get_column_spec(self, column_specs, column):
+    for column_spec in column_specs:
+      if column_spec['displayName'] == column:
+        return column_spec['name']
     else:
-      raise WorkerException('Target column with given name not found: %s' % target_column)
+      raise WorkerException('Column with given name not found: %s' % column)
 
+  def _set_target_column(self, client, dataset_resource_name, target_column_spec):
     body = {
-      'tablesDatasetMetadata': {'targetColumnSpecId': target_column_spec_id}
+      'tablesDatasetMetadata': {'targetColumnSpecId': target_column_spec.split('/')[-1]}
     }
     # Set target column for dataset
     self.log_info('Modifying target column for dataset: %s', body)
