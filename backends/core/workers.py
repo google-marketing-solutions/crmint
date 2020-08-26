@@ -1683,7 +1683,7 @@ class AutoMLTrainer(AutoMLWorker):
       ('dataset_name', 'string', False, '', 'AutoML Dataset Name'),
       ('dataset_strftime_format', 'string', False, '', 'AutoML Dataset strftime format'),
       ('training_columns', 'string_list', False, '', 'Training Column names (else, all are used)'),
-      ('target_column', 'string', True, '', 'Target Column name (remaining are used for input)'),
+      ('target_column', 'string', True, '', 'Target Column name'),
       ('optimization_objective', 'string', False, '', 'Optimization objective'),
       ('training_budget', 'number', True, '', 'Training budget (in hours)'),
       ('stop_early', 'boolean', True, False, 'Stop training early (if possible)'),
