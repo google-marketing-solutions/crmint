@@ -376,27 +376,28 @@ class StorageToBQImporter(StorageWorker, BQWorker):
     fields = field.get('fields', [])
 
     if fields:
-        subschema = bigquery.TableFieldSchema()
+        subschema = []
         for f in fields:
             fields_res = _get_field_schema(f)
-            subschema.fields.append(fields_res)
+            subschema.append(fields_res)
     else:
-        subschema = bigquery.TableFieldSchema()
+        subschema = []
 
-    field_schema = bigquery.TableFieldSchema()
-    field_schema.name = name
-    field_schema.type = field_type
-    field_schema.mode = mode
-    field_schema.fields = subschema
+    field_schema = bigquery.schema.SchemaField(
+      name=name,
+      field_type=field_type,
+      mode=mode,
+      fields=tuple(subschema)
+    )
 
     return field_schema
 
   def _parse_bq_json_schema(schema_json_string):
-    table_schema = bigquery.TableSchema()
+    table_schema = []
     jsonschema = json.loads(schema_json_string)
 
     for field in jsonschema:
-        table_schema.fields.append(_get_field_schema(field))
+        table_schema.append(_get_field_schema(field))
 
     return table_schema
 
