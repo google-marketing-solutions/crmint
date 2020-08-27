@@ -361,11 +361,44 @@ class StorageToBQImporter(StorageWorker, BQWorker):
       ('rows_to_skip', 'number', False, 0, 'Header rows to skip'),
       ('errors_to_allow', 'number', False, 0, 'Number of errors allowed'),
       ('import_json', 'boolean', False, False, 'Source is in JSON format'),
+      ('csv_null_marker', 'string', False, '', 'CSV Null marker'),
+      ('schema', 'text', False, '', 'Table Schema in JSON'),
   ]
 
   def _get_source_uris(self):
     stats = self._get_matching_stats(self._params['source_uris'])
     return ['gs:/%s' % s.filename for s in stats]
+
+  def _get_field_schema(field):
+    name = field['name']
+    field_type = field.get('type', 'STRING')
+    mode = field.get('mode', 'NULLABLE')
+    fields = field.get('fields', [])
+
+    if fields:
+        subschema = bigquery.TableFieldSchema()
+        for f in fields:
+            fields_res = _get_field_schema(f)
+            subschema.fields.append(fields_res)
+    else:
+        subschema = bigquery.TableFieldSchema()
+
+    field_schema = bigquery.TableFieldSchema()
+    field_schema.name = name
+    field_schema.type = field_type
+    field_schema.mode = mode
+    field_schema.fields = subschema
+
+    return field_schema
+
+  def _parse_bq_json_schema(schema_json_string):
+    table_schema = bigquery.TableSchema()
+    jsonschema = json.loads(schema_json_string)
+
+    for field in jsonschema:
+        table_schema.fields.append(_get_field_schema(field))
+
+    return table_schema
 
   def _execute(self):
     self._bq_setup()
@@ -380,6 +413,10 @@ class StorageToBQImporter(StorageWorker, BQWorker):
       except KeyError:
         job.skip_leading_rows = 0
     job.autodetect = self._params['autodetect']
+
+    if self._params['csv_null_marker']:
+      job.null_marker = self._params['csv_null_marker']
+
     if job.autodetect:
       # Ugly patch to make autodetection work. See https://goo.gl/shWLKf
       # pylint: disable=protected-access
@@ -393,6 +430,10 @@ class StorageToBQImporter(StorageWorker, BQWorker):
       job.allow_jagged_rows = True
       job.allow_quoted_newlines = True
       job.ignore_unknown_values = True
+
+      if self._params['schema']:
+        job.schema = self._parse_bq_json_schema(self._params['schema'])
+
     try:
       job.max_bad_records = self._params['errors_to_allow']
     except KeyError:
