@@ -369,8 +369,8 @@ class StorageToBQImporter(StorageWorker, BQWorker):
     stats = self._get_matching_stats(self._params['source_uris'])
     return ['gs:/%s' % s.filename for s in stats]
 
-  @staticmethod
-  def _get_field_schema(field):
+
+  def _get_field_schema(self, field):
     name = field['name']
     field_type = field.get('type', 'STRING')
     mode = field.get('mode', 'NULLABLE')
@@ -379,7 +379,7 @@ class StorageToBQImporter(StorageWorker, BQWorker):
     if fields:
       subschema = []
       for f in fields:
-        fields_res = _get_field_schema(f)
+        fields_res = self._get_field_schema(f)
         subschema.append(fields_res)
     else:
       subschema = []
@@ -393,13 +393,12 @@ class StorageToBQImporter(StorageWorker, BQWorker):
 
     return field_schema
 
-  @staticmethod
-  def _parse_bq_json_schema(schema_json_string):
+  def _parse_bq_json_schema(self, schema_json_string):
     table_schema = []
     jsonschema = json.loads(schema_json_string)
 
     for field in jsonschema:
-      table_schema.append(_get_field_schema(field))
+      table_schema.append(self._get_field_schema(field))
 
     return table_schema
 
@@ -435,7 +434,7 @@ class StorageToBQImporter(StorageWorker, BQWorker):
       job.ignore_unknown_values = True
 
       if self._params['schema']:
-        job.schema = _parse_bq_json_schema(self._params['schema'])
+        job.schema = self._parse_bq_json_schema(self._params['schema'])
 
     try:
       job.max_bad_records = self._params['errors_to_allow']
