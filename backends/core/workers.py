@@ -376,12 +376,12 @@ class StorageToBQImporter(StorageWorker, BQWorker):
     fields = field.get('fields', [])
 
     if fields:
-        subschema = []
-        for f in fields:
-            fields_res = _get_field_schema(f)
-            subschema.append(fields_res)
+      subschema = []
+      for f in fields:
+        fields_res = _get_field_schema(f)
+        subschema.append(fields_res)
     else:
-        subschema = []
+      subschema = []
 
     field_schema = bigquery.schema.SchemaField(
       name=name,
@@ -397,7 +397,7 @@ class StorageToBQImporter(StorageWorker, BQWorker):
     jsonschema = json.loads(schema_json_string)
 
     for field in jsonschema:
-        table_schema.append(_get_field_schema(field))
+      table_schema.append(_get_field_schema(field))
 
     return table_schema
 
