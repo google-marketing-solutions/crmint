@@ -12,8 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from urllib import request
 from oauthlib import oauth2
-import urllib2
 
 # The AdWords API OAuth 2.0 scope
 SCOPE = u'https://adwords.google.com/api/adwords'
@@ -30,9 +30,7 @@ OAUTH2_REFRESH_HEADERS = {
 
 
 def get_url(client_id):
-  """ Create oauth client and use this to generate the URL to get the authorisation
-  code using client_id """
-
+  """Create oauth client and generate authorisatio code URL."""
   oauthlib_client = oauth2.WebApplicationClient(client_id)
   # This is the URL construction for getting the authorisation code
   authorize_url = oauthlib_client.prepare_request_uri(
@@ -42,22 +40,19 @@ def get_url(client_id):
 
 
 def get_token(client_id, client_secret, ads_code):
-  """ Using authentication code retrieved from URL, take code, client_id and
-  client_secret to send HTTP request to fetch refresh token taken from parsed
-  response """
-
+  """Get refresh token using authentication and client credentials."""
   oauthlib_client = oauth2.WebApplicationClient(client_id)
   # Prepare the access token request body --> makes a
   # request to the token endpoint by adding the following parameters
   post_body = oauthlib_client.prepare_request_body(
       client_secret=client_secret, code=ads_code, redirect_uri=CALLBACK_URL)
   # URL request
-  request = urllib2.Request(GOOGLE_OAUTH2_GEN_ENDPOINT,
-                            post_body, OAUTH2_REFRESH_HEADERS)
+  r = request.Request(GOOGLE_OAUTH2_GEN_ENDPOINT,
+                      post_body, OAUTH2_REFRESH_HEADERS)
   if HTTPS_PROXY:
-    request.set_proxy(HTTPS_PROXY, 'https')
+    r.set_proxy(HTTPS_PROXY, 'https')
   # Open the given url, read and decode into raw_response
-  raw_response = urllib2.urlopen(request).read().decode()
+  raw_response = request.urlopen(r).read().decode()
   # Parse the JSON response body given in raw_response
   oauth2_credentials = oauthlib_client.parse_request_body_response(
       raw_response)

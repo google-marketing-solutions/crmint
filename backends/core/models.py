@@ -16,7 +16,7 @@ from datetime import datetime
 import json
 import re
 import uuid
-from google.appengine.api import taskqueue
+# from google.appengine.api import taskqueue
 from simpleeval import simple_eval
 from simpleeval import InvalidExpression
 from sqlalchemy import Column

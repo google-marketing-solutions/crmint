@@ -19,9 +19,9 @@ from core.models import Param, GeneralSetting
 from flask import Blueprint
 from flask_restful import Resource, fields, marshal_with, reqparse
 from ibackend.extensions import api
-import ads_auth_code
+from ibackend import ads_auth_code
 
-from google.appengine.api import urlfetch
+# from google.appengine.api import urlfetch
 
 blueprint = Blueprint('general', __name__)
 
@@ -65,7 +65,7 @@ class Configuration(Resource):
 
   @marshal_with(configuration_fields)
   def get(self):
-    urlfetch.set_default_fetch_deadline(300)
+    # urlfetch.set_default_fetch_deadline(300)
     params = Param.where(pipeline_id=None, job_id=None).order_by(Param.name)
     settings = GeneralSetting.query.order_by(GeneralSetting.name)
 
