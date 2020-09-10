@@ -1,25 +1,39 @@
---no-binary MySQL-python
-urllib3==1.25.10
 Flask==1.1.2
-Flask-Cors==3.0.2
-Flask-Migrate==2.0.3
-#Flask-SQLAlchemy==2.3.2
-# NB: Flask SQLAlchemy is only compatible with Flask 1.0+ in master branch for now
-git+https://github.com/dulacp/flask-sqlalchemy.git@python27-compat#egg=Flask-SQLAlchemy
-SQLAlchemy==1.3.18
-MySQL-python==1.2.5
-sqlalchemy_mixins==0.2.2
-google-cloud-bigquery==0.27
-simpleeval==0.9.5
-Flask-RESTful==0.3.5
-google-api-python-client
-google-cloud-logging==1.6.0
-GoogleAppEngineCloudStorageClient==1.9.22.1
-pyyaml==5.1
-oauthlib==3.0.1
-googleads==19.0.1
-lxml==3.7.3
-oauth2client==4.1.3
-httplib2<0.16.0
-Werkzeug==0.16.1
-rsa==4.0
+simpleeval==0.9.10
+Flask-SQLAlchemy==2.4.4
+sqlalchemy_mixins==1.2.1
+Flask-RESTful==0.3.8
+oauthlib==3.1.0
+Flask-Cors==3.0.9
+Flask-Migrate==2.5.3
+google-cloud-logging==1.15.1
+
+
+# pyyaml==5.3.1
+# google-api-python-client==1.11.0
+
+# --no-binary MySQL-python
+# urllib3==1.25.10
+# Flask==1.1.2
+# Flask-Cors==3.0.2
+# Flask-Migrate==2.0.3
+# #Flask-SQLAlchemy==2.3.2
+# # NB: Flask SQLAlchemy is only compatible with Flask 1.0+ in master branch for now
+# git+https://github.com/dulacp/flask-sqlalchemy.git@python27-compat#egg=Flask-SQLAlchemy
+# SQLAlchemy==1.3.18
+# MySQL-python==1.2.5
+# sqlalchemy_mixins==0.2.2
+# google-cloud-bigquery==0.27
+# simpleeval==0.9.5
+# Flask-RESTful==0.3.5
+# google-api-python-client
+# google-cloud-logging==1.6.0
+# GoogleAppEngineCloudStorageClient==1.9.22.1
+# pyyaml==5.1
+# oauthlib==3.0.1
+# googleads==19.0.1
+# lxml==3.7.3
+# oauth2client==4.1.3
+# httplib2<0.16.0
+# Werkzeug==0.16.1
+# rsa==4.0
