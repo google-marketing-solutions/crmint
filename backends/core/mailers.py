@@ -14,7 +14,7 @@
 
 """Mailers"""
 
-from google.appengine.api import mail
+# from google.appengine.api import mail
 
 from core.app_data import APP_DATA
 
@@ -40,7 +40,7 @@ class NotificationMailer(AppMailer):
     recipients = self.recipients(pipeline.recipients)
     if recipients:
       subject = "Pipeline %s %s." % (pipeline.name, pipeline.status)
-      mail.send_mail(sender=self.SENDER,
-                     to=recipients,
-                     subject=subject,
-                     body=subject)
+      # mail.send_mail(sender=self.SENDER,
+      #                to=recipients,
+      #                subject=subject,
+      #                body=subject)

@@ -12,8 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM node:12.16-alpine
-MAINTAINER Pierre Dulac <dulacp@google.com>
+FROM node:12.18.3-alpine3.12
+MAINTAINER Alex Prikhodko <aprikhodko@google.com>
 
 # Copy the app files
 WORKDIR /app

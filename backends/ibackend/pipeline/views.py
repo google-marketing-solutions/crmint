@@ -17,8 +17,8 @@ import time
 import datetime
 import uuid
 
-from google.appengine.api import app_identity
-from google.appengine.api import urlfetch
+# from google.appengine.api import app_identity
+# from google.appengine.api import urlfetch
 from google.cloud.logging import DESCENDING
 
 import werkzeug
@@ -308,13 +308,14 @@ class PipelineLogs(Resource):
   def get(self, pipeline_id):
     args = log_parser.parse_args()
     entries = []
-    urlfetch.set_default_fetch_deadline(300)
+    # urlfetch.set_default_fetch_deadline(300)
 
     next_page_token = args.get('next_page_token')
     page_size = 20
     from core import cloud_logging
 
-    project_id = app_identity.get_application_id()
+    # project_id = app_identity.get_application_id()
+    project_id = 'crmint-dev'  # TODO(aprikhodko): get a real Project ID here.
     filter_ = 'logName="projects/%s/logs/%s"' % (project_id, cloud_logging.logger_name)
     filter_ += ' AND jsonPayload.labels.pipeline_id="%s"' % pipeline_id
     if args.get('worker_class'):
