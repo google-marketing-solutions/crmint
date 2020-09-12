@@ -12,9 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-runtime: python27
-api_version: 1
-threadsafe: true
+runtime: python38
 
 handlers:
 - url: /favicon\.ico
@@ -27,24 +25,9 @@ handlers:
   upload: dist/(.*\.(js|css|png|ico))$
   login: admin
   secure: always
-# URLs without extension (including '/') are interpreted as the target of SPA Routing.
+# URLs without extension (including '/') are interpreted as SPA Routing targets.
 - url: /(.*)$
   static_files: dist/index.html
   upload: dist/index.html
   login: admin
   secure: always
-
-skip_files:
-- ^README\..*
-- ^\.gitignore
-- ^\.editorconfig
-- ^app\.yaml
-- ^node_modules$
-- ^grunt\.js
-- ^src$
-- ^e2e$
-- ^karma\.config\.js
-- ^package\.json
-- ^protractor\.conf\.js
-- ^tslint\.json
-- ^.*DS_Store.*

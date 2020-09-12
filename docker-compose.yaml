@@ -14,80 +14,80 @@
 
 version: '3'
 
-volumes:
-  db_data:
+# volumes:
+#   db_data:
 
 services:
-  db:
-    image: mysql:8.0
-    ports:
-      - "3306:3306"
-    environment:
-      MYSQL_ROOT_PASSWORD: 'root'
-      MYSQL_DATABASE: crmint_development
-      MYSQL_USER: crmint
-      MYSQL_PASSWORD: crmint
-    volumes:
-      - db_data:/var/lib/mysql
+  # db:
+  #   image: mysql:8.0
+  #   ports:
+  #     - "3306:3306"
+  #   environment:
+  #     MYSQL_ROOT_PASSWORD: 'root'
+  #     MYSQL_DATABASE: crmint_development
+  #     MYSQL_USER: crmint
+  #     MYSQL_PASSWORD: crmint
+  #   volumes:
+  #     - db_data:/var/lib/mysql
 
-  backends:
-    build:
-      context: .
-      dockerfile: docker/backends/Dockerfile
-    ports:
-      - "8000:8000"
-      - "8080:8080"
-      - "8081:8081"
-    environment:
-      DATABASE_URI: mysql+mysqldb://crmintapp:crmintapp@db:3306/crmintapp
-      APPLICATION_ID: $APPLICATION_ID
-    volumes:
-      - ./backends:/app/backends
-      # - ./backends/core:/app/backends/core
-      # - ./backends/data:/app/backends/data
-      # - ./backends/ibackend:/app/backends/ibackend
-      # - ./backends/instance:/app/backends/instance
-      # - ./backends/jbackend:/app/backends/jbackend
-      # - ./backends/migrations:/app/backends/migrations
-      # - ./backends/tests:/app/backends/tests
-    depends_on:
-      - db
-      # - migrations
-      # - seeds
-#
+  # backends:
+  #   build:
+  #     context: .
+  #     dockerfile: docker/backends/Dockerfile
+  #   ports:
+  #     - "8000:8000"
+  #     - "8080:8080"
+  #     - "8081:8081"
+  #   environment:
+  #     DATABASE_URI: mysql+mysqldb://crmintapp:crmintapp@db:3306/crmintapp
+  #     APPLICATION_ID: $APPLICATION_ID
+  #   volumes:
+  #     - ./backends:/app/backends
+  #     # - ./backends/core:/app/backends/core
+  #     # - ./backends/data:/app/backends/data
+  #     # - ./backends/ibackend:/app/backends/ibackend
+  #     # - ./backends/instance:/app/backends/instance
+  #     # - ./backends/jbackend:/app/backends/jbackend
+  #     # - ./backends/migrations:/app/backends/migrations
+  #     # - ./backends/tests:/app/backends/tests
+  #   depends_on:
+  #     - db
+  #     # - migrations
+  #     # - seeds
+
   # migrations:
-    # build:
-      # context: .
-      # dockerfile: docker/backends/Dockerfile
-    # environment:
-      # DATABASE_URI: mysql+mysqldb://crmintapp:crmintapp@db:3306/crmintapp
-    # command: >
-      # bash -c "export PYTHONPATH="/root/google-cloud-sdk/platform/google_appengine:lib" &&
-               # export FLASK_APP=run_ibackend.py &&
-               # export FLASK_DEBUG=1 &&
-               # export APPLICATION_ID=crmintapp &&
-               # cd /app/backends &&
-               # python -m flask db upgrade"
-    # depends_on:
-      # - db
-#
+  #   build:
+  #     context: .
+  #     dockerfile: docker/backends/Dockerfile
+  #   environment:
+  #     DATABASE_URI: mysql+mysqldb://crmintapp:crmintapp@db:3306/crmintapp
+  #   command: >
+  #     bash -c "export PYTHONPATH="/root/google-cloud-sdk/platform/google_appengine:lib" &&
+  #              export FLASK_APP=run_ibackend.py &&
+  #              export FLASK_DEBUG=1 &&
+  #              export APPLICATION_ID=crmintapp &&
+  #              cd /app/backends &&
+  #              python -m flask db upgrade"
+  #   depends_on:
+  #     - db
+
   # seeds:
-    # build:
-      # context: .
-      # dockerfile: docker/backends/Dockerfile
-    # environment:
-      # DATABASE_URI: mysql+mysqldb://crmintapp:crmintapp@db:3306/crmintapp
-    # command: >
-      # bash -c "export PYTHONPATH="/root/google-cloud-sdk/platform/google_appengine:lib" &&
-               # export FLASK_APP=run_ibackend.py &&
-               # export FLASK_DEBUG=1 &&
-               # export APPLICATION_ID=crmintapp &&
-               # cd /app/backends &&
-               # python -m flask db-seeds"
-    # depends_on:
-      # - db
-      # - migrations
-#
+  #   build:
+  #     context: .
+  #     dockerfile: docker/backends/Dockerfile
+  #   environment:
+  #     DATABASE_URI: mysql+mysqldb://crmintapp:crmintapp@db:3306/crmintapp
+  #   command: >
+  #     bash -c "export PYTHONPATH="/root/google-cloud-sdk/platform/google_appengine:lib" &&
+  #              export FLASK_APP=run_ibackend.py &&
+  #              export FLASK_DEBUG=1 &&
+  #              export APPLICATION_ID=crmintapp &&
+  #              cd /app/backends &&
+  #              python -m flask db-seeds"
+  #   depends_on:
+  #     - db
+  #     - migrations
+
   frontend:
     build:
       context: .
@@ -95,6 +95,6 @@ services:
     ports:
       - "4200:4200"
     volumes:
-      - ./frontend/src:/app/frontend/src
+      - ./frontend:/app/frontend
     # depends_on:
-      # - backends
+    #   - backends
