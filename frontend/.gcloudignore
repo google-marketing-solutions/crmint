@@ -1,0 +1,16 @@
+.gcloudignore
+.git
+.gitignore
+README.*
+.gitignore
+.editorconfig
+app.yaml
+node_modules
+grunt.js
+src
+e2e
+karma.config.js
+package.json
+protractor.conf.js
+tslint.json
+*DS_Store*
