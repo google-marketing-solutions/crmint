@@ -17,8 +17,10 @@
 FROM python:3.7.9-alpine3.12
 MAINTAINER Alex Prikhodko <aprikhodko@google.com>
 
-# Install essential packages
+WORKDIR /root
 RUN apk update && apk add bash vim gcc linux-headers python3-dev musl-dev g++
+
+WORKDIR /app/backends
 
 
 # WORKDIR /root

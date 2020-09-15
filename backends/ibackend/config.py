@@ -33,5 +33,5 @@ class DevConfig(Config):
   DEBUG = True
   SQLALCHEMY_DATABASE_URI = os.getenv(
       'DATABASE_URI',
-      'mysql+mysqldb://crmintapp:crmintapp@localhost:3306/crmintapp'
+      'mysql+mysqlconnector://crmint:crmint@db:3306/crmint_development'
   )
