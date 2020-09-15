@@ -14,79 +14,70 @@
 
 version: '3'
 
-# volumes:
-#   db_data:
+volumes:
+  db_data:
 
 services:
-  # db:
-  #   image: mysql:8.0
-  #   ports:
-  #     - "3306:3306"
-  #   environment:
-  #     MYSQL_ROOT_PASSWORD: 'root'
-  #     MYSQL_DATABASE: crmint_development
-  #     MYSQL_USER: crmint
-  #     MYSQL_PASSWORD: crmint
-  #   volumes:
-  #     - db_data:/var/lib/mysql
+  db:
+    image: mysql:8.0
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: 'root'
+      MYSQL_DATABASE: crmint_development
+      MYSQL_USER: crmint
+      MYSQL_PASSWORD: crmint
+    volumes:
+      - db_data:/var/lib/mysql
 
-  # backends:
-  #   build:
-  #     context: .
-  #     dockerfile: docker/backends/Dockerfile
-  #   ports:
-  #     - "8000:8000"
-  #     - "8080:8080"
-  #     - "8081:8081"
-  #   environment:
-  #     DATABASE_URI: mysql+mysqldb://crmintapp:crmintapp@db:3306/crmintapp
-  #     APPLICATION_ID: $APPLICATION_ID
-  #   volumes:
-  #     - ./backends:/app/backends
-  #     # - ./backends/core:/app/backends/core
-  #     # - ./backends/data:/app/backends/data
-  #     # - ./backends/ibackend:/app/backends/ibackend
-  #     # - ./backends/instance:/app/backends/instance
-  #     # - ./backends/jbackend:/app/backends/jbackend
-  #     # - ./backends/migrations:/app/backends/migrations
-  #     # - ./backends/tests:/app/backends/tests
-  #   depends_on:
-  #     - db
-  #     # - migrations
-  #     # - seeds
+  migrations:
+    build:
+      context: .
+      dockerfile: docker/backends/Dockerfile
+    environment:
+      DATABASE_URI: mysql+mysqlconnector://crmint:crmint@db:3306/crmint_development
+    volumes:
+      - ./backends:/app/backends
+    command: >
+      bash -c "cd /app/backends; \
+               [ ! -d ".venv" ] && \
+                   python3 -m venv .venv && \
+                   . .venv/bin/activate && \
+                   pip install --upgrade pip && \
+                   deactivate; \
+               . .venv/bin/activate; \
+               pip install -r ibackend/requirements.txt; \
+               FLASK_APP=run_ibackend.py \
+                   FLASK_DEBUG=1 \
+                   APPLICATION_ID=crmint-dev \
+                   python -m flask db upgrade; \
+               FLASK_APP=run_ibackend.py \
+                   FLASK_DEBUG=1 \
+                   APPLICATION_ID=crmint-dev \
+                   python -m flask db-seeds"
+    depends_on:
+      - db
 
-  # migrations:
-  #   build:
-  #     context: .
-  #     dockerfile: docker/backends/Dockerfile
-  #   environment:
-  #     DATABASE_URI: mysql+mysqldb://crmintapp:crmintapp@db:3306/crmintapp
-  #   command: >
-  #     bash -c "export PYTHONPATH="/root/google-cloud-sdk/platform/google_appengine:lib" &&
-  #              export FLASK_APP=run_ibackend.py &&
-  #              export FLASK_DEBUG=1 &&
-  #              export APPLICATION_ID=crmintapp &&
-  #              cd /app/backends &&
-  #              python -m flask db upgrade"
-  #   depends_on:
-  #     - db
-
-  # seeds:
-  #   build:
-  #     context: .
-  #     dockerfile: docker/backends/Dockerfile
-  #   environment:
-  #     DATABASE_URI: mysql+mysqldb://crmintapp:crmintapp@db:3306/crmintapp
-  #   command: >
-  #     bash -c "export PYTHONPATH="/root/google-cloud-sdk/platform/google_appengine:lib" &&
-  #              export FLASK_APP=run_ibackend.py &&
-  #              export FLASK_DEBUG=1 &&
-  #              export APPLICATION_ID=crmintapp &&
-  #              cd /app/backends &&
-  #              python -m flask db-seeds"
-  #   depends_on:
-  #     - db
-  #     - migrations
+  backends:
+    build:
+      context: .
+      dockerfile: docker/backends/Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      DATABASE_URI: mysql+mysqlconnector://crmint:crmint@db:3306/crmint_development
+      APPLICATION_ID: $APPLICATION_ID
+    volumes:
+      - ./backends:/app/backends
+    command: >
+      bash -c "cd /app/backends; \
+               . .venv/bin/activate; \
+               FLASK_APP=run_ibackend \
+                  FLASK_ENV=development \
+                  flask run -p 8080 -h 0.0.0.0"
+    depends_on:
+      - db
+      - migrations
 
   frontend:
     build:
