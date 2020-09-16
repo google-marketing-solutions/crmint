@@ -35,7 +35,6 @@ def get_url(client_id):
   # This is the URL construction for getting the authorisation code
   authorize_url = oauthlib_client.prepare_request_uri(
       GOOGLE_OAUTH2_AUTH_ENDPOINT, redirect_uri=CALLBACK_URL, scope=SCOPE)
-
   return authorize_url
 
 
@@ -47,16 +46,12 @@ def get_token(client_id, client_secret, ads_code):
   post_body = oauthlib_client.prepare_request_body(
       client_secret=client_secret, code=ads_code, redirect_uri=CALLBACK_URL)
   # URL request
-  r = request.Request(GOOGLE_OAUTH2_GEN_ENDPOINT,
-                      post_body, OAUTH2_REFRESH_HEADERS)
+  r = request.Request(GOOGLE_OAUTH2_GEN_ENDPOINT, post_body.encode('utf-8'),
+                      OAUTH2_REFRESH_HEADERS)
   if HTTPS_PROXY:
     r.set_proxy(HTTPS_PROXY, 'https')
-  # Open the given url, read and decode into raw_response
   raw_response = request.urlopen(r).read().decode()
-  # Parse the JSON response body given in raw_response
   oauth2_credentials = oauthlib_client.parse_request_body_response(
       raw_response)
   # Return the refresh token
-  token = oauth2_credentials['refresh_token']
-
-  return token
+  return oauth2_credentials['refresh_token']

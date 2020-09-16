@@ -49,11 +49,13 @@ services:
                pip install -r ibackend/requirements.txt; \
                FLASK_APP=run_ibackend.py \
                    FLASK_DEBUG=1 \
-                   APPLICATION_ID=crmint-dev \
+                   APPLICATION_ID=$APPLICATION_ID \
+                   GOOGLE_APPLICATION_CREDENTIALS=/app/backends/data/$APPLICATION_ID.json \
                    python -m flask db upgrade; \
                FLASK_APP=run_ibackend.py \
                    FLASK_DEBUG=1 \
-                   APPLICATION_ID=crmint-dev \
+                   APPLICATION_ID=$APPLICATION_ID \
+                   GOOGLE_APPLICATION_CREDENTIALS=/app/backends/data/$APPLICATION_ID.json \
                    python -m flask db-seeds"
     depends_on:
       - db
@@ -66,15 +68,17 @@ services:
       - "8080:8080"
     environment:
       DATABASE_URI: mysql+mysqlconnector://crmint:crmint@db:3306/crmint_development
-      APPLICATION_ID: $APPLICATION_ID
+      APPLICATION_ID: "$APPLICATION_ID"
     volumes:
       - ./backends:/app/backends
     command: >
       bash -c "cd /app/backends; \
                . .venv/bin/activate; \
                FLASK_APP=run_ibackend \
-                  FLASK_ENV=development \
-                  flask run -p 8080 -h 0.0.0.0"
+                   FLASK_ENV=development \
+                   APPLICATION_ID=$APPLICATION_ID \
+                   GOOGLE_APPLICATION_CREDENTIALS=/app/backends/data/$APPLICATION_ID.json \
+                   flask run -p 8080 -h 0.0.0.0"
     depends_on:
       - db
       - migrations

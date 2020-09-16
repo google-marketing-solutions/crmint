@@ -12,16 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from google.cloud.logging import Client
-
-from core.app_data import SA_DATA, SA_FILE
+from google.cloud import logging
 
 
-if SA_DATA.get('private_key', ''):
-  client = Client.from_service_account_json(SA_FILE)
-else:
-  client = Client()
-
-
-logger_name = 'crmintapplogger'
+client = logging.Client()
+logger_name = 'crmint-logger'
 logger = client.logger(logger_name)
