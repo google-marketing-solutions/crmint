@@ -4,6 +4,7 @@ Thumbs.db
 
 env
 venv
+.venv
 
 package-lock.json
 *.pyc

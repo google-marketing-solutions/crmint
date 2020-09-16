@@ -12,16 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import os.path
-
+import os
 from flask import json
 
-SA_FILE = os.path.join(
-    os.path.dirname(__file__),
-    '../data/service-account.json'
-)
-with open(SA_FILE) as blog_file:
-  SA_DATA = json.load(blog_file)
 
 APP_DATA_FILE = os.path.join(
     os.path.dirname(__file__),
@@ -29,3 +22,5 @@ APP_DATA_FILE = os.path.join(
 )
 with open(APP_DATA_FILE) as blog_file:
   APP_DATA = json.load(blog_file)
+project_id = os.getenv('APPLICATION_ID')
+APP_DATA['sa_email'] = f'{project_id}@appspot.gserviceaccount.com'
