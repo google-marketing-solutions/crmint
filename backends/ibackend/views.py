@@ -14,7 +14,7 @@
 
 """General section."""
 
-from core.app_data import SA_DATA
+from core.app_data import APP_DATA
 from core.models import Param, GeneralSetting
 from flask import Blueprint
 from flask_restful import Resource, fields, marshal_with, reqparse
@@ -75,7 +75,7 @@ class Configuration(Resource):
     url = ads_auth_code.get_url(client_id)
 
     return {
-        'sa_email': SA_DATA['client_email'],
+        'sa_email': APP_DATA['sa_email'],
         'variables': params,
         'settings': settings,
         # Added url to config
