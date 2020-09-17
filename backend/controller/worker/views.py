@@ -13,18 +13,21 @@
 # limitations under the License.
 
 """Worker section."""
+
+
+# TODO(aprikhodko): Move this blueprint to the jobs service.
+
+
 from flask import Blueprint
 from flask_restful import Resource, marshal_with, fields
-from core import workers
-from core.workers import AVAILABLE
-from ibackend.extensions import api
+from jobs import workers
+from controller.extensions import api
 
 blueprint = Blueprint('worker', __name__)
 
 param_fields = {
     'name': fields.String,
     'label': fields.String,
-    # 'hint': fields.String,
     'default': fields.String,
     'required': fields.Boolean,
     'type': fields.String,
@@ -35,7 +38,7 @@ class WorkerList(Resource):
   """Shows a list of available workers"""
 
   def get(self):
-    return AVAILABLE, 200
+    return workers.AVAILABLE, 200
 
 
 class WorkerParams(Resource):

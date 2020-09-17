@@ -33,51 +33,51 @@ services:
   migrations:
     build:
       context: .
-      dockerfile: docker/backends/Dockerfile
+      dockerfile: docker/backend/Dockerfile
     environment:
       DATABASE_URI: mysql+mysqlconnector://crmint:crmint@db:3306/crmint_development
     volumes:
-      - ./backends:/app/backends
+      - ./backend:/app/backend
     command: >
-      bash -c "cd /app/backends; \
+      bash -c "cd /app/backend; \
                [ ! -d ".venv" ] && \
                    python3 -m venv .venv && \
                    . .venv/bin/activate && \
                    pip install --upgrade pip && \
                    deactivate; \
                . .venv/bin/activate; \
-               pip install -r ibackend/requirements.txt; \
-               FLASK_APP=run_ibackend.py \
+               pip install -r controller/requirements.txt; \
+               FLASK_APP=controller_app.py \
                    FLASK_DEBUG=1 \
                    APPLICATION_ID=$APPLICATION_ID \
-                   GOOGLE_APPLICATION_CREDENTIALS=/app/backends/data/$APPLICATION_ID.json \
+                   GOOGLE_APPLICATION_CREDENTIALS=/app/backend/data/$APPLICATION_ID.json \
                    python -m flask db upgrade; \
-               FLASK_APP=run_ibackend.py \
+               FLASK_APP=controller_app.py \
                    FLASK_DEBUG=1 \
                    APPLICATION_ID=$APPLICATION_ID \
-                   GOOGLE_APPLICATION_CREDENTIALS=/app/backends/data/$APPLICATION_ID.json \
+                   GOOGLE_APPLICATION_CREDENTIALS=/app/backend/data/$APPLICATION_ID.json \
                    python -m flask db-seeds"
     depends_on:
       - db
 
-  backends:
+  controller:
     build:
       context: .
-      dockerfile: docker/backends/Dockerfile
+      dockerfile: docker/backend/Dockerfile
     ports:
       - "8080:8080"
     environment:
       DATABASE_URI: mysql+mysqlconnector://crmint:crmint@db:3306/crmint_development
       APPLICATION_ID: "$APPLICATION_ID"
     volumes:
-      - ./backends:/app/backends
+      - ./backend:/app/backend
     command: >
-      bash -c "cd /app/backends; \
+      bash -c "cd /app/backend; \
                . .venv/bin/activate; \
-               FLASK_APP=run_ibackend \
+               FLASK_APP=controller_app \
                    FLASK_ENV=development \
                    APPLICATION_ID=$APPLICATION_ID \
-                   GOOGLE_APPLICATION_CREDENTIALS=/app/backends/data/$APPLICATION_ID.json \
+                   GOOGLE_APPLICATION_CREDENTIALS=/app/backend/data/$APPLICATION_ID.json \
                    flask run -p 8080 -h 0.0.0.0"
     depends_on:
       - db
@@ -91,5 +91,6 @@ services:
       - "4200:4200"
     volumes:
       - ./frontend:/app/frontend
-    # depends_on:
-    #   - backends
+    depends_on:
+      - controller
+    #   - jobs

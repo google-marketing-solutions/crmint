@@ -18,10 +18,10 @@ import os.path
 
 from flask import Flask
 
-from core.database import init_engine
-from core.extensions import db, cors, migrate
-from ibackend.config import ProdConfig
-from ibackend.extensions import set_global_api_blueprint
+from controller import pipeline, job, views, worker, stage
+from controller.config import ProdConfig
+from controller.database import init_engine
+from controller.extensions import set_global_api_blueprint, db, cors, migrate
 
 
 def create_app(api_blueprint, config_object=ProdConfig):
@@ -29,7 +29,7 @@ def create_app(api_blueprint, config_object=ProdConfig):
   app = Flask(__name__.split('.')[1], instance_relative_config=True)
   app.config.from_object(config_object)
   app.config.from_pyfile(
-      os.path.join(os.path.dirname(__file__), '..', 'instance', 'config.py'))
+      os.path.join(os.path.dirname(__file__), '..', 'data', 'config.py'))
   # NB: set the global api blueprint before registering all the blueprints
   set_global_api_blueprint(api_blueprint)
   register_extensions(app)
@@ -44,11 +44,9 @@ def register_extensions(app):
   db.init_app(app)
   init_engine(app.config['SQLALCHEMY_DATABASE_URI'])
   migrate.init_app(app, db)
-  return None
 
 
 def register_api_blueprints(api_blueprint):
-  from ibackend import pipeline, job, worker, stage
   api_blueprint.init_app(pipeline.views.blueprint)
   api_blueprint.init_app(job.views.blueprint)
   api_blueprint.init_app(worker.views.blueprint)
@@ -57,7 +55,6 @@ def register_api_blueprints(api_blueprint):
 
 def register_blueprints(app):
   """Register Flask blueprints."""
-  from ibackend import pipeline, job, views, worker, stage
   app.register_blueprint(views.blueprint, url_prefix='/api')
   app.register_blueprint(pipeline.views.blueprint, url_prefix='/api')
   app.register_blueprint(job.views.blueprint, url_prefix='/api')
