@@ -12,33 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-service: api-service
+# Docker: Google App Engine
 
-instance_class: B1
-basic_scaling:
-  max_instances: 3
-  idle_timeout: 5m
+FROM python:3.7.9-alpine3.12
+MAINTAINER Alex Prikhodko <aprikhodko@google.com>
 
-runtime: python27
-api_version: 1
-threadsafe: true
+WORKDIR /root
+RUN apk update && apk add bash vim gcc linux-headers python3-dev musl-dev g++ libffi-dev
 
-handlers:
-- url: /.*
-  script: run_ibackend.app
-  login: admin
-  secure: always
-
-libraries:
-  - name: MySQLdb
-    version: "latest"
-  - name: ssl
-    version: "latest"
-  - name: lxml
-    version: "latest"
-    
-skip_files:
-  - \.pyc$
-  - ^jbackend$
-  - run_jbackend.py
-  - _jbackend.yaml$
+WORKDIR /app/backend

@@ -28,9 +28,10 @@ from sqlalchemy import Boolean
 from sqlalchemy import ForeignKey
 from sqlalchemy.orm import relationship
 from sqlalchemy.orm import load_only
-from core import inline
-from core.database import BaseModel
-from core.mailers import NotificationMailer
+from common import crmint_logging
+from controller import inline
+from controller.database import BaseModel
+from controller.mailers import NotificationMailer
 
 
 def _parse_num(s):
@@ -139,7 +140,6 @@ class Pipeline(BaseModel):
       return True
     except (InvalidExpression, TypeError, ValueError, SyntaxError) as e:
       inline.close_session()
-      from core import cloud_logging
       job_id = 'N/A'
       worker_class = 'N/A'
       if param.job_id is not None:
@@ -150,7 +150,7 @@ class Pipeline(BaseModel):
         message = 'Invalid pipeline variable "%s": %s' % (param.label, e)
       else:
         message = 'Invalid global variable "%s": %s' % (param.label, e)
-      cloud_logging.logger.log_struct({
+      crmint_logging.logger.log_struct({
           'labels': {
               'pipeline_id': self.id,
               'job_id': job_id,

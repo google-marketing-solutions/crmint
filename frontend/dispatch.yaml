@@ -14,5 +14,5 @@
 
 dispatch:
   - url: "*/api/*"
-    service: api-service
+    service: crmint-controller
 
