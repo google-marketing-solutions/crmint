@@ -29,7 +29,7 @@ import time
 # import yaml
 
 # from apiclient.discovery import build
-from apiclient.errors import HttpError
+# from apiclient.errors import HttpError
 # from apiclient.http import MediaIoBaseUpload
 # import cloudstorage as gcs
 # from google.cloud import bigquery
@@ -38,6 +38,7 @@ from google.cloud.exceptions import ClientError
 # from oauth2client.service_account import ServiceAccountCredentials
 # import requests
 # import zeep.cache
+from common import crmint_logging
 
 
 _KEY_FILE = os.path.join(os.path.dirname(__file__), '..', 'data',
@@ -101,8 +102,7 @@ class Worker(object):
     self._workers_to_enqueue = []
 
   def _log(self, level, message, *substs):
-    from core import cloud_logging
-    self.retry(cloud_logging.logger.log_struct)({
+    self.retry(crmint_logging.logger.log_struct)({
         'labels': {
             'pipeline_id': self._pipeline_id,
             'job_id': self._job_id,
