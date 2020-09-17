@@ -16,9 +16,9 @@
 from flask import Blueprint
 from flask_restful import Resource, reqparse, marshal_with, fields, abort
 
-from core import insight
-from core.models import Job, Pipeline
-from ibackend.extensions import api
+from controller import insight
+from controller.models import Job, Pipeline
+from controller.extensions import api
 
 blueprint = Blueprint('job', __name__)
 

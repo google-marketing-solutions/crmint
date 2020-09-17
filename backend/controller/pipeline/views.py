@@ -29,12 +29,10 @@ from flask_restful import marshal_with
 from flask_restful import Resource
 from flask_restful import reqparse
 
-from core import cloud_logging
-from core import insight
-from core.models import Job
-from core.models import Pipeline
-
-from ibackend.extensions import api
+from common import crmint_logging
+from controller import insight
+from controller.models import Job, Pipeline
+from controller.extensions import api
 
 blueprint = Blueprint('pipeline', __name__)
 
@@ -312,11 +310,10 @@ class PipelineLogs(Resource):
 
     next_page_token = args.get('next_page_token')
     page_size = 20
-    from core import cloud_logging
 
     # project_id = app_identity.get_application_id()
     project_id = 'crmint-dev'  # TODO(aprikhodko): get a real Project ID here.
-    filter_ = 'logName="projects/%s/logs/%s"' % (project_id, cloud_logging.logger_name)
+    filter_ = 'logName="projects/%s/logs/%s"' % (project_id, crmint_logging.logger_name)
     filter_ += ' AND jsonPayload.labels.pipeline_id="%s"' % pipeline_id
     if args.get('worker_class'):
       filter_ += ' AND jsonPayload.labels.worker_class="%s"' \
@@ -331,7 +328,7 @@ class PipelineLogs(Resource):
       filter_ += ' AND timestamp>="%s"' % args.get('fromdate')
     if args.get('todate'):
       filter_ += ' AND timestamp<="%s"' % args.get('todate')
-    iterator = cloud_logging.client.list_entries(
+    iterator = crmint_logging.client.list_entries(
         projects=[project_id],
         filter_=filter_,
         order_by=DESCENDING,

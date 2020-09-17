@@ -12,33 +12,24 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-service: job-service
+"""Extensions module for backend service.
 
-instance_class: B2
-basic_scaling:
-  max_instances: 20
-  idle_timeout: 10m
+Each extension is initialized in the app factory located in app.py.
+"""
 
-runtime: python27
-api_version: 1
-threadsafe: true
 
-handlers:
-- url: /.*
-  script: run_jbackend.app
-  login: admin
-  secure: always
+from flask_cors import CORS
+from flask_migrate import Migrate
+from flask_restful import Api
+from flask_sqlalchemy import SQLAlchemy
 
-libraries:
-  - name: MySQLdb
-    version: "latest"
-  - name: ssl
-    version: "latest"
-  - name: lxml
-    version: "latest"
 
-skip_files:
-  - \.pyc$
-  - ^ibackend$
-  - run_ibackend.py
-  - _ibackend.yaml$
+cors = CORS()
+db = SQLAlchemy()
+migrate = Migrate()
+api = Api()  # Default blueprint.
+
+
+def set_global_api_blueprint(api_blueprint):
+  global api  # pylint: disable=global-statement
+  api = api_blueprint

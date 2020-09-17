@@ -14,12 +14,12 @@
 
 """General section."""
 
-from core.app_data import APP_DATA
-from core.models import Param, GeneralSetting
 from flask import Blueprint
 from flask_restful import Resource, fields, marshal_with, reqparse
-from ibackend.extensions import api
-from ibackend import ads_auth_code
+from controller import ads_auth_code
+from controller.app_data import APP_DATA
+from controller.extensions import api
+from controller.models import Param, GeneralSetting
 
 # from google.appengine.api import urlfetch
 

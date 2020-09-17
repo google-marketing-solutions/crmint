@@ -17,7 +17,7 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import scoped_session, sessionmaker
 from sqlalchemy_mixins import AllFeaturesMixin, ReprMixin
 
-from core.mixins import TimestampsMixin
+from controller.mixins import TimestampsMixin
 
 engine = None
 Base = declarative_base()
@@ -45,7 +45,7 @@ def init_db():
       they will be registered properly on the metadata.  Otherwise
       you will have to import them first before calling init_db().
   """
-  from core import models  # NOQA
+  from controller import models  # NOQA
   Base.metadata.create_all(bind=engine)
 
 
@@ -54,7 +54,7 @@ def load_fixtures(logger_func=None):
 
   :param: Logger function to display the loading state
   """
-  from core import models
+  from controller import models
   general_settings = [
       'client_id', 'client_secret', 'emails_for_notifications',
       'google_ads_authentication_code', 'google_ads_refresh_token',
@@ -69,7 +69,7 @@ def load_fixtures(logger_func=None):
         logger_func('Added setting %s' % setting)
 
 def reset_jobs_and_pipelines_statuses_to_idle():
-  from core.models import Pipeline
+  from controller.models import Pipeline
   for pipeline in Pipeline.all():
     for job in pipeline.jobs:
       job.update(status='idle')

@@ -20,10 +20,8 @@ from flask_restful import fields
 from flask_restful import marshal_with
 from flask_restful import Resource
 from flask_restful import reqparse
-
-from core.models import Stage
-
-from ibackend.extensions import api
+from controller.models import Stage
+from controller.extensions import api
 
 blueprint = Blueprint('stage', __name__)
 

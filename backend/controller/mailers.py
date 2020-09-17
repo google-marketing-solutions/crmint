@@ -16,12 +16,12 @@
 
 # from google.appengine.api import mail
 
-from core.app_data import APP_DATA
+from controller.app_data import APP_DATA
 
 
 class AppMailer(object):
   def recipients(self, other_recipients):
-    from core.models import GeneralSetting
+    from controller.models import GeneralSetting
     gsetting = GeneralSetting.where(name='emails_for_notifications').first()
     if gsetting is None or gsetting.value is None:
       recipients = other_recipients
