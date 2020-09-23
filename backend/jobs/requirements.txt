@@ -1,5 +1,0 @@
-# Include common libraries for backend applications
-# -r ../core/requirements.txt
-croniter==0.3.20
-google-auth-httplib2==0.0.3
-

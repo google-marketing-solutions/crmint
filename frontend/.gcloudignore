@@ -14,3 +14,14 @@ package.json
 protractor.conf.js
 tslint.json
 *DS_Store*
+*.swp
+angular.json
+browserslist
+dispatch.yaml
+frontend_app.yaml
+karma.conf.js
+package-lock.json
+tsconfig.app.json
+tsconfig.json
+tsconfig.spec.json
+

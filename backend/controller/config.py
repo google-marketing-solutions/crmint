@@ -19,6 +19,10 @@ import os
 class Config(object):
   """Base configuration."""
   SQLALCHEMY_TRACK_MODIFICATIONS = False
+  SQLALCHEMY_DATABASE_URI = os.getenv(
+      'DATABASE_URI',
+      'mysql+mysqlconnector://crmint:crmint@db:3306/crmint_development'
+  )
 
 
 class ProdConfig(Config):
@@ -31,7 +35,3 @@ class DevConfig(Config):
   """Development configuration."""
   ENV = 'dev'
   DEBUG = True
-  SQLALCHEMY_DATABASE_URI = os.getenv(
-      'DATABASE_URI',
-      'mysql+mysqlconnector://crmint:crmint@db:3306/crmint_development'
-  )

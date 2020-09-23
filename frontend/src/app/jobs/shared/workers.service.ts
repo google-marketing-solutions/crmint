@@ -21,6 +21,10 @@ export class WorkersService extends ApiService {
 
   private url = `${this.getHost()}/workers`;
 
+  protected getHost() {
+    return super.getHost().replace(':8080/', ':8081/');
+  }
+
   getParamsForWorkerClass(worker_class) {
     this.removeContentTypeHeader();
     return this.http.get(this.getWorkerParamsUrl(worker_class))

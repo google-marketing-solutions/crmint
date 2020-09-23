@@ -13,6 +13,8 @@
 # limitations under the License.
 
 dispatch:
+  - url: "*/api/workers*"
+    service: crmint-jobs
   - url: "*/api/*"
     service: crmint-controller
 

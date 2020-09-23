@@ -133,11 +133,11 @@ def before_hook(stage, stage_name):
       stage.db_instance_name)
 
   stage.cloudsql_dir = "/tmp/cloudsql"
-  stage.cloud_db_uri = "mysql+mysqldb://{}:{}@/{}?unix_socket=/cloudsql/{}".format(
+  stage.cloud_db_uri = "mysql+mysqlconnector://{}:{}@/{}?unix_socket=/cloudsql/{}".format(
       stage.db_username, stage.db_password,
       stage.db_name, stage.db_instance_conn_name)
 
-  stage.local_db_uri = "mysql+mysqldb://{}:{}@/{}?unix_socket={}/{}".format(
+  stage.local_db_uri = "mysql+mysqlconnector://{}:{}@/{}?unix_socket={}/{}".format(
       stage.db_username, stage.db_password, stage.db_name,
       stage.cloudsql_dir, stage.db_instance_conn_name)
 
