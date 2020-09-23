@@ -33,7 +33,7 @@ import time
 # from apiclient.http import MediaIoBaseUpload
 # import cloudstorage as gcs
 # from google.cloud import bigquery
-from google.cloud.exceptions import ClientError
+# from google.cloud.exceptions import ClientError
 # from googleads import adwords
 # from oauth2client.service_account import ServiceAccountCredentials
 # import requests
@@ -130,8 +130,9 @@ class Worker(object):
                              separators=(', ', ': ')))
     try:
       self._execute()
-    except ClientError as e:
-      raise WorkerException(e)
+    # except ClientError as e:
+    except Exception as e:
+      raise WorkerException(e) from e
     self.log_info('Finished successfully')
     return self._workers_to_enqueue
 

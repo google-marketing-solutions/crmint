@@ -12,13 +12,28 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Create an JBackend instance"""
-from flask.helpers import get_debug_flag
 
-from jbackend.app import create_app
-from jbackend.config import DevConfig, ProdConfig
-from jbackend.extensions import api
+from flask import Flask, json
+from common import auth_filter
+from jobs import workers
 
-CONFIG = DevConfig if get_debug_flag() else ProdConfig
 
-app = create_app(api, config_object=CONFIG)
+app = Flask(__name__)
+auth_filter.add(app)
+
+
+@app.route('/api/workers', methods=['GET'])
+def workers_list():
+  return json.jsonify(workers.AVAILABLE), {'Access-Control-Allow-Origin': '*'}
+
+
+@app.route('/api/workers/<worker_class>/params', methods=['GET'])
+def worker_params(worker_class):
+  klass = getattr(workers, worker_class)
+  keys = ['name', 'type', 'required', 'default', 'label']
+  return (json.jsonify([dict(zip(keys, param)) for param in klass.PARAMS]),
+          {'Access-Control-Allow-Origin': '*'})
+
+
+if __name__ == '__main__':
+  app.run(host='0.0.0.0', port=8081, debug=True)

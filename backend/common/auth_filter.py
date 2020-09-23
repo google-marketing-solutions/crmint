@@ -1,4 +1,4 @@
-# Copyright 2018 Google Inc
+# Copyright 2020 Google Inc
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,8 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""JBackend package."""
 
-from . import views
+from flask import request, redirect
+import requests
 
-__all__ = ['views']
+
+def add(app):
+  @app.before_request
+  def before_filter():
+    if request.path.startswith('/_ah/') or ':' in request.host:
+      return
+    response = requests.head(f'{request.url_root}assets/favicon.ico',
+                             cookies=request.cookies)
+    if response.status_code != 200:
+      return redirect(request.url_root)
