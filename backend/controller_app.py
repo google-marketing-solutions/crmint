@@ -16,6 +16,7 @@
 
 
 from flask import helpers
+from common import auth_filter
 import flask_tasks
 from controller import app, config, extensions
 
@@ -23,3 +24,4 @@ from controller import app, config, extensions
 CONFIG = config.DevConfig if helpers.get_debug_flag() else config.ProdConfig
 app = app.create_app(extensions.api, config_object=CONFIG)
 flask_tasks.add(app)
+auth_filter.add(app)

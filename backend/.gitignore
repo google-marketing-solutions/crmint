@@ -5,6 +5,9 @@ data/*
 !data/app.json
 *.swp
 .idea
+.gcloudignore
+controller_app_with_db_uri.yaml
+requirements.txt
 
 # Unit test & coverage reports
 htmlcov/
