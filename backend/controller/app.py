@@ -14,11 +14,8 @@
 
 """The app module, containing the app factory function."""
 
-import os.path
-
 from flask import Flask
-
-from controller import pipeline, job, views, worker, stage
+from controller import pipeline, job, views, stage
 from controller.config import ProdConfig
 from controller.database import init_engine
 from controller.extensions import set_global_api_blueprint, db, cors, migrate
@@ -28,8 +25,6 @@ def create_app(api_blueprint, config_object=ProdConfig):
   """An application factory."""
   app = Flask(__name__.split('.')[1], instance_relative_config=True)
   app.config.from_object(config_object)
-  app.config.from_pyfile(
-      os.path.join(os.path.dirname(__file__), '..', 'data', 'config.py'))
   # NB: set the global api blueprint before registering all the blueprints
   set_global_api_blueprint(api_blueprint)
   register_extensions(app)
@@ -49,7 +44,6 @@ def register_extensions(app):
 def register_api_blueprints(api_blueprint):
   api_blueprint.init_app(pipeline.views.blueprint)
   api_blueprint.init_app(job.views.blueprint)
-  api_blueprint.init_app(worker.views.blueprint)
   api_blueprint.init_app(stage.views.blueprint)
 
 
@@ -58,5 +52,4 @@ def register_blueprints(app):
   app.register_blueprint(views.blueprint, url_prefix='/api')
   app.register_blueprint(pipeline.views.blueprint, url_prefix='/api')
   app.register_blueprint(job.views.blueprint, url_prefix='/api')
-  app.register_blueprint(worker.views.blueprint, url_prefix='/api')
   app.register_blueprint(stage.views.blueprint, url_prefix='/api')

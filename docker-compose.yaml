@@ -36,29 +36,47 @@ services:
       dockerfile: docker/backend/Dockerfile
     environment:
       DATABASE_URI: mysql+mysqlconnector://crmint:crmint@db:3306/crmint_development
+      FLASK_APP: controller_app.py
+      FLASK_ENV: development
+      GOOGLE_APPLICATION_CREDENTIALS: /app/backend/data/$GOOGLE_CLOUD_PROJECT.json
     volumes:
       - ./backend:/app/backend
     command: >
       bash -c "cd /app/backend; \
-               [ ! -d ".venv" ] && \
-                   python3 -m venv .venv && \
-                   . .venv/bin/activate && \
+               [ ! -d ".venv_controller" ] && \
+                   python3 -m venv .venv_controller && \
+                   . .venv_controller/bin/activate && \
                    pip install --upgrade pip && \
                    deactivate; \
-               . .venv/bin/activate; \
-               pip install -r controller/requirements.txt; \
-               FLASK_APP=controller_app.py \
-                   FLASK_DEBUG=1 \
-                   APPLICATION_ID=$APPLICATION_ID \
-                   GOOGLE_APPLICATION_CREDENTIALS=/app/backend/data/$APPLICATION_ID.json \
-                   python -m flask db upgrade; \
-               FLASK_APP=controller_app.py \
-                   FLASK_DEBUG=1 \
-                   APPLICATION_ID=$APPLICATION_ID \
-                   GOOGLE_APPLICATION_CREDENTIALS=/app/backend/data/$APPLICATION_ID.json \
-                   python -m flask db-seeds"
+               . .venv_controller/bin/activate; \
+               pip install -r requirements-controller.txt; \
+               while ! mysqladmin ping -h db --silent; do sleep 3; done; \
+               python -m flask db upgrade; \
+               python -m flask db-seeds"
     depends_on:
       - db
+
+  jobs:
+    build:
+      context: .
+      dockerfile: docker/backend/Dockerfile
+    ports:
+      - "8081:8081"
+    volumes:
+      - ./backend:/app/backend
+    environment:
+      GOOGLE_APPLICATION_CREDENTIALS: /app/backend/data/$GOOGLE_CLOUD_PROJECT.json
+      FLASK_ENV: development
+    command: >
+      bash -c "cd /app/backend; \
+               [ ! -d ".venv_jobs" ] && \
+                   python3 -m venv .venv_jobs && \
+                   . .venv_jobs/bin/activate && \
+                   pip install --upgrade pip && \
+                   deactivate; \
+               . .venv_jobs/bin/activate; \
+               pip install -r requirements-jobs.txt; \
+               python jobs_app.py"
 
   controller:
     build:
@@ -67,21 +85,21 @@ services:
     ports:
       - "8080:8080"
     environment:
+    environment:
       DATABASE_URI: mysql+mysqlconnector://crmint:crmint@db:3306/crmint_development
-      APPLICATION_ID: "$APPLICATION_ID"
+      FLASK_APP: controller_app.py
+      FLASK_ENV: development
+      GOOGLE_APPLICATION_CREDENTIALS: /app/backend/data/$GOOGLE_CLOUD_PROJECT.json
     volumes:
       - ./backend:/app/backend
     command: >
       bash -c "cd /app/backend; \
-               . .venv/bin/activate; \
-               FLASK_APP=controller_app \
-                   FLASK_ENV=development \
-                   APPLICATION_ID=$APPLICATION_ID \
-                   GOOGLE_APPLICATION_CREDENTIALS=/app/backend/data/$APPLICATION_ID.json \
-                   flask run -p 8080 -h 0.0.0.0"
+               . .venv_controller/bin/activate; \
+               while ! mysqladmin ping -h db --silent; do sleep 3; done; \
+               flask run -p 8080 -h 0.0.0.0"
     depends_on:
       - db
-      - migrations
+      - jobs
 
   frontend:
     build:
@@ -93,4 +111,3 @@ services:
       - ./frontend:/app/frontend
     depends_on:
       - controller
-    #   - jobs
