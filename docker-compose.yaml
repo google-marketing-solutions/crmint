@@ -30,17 +30,30 @@ services:
     volumes:
       - db_data:/var/lib/mysql
 
+  pubsub:
+    build:
+      context: .
+      dockerfile: docker/pubsub/Dockerfile
+    ports:
+      - "8432:8432"
+
   migrations:
     build:
       context: .
       dockerfile: docker/backend/Dockerfile
     environment:
+      GOOGLE_CLOUD_PROJECT: $GOOGLE_CLOUD_PROJECT
+      PUBSUB_EMULATOR_HOST: pubsub:8432
+      PUBSUB_PROJECT_ID: $GOOGLE_CLOUD_PROJECT
+      GOOGLE_APPLICATION_CREDENTIALS: /app/backend/data/$GOOGLE_CLOUD_PROJECT.json
       DATABASE_URI: mysql+mysqlconnector://crmint:crmint@db:3306/crmint_development
       FLASK_APP: controller_app.py
       FLASK_ENV: development
-      GOOGLE_APPLICATION_CREDENTIALS: /app/backend/data/$GOOGLE_CLOUD_PROJECT.json
     volumes:
       - ./backend:/app/backend
+    depends_on:
+      - db
+      - pubsub
     command: >
       bash -c "cd /app/backend; \
                [ ! -d ".venv_controller" ] && \
@@ -52,9 +65,8 @@ services:
                pip install -r requirements-controller.txt; \
                while ! mysqladmin ping -h db --silent; do sleep 3; done; \
                python -m flask db upgrade; \
-               python -m flask db-seeds"
-    depends_on:
-      - db
+               python -m flask db-seeds; \
+               python setup_pubsub.py"
 
   jobs:
     build:
@@ -65,8 +77,13 @@ services:
     volumes:
       - ./backend:/app/backend
     environment:
+      GOOGLE_CLOUD_PROJECT: $GOOGLE_CLOUD_PROJECT
+      PUBSUB_EMULATOR_HOST: pubsub:8432
+      PUBSUB_PROJECT_ID: $GOOGLE_CLOUD_PROJECT
       GOOGLE_APPLICATION_CREDENTIALS: /app/backend/data/$GOOGLE_CLOUD_PROJECT.json
       FLASK_ENV: development
+    depends_on:
+      - pubsub
     command: >
       bash -c "cd /app/backend; \
                [ ! -d ".venv_jobs" ] && \
@@ -85,21 +102,24 @@ services:
     ports:
       - "8080:8080"
     environment:
-    environment:
+      GOOGLE_CLOUD_PROJECT: $GOOGLE_CLOUD_PROJECT
+      PUBSUB_EMULATOR_HOST: pubsub:8432
+      PUBSUB_PROJECT_ID: $GOOGLE_CLOUD_PROJECT
       DATABASE_URI: mysql+mysqlconnector://crmint:crmint@db:3306/crmint_development
+      GOOGLE_APPLICATION_CREDENTIALS: /app/backend/data/$GOOGLE_CLOUD_PROJECT.json
       FLASK_APP: controller_app.py
       FLASK_ENV: development
-      GOOGLE_APPLICATION_CREDENTIALS: /app/backend/data/$GOOGLE_CLOUD_PROJECT.json
     volumes:
       - ./backend:/app/backend
+    depends_on:
+      - db
+      - pubsub
+      - jobs
     command: >
       bash -c "cd /app/backend; \
                . .venv_controller/bin/activate; \
                while ! mysqladmin ping -h db --silent; do sleep 3; done; \
                flask run -p 8080 -h 0.0.0.0"
-    depends_on:
-      - db
-      - jobs
 
   frontend:
     build:
@@ -111,3 +131,4 @@ services:
       - ./frontend:/app/frontend
     depends_on:
       - controller
+      - jobs
