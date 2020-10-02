@@ -20,18 +20,18 @@ from google.cloud import pubsub_v1
 def setup_pubsub():  # pylint: disable=too-many-locals
   """Create CRMint's PubSub topics and subscriptions."""
   crmint_subscriptions = {
-      'crmint-start-worker': {
-          'push_endpoint': 'http://jobs/push/start-worker',
+      'crmint-start-task': {
+        'push_endpoint': 'http://jobs:8081/push/start-task',
           'ack_deadline_seconds': 600,
           'minimum_backoff': 60,  # seconds
       },
-      'crmint-worker-finished': {
-          'push_endpoint': 'http://controller/push/worker-finished',
+      'crmint-task-finished': {
+        'push_endpoint': 'http://controller:8080/push/task-finished',
           'ack_deadline_seconds': 60,
           'minimum_backoff': 10,  # seconds
       },
       'crmint-start-pipeline': {
-          'push_endpoint': 'http://controller/push/start-pipeline',
+        'push_endpoint': 'http://controller:8080/push/start-pipeline',
           'ack_deadline_seconds': 60,
           'minimum_backoff': 10,  # seconds
       },

@@ -59,7 +59,7 @@ pipeline_fields = {
     'id': fields.Integer,
     'name': fields.String,
     'emails_for_notifications': fields.String,
-    'status': fields.String(attribute='state'),
+    'status': fields.String,
     'updated_at': fields.String,
     'run_on_schedule': fields.Boolean,
     'schedules': fields.List(fields.Nested(schedule_fields)),

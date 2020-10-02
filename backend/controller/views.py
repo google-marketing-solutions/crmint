@@ -107,9 +107,9 @@ class GeneralSettingsRoute(Resource):
     ads_code = [d['value'] for d in args['settings']
                 if d['name'] == 'google_ads_authentication_code'][0]
     if ads_code:
-        token = ads_auth_code.get_token(client_id, client_secret, ads_code)
+      token = ads_auth_code.get_token(client_id, client_secret, ads_code)
     else:
-        token = None
+      token = None
 
     settings = []
     for arg in args['settings']:

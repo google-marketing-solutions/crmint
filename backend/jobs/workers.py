@@ -20,7 +20,6 @@
 from functools import wraps
 # from pprint import pprint
 import json
-import os
 from random import random
 import time
 # import urllib
@@ -41,8 +40,8 @@ import time
 from common import crmint_logging
 
 
-_KEY_FILE = os.path.join(os.path.dirname(__file__), '..', 'data',
-                         'service-account.json')
+# _KEY_FILE = os.path.join(os.path.dirname(__file__), '..', 'data',
+#                          'service-account.json')
 AVAILABLE = (
     # 'AutoMLImporter',
     # 'AutoMLPredictor',
@@ -67,15 +66,14 @@ AVAILABLE = (
 
 # Defines how many times to retry a function wrapped in Worker.retry()
 # on failure, 3 times by default.
-DEFAULT_MAX_RETRIES = os.environ.get('MAX_RETRIES', 3)
+DEFAULT_MAX_RETRIES = 3
 
-# pylint: disable=too-few-public-methods
 
-class WorkerException(Exception):
+class WorkerException(Exception):  # pylint: disable=too-few-public-methods
   """Worker execution exceptions expected in task handler."""
 
 
-class Worker(object):
+class Worker:
   """Abstract worker class."""
 
   # A list describing worker parameters. Each element in the list is a tuple
@@ -135,7 +133,6 @@ class Worker(object):
 
   def _execute(self):
     """Abstract method that does actual worker's job."""
-    pass
 
   def _enqueue(self, worker_class, worker_params, delay=0):
     self._workers_to_enqueue.append((worker_class, worker_params, delay))

@@ -1,4 +1,4 @@
-# Copyright 2018 Google Inc
+# Copyright 2020 Google Inc
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,10 +13,8 @@
 # limitations under the License.
 
 from datetime import datetime
-import json
 import re
 import uuid
-# from google.appengine.api import taskqueue
 from simpleeval import simple_eval
 from simpleeval import InvalidExpression
 from sqlalchemy import Column
@@ -29,6 +27,7 @@ from sqlalchemy import ForeignKey
 from sqlalchemy.orm import relationship
 from sqlalchemy.orm import load_only
 from common import crmint_logging
+from common.task import Task
 from controller import inline
 from controller.database import BaseModel
 from controller.mailers import NotificationMailer
@@ -46,6 +45,7 @@ def _parse_num(s):
 
 
 class Pipeline(BaseModel):
+  """Pipeline ORM class."""
   __tablename__ = 'pipelines'
   id = Column(Integer, primary_key=True, autoincrement=True)
   name = Column(String(255))
@@ -58,7 +58,8 @@ class Pipeline(BaseModel):
   schedules = relationship('Schedule', lazy='dynamic')
   params = relationship('Param', lazy='dynamic', order_by='asc(Param.name)')
 
-  class STATUS(object):
+  class STATUS:  # pylint: disable=too-few-public-methods
+    """Pipeline statuses."""
     IDLE = 'idle'
     FAILED = 'failed'
     SUCCEEDED = 'succeeded'
@@ -67,12 +68,8 @@ class Pipeline(BaseModel):
     INACTIVE_STATUSES = [IDLE, FAILED, SUCCEEDED]
 
   def __init__(self, name=None):
-    super(Pipeline, self).__init__()
+    super().__init__()
     self.name = name
-
-  @property
-  def state(self):
-    return self.status
 
   @property
   def has_jobs(self):
@@ -132,7 +129,8 @@ class Pipeline(BaseModel):
         global_context[param.name] = param.populate_runtime_value()
       pipeline_context = global_context.copy()
       for param in self.params.all():
-        pipeline_context[param.name] = param.populate_runtime_value(global_context)
+        pipeline_context[param.name] = param.populate_runtime_value(
+            global_context)
       for job in self.jobs.all():
         for param in job.params.all():
           param.populate_runtime_value(pipeline_context)
@@ -176,36 +174,24 @@ class Pipeline(BaseModel):
   def start(self):
     if self.status not in Pipeline.STATUS.INACTIVE_STATUSES:
       return False
-
     jobs = self.jobs.all()
     if len(jobs) < 1:
       return False
-
     for job in jobs:
       if job.status not in Job.STATUS.INACTIVE_STATUSES:
         return False
-
     if not self.get_ready():
       return False
-
     for job in jobs:
       job.start()
     return True
-
-  def _cancel_all_tasks(self):
-    for job in self.jobs:
-      job.cancel_tasks()
 
   def stop(self):
     if self.status != Pipeline.STATUS.RUNNING:
       return False
     for job in self.jobs:
       job.stop()
-    for job in self.jobs:
-      if job.status not in [Job.STATUS.FAILED, Job.STATUS.SUCCEEDED]:
-        job.set_status(Job.STATUS.STOPPING)
-    self._cancel_all_tasks()
-    return self.job_finished()
+    return True
 
   def start_single_job(self, job):
     if self.status not in Pipeline.STATUS.INACTIVE_STATUSES:
@@ -218,30 +204,26 @@ class Pipeline(BaseModel):
     job.start_as_single()
     return True
 
-  def job_finished(self):
-    for job in self.jobs:
-      if job.status == Job.STATUS.STOPPING:
-        job.set_status(Job.STATUS.FAILED)
+  def leaf_job_finished(self):
     for job in self.jobs:
       if job.status not in Job.STATUS.INACTIVE_STATUSES:
         return False
-    self._finish()
-    return True
-
-  def _finish(self):
-    jobs = Job.query.outerjoin((StartCondition,
-                                Job.id == StartCondition.preceding_job_id))
-    jobs = jobs.filter(Job.pipeline_id == self.id)
-    jobs = jobs.filter(StartCondition.preceding_job_id == None)
-    jobs = jobs.options(load_only('status')).all()
+    leaf_jobs = Job.query \
+        .outerjoin((StartCondition,
+                    Job.id == StartCondition.preceding_job_id)) \
+        .filter(Job.pipeline_id == self.id) \
+        .filter(StartCondition.preceding_job_id.is_(None)) \
+        .options(load_only('status')) \
+        .all()
     status = Pipeline.STATUS.SUCCEEDED
-    for job in jobs:
+    for job in leaf_jobs:
       # IDLE means the job has not run at all or it has been cancelled
       if job.status == Job.STATUS.FAILED:
         status = Pipeline.STATUS.FAILED
         break
     self.set_status(status)
     NotificationMailer().finished_pipeline(self)
+    return True
 
   def import_data(self, data):
     self.assign_params(data['params'])
@@ -258,7 +240,8 @@ class Pipeline(BaseModel):
         jobs.append(job)
         job_mapping[job_data['id']] = job.id
       for job in jobs:
-        job_id = job_mapping.keys()[job_mapping.values().index(job.id)]
+        index = list(job_mapping.values()).index(job.id)
+        job_id = list(job_mapping.keys())[index]
         job_data = next((j for j in data['jobs'] if j['id'] == job_id), None)
         job.assign_hash_start_conditions(job_data['hash_start_conditions'],
                                          job_mapping)
@@ -299,7 +282,7 @@ class Job(BaseModel):
       primaryjoin='Job.id==StartCondition.preceding_job_id',
       secondaryjoin='StartCondition.job_id==Job.id')
 
-  class STATUS(object):
+  class STATUS:  # pylint: disable=too-few-public-methods
     IDLE = 'idle'
     FAILED = 'failed'
     SUCCEEDED = 'succeeded'
@@ -309,7 +292,7 @@ class Job(BaseModel):
     INACTIVE_STATUSES = [IDLE, FAILED, SUCCEEDED]
 
   def __init__(self, name=None, worker_class=None, pipeline_id=None):
-    super(Job, self).__init__()
+    super().__init__()
     self.name = name
     self.worker_class = worker_class
     self.pipeline_id = pipeline_id
@@ -328,190 +311,6 @@ class Job(BaseModel):
     if param_ids:
       Param.destroy(*param_ids)
     self.delete()
-
-  def get_ready(self):
-    if self.status not in Job.STATUS.INACTIVE_STATUSES:
-      return False
-    self.set_status(Job.STATUS.WAITING)
-    return True
-
-  def _get_task_namespace(self):
-    return 'pipeline=%s_job=%s' % (str(self.pipeline_id), str(self.id))
-
-  def _add_task_with_name(self, task_name):
-    task_namespace = self._get_task_namespace()
-    TaskEnqueued.create(task_namespace=task_namespace, task_name=task_name)
-    return True
-
-  def _delete_task_with_name(self, task_name):
-    """
-    Returns: Number of remaining tasks in the DB.
-    """
-    task_namespace = self._get_task_namespace()
-    TaskEnqueued.where(task_namespace=task_namespace,
-                       task_name=task_name).delete()
-    return self._enqueued_task_count()
-
-  def cancel_tasks(self):
-    task_namespace = self._get_task_namespace()
-    enqueued_tasks = TaskEnqueued.where(task_namespace=task_namespace)
-    if enqueued_tasks:
-      tasks = [taskqueue.Task(name=t.task_name) for t in enqueued_tasks]
-      taskqueue.Queue().delete_tasks(tasks)
-      TaskEnqueued.where(task_namespace=task_namespace).delete()
-
-  def _enqueued_task_count(self):
-    task_namespace = self._get_task_namespace()
-    return TaskEnqueued.count_in_namespace(task_namespace)
-
-  def _start_condition_is_fulfilled(self, start_condition):
-    preceding_job_status = start_condition.preceding_job.status
-    if start_condition.condition == StartCondition.CONDITION.SUCCESS:
-      if preceding_job_status == Job.STATUS.FAILED:
-        return False
-    elif start_condition.condition == StartCondition.CONDITION.FAIL:
-      if preceding_job_status == Job.STATUS.SUCCEEDED:
-        return False
-    return True
-
-  def start_as_single(self):
-    """
-    Returns: Task object that was added to the task queue, otherwise None.
-    """
-    if self.status != Job.STATUS.WAITING:
-      return None
-    else:
-      self.set_status(Job.STATUS.RUNNING)
-      return self.run()
-
-  def start(self):
-    """
-    Returns: Task object that was added to the task queue, otherwise None.
-    """
-    # Validates that preceding jobs fulfill the starting conditions.
-    for start_condition in self.start_conditions:
-      if self._start_condition_is_fulfilled(start_condition):
-        if start_condition.preceding_job.status not in [
-            Job.STATUS.SUCCEEDED,
-            Job.STATUS.FAILED]:
-          return None
-      else:
-        # pipeline failure
-        self.set_status(Job.STATUS.FAILED)
-        self.pipeline.update(status=Pipeline.STATUS.FAILED,
-                             status_changed_at=datetime.now())
-        self.pipeline.stop()
-        return None
-
-    if self.pipeline.status == Pipeline.STATUS.FAILED:
-      return None
-
-    return self.start_as_single()
-
-  def run(self):
-    worker_params = dict([(p.name, p.worker_value) for p in self.params])
-    return self.enqueue(self.worker_class, worker_params)
-
-  def stop(self):
-    self.cancel_tasks()
-    if self.status == Job.STATUS.WAITING:
-      self.set_status(Job.STATUS.IDLE)
-      return True
-    elif self.status == Job.STATUS.RUNNING:
-      self.set_status(Job.STATUS.STOPPING)
-      return True
-    return False
-
-  def enqueue(self, worker_class, worker_params, delay=0):
-    if self.status != Job.STATUS.RUNNING:
-      return None
-
-    # Add a new task to the queue.
-    task_name = '%s_%s' % (self.pipeline.id, self.id)
-    escaped_task_name = re.sub(r'[^-_0-9a-zA-Z]', '-', task_name)
-    unique_task_name = '%s_%s' % (escaped_task_name, str(uuid.uuid4()))
-    task_params = {
-        'job_id': self.id,
-        'worker_class': worker_class,
-        'worker_params': json.dumps(worker_params),
-        'task_name': unique_task_name
-    }
-    task = taskqueue.add(
-        target='job-service',
-        name=unique_task_name,
-        url='/task',
-        params=task_params,
-        countdown=delay)
-
-    # Keep track of the running task name.
-    self._add_task_with_name(unique_task_name)
-    self.save()
-
-    return task
-
-  def _start_dependent_jobs(self):
-    if self.dependent_jobs:
-      for job in self.dependent_jobs:
-        job.start()
-
-  def set_status(self, status):
-    self.update(status=status, status_changed_at=datetime.now())
-
-  def _task_completed(self, task_name):
-    """Completes task execution.
-
-    Returns: True if it was the last tasks to be completed. False otherwise.
-    """
-    remaining_tasks = self._delete_task_with_name(task_name)
-    return remaining_tasks == 0
-
-  def task_succeeded(self, task_name):
-    was_last_task = self._task_completed(task_name)
-    # Updates the job database status if there is no more running tasks.
-    # NB: `was_last_task` acts as a concurrent lock, only one task can
-    #     validate this condition.
-    if was_last_task:
-      # Cancel all tasks if one condition doesn't match the success status.
-      for job in self.dependent_jobs:
-        for start_condition in job.start_conditions:
-          success_statuses = [
-              StartCondition.CONDITION.SUCCESS,
-              StartCondition.CONDITION.WHATEVER
-          ]
-          if (start_condition.preceding_job.id == self.id
-              and start_condition.condition not in success_statuses):
-            self.set_status(Job.STATUS.SUCCEEDED)
-            return self.pipeline.stop()
-      self.set_status(Job.STATUS.SUCCEEDED)
-      # We can safely start children jobs, because of our concurrent lock.
-      self._start_dependent_jobs()
-      self.pipeline.job_finished()
-
-  def task_failed(self, task_name):
-    was_last_task = self._task_completed(task_name)
-
-    # If no dependent jobs then the pipeline failed
-    if not self.dependent_jobs:
-      self.set_status(Job.STATUS.FAILED)
-      return self.pipeline.stop()
-
-    # Cancel all tasks if one condition doesn't match the failed status.
-    for job in self.dependent_jobs:
-      for start_condition in job.start_conditions:
-        failed_statuses = [
-            StartCondition.CONDITION.FAIL,
-            StartCondition.CONDITION.WHATEVER
-        ]
-        if (start_condition.preceding_job.id == self.id
-            and start_condition.condition not in failed_statuses):
-          self.set_status(Job.STATUS.FAILED)
-          return self.pipeline.stop()
-
-    if was_last_task:
-      self.set_status(Job.STATUS.FAILED)
-      # We can safely start children jobs, because of our concurrent lock.
-      self._start_dependent_jobs()
-      self.pipeline.job_finished()
 
   def assign_attributes(self, attributes):
     for key, value in attributes.items():
@@ -547,8 +346,8 @@ class Job(BaseModel):
     for arg_start_condition in arg_start_conditions:
       scs.append(StartCondition.parse_value(arg_start_condition))
 
-    arg_sc_ids = set([sc['id'] for sc in scs])
-    cur_sc_ids = set([sc.preceding_job_id for sc in self.start_conditions])
+    arg_sc_ids = {sc['id'] for sc in scs}
+    cur_sc_ids = {sc.preceding_job_id for sc in self.start_conditions}
 
     sc_intersection_ids = set(arg_sc_ids) & set(cur_sc_ids)
     new_sc_ids = set(arg_sc_ids) - set(cur_sc_ids)
@@ -575,6 +374,113 @@ class Job(BaseModel):
         preceding_job_id__in=delete_sc_ids
     ).delete(synchronize_session=False)
 
+  def set_status(self, status):
+    self.update(status=status, status_changed_at=datetime.now())
+
+  def get_ready(self):
+    if self.status not in Job.STATUS.INACTIVE_STATUSES:
+      return False
+    self.set_status(Job.STATUS.WAITING)
+    return True
+
+  def _start_condition_is_fulfilled(self, start_condition):
+    preceding_job_status = start_condition.preceding_job.status
+    if start_condition.condition == StartCondition.CONDITION.SUCCESS:
+      if preceding_job_status != Job.STATUS.SUCCEEDED:
+        return False
+    elif start_condition.condition == StartCondition.CONDITION.FAIL:
+      if preceding_job_status == Job.STATUS.SUCCEEDED:
+        return False
+    return True
+
+  def _start_dependent_jobs(self):
+    for job in self.dependent_jobs:
+      job.start()
+
+  def start(self):
+    preceding_jobs_done = True
+    for start_condition in self.start_conditions:
+      if start_condition.preceding_job.status in Job.STATUS.INACTIVE_STATUSES:
+        if not self._start_condition_is_fulfilled(start_condition):
+          self.set_status(Job.STATUS.IDLE)
+          if self.dependent_jobs:
+            self._start_dependent_jobs()
+          else:
+            self.pipeline.leaf_job_finished()
+          return False
+      else:
+        preceding_jobs_done = False
+    return self.start_as_single() if preceding_jobs_done else False
+
+  def start_as_single(self):
+    if self.status != Job.STATUS.WAITING:
+      return False
+    self.set_status(Job.STATUS.RUNNING)
+    worker_params = {p.name: p.worker_value for p in self.params}
+    return self.enqueue(self.worker_class, worker_params)
+
+  def _get_task_namespace(self):
+    return f'pipeline={self.pipeline_id}_job={self.id}'
+
+  def _add_task_with_name(self, task_name):
+    task_namespace = self._get_task_namespace()
+    TaskEnqueued.create(task_namespace=task_namespace, task_name=task_name)
+    return True
+
+  def _delete_task_with_name(self, task_name):
+    """
+    Returns: Number of remaining tasks in the DB.
+    """
+    task_namespace = self._get_task_namespace()
+    TaskEnqueued.where(task_namespace=task_namespace,
+                       task_name=task_name).delete()
+    return self._enqueued_task_count()
+
+  def _enqueued_task_count(self):
+    task_namespace = self._get_task_namespace()
+    return TaskEnqueued.count_in_namespace(task_namespace)
+
+  def enqueue(self, worker_class, worker_params, delay=0):
+    if self.status != Job.STATUS.RUNNING:
+      return False
+    name = str(uuid.uuid4())
+    general_settings = {gs.name: gs.value for gs in GeneralSetting.all()}
+    task = Task(name, self.pipeline_id, self.id,
+                worker_class, worker_params, general_settings)
+    task.enqueue(delay)
+    # Keep track of running tasks.
+    self._add_task_with_name(name)
+    self.save()
+    return True
+
+  def _task_finished(self, task_name, new_job_status):
+    was_last_task = self._delete_task_with_name(task_name) == 0
+    # Updates the job database status if there is no more running tasks.
+    # NB: `was_last_task` acts as a concurrent lock, only one task can
+    #     validate this condition.
+    if was_last_task:
+      self.set_status(new_job_status)
+      # We can safely start children jobs, because of our concurrent lock.
+      if self.dependent_jobs:
+        self._start_dependent_jobs()
+      else:
+        self.pipeline.leaf_job_finished()
+
+  def task_succeeded(self, task_name):
+    self._task_finished(task_name, Job.STATUS.SUCCEEDED)
+
+  def task_failed(self, task_name):
+    self._task_finished(task_name, Job.STATUS.FAILED)
+
+  def stop(self):
+    if self.status == Job.STATUS.WAITING:
+      self.set_status(Job.STATUS.IDLE)
+      return True
+    if self.status == Job.STATUS.RUNNING:
+      self.set_status(Job.STATUS.STOPPING)
+      return True
+    return False
+
 
 class Param(BaseModel):
   __tablename__ = 'params'
@@ -591,8 +497,11 @@ class Param(BaseModel):
 
   _INLINER_REGEX = re.compile(r'{%.+?%}')
 
-  def populate_runtime_value(self, context={}):
-    names = context.copy()
+  def populate_runtime_value(self, context=None):
+    if context is None:
+      names = {}
+    else:
+      names = context.copy()
     names.update({'True': True, 'False': False})
     value = self.value
     inliners = self._INLINER_REGEX.findall(value)
@@ -623,9 +532,9 @@ class Param(BaseModel):
       return self.value == '1'
     return self.value
 
-  def __init__(self, name=None, type=None):
+  def __init__(self, name=None, param_type=None):
     self.name = name
-    self.type = type
+    self.type = param_type
 
   @classmethod
   def update_list(cls, parameters, obj=None):
@@ -674,7 +583,7 @@ class StartCondition(BaseModel):
   job = relationship('Job', foreign_keys=[job_id])
   preceding_job = relationship('Job', foreign_keys=[preceding_job_id])
 
-  class CONDITION(object):
+  class CONDITION:  # pylint: disable=too-few-public-methods
     SUCCESS = 'success'
     FAIL = 'fail'
     WHATEVER = 'whatever'
@@ -700,7 +609,7 @@ class StartCondition(BaseModel):
     }
 
 
-class Schedule(BaseModel):
+class Schedule(BaseModel):  # pylint: disable=too-few-public-methods
   __tablename__ = 'schedules'
   id = Column(Integer, primary_key=True, autoincrement=True)
   pipeline_id = Column(Integer, ForeignKey('pipelines.id'))
@@ -709,14 +618,14 @@ class Schedule(BaseModel):
   pipeline = relationship('Pipeline', foreign_keys=[pipeline_id])
 
 
-class GeneralSetting(BaseModel):
+class GeneralSetting(BaseModel):  # pylint: disable=too-few-public-methods
   __tablename__ = 'general_settings'
   id = Column(Integer, primary_key=True, autoincrement=True)
   name = Column(String(255))
   value = Column(Text())
 
 
-class Stage(BaseModel):
+class Stage(BaseModel):  # pylint: disable=too-few-public-methods
   __tablename__ = 'stages'
   id = Column(Integer, primary_key=True, autoincrement=True)
   sid = Column(String(255))
@@ -726,7 +635,7 @@ class Stage(BaseModel):
       self.__setattr__(key, value)
 
 
-class TaskEnqueued(BaseModel):
+class TaskEnqueued(BaseModel):  # pylint: disable=too-few-public-methods
   __tablename__ = 'enqueued_tasks'
   id = Column(Integer, primary_key=True, autoincrement=True)
   task_namespace = Column(String(60), index=True)
