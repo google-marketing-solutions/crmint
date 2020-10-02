@@ -18,9 +18,12 @@ import requests
 
 
 def add(app):
+  # pylint: disable=unused-variable,inconsistent-return-statements
   @app.before_request
   def before_filter():
-    if request.path.startswith('/_ah/') or ':' in request.host:
+    if (request.path.startswith('/_ah/') or  # Start/stop instance.
+        request.path.startswith('/push/') or  # Push PubSub message.
+        ':' in request.host):  # Dev environment.
       return
     response = requests.head(f'{request.url_root}assets/favicon.ico',
                              cookies=request.cookies)

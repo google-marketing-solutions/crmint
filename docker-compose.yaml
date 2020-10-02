@@ -20,8 +20,8 @@ volumes:
 services:
   db:
     image: mysql:8.0
-    ports:
-      - "3306:3306"
+    # ports:
+    #   - "3306:3306"
     environment:
       MYSQL_ROOT_PASSWORD: 'root'
       MYSQL_DATABASE: crmint_development
@@ -34,8 +34,8 @@ services:
     build:
       context: .
       dockerfile: docker/pubsub/Dockerfile
-    ports:
-      - "8432:8432"
+    # ports:
+    #   - "8432:8432"
 
   migrations:
     build:
