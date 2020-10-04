@@ -30,7 +30,7 @@ def execute_command(step_name, command, cwd='.', report_empty_err=True,
                     debug=False, stream_output_in_debug=True, force_std_out=False):
   """
   Wrapper that runs a shell command and captures if needed the standard outputs.
-  
+
   Args:
     step_name: String to display the name of the step we are running.
     command: String representation of the command to run with its options.
@@ -66,13 +66,13 @@ def execute_command(step_name, command, cwd='.', report_empty_err=True,
     msg = "\n%s: %s %s" % (step_name, err, ("({})".format(out) if out else ''))
     click.echo(click.style(msg, fg="red", bold=True))
     click.echo(click.style("Command: %s\n" % command, bold=False))
-  return pipe.returncode, out, err
+  return pipe.returncode, out.decode('utf-8'), err.decode('utf-8')
 
 
 def get_default_stage_name(debug=False):
   """
   Computes the default stage filename, derived from the GCP project name.
-  
+
   Args:
     debug: Boolean to enable debug mode outputs.
   """
@@ -82,7 +82,7 @@ def get_default_stage_name(debug=False):
   status, out, err = execute_command("Get current project identifier", command, debug=debug, stream_output_in_debug=False)
   if status != 0:
     exit(1)
-  stage_name = out.strip().decode('utf-8')
+  stage_name = out.strip()
   click.echo("     Project ID found: %s" % stage_name)
   return stage_name
 
