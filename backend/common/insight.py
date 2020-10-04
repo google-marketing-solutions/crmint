@@ -26,7 +26,6 @@ import os
 import platform
 import random
 import time
-from threading import Timer
 
 import requests
 

@@ -16,7 +16,7 @@
 from flask import Blueprint
 from flask_restful import Resource, reqparse, marshal_with, fields, abort
 
-from controller import insight
+from common import insight
 from controller.models import Job, Pipeline
 from controller.extensions import api
 
