@@ -48,9 +48,6 @@ STAGE_FILE_TEMPLATE = """
 # Variables for stage
 ###
 
-# Service account json file
-service_account_file = "{service_account_file}"
-
 # Project ID in Google Cloud
 project_id_gae = "{project_id_gae}"
 
@@ -60,7 +57,7 @@ project_region = "{project_region}"
 # Machine Type. Use `gcloud sql tiers list` to list available machine types.
 project_sql_tier = "{project_sql_tier}"
 
-# SQL region. Use `gcloud sql regions list` to list available regions.
+# SQL region. Use `gcloud sql tiers list | grep db-g1-small` to list available regions.
 project_sql_region = "{project_sql_region}"
 
 # Directory on your space to deploy
@@ -92,28 +89,53 @@ enabled_stages = False
 """.strip()
 
 
+def _get_regions(project_id):
+  gcloud = '$GOOGLE_CLOUD_SDK/bin/gcloud --quiet'
+  cmd = f'{gcloud} app describe --verbosity critical --project={project_id}'
+  cmd += '| grep locationId'
+  status, out, err = shared.execute_command(
+      'Get App Engine region', cmd, stream_output_in_debug=False)
+  if status == 0:  # App Engine app had already been deployed in some region.
+    region = out.strip().split()[1]
+  else:  # Get the list of available App Engine regions and prompt user.
+    click.echo('     No App Engine app has been deployed yet.')
+    cmd = f'{gcloud} app regions list'
+    status, out, err = shared.execute_command(
+        'Get available App Engine regions', cmd, stream_output_in_debug=False)
+    regions = [l.split()[0] for l in out.strip().split('\n')][1:]
+    for i, region in enumerate(regions):
+      click.echo(f'{i + 1}) {region}')
+    i = -1
+    while i < 0 or i >= len(regions):
+      i = click.prompt(
+          'Enter an index of the region to deploy CRMint in', type=int) - 1
+    region = regions[i]
+  sql_region = region if region[-1].isdigit() else f'{region}1'
+  return region, sql_region
+
+
 def _default_stage_context(stage_name):
   # Generates a cryptographically secured random password for the database user.
   # Source: https://stackoverflow.com/a/23728630
   random_password = ''.join(random.SystemRandom().choice(
       string.ascii_lowercase + string.digits) for _ in range(16))
+  region, sql_region = _get_regions(stage_name)
   return dict(
-      service_account_file="{}.json".format(stage_name),
       project_id_gae=stage_name,
-      project_region="europe-west",
-      project_sql_region="europe-west1",
-      project_sql_tier="db-g1-small",
-      workdir="/tmp/{}".format(stage_name),
-      db_name="crmint",
-      db_username="crmint",
+      project_region=region,
+      project_sql_region=sql_region,
+      project_sql_tier='db-g1-small',
+      workdir=f'/tmp/{stage_name}',
+      db_name='crmint',
+      db_username='crmint',
       db_password=random_password,
-      db_instance_name="crmint",
-      notification_sender_email="noreply@{}.appspotmail.com".format(stage_name),
-      app_title=" ".join(stage_name.split("-")).title())
+      db_instance_name='crmint',
+      notification_sender_email=f'noreply@{stage_name}.appspotmail.com',
+      app_title=' '.join(stage_name.split('-')).title())
 
 
 def _create_stage_file(stage_name, context=None):
-  filename = "{}.py".format(stage_name)
+  filename = f'{stage_name}.py'
   filepath = os.path.join(constants.STAGE_DIR, filename)
   if context is None:
     context = _default_stage_context(stage_name)
@@ -153,7 +175,6 @@ def _detect_stage_version(stage_name):
     return STAGE_VERSION_1_0, stage_bash_filepath
 
   raise ValueError("No stage file found for name: '%s'" % stage_name)
-
 
 
 def _parse_old_stage_file(stage_name):
@@ -198,7 +219,8 @@ def create(stage_name):
 
   if shared.check_stage_file(stage_name):
     click.echo(click.style("This stage name already exists. You can list "
-                           "them all with: `$ crmint stages list`", fg='red', bold=True))
+                           "them all with: `$ crmint stages list`",
+                           fg='red', bold=True))
     exit(1)
 
   filepath = _create_stage_file(stage_name)
