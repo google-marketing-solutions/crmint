@@ -404,7 +404,7 @@ def download_cloud_sql_proxy(stage, debug=False):
     cloud_sql_proxy_path = "{}/bin/cloud_sql_proxy".format(os.environ["HOME"])
     if not os.path.isfile(cloud_sql_proxy_path):
       if not os.path.exists(os.path.dirname(cloud_sql_proxy_path)):
-        os.mkdir(os.path.dirname(cloud_sql_proxy_path), 0755)
+        os.mkdir(os.path.dirname(cloud_sql_proxy_path), 0o755)
       cloud_sql_download_link = "https://dl.google.com/cloudsql/cloud_sql_proxy.linux.amd64"
       download_command = "curl -L {} -o {}".format(cloud_sql_download_link,
                                                    cloud_sql_proxy_path)

@@ -24,7 +24,7 @@ sys.path.insert(0, CLI_DIR)
 
 import click
 from cli.utils import shared
-from backends.core import insight
+from backend.common import insight
 
 
 def _set_insight_opt_out(config, value):
