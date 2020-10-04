@@ -41,7 +41,7 @@ def execute_command(step_name, command, cwd='.', report_empty_err=True,
     force_std_out: Boolean to display everything that the command would have displayed
         if run in a terminal.
   """
-  assert isinstance(command, basestring)
+  assert isinstance(command, str)
   pipe_output = (None if (debug and stream_output_in_debug) else subprocess.PIPE)
   if force_std_out:
     pipe_output = None
@@ -82,7 +82,7 @@ def get_default_stage_name(debug=False):
   status, out, err = execute_command("Get current project identifier", command, debug=debug, stream_output_in_debug=False)
   if status != 0:
     exit(1)
-  stage_name = out.strip()
+  stage_name = out.strip().decode('utf-8')
   click.echo("     Project ID found: %s" % stage_name)
   return stage_name
 
@@ -157,4 +157,4 @@ def check_variables():
   if not os.environ.get("GOOGLE_CLOUD_SDK", None):
     gcloud_path = subprocess.Popen("gcloud --format='value(installation.sdk_root)' info",
                                    shell=True, stdout=subprocess.PIPE)
-    os.environ["GOOGLE_CLOUD_SDK"] = gcloud_path.communicate()[0].strip()
+    os.environ["GOOGLE_CLOUD_SDK"] = gcloud_path.communicate()[0].decode('utf-8').strip()

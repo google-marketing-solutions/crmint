@@ -104,10 +104,10 @@ def _default_stage_context(stage_name):
       project_sql_region="europe-west1",
       project_sql_tier="db-g1-small",
       workdir="/tmp/{}".format(stage_name),
-      db_name="crmintapp",
-      db_username="crmintapp",
+      db_name="crmint",
+      db_username="crmint",
       db_password=random_password,
-      db_instance_name="crmintapp",
+      db_instance_name="crmint",
       notification_sender_email="noreply@{}.appspotmail.com".format(stage_name),
       app_title=" ".join(stage_name.split("-")).title())
 
