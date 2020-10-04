@@ -29,10 +29,12 @@ git checkout $TARGET_BRANCH
 git pull --quiet --rebase
 
 # Installs the command-line.
-if [ ! -d venv ]; then
-  virtualenv --python=python2 venv
+if [ ! -d .venv ]; then
+  sudo apt-get install -y python3-venv
+  python3 -m venv .venv
 fi
-. venv/bin/activate
+. .venv/bin/activate
+pip install --quiet --upgrade pip
 pip install --quiet -e cli/
 
 # Adds the wrapper function to the user `.bashrc` file.
@@ -45,7 +47,7 @@ cat <<EOF >>$HOME/.bashrc
 function crmint {
   CURRENT_DIR=\$(pwd)
   cd \$HOME/crmint
-  . venv/bin/activate
+  . .venv/bin/activate
   command crmint \$@ || return
   deactivate
   cd "\$CURRENT_DIR"

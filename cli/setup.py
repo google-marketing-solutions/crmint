@@ -17,7 +17,7 @@ from setuptools import setup, find_packages
 
 
 PROJECT_DIR = os.path.join(os.path.dirname(__file__), '../')
-version_filepath = os.path.join(PROJECT_DIR, 'backends/VERSION')
+version_filepath = os.path.join(PROJECT_DIR, 'backend/VERSION')
 version = open(version_filepath, 'r').read().strip()
 
 
@@ -27,9 +27,9 @@ setup(
     packages=find_packages(),
     include_package_data=True,
     install_requires=[
-        "Click==7.0",
-        "Flask==0.12.2",
-        "requests==2.20.0",
+        "Click==7.1.2",
+        #  "Flask==1.1.2",
+        #  "requests==2.24.0",
     ],
     entry_points="""
         [console_scripts]
