@@ -29,8 +29,7 @@ from flask_restful import marshal_with
 from flask_restful import Resource
 from flask_restful import reqparse
 
-from common import crmint_logging
-from controller import insight
+from common import crmint_logging, insight
 from controller.models import Job, Pipeline
 from controller.extensions import api
 
