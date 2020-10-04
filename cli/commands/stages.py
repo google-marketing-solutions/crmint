@@ -206,7 +206,7 @@ def create(stage_name):
 
 
 def _ignore_stage_file(file_name):
-  IGNORED_STAGE_FILES = ["__init__.py"]
+  IGNORED_STAGE_FILES = ["__init__.py", "__pycache__"]
   ENDS_WITH = [".pyc", ".example"]
   return file_name in IGNORED_STAGE_FILES or file_name.endswith(tuple(ENDS_WITH))
 
@@ -243,17 +243,3 @@ def migrate(stage_name):
   filepath = _create_stage_file(stage_name, new_stage)
   click.echo(click.style(
       "Successfully migrated stage file to: %s" % filepath, fg='green'))
-
-
-def _ignore_stage_file(file_name):
-  IGNORED_STAGE_FILES = ["__init__.py"]
-  ENDS_WITH = [".pyc", ".example"]
-  return file_name in IGNORED_STAGE_FILES or file_name.endswith(tuple(ENDS_WITH))
-
-
-@cli.command('list')
-def list_stages():
-  """List your stages defined in cli/stages directory"""
-  for file_name in os.listdir(constants.STAGE_DIR):
-    if not _ignore_stage_file(file_name):
-      click.echo(file_name[:-3])
