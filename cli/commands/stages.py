@@ -76,6 +76,9 @@ db_password = "{db_password}"
 # Database instance name
 db_instance_name = "{db_instance_name}"
 
+# PubSub verification token
+pubsub_verification_token = "{pubsub_verification_token}"
+
 # Sender email for notifications
 notification_sender_email = "{notification_sender_email}"
 
@@ -119,6 +122,8 @@ def _default_stage_context(stage_name):
   # Source: https://stackoverflow.com/a/23728630
   random_password = ''.join(random.SystemRandom().choice(
       string.ascii_lowercase + string.digits) for _ in range(16))
+  random_token = ''.join(random.SystemRandom().choice(
+      string.ascii_lowercase + string.digits) for _ in range(32))
   region, sql_region = _get_regions(stage_name)
   return dict(
       project_id_gae=stage_name,
@@ -130,6 +135,7 @@ def _default_stage_context(stage_name):
       db_username='crmint',
       db_password=random_password,
       db_instance_name='crmint',
+      pubsub_verification_token=random_token,
       notification_sender_email=f'noreply@{stage_name}.appspotmail.com',
       app_title=' '.join(stage_name.split('-')).title())
 
