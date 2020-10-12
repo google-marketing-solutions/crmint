@@ -18,7 +18,6 @@
 import os
 import shutil
 import subprocess
-from glob import glob
 
 import click
 
@@ -146,8 +145,8 @@ def before_hook(stage, stage_name):
   try:
     if os.path.exists(target_dir):
       shutil.rmtree(target_dir)
-  except Exception as exception:
-    raise Exception("Stage 1 error when copying to workdir: %s" % exception.message)
+  except Exception as e:
+    raise Exception(f'Stage 1 error when copying to workdir: {e}') from e
 
   return stage
 
