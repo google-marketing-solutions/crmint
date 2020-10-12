@@ -13,25 +13,40 @@
 # limitations under the License.
 
 import os
-import subprocess
-import signal
-from glob import glob
-from io import StringIO
-
+import sys
 import click
-
 from cli.utils import constants
 from cli.utils import shared
+
+
+GCLOUD = '$GOOGLE_CLOUD_SDK/bin/gcloud --quiet'
+SUBSCRIPTIONS = {
+    'crmint-start-task': {
+      'path': 'push/start-task',
+        'ack_deadline_seconds': 600,
+        'minimum_backoff': 60,  # seconds
+    },
+    'crmint-task-finished': {
+      'path': 'push/task-finished',
+        'ack_deadline_seconds': 60,
+        'minimum_backoff': 10,  # seconds
+    },
+    'crmint-start-pipeline': {
+      'path': 'push/start-pipeline',
+        'ack_deadline_seconds': 60,
+        'minimum_backoff': 10,  # seconds
+    },
+    'crmint-pipeline-finished': None,
+}
 
 
 def fetch_stage_or_default(stage_name=None, debug=False):
   if not stage_name:
     stage_name = shared.get_default_stage_name(debug=debug)
-
   if not shared.check_stage_file(stage_name):
-    click.echo(click.style("Stage file '%s' not found." % stage_name, fg='red', bold=True))
+    click.echo(click.style(
+        "Stage file '%s' not found." % stage_name, fg='red', bold=True))
     return None
-
   stage = shared.get_stage_object(stage_name)
   return stage_name, stage
 
@@ -39,189 +54,229 @@ def fetch_stage_or_default(stage_name=None, debug=False):
 @click.group()
 def cli():
   """Manage your CRMint instance on GCP."""
-  pass
 
 
 ####################### SETUP #######################
 
 
 def _check_if_appengine_instance_exists(stage, debug=False):
-  gcloud_command = "$GOOGLE_CLOUD_SDK/bin/gcloud --quiet"
-  command = "{gcloud_bin} app describe --verbosity critical --project={project_id} | grep -q 'codeBucket'".format(
-      gcloud_bin=gcloud_command,
-      project_id=stage.project_id_gae)
-  status, out, err = shared.execute_command("Check if App Engine already exists",
-      command,
-      report_empty_err=False,
-      debug=debug)
+  project_id = stage.project_id_gae
+  cmd = (
+      f'{GCLOUD} app describe --verbosity critical --project={project_id}'
+      f' | grep -q codeBucket'
+  )
+  status, _, _ = shared.execute_command(
+      'Check if App Engine app already exists',
+      cmd, report_empty_err=False, debug=debug)
   return status == 0
 
 
 def create_appengine(stage, debug=False):
   if _check_if_appengine_instance_exists(stage, debug=debug):
-    click.echo("     App Engine already exists.")
+    click.echo('     App Engine app already exists.')
     return
-
-  gcloud_command = "$GOOGLE_CLOUD_SDK/bin/gcloud --quiet"
-  command = "{gcloud_bin} app create --project={project_id} --region={region}".format(
-      gcloud_bin=gcloud_command,
-      project_id=stage.project_id_gae,
-      region=stage.project_region)
-  shared.execute_command("Create the App Engine instance", command, debug=debug)
+  project_id = stage.project_id_gae
+  region = stage.project_region
+  cmd = f'{GCLOUD} app create --project={project_id} --region={region}'
+  shared.execute_command('Create App Engine instance', cmd, debug=debug)
 
 
-def create_service_account_key_if_needed(stage, debug=False):
-  if shared.check_service_account_file(stage):
-    click.echo("     Service account key already exists.")
-    return
-
-  service_account_file = shared.get_service_account_file(stage)
-  gcloud_command = "$GOOGLE_CLOUD_SDK/bin/gcloud --quiet"
-  command = "{gcloud_bin} iam service-accounts keys create \"{service_account_file}\" \
-    --iam-account=\"{project_id}@appspot.gserviceaccount.com\" \
-    --key-file-type='json' \
-    --project={project_id}".format(
-      gcloud_bin=gcloud_command,
-      project_id=stage.project_id_gae,
-      service_account_file=service_account_file)
-  shared.execute_command("Create the service account key", command, debug=debug)
-
-
-def _check_if_mysql_instance_exists(stage, debug=False):
-  gcloud_command = "$GOOGLE_CLOUD_SDK/bin/gcloud --quiet"
-  command = "{gcloud_bin} sql instances list \
-    --project={project_id} 2>/dev/null \
-    | egrep -q \"^{db_instance_name}\s\"".format(
-      gcloud_bin=gcloud_command,
-      project_id=stage.project_id_gae,
-      db_instance_name=stage.db_instance_name)
-  status, out, err = shared.execute_command("Check if MySQL instance already exists",
-      command,
-      report_empty_err=False,
-      debug=debug)
+def _check_if_cloudsql_instance_exists(stage, debug=False):
+  project_id = stage.project_id_gae
+  db_instance_name = stage.db_instance_name
+  cmd = (
+      f' {GCLOUD} sql instances list --project={project_id} 2>/dev/null'
+      f' | egrep -q "^{db_instance_name}\s"'
+  )
+  status, _, _ = shared.execute_command(
+      'Check if CloudSQL instance already exists',
+      cmd, report_empty_err=False, debug=debug)
   return status == 0
 
 
-def create_mysql_instance_if_needed(stage, debug=False):
-  if _check_if_mysql_instance_exists(stage, debug=debug):
-    click.echo("     MySQL instance already exists.")
+def create_cloudsql_instance_if_needed(stage, debug=False):
+  if _check_if_cloudsql_instance_exists(stage, debug=debug):
+    click.echo('     CloudSQL instance already exists.')
     return
-
-  gcloud_command = "$GOOGLE_CLOUD_SDK/bin/gcloud --quiet"
-  command = "{gcloud_bin} sql instances create {db_instance_name} \
-    --tier={project_sql_tier} \
-    --region={project_sql_region} \
-    --project={project_id} \
-    --database-version MYSQL_5_7 \
-    --storage-auto-increase".format(
-      gcloud_bin=gcloud_command,
-      db_instance_name=stage.db_instance_name,
-      project_id=stage.project_id_gae,
-      project_sql_region=stage.project_sql_region,
-      project_sql_tier=stage.project_sql_tier)
-  shared.execute_command("Creating MySQL instance", command, debug=debug)
+  db_instance_name = stage.db_instance_name
+  project_id = stage.project_id_gae
+  project_sql_region = stage.project_sql_region
+  project_sql_tier = stage.project_sql_tier
+  cmd = (
+      f' {GCLOUD} sql instances create {db_instance_name}'
+      f' --tier={project_sql_tier} --region={project_sql_region}'
+      f' --project={project_id} --database-version MYSQL_5_7'
+      f' --storage-auto-increase'
+  )
+  shared.execute_command("Creating a CloudSQL instance", cmd, debug=debug)
 
 
-def _check_if_mysql_user_exists(stage, debug=False):
-  gcloud_command = "$GOOGLE_CLOUD_SDK/bin/gcloud --quiet"
-  command = "{gcloud_bin} sql users list \
-    --project={project_id} \
-    --instance={db_instance_name} 2>/dev/null \
-    | egrep -q \"^{db_username}\s\"".format(
-      gcloud_bin=gcloud_command,
-      project_id=stage.project_id_gae,
-      db_instance_name=stage.db_instance_name,
-      db_username=stage.db_username)
-  status, out, err = shared.execute_command("Check if MySQL user already exists",
-      command,
-      report_empty_err=False,
-      debug=debug)
+def _check_if_cloudsql_user_exists(stage, debug=False):
+  project_id = stage.project_id_gae
+  db_instance_name = stage.db_instance_name
+  db_username = stage.db_username
+  cmd = (
+      f' {GCLOUD} sql users list --project={project_id}'
+      f' --instance={db_instance_name} 2>/dev/null'
+      f' | egrep -q "^{db_username}\s"'
+  )
+  status, _, _ = shared.execute_command(
+      'Check if CloudSQL user already exists',
+      cmd, report_empty_err=False, debug=debug)
   return status == 0
 
 
-def create_mysql_user_if_needed(stage, debug=False):
-  gcloud_command = "$GOOGLE_CLOUD_SDK/bin/gcloud --quiet"
-  if _check_if_mysql_user_exists(stage, debug=debug):
-    click.echo("     MySQL user already exists.")
-    sql_users_command = "set-password"
-    message = "Setting MySQL user's password"
+def create_cloudsql_user_if_needed(stage, debug=False):
+  project_id = stage.project_id_gae
+  db_instance_name = stage.db_instance_name
+  db_username = stage.db_username
+  db_password = stage.db_password
+  if _check_if_cloudsql_user_exists(stage, debug=debug):
+    click.echo('     CloudSQL user already exists.')
+    sql_users_command = 'set-password'
+    message = "Setting CloudSQL user's password"
   else:
-    sql_users_command = "create"
-    message = "Creating MySQL user"
-  command = "{gcloud_bin} sql users {sql_users_command} {db_username} \
-    --host % \
-    --instance={db_instance_name} \
-    --password={db_password} \
-    --project={project_id}".format(
-      gcloud_bin=gcloud_command,
-      sql_users_command=sql_users_command,
-      project_id=stage.project_id_gae,
-      db_instance_name=stage.db_instance_name,
-      db_username=stage.db_username,
-      db_password=stage.db_password)
-  shared.execute_command(message, command, debug=debug)
+    sql_users_command = 'create'
+    message = 'Creating CloudSQL user'
+  cmd = (
+      f' {GCLOUD} sql users {sql_users_command} {db_username}'
+      f' --host % --instance={db_instance_name} --password={db_password}'
+      f' --project={project_id}'
+  )
+  shared.execute_command(message, cmd, debug=debug)
 
 
-def _check_if_mysql_database_exists(stage, debug=False):
-  gcloud_command = "$GOOGLE_CLOUD_SDK/bin/gcloud --quiet"
-  command = "{gcloud_bin} sql databases list \
-    --project={project_id} \
-    --instance={db_instance_name} 2>/dev/null \
-    | egrep -q \"^{db_name}\s\"".format(
-      gcloud_bin=gcloud_command,
-      project_id=stage.project_id_gae,
-      db_instance_name=stage.db_instance_name,
-      db_name=stage.db_name)
-  status, out, err = shared.execute_command("Check if MySQL database already exists",
-      command,
-      report_empty_err=False,
-      debug=debug)
+def _check_if_cloudsql_database_exists(stage, debug=False):
+  project_id = stage.project_id_gae
+  db_instance_name = stage.db_instance_name
+  db_name = stage.db_name
+  cmd = (
+      f' {GCLOUD} sql databases list --project={project_id}'
+      f' --instance={db_instance_name} 2>/dev/null'
+      f' | egrep -q "^{db_name}\s"'
+  )
+  status, _, _ = shared.execute_command(
+      'Check if CloudSQL database already exists',
+      cmd, report_empty_err=False, debug=debug)
   return status == 0
 
 
-def create_mysql_database_if_needed(stage, debug=False):
-  if _check_if_mysql_database_exists(stage, debug=debug):
-    click.echo("     MySQL database already exists.")
+def create_cloudsql_database_if_needed(stage, debug=False):
+  if _check_if_cloudsql_database_exists(stage, debug=debug):
+    click.echo('     CloudSQL database already exists.')
     return
+  project_id = stage.project_id_gae
+  db_instance_name = stage.db_instance_name
+  db_name = stage.db_name
+  cmd = (
+      f' {GCLOUD} sql databases create {db_name}'
+      f' --instance={db_instance_name} --project={project_id}'
+  )
+  shared.execute_command('Creating CloudSQL database', cmd, debug=debug)
 
-  gcloud_command = "$GOOGLE_CLOUD_SDK/bin/gcloud --quiet"
-  command = "{gcloud_bin} sql databases create {db_name} \
-    --instance={db_instance_name} \
-    --project={project_id}".format(
-      gcloud_bin=gcloud_command,
-      project_id=stage.project_id_gae,
-      db_instance_name=stage.db_instance_name,
-      db_name=stage.db_name)
-  shared.execute_command("Creating MySQL database", command, debug=debug)
+
+def _get_existing_pubsub_entities(stage, entities, debug=False):
+  project_id = stage.project_id_gae
+  cmd = (
+      f' {GCLOUD} --project={project_id} pubsub {entities} list'
+      f' | grep -P ^name:'
+  )
+  _, out, _ = shared.execute_command(
+      f'Fetching list of PubSub {entities}', cmd, debug=debug)
+  lines = out.strip().split('\n')
+  entities = [l.split('/')[-1] for l in lines]
+  return entities
+
+
+def create_pubsub_topics(stage, debug=False):
+  existing_topics = _get_existing_pubsub_entities(stage, 'topics', debug)
+  crmint_topics = SUBSCRIPTIONS.keys()
+  topics_to_create = [t for t in crmint_topics if t not in existing_topics]
+  if not topics_to_create:
+    click.echo("     CRMint's PubSub topics already exist")
+    return
+  project_id = stage.project_id_gae
+  topics = ' '.join(topics_to_create)
+  cmd = f'{GCLOUD} --project={project_id} pubsub topics create {topics}'
+  shared.execute_command(
+      "Creating CRMint's PubSub topics", cmd, debug=debug)
+
+
+def _get_project_number(stage, debug=False):
+  project_id = stage.project_id_gae
+  cmd = (
+      f'{GCLOUD} projects describe {project_id}'
+      f' | grep -Po "(?<=projectNumber: .)\d+"'
+  )
+  _, out, _ = shared.execute_command(
+      "Getting project number", cmd, debug=debug)
+  return out.strip()
+
+def create_pubsub_subscriptions(stage, debug=False):
+  existing_subscriptions = _get_existing_pubsub_entities(
+      stage, 'subscriptions', debug)
+  project_id = stage.project_id_gae
+  service_account = f'{project_id}@appspot.gserviceaccount.com'
+  for topic_id in SUBSCRIPTIONS:
+    subscription_id = f'{topic_id}-subscription'
+    if subscription_id in existing_subscriptions:
+      click.echo(f'     PubSub subscription {subscription_id} already exists')
+      continue
+    subscription = SUBSCRIPTIONS[topic_id]
+    if subscription is None:
+      continue
+    path = subscription['path']
+    token = stage.pubsub_verification_token
+    push_endpoint = f'https://{project_id}.appspot.com/{path}?token={token}'
+    ack_deadline = subscription['ack_deadline_seconds']
+    minimum_backoff = subscription['minimum_backoff']
+    min_retry_delay = f'{minimum_backoff}s'
+    cmd = (
+        f' {GCLOUD} --project={project_id} pubsub subscriptions create'
+        f' {subscription_id} --topic={topic_id} --topic-project={project_id}'
+        f' --ack-deadline={ack_deadline} --min-retry-delay={min_retry_delay}'
+        f' --expiration-period=never --push-endpoint={push_endpoint}'
+        f' --push-auth-service-account={service_account}'
+    )
+    shared.execute_command(
+        f'Creating PubSub subscription {subscription_id}', cmd, debug=debug)
+
+
+def grant_pubsub_permissions(stage, debug=False):
+  project_id = stage.project_id_gae
+  project_number = _get_project_number(stage, debug)
+  pubsub_sa = f'service-{project_number}@gcp-sa-pubsub.iam.gserviceaccount.com'
+  cmd = (
+      f' {GCLOUD} projects add-iam-policy-binding {project_id}'
+      f' --member="serviceAccount:{pubsub_sa}"'
+      f' --role="roles/iam.serviceAccountTokenCreator"'
+  )
+  shared.execute_command(
+      "Granting Cloud Pub/Sub the permission to create tokens",
+      cmd, debug=debug)
 
 
 def activate_services(stage, debug=False):
-  gcloud_command = "$GOOGLE_CLOUD_SDK/bin/gcloud --quiet"
-  command = "{gcloud_bin} services enable \
-    --project={project_id} \
-    analytics.googleapis.com \
-    analyticsreporting.googleapis.com \
-    bigquery-json.googleapis.com \
-    cloudapis.googleapis.com \
-    logging.googleapis.com \
-    storage-api.googleapis.com \
-    storage-component.googleapis.com \
-    sqladmin.googleapis.com \
-    cloudscheduler.googleapis.com".format(
-      gcloud_bin=gcloud_command,
-      project_id=stage.project_id_gae)
-  shared.execute_command("Activate services", command, debug=debug)
+  project_id = stage.project_id_gae
+  cmd = (
+      f' {GCLOUD} services enable --project={project_id} --async'
+      f' analytics.googleapis.com'
+      f' analyticsreporting.googleapis.com'
+      f' bigquery-json.googleapis.com'
+      f' cloudapis.googleapis.com'
+      f' logging.googleapis.com'
+      f' pubsub.googleapis.com'
+      f' storage-api.googleapis.com'
+      f' storage-component.googleapis.com'
+      f' sqladmin.googleapis.com'
+  )
+  shared.execute_command('Activate Cloud services', cmd, debug=debug)
 
 
 def download_config_files(stage, debug=False):
   stage_file_path = shared.get_stage_file(stage.stage_name)
-  service_account_file_path = shared.get_service_account_file(stage)
-  command = "cloudshell download-files \
-    \"{stage_file}\" \
-    \"{service_account_file}\"".format(
-      stage_file=stage_file_path,
-      service_account_file=service_account_file_path)
-  shared.execute_command("Download configuration files", command, debug=debug)
+  cmd = f'cloudshell download-files "{stage_file_path}"'
+  shared.execute_command('Download configuration file', cmd, debug=debug)
 
 
 ####################### DEPLOY #######################
@@ -509,11 +564,11 @@ def run_reset_pipelines(stage, debug=False):
 @click.option('--debug/--no-debug', default=False)
 def setup(stage_name, debug):
   """Setup the GCP environment for deploying CRMint."""
-  click.echo(click.style(">>>> Setup", fg='magenta', bold=True))
+  click.echo(click.style('>>>> Setup', fg='magenta', bold=True))
 
   stage_name, stage = fetch_stage_or_default(stage_name, debug=debug)
   if stage is None:
-    exit(1)
+    sys.exit(1)
 
   # Enriches stage with other variables.
   stage = shared.before_hook(stage, stage_name)
@@ -522,15 +577,18 @@ def setup(stage_name, debug):
   components = [
       activate_services,
       create_appengine,
-      create_service_account_key_if_needed,
-      create_mysql_instance_if_needed,
-      create_mysql_user_if_needed,
-      create_mysql_database_if_needed,
+      create_cloudsql_instance_if_needed,
+      create_cloudsql_user_if_needed,
+      create_cloudsql_database_if_needed,
+      create_pubsub_topics,
+      create_pubsub_subscriptions,
+      grant_pubsub_permissions,
+      activate_services,
       download_config_files,
   ]
   for component in components:
     component(stage, debug=debug)
-  click.echo(click.style("Done.", fg='magenta', bold=True))
+  click.echo(click.style('Done.', fg='magenta', bold=True))
 
 
 @cli.command('deploy')
@@ -586,8 +644,8 @@ def reset(stage_name, debug):
 
   stage_name, stage = fetch_stage_or_default(stage_name, debug=debug)
   if stage is None:
-    click.echo(click.style("Fix that issue by running: `$ crmint cloud setup`", fg='green'))
-    exit(1)
+    click.echo(click.style('Fix that issue by running: `$ crmint cloud setup`', fg='green'))
+    sys.exit(1)
 
   # Enriches stage with other variables.
   stage = shared.before_hook(stage, stage_name)
@@ -606,7 +664,7 @@ def reset(stage_name, debug):
   ]
   for component in components:
     component(stage, debug=debug)
-  click.echo(click.style("Done.", fg='magenta', bold=True))
+  click.echo(click.style('Done.', fg='magenta', bold=True))
 
 
 if __name__ == '__main__':
