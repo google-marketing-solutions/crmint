@@ -282,19 +282,16 @@ def download_config_files(stage, debug=False):
 ####################### DEPLOY #######################
 
 
-def install_required_packages(stage, debug=False):
-  commands = [
-      "mkdir -p ~/.cloudshell",
-      "> ~/.cloudshell/no-apt-get-warning",
-      "sudo apt-get install -y rsync libmysqlclient-dev",
+def install_required_packages(_, debug=False):
+  cmds = [
+      'mkdir -p ~/.cloudshell',
+      '> ~/.cloudshell/no-apt-get-warning',
+      'sudo apt-get install -y rsync libmysqlclient-dev',
   ]
-  total = len(commands)
-  idx = 1
-  for cmd in commands:
-    shared.execute_command("Install required packages (%d/%d)" % (idx, total),
-        cmd,
-        debug=debug)
-    idx += 1
+  total = len(cmds)
+  for i, cmd in enumerate(cmds):
+    shared.execute_command(
+        f'Install required packages ({i + 1}/{total})', cmd, debug=debug)
 
 
 def display_workdir(stage, debug=False):
@@ -302,101 +299,84 @@ def display_workdir(stage, debug=False):
 
 
 def copy_src_to_workdir(stage, debug=False):
-  copy_src_cmd = "rsync -r --delete \
-    --exclude=.git \
-    --exclude=.idea \
-    --exclude='*.pyc' \
-    --exclude=frontend/node_modules \
-    --exclude=backends/data/*.json . {workdir}".format(
-      workdir=stage.workdir)
-
-  copy_insight_config_cmd = "cp backends/data/insight.json {workdir}/backends/data/insight.json".format(
-      workdir=stage.workdir)
-
-  copy_service_account_cmd = "cp backends/data/{service_account_filename} {workdir}/backends/data/service-account.json".format(
-      workdir=stage.workdir,
-      service_account_filename=stage.service_account_file)
-
-  copy_db_conf = "echo \'SQLALCHEMY_DATABASE_URI=\"{cloud_db_uri}\"\' > {workdir}/backends/instance/config.py".format(
-      workdir=stage.workdir,
-      cloud_db_uri=stage.cloud_db_uri)
-
-  copy_app_data = """
-cat > %(workdir)s/backends/data/app.json <<EOL
-{
-  "notification_sender_email": "%(notification_sender_email)s",
-  "app_title": "%(app_title)s"
-}
-EOL""".strip() % dict(
-    workdir=stage.workdir,
-    app_title=stage.app_title,
-    notification_sender_email=stage.notification_sender_email)
-
+  workdir = stage.workdir
+  app_title = stage.app_title
+  notification_sender_email = stage.notification_sender_email
+  enabled_stages = 'true' if stage.enabled_stages else 'false'
+  copy_src_cmd = (
+      f' rsync -r --delete'
+      f' --exclude=.git'
+      f' --exclude=.idea'
+      f" --exclude='*.pyc'"
+      f' --exclude=frontend/node_modules'
+      f' --exclude=backend/data/*.json'
+      f' --exclude=tests'
+      f' . {workdir}'
+  )
+  copy_insight_config_cmd = (
+      f' cp backend/data/insight.json {workdir}/backend/data/insight.json')
+  # copy_db_conf = "echo \'SQLALCHEMY_DATABASE_URI=\"{cloud_db_uri}\"\' > {workdir}/backends/instance/config.py".format(
+  #     workdir=stage.workdir,
+  #     cloud_db_uri=stage.cloud_db_uri)
+  copy_app_data = '\n'.join([
+      f'cat > {workdir}/backend/data/app.json <<EOL',
+      '{',
+      f'  "notification_sender_email": "{notification_sender_email}",',
+      f'  "app_title": "{app_title}"',
+      '}',
+      'EOL',
+  ])
   # We dont't use prod environment for the frontend to speed up deploy.
-  copy_prod_env = """
-cat > %(workdir)s/frontend/src/environments/environment.ts <<EOL
-export const environment = {
-  production: true,
-  app_title: "%(app_title)s",
-  enabled_stages: %(enabled_stages)s
-}
-EOL""".strip() % dict(
-    workdir=stage.workdir,
-    app_title=stage.app_title,
-    enabled_stages="true" if stage.enabled_stages else "false")
-
-  commands = [
+  copy_prod_env = '\n'.join([
+      f'cat > {workdir}/frontend/src/environments/environment.ts <<EOL',
+      'export const environment = {',
+      '  production: true,',
+      f'  app_title: "{app_title}",',
+      f'  enabled_stages: {enabled_stages}',
+      '}',
+      'EOL',
+  ])
+  cmds = [
       copy_src_cmd,
       copy_insight_config_cmd,
-      copy_service_account_cmd,
-      copy_db_conf,
       copy_app_data,
       copy_prod_env,
   ]
-  total = len(commands)
-  idx = 1
-  for cmd in commands:
-    shared.execute_command("Copy source code to working directory (%d/%d)" % (idx, total),
-        cmd,
-        cwd=constants.PROJECT_DIR,
-        debug=debug)
-    idx += 1
+  total = len(cmds)
+  for i, cmd in enumerate(cmds):
+    shared.execute_command(
+        f'Copy source code to working directory ({i + 1}/{total})',
+        cmd, cwd=constants.PROJECT_DIR, debug=debug)
 
 
 def deploy_frontend(stage, debug=False):
-  gcloud_command = "$GOOGLE_CLOUD_SDK/bin/gcloud --quiet"
   # NB: Limit the node process memory usage to avoid overloading
   #     the Cloud Shell VM memory which makes it unresponsive.
-  commands = [
-      "npm install --legacy-peer-deps",
-      "node --max-old-space-size=512 ./node_modules/@angular/cli/bin/ng build",
-      "{gcloud_bin} --project={project_id} app deploy gae.yaml --version=v1".format(
-          gcloud_bin=gcloud_command,
-          project_id=stage.project_id_gae),
+  project_id = stage.project_id_gae
+  max_old_space_size = "$((`free -m | egrep ^Mem: | awk '{print $4}'` / 4 * 3))"
+  cmds = [
+      (f' NODE_OPTIONS="--max-old-space-size={max_old_space_size}"'
+       ' NG_CLI_ANALYTICS=ci npm install'),
+      (f' node --max-old-space-size={max_old_space_size}'
+       ' ./node_modules/@angular/cli/bin/ng build'),
+      (f' {GCLOUD} --project={project_id} app deploy'
+       f' frontend_app.yaml --version=v1'),
   ]
   cmd_workdir = os.path.join(stage.workdir, 'frontend')
-  total = len(commands)
-  idx = 1
-  for cmd in commands:
-    shared.execute_command("Deploy frontend service (%d/%d)" % (idx, total),
-        cmd,
-        cwd=cmd_workdir,
-        debug=debug)
-    idx += 1
+  total = len(cmds)
+  for i, cmd in enumerate(cmds):
+    shared.execute_command(
+        f'Deploy frontend service ({i + 1}/{total})',
+        cmd, cwd=cmd_workdir, debug=debug)
 
 
 def deploy_dispatch_rules(stage, debug=False):
-  gcloud_command = "$GOOGLE_CLOUD_SDK/bin/gcloud --quiet"
-  # NB: Limit the node process memory usage to avoid overloading
-  #     the Cloud Shell VM memory which makes it unresponsive.
-  command = "{gcloud_bin} --project={project_id} app deploy dispatch.yaml".format(
-      gcloud_bin=gcloud_command,
-      project_id=stage.project_id_gae)
+  project_id = stage.project_id_gae
+  cmd = f' {GCLOUD} --project={project_id} app deploy dispatch.yaml'
   cmd_workdir = os.path.join(stage.workdir, 'frontend')
-  shared.execute_command("Deploy the dispatch.yaml rules",
-      command,
-      cwd=cmd_workdir,
-      debug=debug)
+  shared.execute_command(
+      'Deploy dispatch rules',
+      cmd, cwd=cmd_workdir, debug=debug)
 
 
 def install_backends_dependencies(stage, debug=False):
@@ -613,16 +593,16 @@ def deploy(stage_name, debug, skip_deploy_backends, skip_deploy_frontend):
       install_required_packages,
       display_workdir,
       copy_src_to_workdir,
-      install_backends_dependencies,
       deploy_frontend,
-      deploy_backends,
+      # install_backends_dependencies,
+      # deploy_backends,
       deploy_dispatch_rules,
-      download_cloud_sql_proxy,
-      start_cloud_sql_proxy,
-      prepare_flask_envars,
-      run_flask_db_upgrade,
-      run_flask_db_seeds,
-      stop_cloud_sql_proxy,
+      # download_cloud_sql_proxy,
+      # start_cloud_sql_proxy,
+      # prepare_flask_envars,
+      # run_flask_db_upgrade,
+      # run_flask_db_seeds,
+      # stop_cloud_sql_proxy,
   ]
 
   if skip_deploy_backends and (deploy_backends in components):
