@@ -15,6 +15,12 @@
 dispatch:
   - url: "*/api/workers*"
     service: crmint-jobs
+  - url: "*/push/start-task*"
+    service: crmint-jobs
   - url: "*/api/*"
+    service: crmint-controller
+  - url: "*/push/task-finished*"
+    service: crmint-controller
+  - url: "*/push/start-pipeline*"
     service: crmint-controller
 
