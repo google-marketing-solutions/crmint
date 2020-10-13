@@ -65,7 +65,11 @@ def execute_command(step_name, command, cwd='.', report_empty_err=True,
     msg = "\n%s: %s %s" % (step_name, err, ("({})".format(out) if out else ''))
     click.echo(click.style(msg, fg="red", bold=True))
     click.echo(click.style("Command: %s\n" % command, bold=False))
-  return pipe.returncode, out.decode('utf-8'), err.decode('utf-8')
+  if out is not None:
+    out = out.decode('utf-8')
+  if err is not None:
+    err = err.decode('utf-8')
+  return pipe.returncode, out, err
 
 
 def get_default_stage_name(debug=False):
