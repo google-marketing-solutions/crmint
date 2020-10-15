@@ -4,6 +4,7 @@
 .editorconfig
 .flake8
 .gitignore
+.gitkeep
 .pylintrc
 .venv_controller
 .venv_jobs
@@ -11,8 +12,10 @@ __pycache__
 jobs
 jobs_app.py
 jobs_app.yaml
+jobs_app_with_env_vars.yaml
 controller_app.yaml
 cron.yaml
+setup_pubsub.py
 frontend
 migrations
 requirements-*.txt
