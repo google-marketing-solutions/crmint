@@ -11,7 +11,10 @@ __pycache__
 controller
 controller_app.py
 controller_app.yaml
+controller_app_with_env_vars.yaml
+jobs_app.yaml
 cron.yaml
+setup_pubsub.py
 data
 flask_tasks.py
 frontend
