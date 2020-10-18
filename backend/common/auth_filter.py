@@ -13,18 +13,45 @@
 # limitations under the License.
 
 
+import os
+import cachecontrol
 from flask import request, redirect
+import google.auth.transport.requests
+from google.oauth2 import id_token
 import requests
 
+
+_PROJECT_ID = os.getenv('GOOGLE_CLOUD_PROJECT')
+_PUBSUB_VERIFICATION_TOKEN = os.getenv('PUBSUB_VERIFICATION_TOKEN')
+_REQUEST = google.auth.transport.requests.Request(
+    session=cachecontrol.CacheControl(requests.session()))
 
 def add(app):
   # pylint: disable=unused-variable,inconsistent-return-statements
   @app.before_request
   def before_filter():
+    # Skip auth filter for instance management and in development environment.
     if (request.path.startswith('/_ah/') or  # Start/stop instance.
-        request.path.startswith('/push/') or  # Push PubSub message.
-        ':' in request.host):  # Dev environment.
+        ':808' in request.host):  # Ports 8080/8081 are used in dev env.
       return
+
+    # Authenticate PubSub push messages.
+    if request.path.startswith('/push/'):
+      # Check if request came from a CRMint's push subscription.
+      if request.args.get('token', '') != _PUBSUB_VERIFICATION_TOKEN:
+        return 'Invalid request', 400
+      # Check if request is signed by PubSub.
+      try:
+        bearer_token = request.headers.get('Authorization')
+        token = bearer_token.split(' ')[1]
+        claim = id_token.verify_oauth2_token(token, _REQUEST)
+      except Exception as e:  # pylint: disable=broad-except
+        return f'Invalid token: {e}', 400
+      # Check if request is signed with the App Engine's service account key.
+      if claim.email != f'{_PROJECT_ID}@appspot.gserviceaccount.com':
+        return 'Invalid request', 400
+
+    # Check if the user is authenticated.
     response = requests.head(f'{request.url_root}assets/favicon.ico',
                              cookies=request.cookies)
     if response.status_code != 200:

@@ -381,8 +381,8 @@ def deploy_controller(stage, debug=False):
       '\n'.join([
           'cat >> controller_app_with_env_vars.yaml <<EOL',
           'env_variables:',
-          f'  DATABASE_URI: {cloud_db_uri}',
           f'  PUBSUB_VERIFICATION_TOKEN: {pubsub_verification_token}',
+          f'  DATABASE_URI: {cloud_db_uri}',
           'EOL',
       ]),
       (f' {GCLOUD} app deploy controller_app_with_env_vars.yaml'
