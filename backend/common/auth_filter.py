@@ -48,11 +48,11 @@ def add(app):
       except Exception as e:  # pylint: disable=broad-except
         return f'Invalid token: {e}', 400
       # Check if request is signed with the App Engine's service account key.
-      if claim.email != f'{_PROJECT_ID}@appspot.gserviceaccount.com':
+      if claim['email'] != f'{_PROJECT_ID}@appspot.gserviceaccount.com':
         return 'Invalid request', 400
-
-    # Check if the user is authenticated.
-    response = requests.head(f'{request.url_root}assets/favicon.ico',
-                             cookies=request.cookies)
-    if response.status_code != 200:
-      return redirect(request.url_root)
+    else:
+      # Check if the user is authenticated.
+      response = requests.head(f'{request.url_root}assets/favicon.ico',
+                               cookies=request.cookies)
+      if response.status_code != 200:
+        return redirect(request.url_root)
