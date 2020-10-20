@@ -46,13 +46,13 @@
           "name": "overwrite"
         }
       ],
-      "id": "f890810af2d04e07b636f7cf8deda6dc",
+      "id": "2465b7d7a23443a48a4b342d57325395",
       "name": "Creating ERP MC agg daily"
     },
     {
       "hash_start_conditions": [
         {
-          "preceding_job_id": "e6a3a1c6c19d4fbba1b31b251dc625c1",
+          "preceding_job_id": "9bd9e22011a24b8fb908111d38b2c41a",
           "condition": "success"
         }
       ],
@@ -99,7 +99,7 @@
           "name": "overwrite"
         }
       ],
-      "id": "bfe6b340c30d42269708ab907441aa1e",
+      "id": "192e1f67fb3a43a49aa22102ede5fe28",
       "name": "Creating GA Filtered daily"
     },
     {
@@ -108,7 +108,7 @@
       "params": [
         {
           "description": null,
-          "value": "WITH MaxDate AS (\n    SELECT\n      DATE_SUB(CAST(MAX(order_date) AS DATE), INTERVAL 1 DAY) as max_order_date\n    FROM `{% BQ_PROJECT_ID %}.{% BQ_ERP_DATASET_ID %}.{% BQ_ERPTABLE_ID %}`\n),\nRelevantCustomers AS (\n  SELECT DISTINCT\n    CUSTOMER_ID,\n    ORDER_ID\n  FROM `{% BQ_PROJECT_ID %}.{% BQ_ERP_DATASET_ID %}.{% BQ_ERPTABLE_ID %}`\n  WHERE\n    CAST(order_date AS DATE) >= DATE_SUB((SELECT max_order_date FROM maxdate), INTERVAL 365 DAY)\n)\nSELECT\n  ARRAY_AGG(DISTINCT CUSTOMER_ID LIMIT 10) AS CUSTOMER_IDS,\n  fullVisitorId\nFROM\n  `{% BQ_GA_PROJECT_ID %}.{% BQ_GA_DATASET_ID %}.ga_sessions_*` AS GADATA,\n   GADATA.hits AS Hits\nJOIN\n  RelevantCustomers\n  ON CAST(RelevantCustomers.ORDER_ID AS STRING) = Hits.transaction.transactionId\nGROUP BY fullVisitorId\nORDER BY fullVisitorId\n\n",
+          "value": "WITH MaxDate AS (\n    SELECT\n      DATE_SUB(CAST(MAX(order_date) AS DATE), INTERVAL 1 DAY) as max_order_date\n    FROM `{% BQ_PROJECT_ID %}.{% BQ_ERP_DATASET_ID %}.{% BQ_ERPTABLE_ID %}`\n),\nRelevantCustomers AS (\n  SELECT DISTINCT\n    CUSTOMER_ID,\n    ORDER_ID\n  FROM `{% BQ_PROJECT_ID %}.{% BQ_ERP_DATASET_ID %}.{% BQ_ERPTABLE_ID %}`\n  WHERE\n    CAST(order_date AS DATE) >= DATE_SUB((SELECT max_order_date FROM maxdate), INTERVAL 365 DAY)\n)\nSELECT\n  ARRAY_AGG(DISTINCT CUSTOMER_ID LIMIT {% MAX_CUSTOMERS_PER_COOKIE %}) AS CUSTOMER_IDS,\n  fullVisitorId\nFROM\n  `{% BQ_GA_PROJECT_ID %}.{% BQ_GA_DATASET_ID %}.ga_sessions_*` AS GADATA,\n   GADATA.hits AS Hits\nJOIN\n  RelevantCustomers\n  ON CAST(RelevantCustomers.ORDER_ID AS STRING) = Hits.transaction.transactionId\nGROUP BY fullVisitorId\nORDER BY fullVisitorId",
           "label": "Query",
           "is_required": false,
           "type": "sql",
@@ -147,13 +147,13 @@
           "name": "overwrite"
         }
       ],
-      "id": "e6a3a1c6c19d4fbba1b31b251dc625c1",
+      "id": "9bd9e22011a24b8fb908111d38b2c41a",
       "name": "Creating ga ids daily"
     },
     {
       "hash_start_conditions": [
         {
-          "preceding_job_id": "bfe6b340c30d42269708ab907441aa1e",
+          "preceding_job_id": "192e1f67fb3a43a49aa22102ede5fe28",
           "condition": "success"
         }
       ],
@@ -200,7 +200,7 @@
           "name": "overwrite"
         }
       ],
-      "id": "05aee242e8494e5ba653695153fd6f8f",
+      "id": "f22041ec41264ae7a6b9d7391401dba1",
       "name": "Creating ga agg daily"
     },
     {
@@ -209,7 +209,7 @@
       "params": [
         {
           "description": null,
-          "value": "WITH MaxDate AS (\n    SELECT\n      DATE_SUB(CAST(MAX(order_date) AS DATE), INTERVAL 1 DAY) as max_order_date\n    FROM `{% BQ_PROJECT_ID %}.{% BQ_ERP_DATASET_ID %}.{% BQ_ERPTABLE_ID %}`\n),\nERPDATA AS (\n  SELECT DISTINCT\n    CUSTOMER_ID,\n    ORDER_ID, \n    PRODUCT_ID, \n    CAST(ORDER_DATE AS DATE) AS ORDER_DATE,\n    COUNTRY, \n    CITY, \n    ZIP_CODE, \n    QUANTITY, \n    RETURN_QUANTITY, \n    IF(RETURN_DATE  IS NOT NULL, \n        DATE_DIFF(CAST(RETURN_DATE AS DATE), CAST(ORDER_DATE AS DATE), DAY),\n        0) \n      AS DATE_DIFF_ORDER_RETURN,\n    IF(RETURN_DATE IS NOT NULL, TRUE, FALSE) AS HAS_RETURNED,\n    SHIPPING_METHOD, \n    PAYMENT_METHOD, \n    DISCOUNT,\n    SHIPPING_FEE,\n    IF(SHIPPING_FEE = 0, 1, 0) AS FREE_SHIPPING,\n    PRICE,\n    (QUANTITY - RETURN_QUANTITY) * (PRICE - COGS) - OTHER_COGS  AS PROFIT\n  FROM `{% BQ_PROJECT_ID %}.{% BQ_ERP_DATASET_ID %}.{% BQ_ERPTABLE_ID %}`\n),\nTWO_WEEKS_DAYS_DATA AS (\n  SELECT \n    CUSTOMER_ID, \n    SUM(profit) AS profit_14days,\n    COUNT(DISTINCT order_id) AS num_orders_14_days,\n    COUNT(DISTINCT product_id) AS num_products_14_days\n  FROM ERPDATA\n  WHERE \n    ORDER_DATE >= DATE_SUB((SELECT max_order_date FROM maxdate), INTERVAL 14 DAY)\n    AND ORDER_DATE <= (SELECT max_order_date FROM maxdate)\n  GROUP BY 1\n), \nONE_MONTH_DATA AS (\n  SELECT \n    CUSTOMER_ID, \n    SUM(profit) AS profit_1_month,\n    COUNT(DISTINCT order_id) AS num_orders_1_month,\n    COUNT(DISTINCT product_id) AS num_products_1_month\n  FROM ERPDATA\n  WHERE \n    ORDER_DATE >= DATE_SUB((SELECT max_order_date FROM maxdate), INTERVAL 1 MONTH) \n    AND ORDER_DATE <= (SELECT max_order_date FROM maxdate)\n  GROUP BY 1\n), \nTHREE_MONTHS_DATA AS (\n  SELECT \n    CUSTOMER_ID, \n    SUM(profit) AS profit_3_months,\n    COUNT(DISTINCT order_id) AS num_orders_3_months,\n    COUNT(DISTINCT product_id) AS num_products_3_months\n  FROM ERPDATA\n  WHERE \n    ORDER_DATE >= DATE_SUB((SELECT max_order_date FROM maxdate), INTERVAL 3 MONTH) \n    AND ORDER_DATE <= (SELECT max_order_date FROM maxdate)\n  GROUP BY 1\n), \nSIX_MONTHS_DATA AS (\n  SELECT \n    CUSTOMER_ID, \n    SUM(profit) AS profit_6_months,\n    COUNT(DISTINCT order_id) AS num_orders_6_months,\n    COUNT(DISTINCT product_id) AS num_products_6_months\n  FROM ERPDATA\n  WHERE \n    ORDER_DATE >= DATE_SUB((SELECT max_order_date FROM maxdate), INTERVAL 6 MONTH) \n    AND ORDER_DATE <= (SELECT max_order_date FROM maxdate)\n  GROUP BY 1\n)\nSELECT \n  CUSTOMER_ID,\n  0 AS total_profit_response,\n  IF(profit_14days IS NULL, 0, profit_14days) AS profit_14days,\n  IF(num_orders_14_days IS NULL, 0, num_orders_14_days) AS num_orders_14_days,\n  IF(num_products_14_days IS NULL, 0, num_products_14_days) AS num_products_14_days,\n  IF(profit_1_month IS NULL, 0, profit_1_month) AS profit_1_month,\n  IF(num_orders_1_month IS NULL, 0, num_orders_1_month) AS num_orders_1_month,\n  IF(num_products_1_month IS NULL, 0, num_products_1_month) AS num_products_1_month,\n  IF(profit_3_months IS NULL, 0, profit_3_months) AS profit_3_months,\n  IF(num_orders_3_months IS NULL, 0, num_orders_3_months) AS num_orders_3_months,\n  IF(num_products_3_months IS NULL, 0, num_products_3_months) AS num_products_3_months,\n  IF(profit_6_months IS NULL, 0, profit_6_months) AS profit_6_months,\n  IF(num_orders_6_months IS NULL, 0, num_orders_6_months) AS num_orders_6_months,\n  IF(num_products_6_months IS NULL, 0, num_products_6_months) AS num_products_6_months\nFROM TWO_WEEKS_DAYS_DATA\nFULL JOIN ONE_MONTH_DATA\nUSING(CUSTOMER_ID)\nFULL JOIN THREE_MONTHS_DATA\nUSING(CUSTOMER_ID)\nFULL JOIN SIX_MONTHS_DATA\nUSING(CUSTOMER_ID)",
+          "value": "WITH MaxDate AS (\n    SELECT\n      DATE_SUB(CAST(MAX(order_date) AS DATE), INTERVAL 1 DAY) as max_order_date\n    FROM `{% BQ_PROJECT_ID %}.{% BQ_ERP_DATASET_ID %}.{% BQ_ERPTABLE_ID %}`\n),\nERPDATA AS (\n  SELECT DISTINCT\n    CUSTOMER_ID,\n    ORDER_ID, \n    PRODUCT_ID, \n    CAST(ORDER_DATE AS DATE) AS ORDER_DATE,\n    COUNTRY, \n    CITY, \n    ZIP_CODE, \n    QUANTITY, \n    RETURN_QUANTITY, \n    IF(RETURN_DATE  IS NOT NULL, \n        DATE_DIFF(CAST(RETURN_DATE AS DATE), CAST(ORDER_DATE AS DATE), DAY),\n        0) \n      AS DATE_DIFF_ORDER_RETURN,\n    IF(RETURN_DATE IS NOT NULL, TRUE, FALSE) AS HAS_RETURNED,\n    SHIPPING_METHOD, \n    PAYMENT_METHOD, \n    DISCOUNT,\n    SHIPPING_FEE,\n    IF(SHIPPING_FEE = 0, 1, 0) AS FREE_SHIPPING,\n    PRICE,\n    (QUANTITY - RETURN_QUANTITY) * (PRICE - COGS) - OTHER_COGS  AS PROFIT\n  FROM `{% BQ_PROJECT_ID %}.{% BQ_ERP_DATASET_ID %}.{% BQ_ERPTABLE_ID %}`\n),\nTWO_WEEKS_DAYS_DATA AS (\n  SELECT \n    CUSTOMER_ID, \n    SUM(profit) AS profit_14days,\n    COUNT(DISTINCT order_id) AS num_orders_14_days,\n    COUNT(DISTINCT product_id) AS num_products_14_days\n  FROM ERPDATA\n  WHERE \n    ORDER_DATE >= DATE_SUB((SELECT max_order_date FROM maxdate), INTERVAL 14 DAY)\n    AND ORDER_DATE <= (SELECT max_order_date FROM maxdate)\n  GROUP BY 1\n), \nONE_MONTH_DATA AS (\n  SELECT \n    CUSTOMER_ID, \n    SUM(profit) AS profit_1_month,\n    COUNT(DISTINCT order_id) AS num_orders_1_month,\n    COUNT(DISTINCT product_id) AS num_products_1_month\n  FROM ERPDATA\n  WHERE \n    ORDER_DATE >= DATE_SUB((SELECT max_order_date FROM maxdate), INTERVAL 1 MONTH) \n    AND ORDER_DATE <= (SELECT max_order_date FROM maxdate)\n  GROUP BY 1\n), \nTHREE_MONTHS_DATA AS (\n  SELECT \n    CUSTOMER_ID, \n    SUM(profit) AS profit_3_months,\n    COUNT(DISTINCT order_id) AS num_orders_3_months,\n    COUNT(DISTINCT product_id) AS num_products_3_months\n  FROM ERPDATA\n  WHERE \n    ORDER_DATE >= DATE_SUB((SELECT max_order_date FROM maxdate), INTERVAL 3 MONTH) \n    AND ORDER_DATE <= (SELECT max_order_date FROM maxdate)\n  GROUP BY 1\n), \nSIX_MONTHS_DATA AS (\n  SELECT \n    CUSTOMER_ID, \n    SUM(profit) AS profit_6_months,\n    COUNT(DISTINCT order_id) AS num_orders_6_months,\n    COUNT(DISTINCT product_id) AS num_products_6_months\n  FROM ERPDATA\n  WHERE \n    ORDER_DATE >= DATE_SUB((SELECT max_order_date FROM maxdate), INTERVAL 6 MONTH) \n    AND ORDER_DATE <= (SELECT max_order_date FROM maxdate)\n  GROUP BY 1\n),\nDISTINCT_CUSTOMERS AS (\n    SELECT DISTINCT CUSTOMER_ID\n    FROM ERPDATA\n    WHERE ORDER_DATE <= (SELECT max_order_date FROM MaxDate)\n    AND ORDER_DATE >= DATE_SUB((SELECT max_order_date FROM MaxDate), INTERVAL 365 DAY)\n)\nSELECT \n  CUSTOMER_ID,\n  0 AS total_profit_response,\n  IF(profit_14days IS NULL, 0, profit_14days) AS profit_14days,\n  IF(num_orders_14_days IS NULL, 0, num_orders_14_days) AS num_orders_14_days,\n  IF(num_products_14_days IS NULL, 0, num_products_14_days) AS num_products_14_days,\n  IF(profit_1_month IS NULL, 0, profit_1_month) AS profit_1_month,\n  IF(num_orders_1_month IS NULL, 0, num_orders_1_month) AS num_orders_1_month,\n  IF(num_products_1_month IS NULL, 0, num_products_1_month) AS num_products_1_month,\n  IF(profit_3_months IS NULL, 0, profit_3_months) AS profit_3_months,\n  IF(num_orders_3_months IS NULL, 0, num_orders_3_months) AS num_orders_3_months,\n  IF(num_products_3_months IS NULL, 0, num_products_3_months) AS num_products_3_months,\n  IF(profit_6_months IS NULL, 0, profit_6_months) AS profit_6_months,\n  IF(num_orders_6_months IS NULL, 0, num_orders_6_months) AS num_orders_6_months,\n  IF(num_products_6_months IS NULL, 0, num_products_6_months) AS num_products_6_months\nFROM DISTINCT_CUSTOMERS\nFULL JOIN TWO_WEEKS_DAYS_DATA\nUSING(CUSTOMER_ID)\nFULL JOIN ONE_MONTH_DATA\nUSING(CUSTOMER_ID)\nFULL JOIN THREE_MONTHS_DATA\nUSING(CUSTOMER_ID)\nFULL JOIN SIX_MONTHS_DATA\nUSING(CUSTOMER_ID)",
           "label": "Query",
           "is_required": false,
           "type": "sql",
@@ -248,21 +248,21 @@
           "name": "overwrite"
         }
       ],
-      "id": "b84f15a612c345b2b48da504adfd6f69",
+      "id": "af4a836246c340cc95e54d1dbe1fa1a6",
       "name": "Creating customer profit daily"
     },
     {
       "hash_start_conditions": [
         {
-          "preceding_job_id": "05aee242e8494e5ba653695153fd6f8f",
+          "preceding_job_id": "f22041ec41264ae7a6b9d7391401dba1",
           "condition": "success"
         },
         {
-          "preceding_job_id": "f890810af2d04e07b636f7cf8deda6dc",
+          "preceding_job_id": "2465b7d7a23443a48a4b342d57325395",
           "condition": "success"
         },
         {
-          "preceding_job_id": "b84f15a612c345b2b48da504adfd6f69",
+          "preceding_job_id": "af4a836246c340cc95e54d1dbe1fa1a6",
           "condition": "success"
         }
       ],
@@ -309,13 +309,13 @@
           "name": "overwrite"
         }
       ],
-      "id": "65f969d2e28146519f99f0a123da18ff",
+      "id": "26d2c525d68d433db8782b718e30f93a",
       "name": "Creating final daily table"
     },
     {
       "hash_start_conditions": [
         {
-          "preceding_job_id": "65f969d2e28146519f99f0a123da18ff",
+          "preceding_job_id": "26d2c525d68d433db8782b718e30f93a",
           "condition": "success"
         }
       ],
@@ -394,13 +394,13 @@
           "name": "output_gcs_uri_prefix"
         }
       ],
-      "id": "05414494b75c4999b25d18f4467d1c95",
+      "id": "2cdecdc89cdf4d2baf86460dbd749082",
       "name": "Predict CLV for scoring data"
     },
     {
       "hash_start_conditions": [
         {
-          "preceding_job_id": "05414494b75c4999b25d18f4467d1c95",
+          "preceding_job_id": "2cdecdc89cdf4d2baf86460dbd749082",
           "condition": "success"
         }
       ],
@@ -503,13 +503,13 @@
           "name": "schema"
         }
       ],
-      "id": "eaac48a797af4d5dbcbe9cbe5f2c426a",
+      "id": "dbeac72104b44c0f9ee5e87fbd39d4d9",
       "name": "Import CLV predictions CSV to BQ"
     },
     {
       "hash_start_conditions": [
         {
-          "preceding_job_id": "eaac48a797af4d5dbcbe9cbe5f2c426a",
+          "preceding_job_id": "dbeac72104b44c0f9ee5e87fbd39d4d9",
           "condition": "success"
         }
       ],
@@ -556,14 +556,332 @@
           "name": "overwrite"
         }
       ],
-      "id": "49b39e6be2a841cba3e464b7030b8a32",
+      "id": "f1a4b3c3d2bd4c42a65dd232e128b9e3",
       "name": "Convert CLV to MP events in BQ"
+    },
+    {
+      "hash_start_conditions": [
+        {
+          "preceding_job_id": "f1a4b3c3d2bd4c42a65dd232e128b9e3",
+          "condition": "success"
+        }
+      ],
+      "worker_class": "BQQueryLauncher",
+      "params": [
+        {
+          "description": null,
+          "value": "SELECT 1 AS cleared",
+          "label": "Query",
+          "is_required": false,
+          "type": "sql",
+          "name": "query"
+        },
+        {
+          "description": null,
+          "value": "{% BQ_PROJECT_ID %}",
+          "label": "BQ Project ID",
+          "is_required": false,
+          "type": "string",
+          "name": "bq_project_id"
+        },
+        {
+          "description": null,
+          "value": "{% BQ_DATASET_ID %}",
+          "label": "BQ Dataset ID",
+          "is_required": false,
+          "type": "string",
+          "name": "bq_dataset_id"
+        },
+        {
+          "description": null,
+          "value": "erp_mc_agg_daily",
+          "label": "BQ Table ID",
+          "is_required": false,
+          "type": "string",
+          "name": "bq_table_id"
+        },
+        {
+          "description": null,
+          "value": true,
+          "label": "Overwrite table",
+          "is_required": false,
+          "type": "boolean",
+          "name": "overwrite"
+        }
+      ],
+      "id": "7c945a955243412caa768c4d6928c8f2",
+      "name": "Wipe erp_mc_agg_daily Table"
+    },
+    {
+      "hash_start_conditions": [
+        {
+          "preceding_job_id": "f1a4b3c3d2bd4c42a65dd232e128b9e3",
+          "condition": "success"
+        }
+      ],
+      "worker_class": "BQQueryLauncher",
+      "params": [
+        {
+          "description": null,
+          "value": "SELECT 1 AS cleared",
+          "label": "Query",
+          "is_required": false,
+          "type": "sql",
+          "name": "query"
+        },
+        {
+          "description": null,
+          "value": "{% BQ_PROJECT_ID %}",
+          "label": "BQ Project ID",
+          "is_required": false,
+          "type": "string",
+          "name": "bq_project_id"
+        },
+        {
+          "description": null,
+          "value": "{% BQ_DATASET_ID %}",
+          "label": "BQ Dataset ID",
+          "is_required": false,
+          "type": "string",
+          "name": "bq_dataset_id"
+        },
+        {
+          "description": null,
+          "value": "ga_ids_daily",
+          "label": "BQ Table ID",
+          "is_required": false,
+          "type": "string",
+          "name": "bq_table_id"
+        },
+        {
+          "description": null,
+          "value": true,
+          "label": "Overwrite table",
+          "is_required": false,
+          "type": "boolean",
+          "name": "overwrite"
+        }
+      ],
+      "id": "af0f8d0a2cf44854886ae7927542034b",
+      "name": "Wipe ga_ids_daily Table"
+    },
+    {
+      "hash_start_conditions": [
+        {
+          "preceding_job_id": "f1a4b3c3d2bd4c42a65dd232e128b9e3",
+          "condition": "success"
+        }
+      ],
+      "worker_class": "BQQueryLauncher",
+      "params": [
+        {
+          "description": null,
+          "value": "SELECT 1 AS cleared",
+          "label": "Query",
+          "is_required": false,
+          "type": "sql",
+          "name": "query"
+        },
+        {
+          "description": null,
+          "value": "{% BQ_PROJECT_ID %}",
+          "label": "BQ Project ID",
+          "is_required": false,
+          "type": "string",
+          "name": "bq_project_id"
+        },
+        {
+          "description": null,
+          "value": "{% BQ_DATASET_ID %}",
+          "label": "BQ Dataset ID",
+          "is_required": false,
+          "type": "string",
+          "name": "bq_dataset_id"
+        },
+        {
+          "description": null,
+          "value": "customer_profit_daily",
+          "label": "BQ Table ID",
+          "is_required": false,
+          "type": "string",
+          "name": "bq_table_id"
+        },
+        {
+          "description": null,
+          "value": true,
+          "label": "Overwrite table",
+          "is_required": false,
+          "type": "boolean",
+          "name": "overwrite"
+        }
+      ],
+      "id": "f59a527f968c4643a5349d264d570b92",
+      "name": "Wipe customer_profit_daily Table"
+    },
+    {
+      "hash_start_conditions": [
+        {
+          "preceding_job_id": "f1a4b3c3d2bd4c42a65dd232e128b9e3",
+          "condition": "success"
+        }
+      ],
+      "worker_class": "BQQueryLauncher",
+      "params": [
+        {
+          "description": null,
+          "value": "SELECT 1 AS cleared",
+          "label": "Query",
+          "is_required": false,
+          "type": "sql",
+          "name": "query"
+        },
+        {
+          "description": null,
+          "value": "{% BQ_PROJECT_ID %}",
+          "label": "BQ Project ID",
+          "is_required": false,
+          "type": "string",
+          "name": "bq_project_id"
+        },
+        {
+          "description": null,
+          "value": "{% BQ_DATASET_ID %}",
+          "label": "BQ Dataset ID",
+          "is_required": false,
+          "type": "string",
+          "name": "bq_dataset_id"
+        },
+        {
+          "description": null,
+          "value": "ga_filtered_daily",
+          "label": "BQ Table ID",
+          "is_required": false,
+          "type": "string",
+          "name": "bq_table_id"
+        },
+        {
+          "description": null,
+          "value": true,
+          "label": "Overwrite table",
+          "is_required": false,
+          "type": "boolean",
+          "name": "overwrite"
+        }
+      ],
+      "id": "86ae56d129514744b80c01efe9e6579d",
+      "name": "Wipe ga_filtered_daily Table"
+    },
+    {
+      "hash_start_conditions": [
+        {
+          "preceding_job_id": "f1a4b3c3d2bd4c42a65dd232e128b9e3",
+          "condition": "success"
+        }
+      ],
+      "worker_class": "BQQueryLauncher",
+      "params": [
+        {
+          "description": null,
+          "value": "SELECT 1 AS cleared",
+          "label": "Query",
+          "is_required": false,
+          "type": "sql",
+          "name": "query"
+        },
+        {
+          "description": null,
+          "value": "{% BQ_PROJECT_ID %}",
+          "label": "BQ Project ID",
+          "is_required": false,
+          "type": "string",
+          "name": "bq_project_id"
+        },
+        {
+          "description": null,
+          "value": "{% BQ_DATASET_ID %}",
+          "label": "BQ Dataset ID",
+          "is_required": false,
+          "type": "string",
+          "name": "bq_dataset_id"
+        },
+        {
+          "description": null,
+          "value": "ga_agg_daily",
+          "label": "BQ Table ID",
+          "is_required": false,
+          "type": "string",
+          "name": "bq_table_id"
+        },
+        {
+          "description": null,
+          "value": true,
+          "label": "Overwrite table",
+          "is_required": false,
+          "type": "boolean",
+          "name": "overwrite"
+        }
+      ],
+      "id": "b641468308c446708a6c6dcf332ddc04",
+      "name": "Wipe ga_agg_daily Table"
+    },
+    {
+      "hash_start_conditions": [
+        {
+          "preceding_job_id": "f1a4b3c3d2bd4c42a65dd232e128b9e3",
+          "condition": "success"
+        }
+      ],
+      "worker_class": "BQQueryLauncher",
+      "params": [
+        {
+          "description": null,
+          "value": "SELECT 1 AS cleared",
+          "label": "Query",
+          "is_required": false,
+          "type": "sql",
+          "name": "query"
+        },
+        {
+          "description": null,
+          "value": "{% BQ_PROJECT_ID %}",
+          "label": "BQ Project ID",
+          "is_required": false,
+          "type": "string",
+          "name": "bq_project_id"
+        },
+        {
+          "description": null,
+          "value": "{% BQ_DATASET_ID %}",
+          "label": "BQ Dataset ID",
+          "is_required": false,
+          "type": "string",
+          "name": "bq_dataset_id"
+        },
+        {
+          "description": null,
+          "value": "final_table_daily",
+          "label": "BQ Table ID",
+          "is_required": false,
+          "type": "string",
+          "name": "bq_table_id"
+        },
+        {
+          "description": null,
+          "value": true,
+          "label": "Overwrite table",
+          "is_required": false,
+          "type": "boolean",
+          "name": "overwrite"
+        }
+      ],
+      "id": "27d11bed4d9c46d4bac620b674f40e8a",
+      "name": "Wipe final_table_daily Table"
     }
   ],
   "name": "Monthly Predictions",
   "schedules": [
     {
-      "cron": "0 16 1 * *"
+      "cron": "0 14 1 * *"
     }
   ]
 }

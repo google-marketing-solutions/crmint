@@ -4,7 +4,7 @@
     {
       "hash_start_conditions": [
         {
-          "preceding_job_id": "4e1d2907c9f74e6db7d394ac87b01c3c",
+          "preceding_job_id": "19fdb87b2b1945e7984a1ecf80143b38",
           "condition": "success"
         }
       ],
@@ -51,13 +51,13 @@
           "name": "overwrite"
         }
       ],
-      "id": "e504d92660784096b19802fcc09f9e64",
+      "id": "6a401730be1f4518b00a461996e92fc6",
       "name": "Creating ERP MC agg"
     },
     {
       "hash_start_conditions": [
         {
-          "preceding_job_id": "4e1d2907c9f74e6db7d394ac87b01c3c",
+          "preceding_job_id": "19fdb87b2b1945e7984a1ecf80143b38",
           "condition": "success"
         }
       ],
@@ -104,13 +104,13 @@
           "name": "overwrite"
         }
       ],
-      "id": "450005996e5845bf9572a0e6a55d9e18",
+      "id": "6f1f359c9f414b0cb2fcb38c1b1c418f",
       "name": "Creating ga ids"
     },
     {
       "hash_start_conditions": [
         {
-          "preceding_job_id": "fd40d8f9472e4ba4a40be8f223d9032c",
+          "preceding_job_id": "b45a7c529b714516be64782eb68084e2",
           "condition": "success"
         }
       ],
@@ -157,21 +157,21 @@
           "name": "overwrite"
         }
       ],
-      "id": "70e818fe19bf45dd9dfa50c46a3da4ff",
+      "id": "599f70220510413ead8dd70b89bd88c5",
       "name": "Creating GA agg"
     },
     {
       "hash_start_conditions": [
         {
-          "preceding_job_id": "e504d92660784096b19802fcc09f9e64",
+          "preceding_job_id": "6a401730be1f4518b00a461996e92fc6",
           "condition": "success"
         },
         {
-          "preceding_job_id": "70e818fe19bf45dd9dfa50c46a3da4ff",
+          "preceding_job_id": "599f70220510413ead8dd70b89bd88c5",
           "condition": "success"
         },
         {
-          "preceding_job_id": "1731cf9e3f7e4163a26cb598420b7f9d",
+          "preceding_job_id": "8485341a375f4490bcbaa5fada0c1d73",
           "condition": "success"
         }
       ],
@@ -218,13 +218,13 @@
           "name": "overwrite"
         }
       ],
-      "id": "aecb6afd030040d391302973fabb12f9",
+      "id": "8f07c300f00d4a54ad73a9eb3409782b",
       "name": "Creating final table"
     },
     {
       "hash_start_conditions": [
         {
-          "preceding_job_id": "aecb6afd030040d391302973fabb12f9",
+          "preceding_job_id": "8f07c300f00d4a54ad73a9eb3409782b",
           "condition": "success"
         }
       ],
@@ -287,13 +287,13 @@
           "name": "input_gcs_uri"
         }
       ],
-      "id": "8ee7c373048e43958de19de0d6d2cbf2",
+      "id": "9daf5175e23f48a1900b43186e0d866b",
       "name": "Import training data to AutoML"
     },
     {
       "hash_start_conditions": [
         {
-          "preceding_job_id": "8ee7c373048e43958de19de0d6d2cbf2",
+          "preceding_job_id": "9daf5175e23f48a1900b43186e0d866b",
           "condition": "success"
         }
       ],
@@ -388,7 +388,7 @@
           "name": "stop_early"
         }
       ],
-      "id": "fe89c54796aa4586902001ae0a601e80",
+      "id": "2f915474da734dc5ae0fe906190282be",
       "name": "Train monthly model in AutoML"
     },
     {
@@ -436,13 +436,13 @@
           "name": "overwrite"
         }
       ],
-      "id": "4e1d2907c9f74e6db7d394ac87b01c3c",
+      "id": "19fdb87b2b1945e7984a1ecf80143b38",
       "name": "Create sliding windows time ranges"
     },
     {
       "hash_start_conditions": [
         {
-          "preceding_job_id": "4e1d2907c9f74e6db7d394ac87b01c3c",
+          "preceding_job_id": "19fdb87b2b1945e7984a1ecf80143b38",
           "condition": "success"
         }
       ],
@@ -450,7 +450,7 @@
       "params": [
         {
           "description": null,
-          "value": "WITH ERPDATA_RAW AS (\n  SELECT DISTINCT\n    CUSTOMER_ID,\n    ORDER_ID, \n    PRODUCT_ID, \n    CAST(ORDER_DATE AS DATE) AS ORDER_DATE,\n    COUNTRY, \n    CITY, \n    ZIP_CODE, \n    QUANTITY, \n    RETURN_QUANTITY, \n    IF(RETURN_DATE  IS NOT NULL, \n        DATE_DIFF(CAST(RETURN_DATE AS DATE), CAST(ORDER_DATE AS DATE), DAY),\n        0) \n      AS DATE_DIFF_ORDER_RETURN,\n    IF(RETURN_DATE IS NOT NULL, TRUE, FALSE) AS HAS_RETURNED,\n    SHIPPING_METHOD, \n    PAYMENT_METHOD, \n    DISCOUNT,\n    SHIPPING_FEE,\n    IF(SHIPPING_FEE = 0, 1, 0) AS FREE_SHIPPING,\n    PRICE,\n    (QUANTITY - RETURN_QUANTITY) * (PRICE - COGS) - OTHER_COGS  AS PROFIT\n  FROM `{% BQ_PROJECT_ID %}.{% BQ_ERP_DATASET_ID %}.{% BQ_ERPTABLE_ID %}`\n),\nWINDOWS_CHECKS_FAP AS (\n  SELECT  \n    * except (slide_window), -- sfap, efap, stap, etap\n    IF(order_date >= sfap \n        AND order_date <= efap, slide_window, 0) AS TIME_WINDOW\nFROM \n  {% BQ_PROJECT_ID %}.{% BQ_DATASET_ID %}.sliding_windows, \n  ERPDATA_RAW\n),\nERPDATA_FAP AS (\n  SELECT * \n  FROM WINDOWS_CHECKS_FAP \n  WHERE TIME_WINDOW != 0 \n),\nWINDOWS_CHECKS_TAP AS (\n  SELECT  \n    * except (slide_window), -- sfap, efap, stap, etap\n    IF(order_date >= stap \n        AND order_date <= etap, slide_window, 0) AS TIME_WINDOW\nFROM \n  {% BQ_PROJECT_ID %}.{% BQ_DATASET_ID %}.sliding_windows,  \n  ERPDATA_RAW\n),\nERPDATA_TAP AS (\n  SELECT * \n  FROM WINDOWS_CHECKS_TAP \n  WHERE TIME_WINDOW != 0 \n),\nTWO_WEEKS_DAYS_DATA AS (\n  SELECT \n    CUSTOMER_ID, TIME_WINDOW,\n    SUM(profit) AS profit_14days,\n    COUNT(DISTINCT order_id) AS num_orders_14_days,\n    COUNT(DISTINCT product_id) AS num_products_14_days\n  FROM ERPDATA_FAP\n  WHERE \n    ORDER_DATE >= DATE_SUB(efap, INTERVAL 14 DAY) \n    AND ORDER_DATE <= efap\n  GROUP BY 1,2\n), \nONE_MONTH_DATA AS (\n  SELECT \n    CUSTOMER_ID, TIME_WINDOW, \n    SUM(profit) AS profit_1_month,\n    COUNT(DISTINCT order_id) AS num_orders_1_month,\n    COUNT(DISTINCT product_id) AS num_products_1_month\n  FROM ERPDATA_FAP\n  WHERE \n    ORDER_DATE >= DATE_SUB(efap, INTERVAL 1 MONTH) \n    AND ORDER_DATE <= efap\n  GROUP BY 1,2\n), \nTHREE_MONTHS_DATA AS (\n  SELECT \n    CUSTOMER_ID, TIME_WINDOW, \n    SUM(profit) AS profit_3_months,\n    COUNT(DISTINCT order_id) AS num_orders_3_months,\n    COUNT(DISTINCT product_id) AS num_products_3_months\n  FROM ERPDATA_FAP\n  WHERE \n    ORDER_DATE >= DATE_SUB(efap, INTERVAL 3 MONTH) \n    AND ORDER_DATE <= efap\n  GROUP BY 1,2\n), \nSIX_MONTHS_DATA AS (\n  SELECT \n    CUSTOMER_ID, TIME_WINDOW, \n    SUM(profit) AS profit_6_months,\n    COUNT(DISTINCT order_id) AS num_orders_6_months,\n    COUNT(DISTINCT product_id) AS num_products_6_months\n  FROM ERPDATA_FAP\n  WHERE \n    ORDER_DATE >= DATE_SUB(efap, INTERVAL 6 MONTH) \n    AND ORDER_DATE <= efap\n  GROUP BY 1,2\n), \nTOTAL_DATA AS (\nSELECT\n  CUSTOMER_ID, TIME_WINDOW, \n  IF(SUM(PROFIT) IS NULL, 0, SUM(PROFIT)) AS total_profit_response\nFROM ERPDATA_TAP\nWHERE \n  ORDER_DATE >= stap\n  AND ORDER_DATE <= etap\nGROUP BY 1,2\n)\nSELECT \n  CUSTOMER_ID, TIME_WINDOW, \n  IF(total_profit_response IS NULL, 0, total_profit_response) AS total_profit_response,\n  IF(profit_14days IS NULL, 0, profit_14days) AS profit_14days,\n  IF(num_orders_14_days IS NULL, 0, num_orders_14_days) AS num_orders_14_days,\n  IF(num_products_14_days IS NULL, 0, num_products_14_days) AS num_products_14_days,\n  IF(profit_1_month IS NULL, 0, profit_1_month) AS profit_1_month,\n  IF(num_orders_1_month IS NULL, 0, num_orders_1_month) AS num_orders_1_month,\n  IF(num_products_1_month IS NULL, 0, num_products_1_month) AS num_products_1_month,\n  IF(profit_3_months IS NULL, 0, profit_3_months) AS profit_3_months,\n  IF(num_orders_3_months IS NULL, 0, num_orders_3_months) AS num_orders_3_months,\n  IF(num_products_3_months IS NULL, 0, num_products_3_months) AS num_products_3_months,\n  IF(profit_6_months IS NULL, 0, profit_6_months) AS profit_6_months,\n  IF(num_orders_6_months IS NULL, 0, num_orders_6_months) AS num_orders_6_months,\n  IF(num_products_6_months IS NULL, 0, num_products_6_months) AS num_products_6_months\nFROM TOTAL_DATA\nFULL JOIN TWO_WEEKS_DAYS_DATA\nUSING(CUSTOMER_ID, TIME_WINDOW)\nFULL JOIN ONE_MONTH_DATA\nUSING(CUSTOMER_ID, TIME_WINDOW)\nFULL JOIN THREE_MONTHS_DATA\nUSING(CUSTOMER_ID, TIME_WINDOW)\nFULL JOIN SIX_MONTHS_DATA\nUSING(CUSTOMER_ID, TIME_WINDOW)\n",
+          "value": "WITH ERPDATA_RAW AS (\n  SELECT DISTINCT\n    CUSTOMER_ID,\n    ORDER_ID, \n    PRODUCT_ID, \n    CAST(ORDER_DATE AS DATE) AS ORDER_DATE,\n    COUNTRY, \n    CITY, \n    ZIP_CODE, \n    QUANTITY, \n    RETURN_QUANTITY, \n    IF(RETURN_DATE  IS NOT NULL, \n        DATE_DIFF(CAST(RETURN_DATE AS DATE), CAST(ORDER_DATE AS DATE), DAY),\n        0) \n      AS DATE_DIFF_ORDER_RETURN,\n    IF(RETURN_DATE IS NOT NULL, TRUE, FALSE) AS HAS_RETURNED,\n    SHIPPING_METHOD, \n    PAYMENT_METHOD, \n    DISCOUNT,\n    SHIPPING_FEE,\n    IF(SHIPPING_FEE = 0, 1, 0) AS FREE_SHIPPING,\n    PRICE,\n    (QUANTITY - RETURN_QUANTITY) * (PRICE - COGS) - OTHER_COGS  AS PROFIT\n  FROM `{% BQ_PROJECT_ID %}.{% BQ_ERP_DATASET_ID %}.{% BQ_ERPTABLE_ID %}`\n),\nWINDOWS_CHECKS_FAP AS (\n  SELECT  \n    * except (slide_window), -- sfap, efap, stap, etap\n    IF(order_date >= sfap \n        AND order_date <= efap, slide_window, 0) AS TIME_WINDOW\nFROM \n  {% BQ_PROJECT_ID %}.{% BQ_DATASET_ID %}.sliding_windows, \n  ERPDATA_RAW\n),\nERPDATA_FAP AS (\n  SELECT * \n  FROM WINDOWS_CHECKS_FAP \n  WHERE TIME_WINDOW != 0 \n),\nWINDOWS_CHECKS_TAP AS (\n  SELECT  \n    * except (slide_window), -- sfap, efap, stap, etap\n    IF(order_date >= stap \n        AND order_date <= etap, slide_window, 0) AS TIME_WINDOW\nFROM \n  {% BQ_PROJECT_ID %}.{% BQ_DATASET_ID %}.sliding_windows,  \n  ERPDATA_RAW\n),\nERPDATA_TAP AS (\n  SELECT * \n  FROM WINDOWS_CHECKS_TAP \n  WHERE TIME_WINDOW != 0 \n),\nTWO_WEEKS_DAYS_DATA AS (\n  SELECT \n    CUSTOMER_ID, TIME_WINDOW,\n    SUM(profit) AS profit_14days,\n    COUNT(DISTINCT order_id) AS num_orders_14_days,\n    COUNT(DISTINCT product_id) AS num_products_14_days\n  FROM ERPDATA_FAP\n  WHERE \n    ORDER_DATE >= DATE_SUB(efap, INTERVAL 14 DAY) \n    AND ORDER_DATE <= efap\n  GROUP BY 1,2\n), \nONE_MONTH_DATA AS (\n  SELECT \n    CUSTOMER_ID, TIME_WINDOW, \n    SUM(profit) AS profit_1_month,\n    COUNT(DISTINCT order_id) AS num_orders_1_month,\n    COUNT(DISTINCT product_id) AS num_products_1_month\n  FROM ERPDATA_FAP\n  WHERE \n    ORDER_DATE >= DATE_SUB(efap, INTERVAL 1 MONTH) \n    AND ORDER_DATE <= efap\n  GROUP BY 1,2\n), \nTHREE_MONTHS_DATA AS (\n  SELECT \n    CUSTOMER_ID, TIME_WINDOW, \n    SUM(profit) AS profit_3_months,\n    COUNT(DISTINCT order_id) AS num_orders_3_months,\n    COUNT(DISTINCT product_id) AS num_products_3_months\n  FROM ERPDATA_FAP\n  WHERE \n    ORDER_DATE >= DATE_SUB(efap, INTERVAL 3 MONTH) \n    AND ORDER_DATE <= efap\n  GROUP BY 1,2\n), \nSIX_MONTHS_DATA AS (\n  SELECT \n    CUSTOMER_ID, TIME_WINDOW, \n    SUM(profit) AS profit_6_months,\n    COUNT(DISTINCT order_id) AS num_orders_6_months,\n    COUNT(DISTINCT product_id) AS num_products_6_months\n  FROM ERPDATA_FAP\n  WHERE \n    ORDER_DATE >= DATE_SUB(efap, INTERVAL 6 MONTH) \n    AND ORDER_DATE <= efap\n  GROUP BY 1,2\n), \nTOTAL_DATA AS (\nSELECT\n  CUSTOMER_ID, TIME_WINDOW, \n  IF(SUM(PROFIT) IS NULL, 0, SUM(PROFIT)) AS total_profit_response\nFROM ERPDATA_TAP\nWHERE \n  ORDER_DATE >= stap\n  AND ORDER_DATE <= etap\nGROUP BY 1,2\n),\nDISTINCT_CUSTOMERS AS (\n    SELECT DISTINCT CUSTOMER_ID,\n    TIME_WINDOW\n    FROM ERPDATA_FAP\n)\nSELECT \n  CUSTOMER_ID, TIME_WINDOW, \n  IF(total_profit_response IS NULL, 0, total_profit_response) AS total_profit_response,\n  IF(profit_14days IS NULL, 0, profit_14days) AS profit_14days,\n  IF(num_orders_14_days IS NULL, 0, num_orders_14_days) AS num_orders_14_days,\n  IF(num_products_14_days IS NULL, 0, num_products_14_days) AS num_products_14_days,\n  IF(profit_1_month IS NULL, 0, profit_1_month) AS profit_1_month,\n  IF(num_orders_1_month IS NULL, 0, num_orders_1_month) AS num_orders_1_month,\n  IF(num_products_1_month IS NULL, 0, num_products_1_month) AS num_products_1_month,\n  IF(profit_3_months IS NULL, 0, profit_3_months) AS profit_3_months,\n  IF(num_orders_3_months IS NULL, 0, num_orders_3_months) AS num_orders_3_months,\n  IF(num_products_3_months IS NULL, 0, num_products_3_months) AS num_products_3_months,\n  IF(profit_6_months IS NULL, 0, profit_6_months) AS profit_6_months,\n  IF(num_orders_6_months IS NULL, 0, num_orders_6_months) AS num_orders_6_months,\n  IF(num_products_6_months IS NULL, 0, num_products_6_months) AS num_products_6_months\nFROM DISTINCT_CUSTOMERS\nFULL JOIN TOTAL_DATA\nUSING(CUSTOMER_ID, TIME_WINDOW)\nFULL JOIN TWO_WEEKS_DAYS_DATA\nUSING(CUSTOMER_ID, TIME_WINDOW)\nFULL JOIN ONE_MONTH_DATA\nUSING(CUSTOMER_ID, TIME_WINDOW)\nFULL JOIN THREE_MONTHS_DATA\nUSING(CUSTOMER_ID, TIME_WINDOW)\nFULL JOIN SIX_MONTHS_DATA\nUSING(CUSTOMER_ID, TIME_WINDOW)\n",
           "label": "Query",
           "is_required": false,
           "type": "sql",
@@ -489,13 +489,13 @@
           "name": "overwrite"
         }
       ],
-      "id": "1731cf9e3f7e4163a26cb598420b7f9d",
+      "id": "8485341a375f4490bcbaa5fada0c1d73",
       "name": "Creating Customer Profit "
     },
     {
       "hash_start_conditions": [
         {
-          "preceding_job_id": "450005996e5845bf9572a0e6a55d9e18",
+          "preceding_job_id": "6f1f359c9f414b0cb2fcb38c1b1c418f",
           "condition": "success"
         }
       ],
@@ -542,8 +542,326 @@
           "name": "overwrite"
         }
       ],
-      "id": "fd40d8f9472e4ba4a40be8f223d9032c",
+      "id": "b45a7c529b714516be64782eb68084e2",
       "name": "Creating GA Filtered"
+    },
+    {
+      "hash_start_conditions": [
+        {
+          "preceding_job_id": "2f915474da734dc5ae0fe906190282be",
+          "condition": "success"
+        }
+      ],
+      "worker_class": "BQQueryLauncher",
+      "params": [
+        {
+          "description": null,
+          "value": "SELECT 1 AS cleared",
+          "label": "Query",
+          "is_required": false,
+          "type": "sql",
+          "name": "query"
+        },
+        {
+          "description": null,
+          "value": "{% BQ_PROJECT_ID %}",
+          "label": "BQ Project ID",
+          "is_required": false,
+          "type": "string",
+          "name": "bq_project_id"
+        },
+        {
+          "description": null,
+          "value": "{% BQ_DATASET_ID %}",
+          "label": "BQ Dataset ID",
+          "is_required": false,
+          "type": "string",
+          "name": "bq_dataset_id"
+        },
+        {
+          "description": null,
+          "value": "erp_mc_agg_monthly",
+          "label": "BQ Table ID",
+          "is_required": false,
+          "type": "string",
+          "name": "bq_table_id"
+        },
+        {
+          "description": null,
+          "value": true,
+          "label": "Overwrite table",
+          "is_required": false,
+          "type": "boolean",
+          "name": "overwrite"
+        }
+      ],
+      "id": "875d9b1f9858463cb705aec1dc9796dd",
+      "name": "Wipe erp_mc_agg_monthly Table"
+    },
+    {
+      "hash_start_conditions": [
+        {
+          "preceding_job_id": "2f915474da734dc5ae0fe906190282be",
+          "condition": "success"
+        }
+      ],
+      "worker_class": "BQQueryLauncher",
+      "params": [
+        {
+          "description": null,
+          "value": "SELECT 1 as cleared",
+          "label": "Query",
+          "is_required": false,
+          "type": "sql",
+          "name": "query"
+        },
+        {
+          "description": null,
+          "value": "{% BQ_PROJECT_ID %}",
+          "label": "BQ Project ID",
+          "is_required": false,
+          "type": "string",
+          "name": "bq_project_id"
+        },
+        {
+          "description": null,
+          "value": "{% BQ_DATASET_ID %}",
+          "label": "BQ Dataset ID",
+          "is_required": false,
+          "type": "string",
+          "name": "bq_dataset_id"
+        },
+        {
+          "description": null,
+          "value": "ga_ids_monthly",
+          "label": "BQ Table ID",
+          "is_required": false,
+          "type": "string",
+          "name": "bq_table_id"
+        },
+        {
+          "description": null,
+          "value": true,
+          "label": "Overwrite table",
+          "is_required": false,
+          "type": "boolean",
+          "name": "overwrite"
+        }
+      ],
+      "id": "f5e6bb4b19044d61a19ee1786a10031d",
+      "name": "Wipe ga_ids_monthly Table"
+    },
+    {
+      "hash_start_conditions": [
+        {
+          "preceding_job_id": "2f915474da734dc5ae0fe906190282be",
+          "condition": "success"
+        }
+      ],
+      "worker_class": "BQQueryLauncher",
+      "params": [
+        {
+          "description": null,
+          "value": "SELECT 1 as cleared",
+          "label": "Query",
+          "is_required": false,
+          "type": "sql",
+          "name": "query"
+        },
+        {
+          "description": null,
+          "value": "{% BQ_PROJECT_ID %}",
+          "label": "BQ Project ID",
+          "is_required": false,
+          "type": "string",
+          "name": "bq_project_id"
+        },
+        {
+          "description": null,
+          "value": "{% BQ_DATASET_ID %}",
+          "label": "BQ Dataset ID",
+          "is_required": false,
+          "type": "string",
+          "name": "bq_dataset_id"
+        },
+        {
+          "description": null,
+          "value": "customer_profit_monthly",
+          "label": "BQ Table ID",
+          "is_required": false,
+          "type": "string",
+          "name": "bq_table_id"
+        },
+        {
+          "description": null,
+          "value": true,
+          "label": "Overwrite table",
+          "is_required": false,
+          "type": "boolean",
+          "name": "overwrite"
+        }
+      ],
+      "id": "0aea40a61f2f49d89ac0432a3e87d28d",
+      "name": "Wipe customer_profit_monthly Table"
+    },
+    {
+      "hash_start_conditions": [
+        {
+          "preceding_job_id": "2f915474da734dc5ae0fe906190282be",
+          "condition": "success"
+        }
+      ],
+      "worker_class": "BQQueryLauncher",
+      "params": [
+        {
+          "description": null,
+          "value": "SELECT 1 as cleared",
+          "label": "Query",
+          "is_required": false,
+          "type": "sql",
+          "name": "query"
+        },
+        {
+          "description": null,
+          "value": "{% BQ_PROJECT_ID %}",
+          "label": "BQ Project ID",
+          "is_required": false,
+          "type": "string",
+          "name": "bq_project_id"
+        },
+        {
+          "description": null,
+          "value": "{% BQ_DATASET_ID %}",
+          "label": "BQ Dataset ID",
+          "is_required": false,
+          "type": "string",
+          "name": "bq_dataset_id"
+        },
+        {
+          "description": null,
+          "value": "ga_filtered_monthly",
+          "label": "BQ Table ID",
+          "is_required": false,
+          "type": "string",
+          "name": "bq_table_id"
+        },
+        {
+          "description": null,
+          "value": true,
+          "label": "Overwrite table",
+          "is_required": false,
+          "type": "boolean",
+          "name": "overwrite"
+        }
+      ],
+      "id": "84c5a5b79ee64c04ac8d8f900249a2f6",
+      "name": "Wipe ga_filtered_monthly Table"
+    },
+    {
+      "hash_start_conditions": [
+        {
+          "preceding_job_id": "2f915474da734dc5ae0fe906190282be",
+          "condition": "success"
+        }
+      ],
+      "worker_class": "BQQueryLauncher",
+      "params": [
+        {
+          "description": null,
+          "value": "SELECT 1 AS cleared",
+          "label": "Query",
+          "is_required": false,
+          "type": "sql",
+          "name": "query"
+        },
+        {
+          "description": null,
+          "value": "{% BQ_PROJECT_ID %}",
+          "label": "BQ Project ID",
+          "is_required": false,
+          "type": "string",
+          "name": "bq_project_id"
+        },
+        {
+          "description": null,
+          "value": "{% BQ_DATASET_ID %}",
+          "label": "BQ Dataset ID",
+          "is_required": false,
+          "type": "string",
+          "name": "bq_dataset_id"
+        },
+        {
+          "description": null,
+          "value": "ga_agg_monthly",
+          "label": "BQ Table ID",
+          "is_required": false,
+          "type": "string",
+          "name": "bq_table_id"
+        },
+        {
+          "description": null,
+          "value": true,
+          "label": "Overwrite table",
+          "is_required": false,
+          "type": "boolean",
+          "name": "overwrite"
+        }
+      ],
+      "id": "076b32c78ad64ffcb6ef17281f544b67",
+      "name": "Wipe ga_agg_monthly Table"
+    },
+    {
+      "hash_start_conditions": [
+        {
+          "preceding_job_id": "2f915474da734dc5ae0fe906190282be",
+          "condition": "success"
+        }
+      ],
+      "worker_class": "BQQueryLauncher",
+      "params": [
+        {
+          "description": null,
+          "value": "SELECT 1 AS cleared",
+          "label": "Query",
+          "is_required": false,
+          "type": "sql",
+          "name": "query"
+        },
+        {
+          "description": null,
+          "value": "{% BQ_PROJECT_ID %}",
+          "label": "BQ Project ID",
+          "is_required": false,
+          "type": "string",
+          "name": "bq_project_id"
+        },
+        {
+          "description": null,
+          "value": "{% BQ_DATASET_ID %}",
+          "label": "BQ Dataset ID",
+          "is_required": false,
+          "type": "string",
+          "name": "bq_dataset_id"
+        },
+        {
+          "description": null,
+          "value": "final_table_monthly",
+          "label": "BQ Table ID",
+          "is_required": false,
+          "type": "string",
+          "name": "bq_table_id"
+        },
+        {
+          "description": null,
+          "value": true,
+          "label": "Overwrite table",
+          "is_required": false,
+          "type": "boolean",
+          "name": "overwrite"
+        }
+      ],
+      "id": "4aed5e5eab954b6d9ed12c1ad9e7108a",
+      "name": "Wipe final_table_monthly Table"
     }
   ],
   "name": "Monthly Training",
