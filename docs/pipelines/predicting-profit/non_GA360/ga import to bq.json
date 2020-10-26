@@ -1,0 +1,665 @@
+{
+  "params": [],
+  "jobs": [
+    {
+      "hash_start_conditions": [
+        {
+          "preceding_job_id": "50616566a39e41cca104e0db0423f1ee",
+          "condition": "success"
+        }
+      ],
+      "worker_class": "GAToBQImporter",
+      "params": [
+        {
+          "description": null,
+          "value": "146609933",
+          "label": "View IDs (e.g. 12345)",
+          "is_required": false,
+          "type": "string_list",
+          "name": "view_ids"
+        },
+        {
+          "description": null,
+          "value": "{% days_ago(1,\"%Y-%m-%d\")%}",
+          "label": "Start date (e.g. 2015-12-31)",
+          "is_required": false,
+          "type": "string",
+          "name": "start_date"
+        },
+        {
+          "description": null,
+          "value": "{% days_ago(1,\"%Y-%m-%d\")%}",
+          "label": "End date (e.g. 2016-12-31)",
+          "is_required": false,
+          "type": "string",
+          "name": "end_date"
+        },
+        {
+          "description": null,
+          "value": true,
+          "label": "Fetch data day by day",
+          "is_required": false,
+          "type": "boolean",
+          "name": "day_by_day"
+        },
+        {
+          "description": null,
+          "value": "ga:localItemRevenue",
+          "label": "Metrics (e.g. ga:users)",
+          "is_required": false,
+          "type": "string_list",
+          "name": "metrics"
+        },
+        {
+          "description": null,
+          "value": "ga:productSku\nga:productName\nga:productBrand\nga:transactionId\nga:productVariant",
+          "label": "Dimensions (e.g. ga:source)",
+          "is_required": false,
+          "type": "string_list",
+          "name": "dimensions"
+        },
+        {
+          "description": null,
+          "value": "",
+          "label": "Filters (e.g. ga:deviceCategory==mobile)",
+          "is_required": false,
+          "type": "string",
+          "name": "filters"
+        },
+        {
+          "description": null,
+          "value": false,
+          "label": "Include empty rows",
+          "is_required": false,
+          "type": "boolean",
+          "name": "include_empty_rows"
+        },
+        {
+          "description": null,
+          "value": "{% BQ_GA_PROJECT_ID %}",
+          "label": "BQ Project ID",
+          "is_required": false,
+          "type": "string",
+          "name": "bq_project_id"
+        },
+        {
+          "description": null,
+          "value": "{% BQ_GA_DATASET_ID %}",
+          "label": "BQ Dataset ID",
+          "is_required": false,
+          "type": "string",
+          "name": "bq_dataset_id"
+        },
+        {
+          "description": null,
+          "value": "crmint_products",
+          "label": "BQ Table ID",
+          "is_required": false,
+          "type": "string",
+          "name": "bq_table_id"
+        }
+      ],
+      "id": "caa81cb829e649cc917291e9216072d7",
+      "name": "Products CL"
+    },
+    {
+      "hash_start_conditions": [],
+      "worker_class": "GAToBQImporter",
+      "params": [
+        {
+          "description": null,
+          "value": "37769536",
+          "label": "View IDs (e.g. 12345)",
+          "is_required": false,
+          "type": "string_list",
+          "name": "view_ids"
+        },
+        {
+          "description": null,
+          "value": "{% days_ago(1,\"%Y-%m-%d\")%}",
+          "label": "Start date (e.g. 2015-12-31)",
+          "is_required": false,
+          "type": "string",
+          "name": "start_date"
+        },
+        {
+          "description": null,
+          "value": "{% days_ago(1,\"%Y-%m-%d\")%}",
+          "label": "End date (e.g. 2016-12-31)",
+          "is_required": false,
+          "type": "string",
+          "name": "end_date"
+        },
+        {
+          "description": null,
+          "value": true,
+          "label": "Fetch data day by day",
+          "is_required": false,
+          "type": "boolean",
+          "name": "day_by_day"
+        },
+        {
+          "description": null,
+          "value": "ga:transactions",
+          "label": "Metrics (e.g. ga:users)",
+          "is_required": false,
+          "type": "string_list",
+          "name": "metrics"
+        },
+        {
+          "description": null,
+          "value": "ga:transactionId\nga:sourceMedium\nga:campaign\nga:city\nga:browser\nga:deviceCategory\nga:hostname\nga:mobileDeviceBranding",
+          "label": "Dimensions (e.g. ga:source)",
+          "is_required": false,
+          "type": "string_list",
+          "name": "dimensions"
+        },
+        {
+          "description": null,
+          "value": "",
+          "label": "Filters (e.g. ga:deviceCategory==mobile)",
+          "is_required": false,
+          "type": "string",
+          "name": "filters"
+        },
+        {
+          "description": null,
+          "value": false,
+          "label": "Include empty rows",
+          "is_required": false,
+          "type": "boolean",
+          "name": "include_empty_rows"
+        },
+        {
+          "description": null,
+          "value": "{% BQ_GA_PROJECT_ID %}",
+          "label": "BQ Project ID",
+          "is_required": false,
+          "type": "string",
+          "name": "bq_project_id"
+        },
+        {
+          "description": null,
+          "value": "{% BQ_GA_DATASET_ID %}",
+          "label": "BQ Dataset ID",
+          "is_required": false,
+          "type": "string",
+          "name": "bq_dataset_id"
+        },
+        {
+          "description": null,
+          "value": "crmint_transactions",
+          "label": "BQ Table ID",
+          "is_required": false,
+          "type": "string",
+          "name": "bq_table_id"
+        }
+      ],
+      "id": "70558b569d364dbbbe2d71187c99ffa6",
+      "name": "Transaction KT"
+    },
+    {
+      "hash_start_conditions": [
+        {
+          "preceding_job_id": "b4c3f53213d7475281419ea7f475eade",
+          "condition": "success"
+        }
+      ],
+      "worker_class": "GAToBQImporter",
+      "params": [
+        {
+          "description": null,
+          "value": "37769536",
+          "label": "View IDs (e.g. 12345)",
+          "is_required": false,
+          "type": "string_list",
+          "name": "view_ids"
+        },
+        {
+          "description": null,
+          "value": "{% days_ago(1,\"%Y-%m-%d\")%}",
+          "label": "Start date (e.g. 2015-12-31)",
+          "is_required": false,
+          "type": "string",
+          "name": "start_date"
+        },
+        {
+          "description": null,
+          "value": "{% days_ago(1,\"%Y-%m-%d\")%}",
+          "label": "End date (e.g. 2016-12-31)",
+          "is_required": false,
+          "type": "string",
+          "name": "end_date"
+        },
+        {
+          "description": null,
+          "value": true,
+          "label": "Fetch data day by day",
+          "is_required": false,
+          "type": "boolean",
+          "name": "day_by_day"
+        },
+        {
+          "description": null,
+          "value": "ga:pageviews\nga:timeOnPage\nga:itemRevenue\nga:productListClicks\nga:productAddsToCart\nga:productRemovesFromCart\nga:productCheckouts\nga:productRefunds\nga:productListViews\nga:productDetailViews",
+          "label": "Metrics (e.g. ga:users)",
+          "is_required": false,
+          "type": "string_list",
+          "name": "metrics"
+        },
+        {
+          "description": null,
+          "value": "ga:transactionId\nga:date\nga:dateHourMinute\nga:searchKeyword",
+          "label": "Dimensions (e.g. ga:source)",
+          "is_required": false,
+          "type": "string_list",
+          "name": "dimensions"
+        },
+        {
+          "description": null,
+          "value": "",
+          "label": "Filters (e.g. ga:deviceCategory==mobile)",
+          "is_required": false,
+          "type": "string",
+          "name": "filters"
+        },
+        {
+          "description": null,
+          "value": false,
+          "label": "Include empty rows",
+          "is_required": false,
+          "type": "boolean",
+          "name": "include_empty_rows"
+        },
+        {
+          "description": null,
+          "value": "{% BQ_GA_PROJECT_ID %}",
+          "label": "BQ Project ID",
+          "is_required": false,
+          "type": "string",
+          "name": "bq_project_id"
+        },
+        {
+          "description": null,
+          "value": "{% BQ_GA_DATASET_ID %}",
+          "label": "BQ Dataset ID",
+          "is_required": false,
+          "type": "string",
+          "name": "bq_dataset_id"
+        },
+        {
+          "description": null,
+          "value": "crmint_customer_behaviour",
+          "label": "BQ Table ID",
+          "is_required": false,
+          "type": "string",
+          "name": "bq_table_id"
+        }
+      ],
+      "id": "bf7aa7e6333743e69292b03c23717868",
+      "name": "Customer Behaviour KT"
+    },
+    {
+      "hash_start_conditions": [
+        {
+          "preceding_job_id": "70558b569d364dbbbe2d71187c99ffa6",
+          "condition": "success"
+        }
+      ],
+      "worker_class": "GAToBQImporter",
+      "params": [
+        {
+          "description": null,
+          "value": "146609933",
+          "label": "View IDs (e.g. 12345)",
+          "is_required": false,
+          "type": "string_list",
+          "name": "view_ids"
+        },
+        {
+          "description": null,
+          "value": "{% days_ago(1,\"%Y-%m-%d\")%}",
+          "label": "Start date (e.g. 2015-12-31)",
+          "is_required": false,
+          "type": "string",
+          "name": "start_date"
+        },
+        {
+          "description": null,
+          "value": "{% days_ago(1,\"%Y-%m-%d\")%}",
+          "label": "End date (e.g. 2016-12-31)",
+          "is_required": false,
+          "type": "string",
+          "name": "end_date"
+        },
+        {
+          "description": null,
+          "value": true,
+          "label": "Fetch data day by day",
+          "is_required": false,
+          "type": "boolean",
+          "name": "day_by_day"
+        },
+        {
+          "description": null,
+          "value": "ga:transactions",
+          "label": "Metrics (e.g. ga:users)",
+          "is_required": false,
+          "type": "string_list",
+          "name": "metrics"
+        },
+        {
+          "description": null,
+          "value": "ga:transactionId\nga:sourceMedium\nga:campaign\nga:city\nga:browser\nga:deviceCategory\nga:hostname\nga:mobileDeviceBranding",
+          "label": "Dimensions (e.g. ga:source)",
+          "is_required": false,
+          "type": "string_list",
+          "name": "dimensions"
+        },
+        {
+          "description": null,
+          "value": "",
+          "label": "Filters (e.g. ga:deviceCategory==mobile)",
+          "is_required": false,
+          "type": "string",
+          "name": "filters"
+        },
+        {
+          "description": null,
+          "value": false,
+          "label": "Include empty rows",
+          "is_required": false,
+          "type": "boolean",
+          "name": "include_empty_rows"
+        },
+        {
+          "description": null,
+          "value": "{% BQ_GA_PROJECT_ID %}",
+          "label": "BQ Project ID",
+          "is_required": false,
+          "type": "string",
+          "name": "bq_project_id"
+        },
+        {
+          "description": null,
+          "value": "{% BQ_GA_DATASET_ID %}",
+          "label": "BQ Dataset ID",
+          "is_required": false,
+          "type": "string",
+          "name": "bq_dataset_id"
+        },
+        {
+          "description": null,
+          "value": "crmint_transactions",
+          "label": "BQ Table ID",
+          "is_required": false,
+          "type": "string",
+          "name": "bq_table_id"
+        }
+      ],
+      "id": "b4c3f53213d7475281419ea7f475eade",
+      "name": "Transaction CL"
+    },
+    {
+      "hash_start_conditions": [
+        {
+          "preceding_job_id": "bf7aa7e6333743e69292b03c23717868",
+          "condition": "success"
+        }
+      ],
+      "worker_class": "GAToBQImporter",
+      "params": [
+        {
+          "description": null,
+          "value": "146609933",
+          "label": "View IDs (e.g. 12345)",
+          "is_required": false,
+          "type": "string_list",
+          "name": "view_ids"
+        },
+        {
+          "description": null,
+          "value": "{% days_ago(1,\"%Y-%m-%d\")%}",
+          "label": "Start date (e.g. 2015-12-31)",
+          "is_required": false,
+          "type": "string",
+          "name": "start_date"
+        },
+        {
+          "description": null,
+          "value": "{% days_ago(1,\"%Y-%m-%d\")%}",
+          "label": "End date (e.g. 2016-12-31)",
+          "is_required": false,
+          "type": "string",
+          "name": "end_date"
+        },
+        {
+          "description": null,
+          "value": true,
+          "label": "Fetch data day by day",
+          "is_required": false,
+          "type": "boolean",
+          "name": "day_by_day"
+        },
+        {
+          "description": null,
+          "value": "ga:pageviews\nga:timeOnPage\nga:itemRevenue\nga:productListClicks\nga:productAddsToCart\nga:productRemovesFromCart\nga:productCheckouts\nga:productRefunds\nga:productListViews\nga:productDetailViews",
+          "label": "Metrics (e.g. ga:users)",
+          "is_required": false,
+          "type": "string_list",
+          "name": "metrics"
+        },
+        {
+          "description": null,
+          "value": "ga:transactionId\nga:date\nga:dateHourMinute\nga:searchKeyword",
+          "label": "Dimensions (e.g. ga:source)",
+          "is_required": false,
+          "type": "string_list",
+          "name": "dimensions"
+        },
+        {
+          "description": null,
+          "value": "",
+          "label": "Filters (e.g. ga:deviceCategory==mobile)",
+          "is_required": false,
+          "type": "string",
+          "name": "filters"
+        },
+        {
+          "description": null,
+          "value": false,
+          "label": "Include empty rows",
+          "is_required": false,
+          "type": "boolean",
+          "name": "include_empty_rows"
+        },
+        {
+          "description": null,
+          "value": "{% BQ_GA_PROJECT_ID %}",
+          "label": "BQ Project ID",
+          "is_required": false,
+          "type": "string",
+          "name": "bq_project_id"
+        },
+        {
+          "description": null,
+          "value": "{% BQ_GA_DATASET_ID %}",
+          "label": "BQ Dataset ID",
+          "is_required": false,
+          "type": "string",
+          "name": "bq_dataset_id"
+        },
+        {
+          "description": null,
+          "value": "crmint_customer_behaviour",
+          "label": "BQ Table ID",
+          "is_required": false,
+          "type": "string",
+          "name": "bq_table_id"
+        }
+      ],
+      "id": "b011e881b48849b7b10cd45594aec4f0",
+      "name": "Customer Behaviour CL"
+    },
+    {
+      "hash_start_conditions": [
+        {
+          "preceding_job_id": "b011e881b48849b7b10cd45594aec4f0",
+          "condition": "success"
+        }
+      ],
+      "worker_class": "GAToBQImporter",
+      "params": [
+        {
+          "description": null,
+          "value": "37769536",
+          "label": "View IDs (e.g. 12345)",
+          "is_required": false,
+          "type": "string_list",
+          "name": "view_ids"
+        },
+        {
+          "description": null,
+          "value": "{% days_ago(1,\"%Y-%m-%d\")%}",
+          "label": "Start date (e.g. 2015-12-31)",
+          "is_required": false,
+          "type": "string",
+          "name": "start_date"
+        },
+        {
+          "description": null,
+          "value": "{% days_ago(1,\"%Y-%m-%d\")%}",
+          "label": "End date (e.g. 2016-12-31)",
+          "is_required": false,
+          "type": "string",
+          "name": "end_date"
+        },
+        {
+          "description": null,
+          "value": true,
+          "label": "Fetch data day by day",
+          "is_required": false,
+          "type": "boolean",
+          "name": "day_by_day"
+        },
+        {
+          "description": null,
+          "value": "ga:localItemRevenue",
+          "label": "Metrics (e.g. ga:users)",
+          "is_required": false,
+          "type": "string_list",
+          "name": "metrics"
+        },
+        {
+          "description": null,
+          "value": "ga:transactionId\nga:productSku\nga:productName\nga:productBrand\nga:productVariant",
+          "label": "Dimensions (e.g. ga:source)",
+          "is_required": false,
+          "type": "string_list",
+          "name": "dimensions"
+        },
+        {
+          "description": null,
+          "value": "",
+          "label": "Filters (e.g. ga:deviceCategory==mobile)",
+          "is_required": false,
+          "type": "string",
+          "name": "filters"
+        },
+        {
+          "description": null,
+          "value": false,
+          "label": "Include empty rows",
+          "is_required": false,
+          "type": "boolean",
+          "name": "include_empty_rows"
+        },
+        {
+          "description": null,
+          "value": "{% BQ_GA_PROJECT_ID %}",
+          "label": "BQ Project ID",
+          "is_required": false,
+          "type": "string",
+          "name": "bq_project_id"
+        },
+        {
+          "description": null,
+          "value": "{% BQ_GA_DATASET_ID %}",
+          "label": "BQ Dataset ID",
+          "is_required": false,
+          "type": "string",
+          "name": "bq_dataset_id"
+        },
+        {
+          "description": null,
+          "value": "crmint_products",
+          "label": "BQ Table ID",
+          "is_required": false,
+          "type": "string",
+          "name": "bq_table_id"
+        }
+      ],
+      "id": "50616566a39e41cca104e0db0423f1ee",
+      "name": "Products KT"
+    },
+    {
+      "hash_start_conditions": [
+        {
+          "preceding_job_id": "caa81cb829e649cc917291e9216072d7",
+          "condition": "success"
+        }
+      ],
+      "worker_class": "BQQueryLauncher",
+      "params": [
+        {
+          "description": null,
+          "value": "SELECT *\nFROM `{% BQ_GA_PROJECT_ID %}.{% BQ_GA_DATASET_ID %}.crmint_products`\nLEFT JOIN `{% BQ_GA_PROJECT_ID %}.{% BQ_GA_DATASET_ID %}.crmint_customer_behaviour`\nUSING (ga_transactionId)\nLEFT JOIN `{% BQ_GA_PROJECT_ID %}.{% BQ_GA_DATASET_ID %}.crmint_transactions` \nUSING (ga_transactionId)",
+          "label": "Query",
+          "is_required": false,
+          "type": "sql",
+          "name": "query"
+        },
+        {
+          "description": null,
+          "value": "{% BQ_GA_PROJECT_ID %}",
+          "label": "BQ Project ID",
+          "is_required": false,
+          "type": "string",
+          "name": "bq_project_id"
+        },
+        {
+          "description": null,
+          "value": "{% BQ_GA_DATASET_ID %}",
+          "label": "BQ Dataset ID",
+          "is_required": false,
+          "type": "string",
+          "name": "bq_dataset_id"
+        },
+        {
+          "description": null,
+          "value": "ga_sessions_all",
+          "label": "BQ Table ID",
+          "is_required": false,
+          "type": "string",
+          "name": "bq_table_id"
+        },
+        {
+          "description": null,
+          "value": true,
+          "label": "Overwrite table",
+          "is_required": false,
+          "type": "boolean",
+          "name": "overwrite"
+        }
+      ],
+      "id": "281ebdb041154b51a0023623cf45d44b",
+      "name": "Join all GA tables"
+    }
+  ],
+  "name": "GA import to BQ",
+  "schedules": [
+    {
+      "cron": "0 0 * * *"
+    }
+  ]
+}
