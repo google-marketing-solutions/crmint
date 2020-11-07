@@ -256,6 +256,33 @@ def grant_pubsub_permissions(stage, debug=False):
       cmd, debug=debug)
 
 
+def _check_if_scheduler_job_exists(stage, debug=False):
+  project_id = stage.project_id_gae
+  cmd = (
+      f' {GCLOUD} scheduler jobs list --project={project_id}'
+      f' | grep -q crmint-cron'
+  )
+  status, _, _ = shared.execute_command(
+      'Check if Cloud Scheduler job already exists',
+      cmd, report_empty_err=False, debug=debug)
+  return status == 0
+
+
+def create_scheduler_job(stage, debug=False):
+  if _check_if_scheduler_job_exists(stage, debug=debug):
+    click.echo('     Cloud Scheduler job already exists.')
+    return
+  project_id = stage.project_id_gae
+  cmd = (
+      f' {GCLOUD} scheduler jobs create pubsub crmint-cron'
+      f" --project={project_id} --schedule='* * * * *'"
+      f' --topic=crmint-start-pipeline'
+      f' --message-body=\'{"pipeline_ids": "scheduled"}\''
+      f' --attributes="start_time=0" --description="CRMint\'s cron job"'
+  )
+  shared.execute_command('Create Cloud Scheduler job', cmd, debug=debug)
+
+
 def activate_services(stage, debug=False):
   project_id = stage.project_id_gae
   cmd = (
@@ -539,6 +566,7 @@ def setup(stage_name, debug):
       create_pubsub_topics,
       create_pubsub_subscriptions,
       grant_pubsub_permissions,
+      create_scheduler_job,
       activate_services,
       download_config_files,
   ]
