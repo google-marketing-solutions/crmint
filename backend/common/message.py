@@ -22,7 +22,7 @@ from google.cloud import pubsub_v1
 
 
 class _Error(Exception):
-  """Generic task module error."""
+  """Generic message module error."""
 
   def __init__(self, message, code):
     super().__init__(message, code)

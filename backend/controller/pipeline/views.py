@@ -13,12 +13,11 @@
 # limitations under the License.
 
 """Pipeline section."""
-import time
 import datetime
+import os
+import time
 import uuid
 
-# from google.appengine.api import app_identity
-# from google.appengine.api import urlfetch
 from google.cloud.logging import DESCENDING
 
 import werkzeug
@@ -32,6 +31,10 @@ from flask_restful import reqparse
 from common import crmint_logging, insight
 from controller.models import Job, Pipeline
 from controller.extensions import api
+
+
+_PROJECT_ID = os.getenv('GOOGLE_CLOUD_PROJECT')
+
 
 blueprint = Blueprint('pipeline', __name__)
 
@@ -310,10 +313,10 @@ class PipelineLogs(Resource):
     next_page_token = args.get('next_page_token')
     page_size = 20
 
-    # project_id = app_identity.get_application_id()
-    project_id = 'crmint-dev'  # TODO(aprikhodko): get a real Project ID here.
-    filter_ = 'logName="projects/%s/logs/%s"' % (project_id, crmint_logging.logger_name)
-    filter_ += ' AND jsonPayload.labels.pipeline_id="%s"' % pipeline_id
+    filter_ = (
+        f'logName="projects/{_PROJECT_ID}/logs/{crmint_logging.logger_name}"'
+        f' AND jsonPayload.labels.pipeline_id="{pipeline_id}"'
+    )
     if args.get('worker_class'):
       filter_ += ' AND jsonPayload.labels.worker_class="%s"' \
           % args.get('worker_class')
@@ -328,7 +331,7 @@ class PipelineLogs(Resource):
     if args.get('todate'):
       filter_ += ' AND timestamp<="%s"' % args.get('todate')
     iterator = crmint_logging.client.list_entries(
-        projects=[project_id],
+        projects=[_PROJECT_ID],
         filter_=filter_,
         order_by=DESCENDING,
         page_size=page_size,
@@ -337,11 +340,6 @@ class PipelineLogs(Resource):
     page = next(iterator.pages)
 
     for entry in page:
-      # print '    Page number: %d' % (iterator.page_number,)
-      # print '  Items in page: %d' % (page.num_items,)
-      # print 'Items remaining: %d' % (page.remaining,)
-      # print 'Next page token: %s' % (iterator.next_page_token,)
-      # print '----------------------------'
       if isinstance(entry.payload, dict) \
          and entry.payload.get('labels') \
          and entry.payload.get('labels').get('job_id'):
