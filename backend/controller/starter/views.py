@@ -14,6 +14,8 @@
 
 """Task results handler."""
 
+import time
+from croniter import croniter
 from flask import Blueprint, request
 from flask_restful import Resource
 from common import insight
@@ -27,6 +29,13 @@ blueprint = Blueprint('starter', __name__)
 
 class StarterResource(Resource):  # pylint: disable=too-few-public-methods
   """Processes PubSub POST requests from crmint-start-pipeline topic."""
+
+  def _its_time(self, cron_format):
+    """Returns True if current time matches cron time spec."""
+    now = int(time.time())
+    itr = croniter(cron_format, now - 60)
+    nxt = itr.get_next()
+    return now / 60 * 60 == nxt
 
   def _start_scheduled_pipelines(self):
     """Finds and tries starting the pipelines scheduled to be executed now."""
