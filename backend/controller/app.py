@@ -15,7 +15,7 @@
 """The app module, containing the app factory function."""
 
 from flask import Flask
-from controller import pipeline, job, views, stage, result
+from controller import pipeline, job, views, stage, result, starter
 from controller.config import ProdConfig
 from controller.database import init_engine
 from controller.extensions import set_global_api_blueprint, db, cors, migrate
@@ -46,6 +46,7 @@ def register_api_blueprints(api_blueprint):
   api_blueprint.init_app(job.views.blueprint)
   api_blueprint.init_app(stage.views.blueprint)
   api_blueprint.init_app(result.views.blueprint)
+  api_blueprint.init_app(starter.views.blueprint)
 
 
 def register_blueprints(app):
@@ -55,3 +56,4 @@ def register_blueprints(app):
   app.register_blueprint(job.views.blueprint, url_prefix='/api')
   app.register_blueprint(stage.views.blueprint, url_prefix='/api')
   app.register_blueprint(result.views.blueprint)
+  app.register_blueprint(starter.views.blueprint)
