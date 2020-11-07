@@ -26,13 +26,14 @@ _PUBSUB_VERIFICATION_TOKEN = os.getenv('PUBSUB_VERIFICATION_TOKEN')
 _REQUEST = google.auth.transport.requests.Request(
     session=cachecontrol.CacheControl(requests.session()))
 
+
 def add(app):
   # pylint: disable=unused-variable,inconsistent-return-statements
   @app.before_request
   def before_filter():
     # Skip auth filter for instance management and in development environment.
-    if (request.path.startswith('/_ah/') or  # Start/stop instance.
-        ':808' in request.host):  # Ports 8080/8081 are used in dev env.
+    if (request.path.startswith('/_ah/')  # Start/stop instance.
+        or ':808' in request.host):  # Ports 8080/8081 are used in dev env.
       return
 
     # Authenticate PubSub push messages.
