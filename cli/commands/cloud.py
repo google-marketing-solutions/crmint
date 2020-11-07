@@ -259,7 +259,7 @@ def grant_pubsub_permissions(stage, debug=False):
 def _check_if_scheduler_job_exists(stage, debug=False):
   project_id = stage.project_id_gae
   cmd = (
-      f' {GCLOUD} scheduler jobs list --project={project_id}'
+      f' {GCLOUD} scheduler jobs list --project={project_id} 2>/dev/null'
       f' | grep -q crmint-cron'
   )
   status, _, _ = shared.execute_command(
@@ -277,7 +277,7 @@ def create_scheduler_job(stage, debug=False):
       f' {GCLOUD} scheduler jobs create pubsub crmint-cron'
       f" --project={project_id} --schedule='* * * * *'"
       f' --topic=crmint-start-pipeline'
-      f' --message-body=\'{"pipeline_ids": "scheduled"}\''
+      f' --message-body=\'{{"pipeline_ids": "scheduled"}}\''
       f' --attributes="start_time=0" --description="CRMint\'s cron job"'
   )
   shared.execute_command('Create Cloud Scheduler job', cmd, debug=debug)
