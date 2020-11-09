@@ -3,42 +3,42 @@
     {
       "type": "text",
       "name": "BQ_DATASET_ID",
-      "value": "kt_ltv_pilot"
+      "value": ""
     },
     {
       "type": "text",
       "name": "BQ_ERPTABLE_ID",
-      "value": "kt_order_data"
+      "value": ""
     },
     {
       "type": "text",
       "name": "BQ_ERP_DATASET_ID",
-      "value": "kt_ppp_data"
+      "value": ""
     },
     {
       "type": "text",
       "name": "BQ_GA_DATASET_ID",
-      "value": "kt_ga_transactions"
+      "value": ""
     },
     {
       "type": "text",
       "name": "BQ_MC_DATASET_ID",
-      "value": "kt_product_backfill"
+      "value": ""
     },
     {
       "type": "text",
       "name": "BQ_MC_TABLE_ID",
-      "value": "product_backfill"
+      "value": ""
     },
     {
       "type": "text",
       "name": "BQ_PROJECT_ID",
-      "value": "kt-bb-predicted-profit-pilot"
+      "value": ""
     },
     {
       "type": "text",
       "name": "GA_TABLE_ID",
-      "value": "crmint_customer_behaviour"
+      "value": ""
     }
   ],
   "jobs": [
@@ -87,7 +87,7 @@
           "name": "overwrite"
         }
       ],
-      "id": "daedd987d0e841d18a0d2ce65c344192",
+      "id": "87f25fbe947f4c1ca11c0076ff37750b",
       "name": "Check GA ERP data"
     },
     {
@@ -135,10 +135,10 @@
           "name": "overwrite"
         }
       ],
-      "id": "ab9ed7d515cd4326805e22304c8f2e53",
+      "id": "2c4c7941e4e4412eaf5f25f2f9c093a1",
       "name": "Check MC ERP data"
     }
   ],
-  "name": "Data Assessment",
+  "name": "Data Assessment non ga360",
   "schedules": []
 }
