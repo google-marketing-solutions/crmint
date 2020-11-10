@@ -63,7 +63,7 @@ RUN apk update && apk add build-base gcc musl-dev libxml2-dev libxslt-dev
 WORKDIR /app/backends
 RUN apk add --update mariadb-client-libs \
     && apk add --no-cache --virtual .bootstrap-deps linux-headers \
-        bash curl python-dev musl-dev mariadb-dev gcc build-base \
+        bash curl python-dev musl-dev mariadb-dev gcc build-base git \
     && pip install -r core/requirements_dev.txt -t lib_dev \
     && pip install -r ibackend/requirements.txt -t lib \
     && pip install -r jbackend/requirements.txt -t lib \
