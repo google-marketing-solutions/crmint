@@ -113,8 +113,9 @@ class Worker:
           if e.code > 399 and e.code < 500:
             raise e
         except Exception as e:  # pylint: disable=broad-except
-          tries += 1
-          delay = 5 * 2 ** (tries + random())
-          time.sleep(delay)
+          pass
+        tries += 1
+        delay = 5 * 2 ** (tries + random())
+        time.sleep(delay)
       return func(*args, **kwargs)
     return func_with_retries
