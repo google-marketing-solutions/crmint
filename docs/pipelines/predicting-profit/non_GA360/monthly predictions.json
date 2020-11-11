@@ -1,0 +1,622 @@
+{
+  "params": [],
+  "jobs": [
+    {
+      "hash_start_conditions": [],
+      "worker_class": "BQQueryLauncher",
+      "params": [
+        {
+          "description": null,
+          "value": "# only for customers with orders in the last day\n\nWITH MaxDate AS (\n    SELECT\n      DATE_SUB(CAST(MAX(order_date) AS DATE), INTERVAL 1 DAY) as max_order_date\n    FROM `{% BQ_PROJECT_ID %}.{% BQ_ERP_DATASET_ID %}.{% BQ_ERPTABLE_ID %}`\n),\nRelevantCustomers AS (\n  SELECT DISTINCT\n    CUSTOMER_ID\n  FROM `{% BQ_PROJECT_ID %}.{% BQ_ERP_DATASET_ID %}.{% BQ_ERPTABLE_ID %}`\n),\nERPDATA AS\n(\n  SELECT\n    CUSTOMER_ID,\n    0 AS TIME_WINDOW, \n    ORDER_ID, \n    PRODUCT_ID, \n    CAST(ORDER_DATE AS DATE) AS ORDER_DATE,\n    COUNTRY, \n    CITY, \n    ZIP_CODE, \n    QUANTITY, \n    RETURN_QUANTITY, \n    IF(RETURN_DATE  IS NOT NULL, \n        DATE_DIFF(CAST(RETURN_DATE AS DATE), CAST(ORDER_DATE AS DATE), DAY),\n        0) \n      AS DATE_DIFF_ORDER_RETURN,\n    IF(RETURN_DATE IS NOT NULL, TRUE, FALSE) AS HAS_RETURNED,\n    SHIPPING_METHOD, \n    PAYMENT_METHOD, \n    DISCOUNT,\n    SHIPPING_FEE,\n    IF(SHIPPING_FEE = 0, 1, 0) AS FREE_SHIPPING,\n    PRICE,\n    (QUANTITY - RETURN_QUANTITY) * (PRICE - COGS) - OTHER_COGS  AS PROFIT\n  FROM\n    `{% BQ_PROJECT_ID %}.{% BQ_ERP_DATASET_ID %}.{% BQ_ERPTABLE_ID %}` AS a\n    INNER JOIN RelevantCustomers AS b\n    USING (CUSTOMER_ID)\n    WHERE \n      CAST(order_date AS DATE) >= \n        DATE_SUB((SELECT max_order_date FROM maxdate), INTERVAL 365 DAY)\n),\nMCDATA AS (\n  SELECT DISTINCT\n    CAST(mpn AS STRING) AS mpn,\n    brand,\n    product_type,\n    color\n  FROM `{% BQ_PROJECT_ID %}.{% BQ_MC_DATASET_ID %}.{% BQ_MCTABLE_ID %}` \n), \nERPMCDATA AS (\nSELECT DISTINCT\n ERPDATA.*,\n MCDATA.*\nFROM \n  ERPDATA \n  LEFT JOIN MCDATA\n  ON mpn = product_id\n),\nCOUNTS AS (\n  SELECT DISTINCT\n    CUSTOMER_ID, TIME_WINDOW,\n    CITY,\n    COUNT (*) OVER(PARTITION BY CUSTOMER_ID, TIME_WINDOW, CITY) AS CITY_count,          \n    COUNT(DISTINCT CITY) OVER(PARTITION BY CUSTOMER_ID, TIME_WINDOW) \n      AS distinct_cities,\n    COUNTRY,\n    COUNT(*) OVER(PARTITION BY CUSTOMER_ID, TIME_WINDOW, COUNTRY)                         \n      AS COUNTRY_count,                         \n    COUNT(DISTINCT COUNTRY) OVER(PARTITION BY CUSTOMER_ID, TIME_WINDOW) \n      AS distinct_countries,\n    ZIP_CODE,                         \n    COUNT (*) OVER(PARTITION BY CUSTOMER_ID, TIME_WINDOW, ZIP_CODE)                        \n      AS ZIP_CODE_count,                        \n    COUNT(DISTINCT ZIP_CODE) OVER(PARTITION BY CUSTOMER_ID, TIME_WINDOW) \n      AS distinct_zip_codes,\n    SHIPPING_METHOD, \n    COUNT (*) OVER(PARTITION BY CUSTOMER_ID, TIME_WINDOW, SHIPPING_METHOD)                 \n      AS SHIPPING_METHOD_count,                 \n    COUNT(DISTINCT SHIPPING_METHOD) OVER(PARTITION BY CUSTOMER_ID, TIME_WINDOW) \n      AS distinct_shipping_methods,\n    PAYMENT_METHOD, \n    COUNT (*) OVER(PARTITION BY CUSTOMER_ID, TIME_WINDOW, PAYMENT_METHOD)                  \n      AS PAYMENT_METHOD_count,                  \n    COUNT(DISTINCT PAYMENT_METHOD) OVER(PARTITION BY CUSTOMER_ID, TIME_WINDOW) \n      AS distinct_payment_methods,\n    brand,\n    COUNT (*) OVER(PARTITION BY CUSTOMER_ID, TIME_WINDOW, brand)                           \n      AS brand_count,                           \n    COUNT(DISTINCT brand) OVER(PARTITION BY CUSTOMER_ID, TIME_WINDOW) \n      AS distinct_brands,\n    product_type,\n    COUNT (*) OVER(PARTITION BY CUSTOMER_ID, TIME_WINDOW, product_type)                    \n      AS product_type_count,                    \n    COUNT(DISTINCT product_type) OVER(PARTITION BY CUSTOMER_ID, TIME_WINDOW) \n      AS distinct_product_types,  \n    color, \n    COUNT (*) OVER(PARTITION BY CUSTOMER_ID, TIME_WINDOW, color)\n      AS color_count,                           \n    COUNT(DISTINCT color) OVER(PARTITION BY CUSTOMER_ID, TIME_WINDOW) \n      AS distinct_colors,\n    ORDER_ID AS CUSTOMER_ORDER_ID, \n    SUM(QUANTITY) OVER (PARTITION BY CUSTOMER_ID, TIME_WINDOW, ORDER_ID)                   \n      AS products_quantity_per_order,\n    SUM(RETURN_QUANTITY) OVER (PARTITION BY CUSTOMER_ID, TIME_WINDOW, ORDER_ID)           \n      AS returned_products_qauntity_per_order\n  FROM ERPMCDATA\n), \nTOPSCITY AS (\n  SELECT DISTINCT\n  CUSTOMER_ID, TIME_WINDOW,\n  NTH_VALUE(CITY, 1) OVER (PARTITION BY CUSTOMER_ID, TIME_WINDOW \n      ORDER BY CITY_count DESC \n      ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) \n      AS most_popular_city,  \n  NTH_VALUE(CITY, 2) OVER (PARTITION BY CUSTOMER_ID, TIME_WINDOW \n      ORDER BY CITY_count DESC \n      ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) \n      AS second_most_popular_city,  \n  NTH_VALUE(CITY, 3) OVER (PARTITION BY CUSTOMER_ID, TIME_WINDOW \n      ORDER BY CITY_count DESC \n      ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) \n      AS third_most_popular_city,\n FROM (SELECT DISTINCT CUSTOMER_ID, TIME_WINDOW, CITY, CITY_count FROM COUNTS)\n),\nTOPCOUNTRY AS (\n  SELECT DISTINCT\n  CUSTOMER_ID, TIME_WINDOW,\n  NTH_VALUE(COUNTRY, 1) OVER (PARTITION BY CUSTOMER_ID, TIME_WINDOW \n      ORDER BY COUNTRY_count DESC \n      ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) \n      AS most_popular_country,  \n  NTH_VALUE(COUNTRY, 2) OVER (PARTITION BY CUSTOMER_ID, TIME_WINDOW \n      ORDER BY COUNTRY_count DESC \n      ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) \n      AS second_most_popular_country,  \n  NTH_VALUE(COUNTRY, 3) OVER (PARTITION BY CUSTOMER_ID, TIME_WINDOW \n      ORDER BY COUNTRY_count DESC \n      ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) \n      AS third_most_popular_country,\n FROM (SELECT DISTINCT CUSTOMER_ID, TIME_WINDOW, COUNTRY, COUNTRY_count \n       FROM COUNTS)\n),\nTOPZIPCODE AS (\n  SELECT DISTINCT\n  CUSTOMER_ID, TIME_WINDOW,\n  NTH_VALUE(CONCAT('zip_', ZIP_CODE), 1) OVER (PARTITION BY CUSTOMER_ID, TIME_WINDOW \n      ORDER BY ZIP_CODE_count DESC \n      ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) \n      AS most_popular_zip_code,  \n  NTH_VALUE(CONCAT('zip_', ZIP_CODE), 2) OVER (PARTITION BY CUSTOMER_ID, TIME_WINDOW \n      ORDER BY ZIP_CODE_count DESC \n      ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) \n      AS second_most_popular_zip_code,  \n  NTH_VALUE(CONCAT('zip_', ZIP_CODE), 3) OVER (PARTITION BY CUSTOMER_ID, TIME_WINDOW \n      ORDER BY ZIP_CODE_count DESC \n      ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) \n      AS third_most_popular_zip_code,\n FROM (SELECT DISTINCT CUSTOMER_ID, TIME_WINDOW, ZIP_CODE, ZIP_CODE_count \n       FROM COUNTS)\n),\nTOPSHIPPINGMETHOD AS (\n  SELECT DISTINCT\n  CUSTOMER_ID, TIME_WINDOW,\n  NTH_VALUE(SHIPPING_METHOD, 1) OVER (PARTITION BY CUSTOMER_ID, TIME_WINDOW \n      ORDER BY SHIPPING_METHOD_count DESC \n      ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) \n      AS most_popular_shipping_method,  \n  NTH_VALUE(SHIPPING_METHOD, 2) OVER (PARTITION BY CUSTOMER_ID, TIME_WINDOW \n      ORDER BY SHIPPING_METHOD_count DESC \n      ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) \n      AS second_most_shipping_method,  \n  NTH_VALUE(SHIPPING_METHOD, 3) OVER (PARTITION BY CUSTOMER_ID, TIME_WINDOW \n      ORDER BY SHIPPING_METHOD_count DESC \n      ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) \n      AS third_most_shipping_method,\n FROM (SELECT \n          DISTINCT \n            CUSTOMER_ID, TIME_WINDOW, SHIPPING_METHOD, SHIPPING_METHOD_count \n        FROM COUNTS)\n),\nTOPPAYMENT_METHOD AS (\n  SELECT DISTINCT\n  CUSTOMER_ID, TIME_WINDOW,\n  NTH_VALUE(PAYMENT_METHOD, 1) OVER (PARTITION BY CUSTOMER_ID, TIME_WINDOW \n      ORDER BY PAYMENT_METHOD_count DESC \n      ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) \n      AS most_popular_payment_method,  \n  NTH_VALUE(PAYMENT_METHOD, 2) OVER (PARTITION BY CUSTOMER_ID, TIME_WINDOW \n      ORDER BY PAYMENT_METHOD_count DESC \n      ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) \n      AS second_most_payment_method,  \n  NTH_VALUE(PAYMENT_METHOD, 3) OVER (PARTITION BY CUSTOMER_ID, TIME_WINDOW \n      ORDER BY PAYMENT_METHOD_count DESC \n      ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) \n      AS third_most_payment_method,\n FROM (SELECT DISTINCT \n        CUSTOMER_ID, TIME_WINDOW, PAYMENT_METHOD, PAYMENT_METHOD_count \n      FROM COUNTS)\n),\nTOPBRAND AS (\n  SELECT DISTINCT\n  CUSTOMER_ID, TIME_WINDOW,\n  NTH_VALUE(brand, 1) OVER (PARTITION BY CUSTOMER_ID, TIME_WINDOW \n      ORDER BY brand_count DESC \n      ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) \n      AS most_popular_brand,  \n  NTH_VALUE(brand, 2) OVER (PARTITION BY CUSTOMER_ID, TIME_WINDOW \n      ORDER BY brand_count DESC \n      ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) \n      AS second_most_popular_brand,  \n  NTH_VALUE(brand, 3) OVER (PARTITION BY CUSTOMER_ID, TIME_WINDOW\n      ORDER BY brand_count DESC \n      ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) \n      AS third_most_popular_brand,\n FROM (SELECT DISTINCT CUSTOMER_ID, TIME_WINDOW, brand, brand_count FROM COUNTS)\n),\nTOPPRODUCTTYPE AS (\n  SELECT DISTINCT\n  CUSTOMER_ID, TIME_WINDOW,\n  NTH_VALUE(product_type, 1) OVER (PARTITION BY CUSTOMER_ID, TIME_WINDOW \n      ORDER BY product_type_count DESC \n      ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) \n      AS most_popular_product_type,  \n  NTH_VALUE(product_type, 2) OVER (PARTITION BY CUSTOMER_ID, TIME_WINDOW \n      ORDER BY product_type_count DESC \n      ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) \n      AS second_most_popular_product_type,  \n  NTH_VALUE(product_type, 3) OVER (PARTITION BY CUSTOMER_ID, TIME_WINDOW \n      ORDER BY product_type_count DESC \n      ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) \n      AS third_most_popular_product_type,\n FROM (SELECT DISTINCT \n         CUSTOMER_ID, TIME_WINDOW, product_type, product_type_count \n       FROM COUNTS)\n),\nTOPCOLOR AS (\n  SELECT DISTINCT\n  CUSTOMER_ID, TIME_WINDOW,\n  NTH_VALUE(color, 1) OVER (PARTITION BY CUSTOMER_ID, TIME_WINDOW \n      ORDER BY color_count DESC \n      ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) \n      AS most_popular_color,  \n  NTH_VALUE(color, 2) OVER (PARTITION BY CUSTOMER_ID, TIME_WINDOW \n      ORDER BY color_count DESC \n      ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) \n      AS second_most_popular_color,  \n  NTH_VALUE(color, 3) OVER (PARTITION BY CUSTOMER_ID, TIME_WINDOW \n      ORDER BY color_count DESC \n      ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) \n      AS third_most_popular_color,\n FROM (SELECT DISTINCT CUSTOMER_ID, TIME_WINDOW, color, color_count FROM COUNTS)\n),\nORDER_DATES_ARRAY AS (\nSELECT \n    CUSTOMER_ID, TIME_WINDOW, \n    ARRAY_AGG(DISTINCT ORDER_DATE) AS order_dates\nFROM ERPMCDATA\nGROUP BY 1,2\n),\nORDER_DATES_DELTAS AS (\nSELECT \n  CUSTOMER_ID, TIME_WINDOW, \n  DATE_DIFF(order_date, \n      LAG(order_date, 1, NULL) \n        OVER (PARTITION BY CUSTOMER_ID, TIME_WINDOW ORDER BY order_date), \n      DAY)\n    AS delta\nFROM \n  ORDER_DATES_ARRAY AS dates, \n  dates.order_dates AS order_date\n),\nAGG_DELTAS AS (\n  SELECT \n    CUSTOMER_ID, \n    TIME_WINDOW,\n    ROUND(AVG(delta), 1) AS avg_days_between_orders,\n    MAX(delta) AS max_days_between_orders, \n    MIN(delta) AS min_days_between_orders\n  FROM ORDER_DATES_DELTAS\n  GROUP BY CUSTOMER_ID, TIME_WINDOW\n),\nSAFE_AGG_DELTAS AS (\n  SELECT \n    DISTINCT\n      CUSTOMER_ID, \n      TIME_WINDOW,\n      IF(avg_days_between_orders IS NULL, 0, avg_days_between_orders) AS avg_days_between_orders,\n      IF(max_days_between_orders IS NULL, 0, max_days_between_orders) AS max_days_between_orders,\n      IF(min_days_between_orders IS NULL, 0, min_days_between_orders) AS min_days_between_orders\n  FROM AGG_DELTAS\n),\nQUANTITYPERORDER AS (\n  SELECT \n    DISTINCT \n      CUSTOMER_ID, TIME_WINDOW, \n      CUSTOMER_ORDER_ID, \n      products_quantity_per_order, \n      returned_products_qauntity_per_order\n  FROM COUNTS\n),\nAGG_QUANTITYPERORDER AS (\n  SELECT \n    CUSTOMER_ID, \n    TIME_WINDOW,\n    MIN(products_quantity_per_order) AS min_product_quantity_per_order,\n    MAX(products_quantity_per_order) AS max_product_quantity_per_order,\n    AVG(products_quantity_per_order) AS avg_product_quantity_per_order,\n    \n    MIN(returned_products_qauntity_per_order) \n      AS min_returned_products_qauntity_per_order,\n    MAX(returned_products_qauntity_per_order) \n      AS max_returned_products_qauntity_per_order,\n    AVG(returned_products_qauntity_per_order) \n      AS avg_returned_products_qauntity_per_order,\n  FROM QUANTITYPERORDER\n  GROUP BY CUSTOMER_ID, TIME_WINDOW\n),\nEtaps AS (\n  SELECT DISTINCT etap\n  FROM `{% BQ_PROJECT_ID %}.{% BQ_DATASET_ID %}.sliding_windows`\n),\nDEDUPPED AS (\n  SELECT \n    DISTINCT\n      CUSTOMER_ID, \n      TIME_WINDOW,\n      ORDER_ID, \n      PRODUCT_ID,\n      SHIPPING_FEE,\n      DISCOUNT,\n      DATE_DIFF_ORDER_RETURN,\n      HAS_RETURNED,\n      PROFIT,\n      PRICE,\n      ORDER_DATE\n  FROM ERPDATA\n),\nAGG_PRICING_STATS AS (\n  SELECT \n    CUSTOMER_ID, TIME_WINDOW,\n    MIN(SHIPPING_FEE) AS min_shipping_fee,\n    MAX(SHIPPING_FEE) AS max_shipping_fee,\n    AVG(SHIPPING_FEE) AS avg_shipping_fee,\n    SUM(SHIPPING_FEE) AS sum_shipping_fee,\n\n    MIN(DISCOUNT) AS min_discount,\n    MAX(DISCOUNT) AS max_discount,\n    AVG(DISCOUNT) AS avg_discount,\n    SUM(DISCOUNT) AS sum_discount,\n\n    MIN(DATE_DIFF_ORDER_RETURN) AS min_days_to_return_products,\n    MAX(DATE_DIFF_ORDER_RETURN) AS max_days_to_return_products,\n    AVG(DATE_DIFF_ORDER_RETURN) AS avg_days_to_return_products,\n\n    COUNTIF(HAS_RETURNED) AS total_products_returned,\n    COUNT(DISTINCT ORDER_ID) AS total_orders,\n    SUM(PROFIT) AS total_profit,\n    \n    MIN(PRICE) AS min_price,\n    MAX(PRICE) AS max_price,\n    AVG(PRICE) AS avg_price,\n    SUM(PRICE) AS sum_price,\n\n    DATE_DIFF(CURRENT_DATE(), MIN(ORDER_DATE), DAY) AS days_since_first_order,\n    DATE_DIFF(CURRENT_DATE(), MAX(ORDER_DATE), DAY) AS days_since_last_order,\n    \n    ARRAY_AGG(DISTINCT ORDER_DATE) AS order_dates\n  FROM DEDUPPED \n  GROUP BY 1,2\n),\nAGGREGATES AS (\n  SELECT * \n  FROM AGG_PRICING_STATS\n  JOIN AGG_QUANTITYPERORDER\n  USING(CUSTOMER_ID, TIME_WINDOW)\n  JOIN SAFE_AGG_DELTAS\n  USING(CUSTOMER_ID, TIME_WINDOW)\n)\nSELECT \n   *\nFROM\n  TOPSCITY\n  JOIN TOPCOUNTRY\n  USING (CUSTOMER_ID, TIME_WINDOW)\n  JOIN TOPZIPCODE \n  USING (CUSTOMER_ID, TIME_WINDOW) \n  JOIN TOPSHIPPINGMETHOD \n  USING (CUSTOMER_ID, TIME_WINDOW) \n  JOIN TOPPAYMENT_METHOD \n  USING (CUSTOMER_ID, TIME_WINDOW) \n  JOIN TOPBRAND \n  USING (CUSTOMER_ID, TIME_WINDOW) \n  JOIN TOPPRODUCTTYPE \n  USING (CUSTOMER_ID, TIME_WINDOW) \n  JOIN TOPCOLOR \n  USING (CUSTOMER_ID, TIME_WINDOW) \n  JOIN \n  ( SELECT DISTINCT \n      CUSTOMER_ID, TIME_WINDOW, \n      distinct_cities,\n      distinct_countries,\n      distinct_zip_codes,\n      distinct_shipping_methods,\n      distinct_payment_methods,\n      distinct_brands,\n      distinct_product_types,\n      distinct_colors\n    FROM COUNTS)\n  USING (CUSTOMER_ID, TIME_WINDOW)\n  JOIN AGGREGATES\n  USING (CUSTOMER_ID, TIME_WINDOW)",
+          "label": "Query",
+          "is_required": false,
+          "type": "sql",
+          "name": "query"
+        },
+        {
+          "description": null,
+          "value": "{% BQ_PROJECT_ID %}",
+          "label": "BQ Project ID",
+          "is_required": false,
+          "type": "string",
+          "name": "bq_project_id"
+        },
+        {
+          "description": null,
+          "value": "{% BQ_DATASET_ID %}",
+          "label": "BQ Dataset ID",
+          "is_required": false,
+          "type": "string",
+          "name": "bq_dataset_id"
+        },
+        {
+          "description": null,
+          "value": "erp_mc_agg_daily",
+          "label": "BQ Table ID",
+          "is_required": false,
+          "type": "string",
+          "name": "bq_table_id"
+        },
+        {
+          "description": null,
+          "value": true,
+          "label": "Overwrite table",
+          "is_required": false,
+          "type": "boolean",
+          "name": "overwrite"
+        }
+      ],
+      "id": "f0d6228c172e41ee809e5cb8088451c1",
+      "name": "Creating ERP MC agg"
+    },
+    {
+      "hash_start_conditions": [],
+      "worker_class": "BQQueryLauncher",
+      "params": [
+        {
+          "description": null,
+          "value": "WITH MaxDate AS (\n    SELECT\n      DATE_SUB(CAST(MAX(order_date) AS DATE), INTERVAL 1 DAY) as max_order_date\n    FROM `{% BQ_PROJECT_ID %}.{% BQ_ERP_DATASET_ID %}.{% BQ_ERPTABLE_ID %}`\n),\nRelevantCustomers AS (\n  SELECT DISTINCT\n    CUSTOMER_ID,\n    ORDER_ID\n  FROM `{% BQ_PROJECT_ID %}.{% BQ_ERP_DATASET_ID %}.{% BQ_ERPTABLE_ID %}`\n  WHERE\n    CAST(order_date AS DATE) >= DATE_SUB((SELECT max_order_date FROM maxdate), INTERVAL 365 DAY)\n)\nSELECT\n  ARRAY_AGG(DISTINCT CUSTOMER_ID LIMIT {% MAX_CUSTOMERS_PER_COOKIE %}) AS CUSTOMER_IDS,\n  ga_transactionId \nFROM\n  `{% BQ_GA_PROJECT_ID %}.{% BQ_GA_DATASET_ID %}.ga_sessions_*` AS GADATA\nJOIN\n  RelevantCustomers\n  ON CAST(RelevantCustomers.ORDER_ID AS STRING) = GADATA.ga_transactionId\nWHERE CUSTOMER_ID IS NOT NULL\nGROUP BY ga_transactionId\nORDER BY ga_transactionId",
+          "label": "Query",
+          "is_required": false,
+          "type": "sql",
+          "name": "query"
+        },
+        {
+          "description": null,
+          "value": "{% BQ_PROJECT_ID %}",
+          "label": "BQ Project ID",
+          "is_required": false,
+          "type": "string",
+          "name": "bq_project_id"
+        },
+        {
+          "description": null,
+          "value": "{% BQ_DATASET_ID %}",
+          "label": "BQ Dataset ID",
+          "is_required": false,
+          "type": "string",
+          "name": "bq_dataset_id"
+        },
+        {
+          "description": null,
+          "value": "ga_ids_daily",
+          "label": "BQ Table ID",
+          "is_required": false,
+          "type": "string",
+          "name": "bq_table_id"
+        },
+        {
+          "description": null,
+          "value": true,
+          "label": "Overwrite table",
+          "is_required": false,
+          "type": "boolean",
+          "name": "overwrite"
+        }
+      ],
+      "id": "919ee70df90e4c3faa5bc01ff9fb11bb",
+      "name": "Creating ga ids"
+    },
+    {
+      "hash_start_conditions": [
+        {
+          "preceding_job_id": "34021c1670964e9fbfdeb5c227ae3e85",
+          "condition": "success"
+        }
+      ],
+      "worker_class": "BQQueryLauncher",
+      "params": [
+        {
+          "description": null,
+          "value": "WITH GACUSTOMERID AS (\nSELECT\n *,\n EXTRACT(HOUR      FROM visitStartTime) AS ga_hour,\n EXTRACT(DAYOFWEEK FROM visitStartTime) AS ga_day_of_week,\n EXTRACT(DAY       FROM visitStartTime) AS ga_day_in_month,\n EXTRACT(DAYOFYEAR FROM visitStartTime) AS ga_day_of_year,\n EXTRACT(ISOWEEK   FROM visitStartTime) AS ga_iso_week,\n EXTRACT(MONTH     FROM visitStartTime) AS ga_month,\n EXTRACT(QUARTER   FROM visitStartTime) AS ga_quarter,\n EXTRACT(YEAR      FROM visitStartTime) AS ga_year,\nFROM\n  `{% BQ_PROJECT_ID %}.{% BQ_DATASET_ID %}.ga_filtered_daily`\n), \nCOUNTS AS (\nSELECT \n    CUSTOMER_ID, \n    ga_date,            COUNT (*) OVER(PARTITION BY CUSTOMER_ID, ga_date)            AS ga_date_count,            COUNT(DISTINCT ga_date)            OVER(PARTITION BY CUSTOMER_ID) AS distinct_ga_dates,\n    ga_hour,            COUNT (*) OVER(PARTITION BY CUSTOMER_ID, ga_hour)            AS ga_hour_count,            COUNT(DISTINCT ga_hour)            OVER(PARTITION BY CUSTOMER_ID) AS distinct_ga_hours,\n    ga_day_of_week,     COUNT (*) OVER(PARTITION BY CUSTOMER_ID, ga_day_of_week)     AS ga_day_of_week_count,     COUNT(DISTINCT ga_day_of_week)     OVER(PARTITION BY CUSTOMER_ID) AS distinct_ga_day_of_weeks,\n    ga_day_in_month,    COUNT (*) OVER(PARTITION BY CUSTOMER_ID, ga_day_in_month)    AS ga_day_in_month_count,    COUNT(DISTINCT ga_day_in_month)    OVER(PARTITION BY CUSTOMER_ID) AS distinct_ga_day_in_months,\n    ga_day_of_year,     COUNT (*) OVER(PARTITION BY CUSTOMER_ID, ga_day_of_year)     AS ga_day_of_year_count,     COUNT(DISTINCT ga_day_of_year)     OVER(PARTITION BY CUSTOMER_ID) AS distinct_ga_day_of_years,\n    ga_iso_week,        COUNT (*) OVER(PARTITION BY CUSTOMER_ID, ga_iso_week)        AS ga_iso_week_count,        COUNT(DISTINCT ga_iso_week)        OVER(PARTITION BY CUSTOMER_ID) AS distinct_ga_iso_weeks,\n    ga_month,           COUNT (*) OVER(PARTITION BY CUSTOMER_ID, ga_month)           AS ga_month_count,           COUNT(DISTINCT ga_month)           OVER(PARTITION BY CUSTOMER_ID) AS distinct_ga_months,\n    ga_quarter,         COUNT (*) OVER(PARTITION BY CUSTOMER_ID, ga_quarter)         AS ga_quarter_count,         COUNT(DISTINCT ga_quarter)         OVER(PARTITION BY CUSTOMER_ID) AS distinct_ga_quarters,\n    ga_year,            COUNT (*) OVER(PARTITION BY CUSTOMER_ID, ga_year)            AS ga_year_count,            COUNT(DISTINCT ga_year)            OVER(PARTITION BY CUSTOMER_ID) AS distinct_ga_years,\n    city,               COUNT (*) OVER(PARTITION BY CUSTOMER_ID, city)               AS city_count,               COUNT(DISTINCT city)               OVER(PARTITION BY CUSTOMER_ID) AS distinct_ga_cities,\n    device_category,    COUNT (*) OVER(PARTITION BY CUSTOMER_ID, device_category)    AS device_category_count,    COUNT(DISTINCT device_category)    OVER(PARTITION BY CUSTOMER_ID) AS distinct_ga_device_categories,\n    device_branding,    COUNT (*) OVER(PARTITION BY CUSTOMER_ID, device_branding)    AS device_branding_count,    COUNT(DISTINCT device_branding)    OVER(PARTITION BY CUSTOMER_ID) AS distinct_ga_device_brandings,\n    device_browser,     COUNT (*) OVER(PARTITION BY CUSTOMER_ID, device_browser)     AS device_browser_count,     COUNT(DISTINCT device_browser)     OVER(PARTITION BY CUSTOMER_ID) AS distinct_ga_device_browsers,\n    ga_product_color,   COUNT (*) OVER(PARTITION BY CUSTOMER_ID, ga_product_color)    AS ga_product_color_count,    COUNT(DISTINCT ga_product_color)  OVER(PARTITION BY CUSTOMER_ID) AS distinct_ga_product_colors,\n    ga_product_brand,     COUNT (*) OVER(PARTITION BY CUSTOMER_ID, ga_product_brand)     AS ga_product_brand_count, COUNT(DISTINCT ga_product_brand)  OVER(PARTITION BY CUSTOMER_ID) AS distinct_ga_product_brands,\n    IF(hostname IS NOT NULL, hostname, \"unknown\") AS hostname,           \n                        COUNT (*) OVER(PARTITION BY CUSTOMER_ID, hostname)           AS hostname_count,           COUNT(DISTINCT hostname)           OVER(PARTITION BY CUSTOMER_ID) AS distinct_ga_hostnames,\n    source,             COUNT (*) OVER(PARTITION BY CUSTOMER_ID, source)             AS source_count,             COUNT(DISTINCT source)             OVER(PARTITION BY CUSTOMER_ID) AS distinct_ga_sources,\n    medium,             COUNT (*) OVER(PARTITION BY CUSTOMER_ID, medium)             AS medium_count,             COUNT(DISTINCT medium)             OVER(PARTITION BY CUSTOMER_ID) AS distinct_ga_mediums,\n    campaign,           COUNT (*) OVER(PARTITION BY CUSTOMER_ID, campaign)           AS campaign_count,           COUNT(DISTINCT campaign)           OVER(PARTITION BY CUSTOMER_ID) AS distinct_ga_campaigns\n  FROM GACUSTOMERID\n),\nTOPDATE AS (\n  SELECT DISTINCT\n  CUSTOMER_ID,\n  NTH_VALUE(ga_date, 1) OVER (PARTITION BY CUSTOMER_ID ORDER BY ga_date_count DESC ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS most_popular_ga_date,  \n  NTH_VALUE(ga_date, 2) OVER (PARTITION BY CUSTOMER_ID ORDER BY ga_date_count DESC ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS second_most_popular_ga_date,  \n  NTH_VALUE(ga_date, 3) OVER (PARTITION BY CUSTOMER_ID ORDER BY ga_date_count DESC ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS third_most_popular_ga_date,\n FROM (SELECT DISTINCT CUSTOMER_ID, ga_date, ga_date_count FROM COUNTS)\n),\nTOPSga_hour AS (\n  SELECT DISTINCT\n  CUSTOMER_ID,\n  NTH_VALUE(ga_hour, 1) OVER (PARTITION BY CUSTOMER_ID ORDER BY ga_hour_count DESC ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS most_popular_ga_hour,  \n  NTH_VALUE(ga_hour, 2) OVER (PARTITION BY CUSTOMER_ID ORDER BY ga_hour_count DESC ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS second_most_popular_ga_hour,  \n  NTH_VALUE(ga_hour, 3) OVER (PARTITION BY CUSTOMER_ID ORDER BY ga_hour_count DESC ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS third_most_popular_ga_hour,\n FROM (SELECT DISTINCT CUSTOMER_ID, ga_hour, ga_hour_count FROM COUNTS)\n),\nTOPSga_day_of_week AS (\n  SELECT DISTINCT\n  CUSTOMER_ID,\n  NTH_VALUE(ga_day_of_week, 1) OVER (PARTITION BY CUSTOMER_ID ORDER BY ga_day_of_week_count DESC ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS most_popular_ga_day_of_week,  \n  NTH_VALUE(ga_day_of_week, 2) OVER (PARTITION BY CUSTOMER_ID ORDER BY ga_day_of_week_count DESC ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS second_most_popular_ga_day_of_week,  \n  NTH_VALUE(ga_day_of_week, 3) OVER (PARTITION BY CUSTOMER_ID ORDER BY ga_day_of_week_count DESC ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS third_most_popular_ga_day_of_week,\n FROM (SELECT DISTINCT CUSTOMER_ID, ga_day_of_week, ga_day_of_week_count FROM COUNTS)\n),\nTOPSga_day_in_month AS (\n  SELECT DISTINCT\n  CUSTOMER_ID,\n  NTH_VALUE(ga_day_in_month, 1) OVER (PARTITION BY CUSTOMER_ID ORDER BY ga_day_in_month_count DESC ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS most_popular_ga_day_in_month,  \n  NTH_VALUE(ga_day_in_month, 2) OVER (PARTITION BY CUSTOMER_ID ORDER BY ga_day_in_month_count DESC ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS second_most_popular_ga_day_in_month,  \n  NTH_VALUE(ga_day_in_month, 3) OVER (PARTITION BY CUSTOMER_ID ORDER BY ga_day_in_month_count DESC ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS third_most_popular_ga_day_in_month,\n FROM (SELECT DISTINCT CUSTOMER_ID, ga_day_in_month, ga_day_in_month_count FROM COUNTS)\n),\nTOPSga_day_of_year AS (\n  SELECT DISTINCT\n  CUSTOMER_ID,\n  NTH_VALUE(ga_day_of_year, 1) OVER (PARTITION BY CUSTOMER_ID ORDER BY ga_day_of_year_count DESC ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS most_popular_ga_day_of_year,  \n  NTH_VALUE(ga_day_of_year, 2) OVER (PARTITION BY CUSTOMER_ID ORDER BY ga_day_of_year_count DESC ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS second_most_popular_ga_day_of_year,  \n  NTH_VALUE(ga_day_of_year, 3) OVER (PARTITION BY CUSTOMER_ID ORDER BY ga_day_of_year_count DESC ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS third_most_popular_ga_day_of_year,\n FROM (SELECT DISTINCT CUSTOMER_ID, ga_day_of_year, ga_day_of_year_count FROM COUNTS)\n), #5\nTOPSga_iso_week AS (\n  SELECT DISTINCT\n  CUSTOMER_ID,\n  NTH_VALUE(ga_iso_week, 1) OVER (PARTITION BY CUSTOMER_ID ORDER BY ga_iso_week_count DESC ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS most_popular_ga_iso_week,  \n  NTH_VALUE(ga_iso_week, 2) OVER (PARTITION BY CUSTOMER_ID ORDER BY ga_iso_week_count DESC ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS second_most_popular_ga_iso_week,  \n  NTH_VALUE(ga_iso_week, 3) OVER (PARTITION BY CUSTOMER_ID ORDER BY ga_iso_week_count DESC ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS third_most_popular_ga_iso_week,\n FROM (SELECT DISTINCT CUSTOMER_ID, ga_iso_week, ga_iso_week_count FROM COUNTS)\n),\nTOPSga_month AS (\n  SELECT DISTINCT\n  CUSTOMER_ID,\n  NTH_VALUE(ga_month, 1) OVER (PARTITION BY CUSTOMER_ID ORDER BY ga_month_count DESC ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS most_popular_ga_month,  \n  NTH_VALUE(ga_month, 2) OVER (PARTITION BY CUSTOMER_ID ORDER BY ga_month_count DESC ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS second_most_popular_ga_month,  \n  NTH_VALUE(ga_month, 3) OVER (PARTITION BY CUSTOMER_ID ORDER BY ga_month_count DESC ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS third_most_popular_ga_month,\n FROM (SELECT DISTINCT CUSTOMER_ID, ga_month, ga_month_count FROM COUNTS)\n),\nTOPSga_quarter AS (\n  SELECT DISTINCT\n  CUSTOMER_ID,\n  NTH_VALUE(ga_quarter, 1) OVER (PARTITION BY CUSTOMER_ID ORDER BY ga_quarter_count DESC ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS most_popular_ga_quarter,  \n  NTH_VALUE(ga_quarter, 2) OVER (PARTITION BY CUSTOMER_ID ORDER BY ga_quarter_count DESC ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS second_most_popular_ga_quarter,  \n  NTH_VALUE(ga_quarter, 3) OVER (PARTITION BY CUSTOMER_ID ORDER BY ga_quarter_count DESC ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS third_most_popular_ga_quarter,\n FROM (SELECT DISTINCT CUSTOMER_ID, ga_quarter, ga_quarter_count FROM COUNTS)\n),\nTOPSga_year AS (\n  SELECT DISTINCT\n  CUSTOMER_ID,\n  NTH_VALUE(ga_year, 1) OVER (PARTITION BY CUSTOMER_ID ORDER BY ga_year_count DESC ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS most_popular_ga_year,  \n  NTH_VALUE(ga_year, 2) OVER (PARTITION BY CUSTOMER_ID ORDER BY ga_year_count DESC ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS second_most_popular_ga_year,  \n  NTH_VALUE(ga_year, 3) OVER (PARTITION BY CUSTOMER_ID ORDER BY ga_year_count DESC ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS third_most_popular_ga_year,\n FROM (SELECT DISTINCT CUSTOMER_ID, ga_year, ga_year_count FROM COUNTS)\n),\nTOPScity AS (\n  SELECT DISTINCT\n  CUSTOMER_ID,\n  NTH_VALUE(city, 1) OVER (PARTITION BY CUSTOMER_ID ORDER BY city_count DESC ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS most_popular_ga_city,  \n  NTH_VALUE(city, 2) OVER (PARTITION BY CUSTOMER_ID ORDER BY city_count DESC ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS second_most_popular_ga_city,  \n  NTH_VALUE(city, 3) OVER (PARTITION BY CUSTOMER_ID ORDER BY city_count DESC ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS third_most_popular_ga_city,\n FROM (SELECT DISTINCT CUSTOMER_ID, city, city_count FROM COUNTS)\n), #10\nTOPSdevicecat AS (\n  SELECT DISTINCT\n  CUSTOMER_ID,\n  NTH_VALUE(device_category, 1) OVER (PARTITION BY CUSTOMER_ID ORDER BY device_category_count DESC ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS most_popular_ga_device_category,  \n  NTH_VALUE(device_category, 2) OVER (PARTITION BY CUSTOMER_ID ORDER BY device_category_count DESC ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS second_most_popular_ga_device_category,  \n  NTH_VALUE(device_category, 3) OVER (PARTITION BY CUSTOMER_ID ORDER BY device_category_count DESC ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS third_most_popular_ga_device_category,\n FROM (SELECT DISTINCT CUSTOMER_ID, device_category, device_category_count FROM COUNTS)\n),\nTOPSdevicebrand AS (\n  SELECT DISTINCT\n  CUSTOMER_ID,\n  NTH_VALUE(device_branding, 1) OVER (PARTITION BY CUSTOMER_ID ORDER BY device_branding_count DESC ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS most_popular_ga_device_branding,  \n  NTH_VALUE(device_branding, 2) OVER (PARTITION BY CUSTOMER_ID ORDER BY device_branding_count DESC ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS second_most_popular_ga_device_branding,  \n  NTH_VALUE(device_branding, 3) OVER (PARTITION BY CUSTOMER_ID ORDER BY device_branding_count DESC ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS third_most_popular_ga_device_branding,\n FROM (SELECT DISTINCT CUSTOMER_ID, device_branding, device_branding_count FROM COUNTS)\n),\nTOPSdevicebrowser AS (\n  SELECT DISTINCT\n  CUSTOMER_ID,\n  NTH_VALUE(device_browser, 1) OVER (PARTITION BY CUSTOMER_ID ORDER BY device_browser_count DESC ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS most_popular_ga_device_browser,  \n  NTH_VALUE(device_browser, 2) OVER (PARTITION BY CUSTOMER_ID ORDER BY device_browser_count DESC ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS second_most_popular_ga_device_browser,  \n  NTH_VALUE(device_browser, 3) OVER (PARTITION BY CUSTOMER_ID ORDER BY device_browser_count DESC ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS third_most_popular_ga_device_browser,\n FROM (SELECT DISTINCT CUSTOMER_ID, device_browser, device_browser_count FROM COUNTS)\n),\nTOPShostname AS (\n  SELECT DISTINCT\n  CUSTOMER_ID,\n  NTH_VALUE(hostname, 1) OVER (PARTITION BY CUSTOMER_ID ORDER BY hostname_count DESC ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS most_popular_ga_hostname,  \n  NTH_VALUE(hostname, 2) OVER (PARTITION BY CUSTOMER_ID ORDER BY hostname_count DESC ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS second_most_popular_ga_hostname,  \n  NTH_VALUE(hostname, 3) OVER (PARTITION BY CUSTOMER_ID ORDER BY hostname_count DESC ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS third_most_popular_ga_hostname,\n FROM (SELECT DISTINCT CUSTOMER_ID, hostname, hostname_count FROM COUNTS)\n),\nTOPSsource AS (\n  SELECT DISTINCT\n  CUSTOMER_ID,\n  NTH_VALUE(source, 1) OVER (PARTITION BY CUSTOMER_ID ORDER BY source_count DESC ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS most_popular_ga_source,  \n  NTH_VALUE(source, 2) OVER (PARTITION BY CUSTOMER_ID ORDER BY source_count DESC ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS second_most_popular_ga_source,  \n  NTH_VALUE(source, 3) OVER (PARTITION BY CUSTOMER_ID ORDER BY source_count DESC ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS third_most_popular_ga_source,\n FROM (SELECT DISTINCT CUSTOMER_ID, source, source_count FROM COUNTS)\n), # 15\nTOPSmedium AS (\n  SELECT DISTINCT\n  CUSTOMER_ID,\n  NTH_VALUE(medium, 1) OVER (PARTITION BY CUSTOMER_ID ORDER BY medium_count DESC ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS most_popular_ga_medium,  \n  NTH_VALUE(medium, 2) OVER (PARTITION BY CUSTOMER_ID ORDER BY medium_count DESC ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS second_most_popular_ga_medium,  \n  NTH_VALUE(medium, 3) OVER (PARTITION BY CUSTOMER_ID ORDER BY medium_count DESC ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS third_most_popular_ga_medium,\n FROM (SELECT DISTINCT CUSTOMER_ID, medium, medium_count FROM COUNTS)\n),\nTOPScampaign AS (\n  SELECT DISTINCT\n  CUSTOMER_ID,\n  NTH_VALUE(campaign, 1) OVER (PARTITION BY CUSTOMER_ID ORDER BY campaign_count DESC ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS most_popular_ga_campaign,  \n  NTH_VALUE(campaign, 2) OVER (PARTITION BY CUSTOMER_ID ORDER BY campaign_count DESC ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS second_most_popular_ga_campaign,  \n  NTH_VALUE(campaign, 3) OVER (PARTITION BY CUSTOMER_ID ORDER BY campaign_count DESC ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS third_most_popular_ga_campaign,\n FROM (SELECT DISTINCT CUSTOMER_ID, campaign, campaign_count FROM COUNTS)\n),\nTOPgaproductcolor AS (\n  SELECT DISTINCT\n  CUSTOMER_ID,\n  NTH_VALUE(ga_product_color, 1) OVER (PARTITION BY CUSTOMER_ID ORDER BY ga_product_color_count DESC ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS most_popular_ga_product_color,  \n  NTH_VALUE(ga_product_color, 2) OVER (PARTITION BY CUSTOMER_ID ORDER BY ga_product_color_count DESC ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS second_most_popular_ga_product_color,  \n  NTH_VALUE(ga_product_color, 3) OVER (PARTITION BY CUSTOMER_ID ORDER BY ga_product_color_count DESC ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS third_most_popular_ga_product_color,\n FROM (SELECT DISTINCT CUSTOMER_ID, ga_product_color, ga_product_color_count FROM COUNTS)\n), # 20\nTOPgaproductbrand AS (\n  SELECT DISTINCT\n  CUSTOMER_ID,\n  NTH_VALUE(ga_product_brand, 1) OVER (PARTITION BY CUSTOMER_ID ORDER BY ga_product_brand_count DESC ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS most_popular_ga_product_brand,  \n  NTH_VALUE(ga_product_brand, 2) OVER (PARTITION BY CUSTOMER_ID ORDER BY ga_product_brand_count DESC ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS second_most_popular_ga_product_brand,  \n  NTH_VALUE(ga_product_brand, 3) OVER (PARTITION BY CUSTOMER_ID ORDER BY ga_product_brand_count DESC ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS third_most_popular_ga_product_brand,\n FROM (SELECT DISTINCT CUSTOMER_ID, ga_product_brand, ga_product_brand_count FROM COUNTS)\n),\nREMOVEDUPLICATES AS (\n  SELECT DISTINCT \n  CUSTOMER_ID, \n  ga_date,\n  transactions,\n  pageviews,\n  timeOnSite\nFROM GACUSTOMERID\nGROUP BY 1,2,3,4,5\n),\nAGGREGATES AS (\n  SELECT DISTINCT\n    CUSTOMER_ID,\n    MAX(ga_date) AS max_ga_date,\n    SUM(transactions) AS sum_ga_transactions,\n    SUM(pageviews) AS sum_ga_page_views,\n    SAFE_DIVIDE(SUM(pageviews), SUM(transactions)) AS ga_page_views_per_transactions,\n    SUM(timeOnSite) AS sum_ga_time_on_page,\n\n    AVG(transactions) AS avg_ga_transactions,\n    AVG(pageviews) AS avg_ga_page_views,\n    AVG(timeOnSite) AS avg_ga_time_on_page,\n\n    MIN(pageviews) AS min_ga_page_views,\n    MIN(timeOnSite) AS min_ga_time_on_page,\n\n    MAX(pageviews) AS max_ga_page_views,\n    MAX(timeOnSite) AS max_ga_time_on_page,\n\n  FROM REMOVEDUPLICATES\n  GROUP BY 1\n)\nSELECT \n  DISTINCT *\nFROM AGGREGATES\nJOIN TOPDATE\nUSING(CUSTOMER_ID)\nJOIN TOPSga_hour\nUSING (CUSTOMER_ID)\nJOIN TOPSga_day_of_week\nUSING (CUSTOMER_ID)\nJOIN TOPSga_day_in_month\nUSING (CUSTOMER_ID)\nJOIN TOPSga_day_of_year  #5\nUSING (CUSTOMER_ID)\nJOIN TOPSga_iso_week\nUSING (CUSTOMER_ID)\nJOIN TOPSga_month\nUSING (CUSTOMER_ID)\nJOIN TOPSga_quarter\nUSING (CUSTOMER_ID)\nJOIN TOPSga_year\nUSING (CUSTOMER_ID) \nJOIN TOPScity # 10\nUSING (CUSTOMER_ID)\nJOIN TOPSdevicecat\nUSING (CUSTOMER_ID)\nJOIN TOPSdevicebrand\nUSING (CUSTOMER_ID)\nJOIN TOPSdevicebrowser\nUSING (CUSTOMER_ID)\nJOIN TOPShostname\nUSING (CUSTOMER_ID)\nJOIN TOPSsource\nUSING (CUSTOMER_ID) \nJOIN TOPSmedium\nUSING (CUSTOMER_ID)\nJOIN TOPScampaign\nUSING (CUSTOMER_ID)\nJOIN TOPgaproductcolor # 20\nUSING (CUSTOMER_ID)\nJOIN TOPgaproductbrand\nUSING (CUSTOMER_ID)\nJOIN (SELECT \n        DISTINCT \n        CUSTOMER_ID,\n        distinct_ga_dates,\n        distinct_ga_hours,\n        distinct_ga_day_of_weeks,\n        distinct_ga_day_in_months,\n        distinct_ga_day_of_years,\n        distinct_ga_iso_weeks,\n        distinct_ga_months,\n        distinct_ga_quarters,\n        distinct_ga_years,\n        distinct_ga_cities,\n        distinct_ga_device_categories,\n        distinct_ga_device_brandings,\n        distinct_ga_device_browsers,\n        distinct_ga_hostnames,\n        distinct_ga_sources,\n        distinct_ga_mediums,\n        distinct_ga_campaigns\n        FROM COUNTS)\nUSING (CUSTOMER_ID)",
+          "label": "Query",
+          "is_required": false,
+          "type": "sql",
+          "name": "query"
+        },
+        {
+          "description": null,
+          "value": "{% BQ_PROJECT_ID %}",
+          "label": "BQ Project ID",
+          "is_required": false,
+          "type": "string",
+          "name": "bq_project_id"
+        },
+        {
+          "description": null,
+          "value": "{% BQ_DATASET_ID %}",
+          "label": "BQ Dataset ID",
+          "is_required": false,
+          "type": "string",
+          "name": "bq_dataset_id"
+        },
+        {
+          "description": null,
+          "value": "ga_agg_daily",
+          "label": "BQ Table ID",
+          "is_required": false,
+          "type": "string",
+          "name": "bq_table_id"
+        },
+        {
+          "description": null,
+          "value": true,
+          "label": "Overwrite table",
+          "is_required": false,
+          "type": "boolean",
+          "name": "overwrite"
+        }
+      ],
+      "id": "ac438fb64d6b47928b013d8179c89970",
+      "name": "Creating GA agg"
+    },
+    {
+      "hash_start_conditions": [
+        {
+          "preceding_job_id": "f0d6228c172e41ee809e5cb8088451c1",
+          "condition": "success"
+        },
+        {
+          "preceding_job_id": "ac438fb64d6b47928b013d8179c89970",
+          "condition": "success"
+        },
+        {
+          "preceding_job_id": "664aeb67efa64c55b709a7f1056b1e9d",
+          "condition": "success"
+        }
+      ],
+      "worker_class": "BQQueryLauncher",
+      "params": [
+        {
+          "description": null,
+          "value": "SELECT\n  * EXCEPT(order_dates),\n  total_profit / total_orders AS avg_profit_per_order,\n  distinct_cities / (days_since_first_order + 1) AS avg_cities_per_day,\n  distinct_countries / (days_since_first_order + 1) AS avg_countries_per_day,\n  distinct_zip_codes / (days_since_first_order + 1) AS avg_zip_codes_per_day,\n  distinct_shipping_methods / (days_since_first_order + 1) AS avg_shipping_methods_per_day,\n  distinct_payment_methods / (days_since_first_order + 1) AS avg_payment_methods_per_day,\n  distinct_brands / (days_since_first_order + 1) AS avg_brands_per_day,\n  distinct_product_types / (days_since_first_order + 1) AS avg_product_types_per_day,\n  distinct_colors / (days_since_first_order + 1) AS avg_colors_per_day,\n  total_products_returned / (days_since_first_order + 1) AS avg_products_returned_per_day,\n  total_orders / (days_since_first_order + 1) AS avg_orders_per_day,\n  total_profit / (days_since_first_order + 1) AS avg_profit_per_day,\n  sum_ga_time_on_page / (days_since_first_order + 1) AS avg_ga_time_on_page_per_day,\n  distinct_ga_dates / (days_since_first_order + 1) AS avg_ga_dates_per_day,\n  distinct_ga_hours / (days_since_first_order + 1) AS avg_ga_hours_per_day,\n  distinct_ga_day_of_weeks / (days_since_first_order + 1) AS avg_ga_day_of_weeks_per_day,\n  distinct_ga_day_in_months / (days_since_first_order + 1) AS avg_ga_day_in_months_per_day,\n  distinct_ga_day_of_years / (days_since_first_order + 1) AS avg_ga_day_of_years_per_day,\n  distinct_ga_iso_weeks / (days_since_first_order + 1) AS avg_ga_iso_weeks_per_day,\n  distinct_ga_months / (days_since_first_order + 1) AS avg_ga_months_per_day,\n  distinct_ga_quarters / (days_since_first_order + 1) AS avg_ga_quarters_per_day,\n  distinct_ga_years / (days_since_first_order + 1) AS avg_ga_years_per_day,\n  distinct_ga_cities / (days_since_first_order + 1) AS avg_ga_cities_per_day,\n  distinct_ga_device_categories / (days_since_first_order + 1) AS avg_ga_device_categories_per_day,\n  distinct_ga_device_brandings / (days_since_first_order + 1) AS avg_ga_device_brandings_per_day,\n  distinct_ga_device_browsers / (days_since_first_order + 1) AS avg_ga_device_browsers_per_day,\n  distinct_ga_hostnames / (days_since_first_order + 1) AS avg_ga_hostnames_per_day,\n  distinct_ga_sources / (days_since_first_order + 1) AS avg_ga_sources_per_day,\n  distinct_ga_mediums / (days_since_first_order + 1) AS avg_ga_mediums_per_day,\n  distinct_ga_campaigns / (days_since_first_order + 1) AS avg_ga_campaigns_per_day,\n  CURRENT_DATE() AS date_added,\n  'MONTHLY_PIPELINE' AS source\nFROM\n  `{% BQ_PROJECT_ID %}.{% BQ_DATASET_ID %}.erp_mc_agg_daily` AS ERPMCDATA\nJOIN\n  `{% BQ_PROJECT_ID %}.{% BQ_DATASET_ID %}.ga_agg_daily` AS GADATA\n  USING(CUSTOMER_ID)\nJOIN \n  `{% BQ_PROJECT_ID %}.{% BQ_DATASET_ID %}.customer_profit_daily` AS CUSTOMERDATA\n  USING(CUSTOMER_ID)",
+          "label": "Query",
+          "is_required": false,
+          "type": "sql",
+          "name": "query"
+        },
+        {
+          "description": null,
+          "value": "{% BQ_PROJECT_ID %}",
+          "label": "BQ Project ID",
+          "is_required": false,
+          "type": "string",
+          "name": "bq_project_id"
+        },
+        {
+          "description": null,
+          "value": "{% BQ_DATASET_ID %}",
+          "label": "BQ Dataset ID",
+          "is_required": false,
+          "type": "string",
+          "name": "bq_dataset_id"
+        },
+        {
+          "description": null,
+          "value": "final_table_daily",
+          "label": "BQ Table ID",
+          "is_required": false,
+          "type": "string",
+          "name": "bq_table_id"
+        },
+        {
+          "description": null,
+          "value": true,
+          "label": "Overwrite table",
+          "is_required": false,
+          "type": "boolean",
+          "name": "overwrite"
+        }
+      ],
+      "id": "7373da5a2a234ed995504e1122d4b175",
+      "name": "Creating final table"
+    },
+    {
+      "hash_start_conditions": [],
+      "worker_class": "BQQueryLauncher",
+      "params": [
+        {
+          "description": null,
+          "value": "WITH MaxDate AS (\n    SELECT\n      DATE_SUB(CAST(MAX(order_date) AS DATE), INTERVAL 1 DAY) as max_order_date\n    FROM `{% BQ_PROJECT_ID %}.{% BQ_ERP_DATASET_ID %}.{% BQ_ERPTABLE_ID %}`\n),\nERPDATA AS (\n  SELECT DISTINCT\n    CUSTOMER_ID,\n    ORDER_ID, \n    PRODUCT_ID, \n    CAST(ORDER_DATE AS DATE) AS ORDER_DATE,\n    COUNTRY, \n    CITY, \n    ZIP_CODE, \n    QUANTITY, \n    RETURN_QUANTITY, \n    IF(RETURN_DATE  IS NOT NULL, \n        DATE_DIFF(CAST(RETURN_DATE AS DATE), CAST(ORDER_DATE AS DATE), DAY),\n        0) \n      AS DATE_DIFF_ORDER_RETURN,\n    IF(RETURN_DATE IS NOT NULL, TRUE, FALSE) AS HAS_RETURNED,\n    SHIPPING_METHOD, \n    PAYMENT_METHOD, \n    DISCOUNT,\n    SHIPPING_FEE,\n    IF(SHIPPING_FEE = 0, 1, 0) AS FREE_SHIPPING,\n    PRICE,\n    (QUANTITY - RETURN_QUANTITY) * (PRICE - COGS) - OTHER_COGS  AS PROFIT\n  FROM `{% BQ_PROJECT_ID %}.{% BQ_ERP_DATASET_ID %}.{% BQ_ERPTABLE_ID %}`\n),\nTWO_WEEKS_DAYS_DATA AS (\n  SELECT \n    CUSTOMER_ID, \n    SUM(profit) AS profit_14days,\n    COUNT(DISTINCT order_id) AS num_orders_14_days,\n    COUNT(DISTINCT product_id) AS num_products_14_days\n  FROM ERPDATA\n  WHERE \n    ORDER_DATE >= DATE_SUB((SELECT max_order_date FROM maxdate), INTERVAL 14 DAY)\n    AND ORDER_DATE <= (SELECT max_order_date FROM maxdate)\n  GROUP BY 1\n), \nONE_MONTH_DATA AS (\n  SELECT \n    CUSTOMER_ID, \n    SUM(profit) AS profit_1_month,\n    COUNT(DISTINCT order_id) AS num_orders_1_month,\n    COUNT(DISTINCT product_id) AS num_products_1_month\n  FROM ERPDATA\n  WHERE \n    ORDER_DATE >= DATE_SUB((SELECT max_order_date FROM maxdate), INTERVAL 1 MONTH) \n    AND ORDER_DATE <= (SELECT max_order_date FROM maxdate)\n  GROUP BY 1\n), \nTHREE_MONTHS_DATA AS (\n  SELECT \n    CUSTOMER_ID, \n    SUM(profit) AS profit_3_months,\n    COUNT(DISTINCT order_id) AS num_orders_3_months,\n    COUNT(DISTINCT product_id) AS num_products_3_months\n  FROM ERPDATA\n  WHERE \n    ORDER_DATE >= DATE_SUB((SELECT max_order_date FROM maxdate), INTERVAL 3 MONTH) \n    AND ORDER_DATE <= (SELECT max_order_date FROM maxdate)\n  GROUP BY 1\n), \nSIX_MONTHS_DATA AS (\n  SELECT \n    CUSTOMER_ID, \n    SUM(profit) AS profit_6_months,\n    COUNT(DISTINCT order_id) AS num_orders_6_months,\n    COUNT(DISTINCT product_id) AS num_products_6_months\n  FROM ERPDATA\n  WHERE \n    ORDER_DATE >= DATE_SUB((SELECT max_order_date FROM maxdate), INTERVAL 6 MONTH) \n    AND ORDER_DATE <= (SELECT max_order_date FROM maxdate)\n  GROUP BY 1\n),\nDISTINCT_CUSTOMERS AS (\n    SELECT DISTINCT CUSTOMER_ID\n    FROM ERPDATA\n    WHERE ORDER_DATE <= (SELECT max_order_date FROM MaxDate)\n    AND ORDER_DATE >= DATE_SUB((SELECT max_order_date FROM MaxDate), INTERVAL 365 DAY)\n)\nSELECT \n  CUSTOMER_ID,\n  0 AS total_profit_response,\n  IF(profit_14days IS NULL, 0, profit_14days) AS profit_14days,\n  IF(num_orders_14_days IS NULL, 0, num_orders_14_days) AS num_orders_14_days,\n  IF(num_products_14_days IS NULL, 0, num_products_14_days) AS num_products_14_days,\n  IF(profit_1_month IS NULL, 0, profit_1_month) AS profit_1_month,\n  IF(num_orders_1_month IS NULL, 0, num_orders_1_month) AS num_orders_1_month,\n  IF(num_products_1_month IS NULL, 0, num_products_1_month) AS num_products_1_month,\n  IF(profit_3_months IS NULL, 0, profit_3_months) AS profit_3_months,\n  IF(num_orders_3_months IS NULL, 0, num_orders_3_months) AS num_orders_3_months,\n  IF(num_products_3_months IS NULL, 0, num_products_3_months) AS num_products_3_months,\n  IF(profit_6_months IS NULL, 0, profit_6_months) AS profit_6_months,\n  IF(num_orders_6_months IS NULL, 0, num_orders_6_months) AS num_orders_6_months,\n  IF(num_products_6_months IS NULL, 0, num_products_6_months) AS num_products_6_months\nFROM DISTINCT_CUSTOMERS\nFULL JOIN TWO_WEEKS_DAYS_DATA\nUSING(CUSTOMER_ID)\nFULL JOIN ONE_MONTH_DATA\nUSING(CUSTOMER_ID)\nFULL JOIN THREE_MONTHS_DATA\nUSING(CUSTOMER_ID)\nFULL JOIN SIX_MONTHS_DATA\nUSING(CUSTOMER_ID)",
+          "label": "Query",
+          "is_required": false,
+          "type": "sql",
+          "name": "query"
+        },
+        {
+          "description": null,
+          "value": "{% BQ_PROJECT_ID %}",
+          "label": "BQ Project ID",
+          "is_required": false,
+          "type": "string",
+          "name": "bq_project_id"
+        },
+        {
+          "description": null,
+          "value": "{% BQ_DATASET_ID %}",
+          "label": "BQ Dataset ID",
+          "is_required": false,
+          "type": "string",
+          "name": "bq_dataset_id"
+        },
+        {
+          "description": null,
+          "value": "customer_profit_daily",
+          "label": "BQ Table ID",
+          "is_required": false,
+          "type": "string",
+          "name": "bq_table_id"
+        },
+        {
+          "description": null,
+          "value": true,
+          "label": "Overwrite table",
+          "is_required": false,
+          "type": "boolean",
+          "name": "overwrite"
+        }
+      ],
+      "id": "664aeb67efa64c55b709a7f1056b1e9d",
+      "name": "Creating Customer Profit "
+    },
+    {
+      "hash_start_conditions": [
+        {
+          "preceding_job_id": "919ee70df90e4c3faa5bc01ff9fb11bb",
+          "condition": "success"
+        }
+      ],
+      "worker_class": "BQQueryLauncher",
+      "params": [
+        {
+          "description": null,
+          "value": "WITH MaxDate AS (\n    SELECT\n      DATE_SUB(CAST(MAX(order_date) AS DATE), INTERVAL 1 DAY) as max_order_date\n    FROM `{% BQ_PROJECT_ID %}.{% BQ_ERP_DATASET_ID %}.{% BQ_ERPTABLE_ID %}`\n), \nGADATA AS (\nSELECT DISTINCT\n PARSE_DATE('%Y%m%d', ga_date)     AS ga_date,\n ga_transactionId                  AS ga_transactionId,\n PARSE_DATETIME('%Y%m%d%H%M', ga_dateHourMinute) AS visitStartTime,\n ga_city                        AS city,\n ga_deviceCategory              AS device_category,\n ga_mobileDeviceBranding        AS device_branding,\n ga_browser                     AS device_browser,\n IF(ga_sourceMedium is null, null, SPLIT(ga_sourceMedium, \" / \")[offset(0)]) AS source,\n IF(ga_sourceMedium is null, null, SPLIT(ga_sourceMedium, \" / \")[offset(1)]) AS medium,\n ga_campaign                    AS campaign, \n ga_transactions                AS transactions, \n ga_pageviews                   AS pageviews, \n ga_timeOnPage                  AS timeOnSite,\n ga_hostname                    AS hostname,\n ga_productName\t                AS ga_product_name,\n ga_productVariant\t            AS ga_product_color,\n ga_productBrand                AS ga_product_brand,\n COUNT(DISTINCT ga_productSKU) OVER(\n   PARTITION BY \n     ga_transactionId\n   ) AS products_viewed,\n SUM(ga_itemRevenue/1000000) OVER(\n   PARTITION BY \n     ga_transactionId\n   ) AS products_viewed_price\nFROM \n  `{% BQ_GA_PROJECT_ID %}.{% BQ_GA_DATASET_ID %}.ga_sessions_*` AS GADATA\nWHERE\n  PARSE_DATE('%Y%m%d', ga_date) >= \n        DATE_SUB((SELECT max_order_date FROM maxdate), INTERVAL 365 DAY)\n),\nJOINED AS (\n SELECT *\n FROM GADATA\n JOIN \n {% BQ_PROJECT_ID %}.{% BQ_DATASET_ID %}.ga_ids_daily AS GAIDS \n USING (ga_transactionId)\n),\nUNNESTED AS (\n  SELECT * EXCEPT(CUSTOMER_IDS)\n  FROM JOINED, JOINED.CUSTOMER_IDS AS CUSTOMER_ID \n)\nSELECT \n *\nFROM UNNESTED\nGROUP BY\n  1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20",
+          "label": "Query",
+          "is_required": false,
+          "type": "sql",
+          "name": "query"
+        },
+        {
+          "description": null,
+          "value": "{% BQ_PROJECT_ID %}",
+          "label": "BQ Project ID",
+          "is_required": false,
+          "type": "string",
+          "name": "bq_project_id"
+        },
+        {
+          "description": null,
+          "value": "{% BQ_DATASET_ID %}",
+          "label": "BQ Dataset ID",
+          "is_required": false,
+          "type": "string",
+          "name": "bq_dataset_id"
+        },
+        {
+          "description": null,
+          "value": "ga_filtered_daily",
+          "label": "BQ Table ID",
+          "is_required": false,
+          "type": "string",
+          "name": "bq_table_id"
+        },
+        {
+          "description": null,
+          "value": true,
+          "label": "Overwrite table",
+          "is_required": false,
+          "type": "boolean",
+          "name": "overwrite"
+        }
+      ],
+      "id": "34021c1670964e9fbfdeb5c227ae3e85",
+      "name": "Creating GA Filtered"
+    },
+    {
+      "hash_start_conditions": [
+        {
+          "preceding_job_id": "7373da5a2a234ed995504e1122d4b175",
+          "condition": "success"
+        }
+      ],
+      "worker_class": "AutoMLPredictor",
+      "params": [
+        {
+          "description": null,
+          "value": "{% BQ_PROJECT_ID %}",
+          "label": "AutoML Project ID",
+          "is_required": false,
+          "type": "string",
+          "name": "model_project_id"
+        },
+        {
+          "description": null,
+          "value": "eu",
+          "label": "AutoML Model Location",
+          "is_required": false,
+          "type": "string",
+          "name": "model_location"
+        },
+        {
+          "description": null,
+          "value": "",
+          "label": "AutoML Model ID",
+          "is_required": false,
+          "type": "string",
+          "name": "model_id"
+        },
+        {
+          "description": null,
+          "value": "{% AUTOML_MODEL_NAME %}",
+          "label": "AutoML Model Name",
+          "is_required": false,
+          "type": "string",
+          "name": "model_name"
+        },
+        {
+          "description": null,
+          "value": "%Y%m",
+          "label": "AutoML Model strftime format",
+          "is_required": false,
+          "type": "string",
+          "name": "strftime_format"
+        },
+        {
+          "description": null,
+          "value": "bq://{% BQ_PROJECT_ID %}.{% BQ_DATASET_ID %}.final_table_daily",
+          "label": "Input - BigQuery Table URI (e.g. bq://projectId.dataset.table)",
+          "is_required": false,
+          "type": "string",
+          "name": "input_bq_uri"
+        },
+        {
+          "description": null,
+          "value": "",
+          "label": "Input - Cloud Storage CSV URI (e.g. gs://bucket/directory/file.csv)",
+          "is_required": false,
+          "type": "string",
+          "name": "input_gcs_uri"
+        },
+        {
+          "description": null,
+          "value": "",
+          "label": "Output - BigQuery Project URI (e.g. bq://projectId)",
+          "is_required": false,
+          "type": "string",
+          "name": "output_bq_project_uri"
+        },
+        {
+          "description": null,
+          "value": "gs://{% GS_BUCKET_NAME %}/predictions",
+          "label": "Output - Cloud Storage output directory (e.g. gs://bucket/directory)",
+          "is_required": false,
+          "type": "string",
+          "name": "output_gcs_uri_prefix"
+        }
+      ],
+      "id": "3df8655892de49a0ba8cea6f58131fa3",
+      "name": "Predict CLV for scoring data"
+    },
+    {
+      "hash_start_conditions": [
+        {
+          "preceding_job_id": "3df8655892de49a0ba8cea6f58131fa3",
+          "condition": "success"
+        }
+      ],
+      "worker_class": "StorageToBQImporter",
+      "params": [
+        {
+          "description": null,
+          "value": "gs://{% GS_BUCKET_NAME %}/predictions/prediction-{% AUTOML_MODEL_NAME %}*/tables_*.csv",
+          "label": "Source CSV or JSON files URIs (e.g. gs://bucket/data.csv)",
+          "is_required": false,
+          "type": "string_list",
+          "name": "source_uris"
+        },
+        {
+          "description": null,
+          "value": "{% BQ_PROJECT_ID %}",
+          "label": "BQ Project ID",
+          "is_required": false,
+          "type": "string",
+          "name": "bq_project_id"
+        },
+        {
+          "description": null,
+          "value": "{% BQ_DATASET_ID %}",
+          "label": "BQ Dataset ID",
+          "is_required": false,
+          "type": "string",
+          "name": "bq_dataset_id"
+        },
+        {
+          "description": null,
+          "value": "clv",
+          "label": "BQ Table ID",
+          "is_required": false,
+          "type": "string",
+          "name": "bq_table_id"
+        },
+        {
+          "description": null,
+          "value": true,
+          "label": "Overwrite table",
+          "is_required": false,
+          "type": "boolean",
+          "name": "overwrite"
+        },
+        {
+          "description": null,
+          "value": false,
+          "label": "Don't create table if doesn't exist",
+          "is_required": false,
+          "type": "boolean",
+          "name": "dont_create"
+        },
+        {
+          "description": null,
+          "value": false,
+          "label": "Autodetect schema and other parameters",
+          "is_required": false,
+          "type": "boolean",
+          "name": "autodetect"
+        },
+        {
+          "description": null,
+          "value": "1",
+          "label": "Header rows to skip",
+          "is_required": false,
+          "type": "number",
+          "name": "rows_to_skip"
+        },
+        {
+          "description": null,
+          "value": "1000",
+          "label": "Number of errors allowed",
+          "is_required": false,
+          "type": "number",
+          "name": "errors_to_allow"
+        },
+        {
+          "description": null,
+          "value": false,
+          "label": "Source is in JSON format",
+          "is_required": false,
+          "type": "boolean",
+          "name": "import_json"
+        },
+        {
+          "description": null,
+          "value": "null",
+          "label": "CSV Null marker",
+          "is_required": false,
+          "type": "string",
+          "name": "csv_null_marker"
+        },
+        {
+          "description": null,
+          "value": "[\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"most_popular_city\",\n    \"type\": \"STRING\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"second_most_popular_city\",\n    \"type\": \"STRING\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"third_most_popular_city\",\n    \"type\": \"STRING\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"most_popular_country\",\n    \"type\": \"STRING\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"second_most_popular_country\",\n    \"type\": \"STRING\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"third_most_popular_country\",\n    \"type\": \"STRING\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"most_popular_zip_code\",\n    \"type\": \"STRING\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"second_most_popular_zip_code\",\n    \"type\": \"STRING\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"third_most_popular_zip_code\",\n    \"type\": \"STRING\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"most_popular_shipping_method\",\n    \"type\": \"STRING\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"second_most_shipping_method\",\n    \"type\": \"STRING\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"third_most_shipping_method\",\n    \"type\": \"STRING\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"most_popular_payment_method\",\n    \"type\": \"STRING\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"second_most_payment_method\",\n    \"type\": \"STRING\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"third_most_payment_method\",\n    \"type\": \"STRING\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"most_popular_brand\",\n    \"type\": \"STRING\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"second_most_popular_brand\",\n    \"type\": \"STRING\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"third_most_popular_brand\",\n    \"type\": \"STRING\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"most_popular_product_type\",\n    \"type\": \"STRING\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"second_most_popular_product_type\",\n    \"type\": \"STRING\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"third_most_popular_product_type\",\n    \"type\": \"STRING\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"most_popular_color\",\n    \"type\": \"STRING\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"second_most_popular_color\",\n    \"type\": \"STRING\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"third_most_popular_color\",\n    \"type\": \"STRING\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"distinct_cities\",\n    \"type\": \"INTEGER\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"distinct_countries\",\n    \"type\": \"INTEGER\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"distinct_zip_codes\",\n    \"type\": \"INTEGER\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"distinct_shipping_methods\",\n    \"type\": \"INTEGER\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"distinct_payment_methods\",\n    \"type\": \"INTEGER\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"distinct_brands\",\n    \"type\": \"INTEGER\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"distinct_product_types\",\n    \"type\": \"INTEGER\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"distinct_colors\",\n    \"type\": \"INTEGER\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"min_shipping_fee\",\n    \"type\": \"FLOAT\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"max_shipping_fee\",\n    \"type\": \"FLOAT\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"avg_shipping_fee\",\n    \"type\": \"FLOAT\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"sum_shipping_fee\",\n    \"type\": \"FLOAT\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"min_discount\",\n    \"type\": \"FLOAT\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"max_discount\",\n    \"type\": \"FLOAT\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"avg_discount\",\n    \"type\": \"FLOAT\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"sum_discount\",\n    \"type\": \"FLOAT\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"min_days_to_return_products\",\n    \"type\": \"INTEGER\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"max_days_to_return_products\",\n    \"type\": \"INTEGER\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"avg_days_to_return_products\",\n    \"type\": \"FLOAT\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"total_products_returned\",\n    \"type\": \"INTEGER\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"total_orders\",\n    \"type\": \"INTEGER\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"total_profit\",\n    \"type\": \"FLOAT\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"min_price\",\n    \"type\": \"FLOAT\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"max_price\",\n    \"type\": \"FLOAT\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"avg_price\",\n    \"type\": \"FLOAT\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"sum_price\",\n    \"type\": \"FLOAT\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"days_since_first_order\",\n    \"type\": \"INTEGER\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"days_since_last_order\",\n    \"type\": \"INTEGER\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"min_product_quantity_per_order\",\n    \"type\": \"FLOAT\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"max_product_quantity_per_order\",\n    \"type\": \"FLOAT\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"avg_product_quantity_per_order\",\n    \"type\": \"FLOAT\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"min_returned_products_qauntity_per_order\",\n    \"type\": \"FLOAT\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"max_returned_products_qauntity_per_order\",\n    \"type\": \"FLOAT\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"avg_returned_products_qauntity_per_order\",\n    \"type\": \"FLOAT\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"avg_days_between_orders\",\n    \"type\": \"FLOAT\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"max_days_between_orders\",\n    \"type\": \"INTEGER\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"min_days_between_orders\",\n    \"type\": \"INTEGER\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"max_ga_date\",\n    \"type\": \"DATE\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"sum_ga_transactions\",\n    \"type\": \"FLOAT\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"sum_ga_page_views\",\n    \"type\": \"FLOAT\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"ga_page_views_per_transactions\",\n    \"type\": \"FLOAT\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"sum_ga_time_on_page\",\n    \"type\": \"FLOAT\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"avg_ga_transactions\",\n    \"type\": \"FLOAT\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"avg_ga_page_views\",\n    \"type\": \"FLOAT\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"avg_ga_time_on_page\",\n    \"type\": \"FLOAT\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"min_ga_page_views\",\n    \"type\": \"FLOAT\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"min_ga_time_on_page\",\n    \"type\": \"FLOAT\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"max_ga_page_views\",\n    \"type\": \"FLOAT\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"max_ga_time_on_page\",\n    \"type\": \"FLOAT\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"most_popular_ga_date\",\n    \"type\": \"DATE\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"second_most_popular_ga_date\",\n    \"type\": \"DATE\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"third_most_popular_ga_date\",\n    \"type\": \"DATE\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"most_popular_ga_hour\",\n    \"type\": \"INTEGER\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"second_most_popular_ga_hour\",\n    \"type\": \"INTEGER\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"third_most_popular_ga_hour\",\n    \"type\": \"INTEGER\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"most_popular_ga_day_of_week\",\n    \"type\": \"INTEGER\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"second_most_popular_ga_day_of_week\",\n    \"type\": \"INTEGER\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"third_most_popular_ga_day_of_week\",\n    \"type\": \"INTEGER\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"most_popular_ga_day_in_month\",\n    \"type\": \"INTEGER\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"second_most_popular_ga_day_in_month\",\n    \"type\": \"INTEGER\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"third_most_popular_ga_day_in_month\",\n    \"type\": \"INTEGER\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"most_popular_ga_day_of_year\",\n    \"type\": \"INTEGER\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"second_most_popular_ga_day_of_year\",\n    \"type\": \"INTEGER\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"third_most_popular_ga_day_of_year\",\n    \"type\": \"INTEGER\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"most_popular_ga_iso_week\",\n    \"type\": \"INTEGER\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"second_most_popular_ga_iso_week\",\n    \"type\": \"INTEGER\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"third_most_popular_ga_iso_week\",\n    \"type\": \"INTEGER\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"most_popular_ga_month\",\n    \"type\": \"INTEGER\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"second_most_popular_ga_month\",\n    \"type\": \"INTEGER\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"third_most_popular_ga_month\",\n    \"type\": \"INTEGER\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"most_popular_ga_quarter\",\n    \"type\": \"INTEGER\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"second_most_popular_ga_quarter\",\n    \"type\": \"INTEGER\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"third_most_popular_ga_quarter\",\n    \"type\": \"INTEGER\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"most_popular_ga_year\",\n    \"type\": \"INTEGER\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"second_most_popular_ga_year\",\n    \"type\": \"INTEGER\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"third_most_popular_ga_year\",\n    \"type\": \"INTEGER\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"most_popular_ga_city\",\n    \"type\": \"STRING\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"second_most_popular_ga_city\",\n    \"type\": \"STRING\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"third_most_popular_ga_city\",\n    \"type\": \"STRING\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"most_popular_ga_device_category\",\n    \"type\": \"STRING\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"second_most_popular_ga_device_category\",\n    \"type\": \"STRING\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"third_most_popular_ga_device_category\",\n    \"type\": \"STRING\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"most_popular_ga_device_branding\",\n    \"type\": \"STRING\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"second_most_popular_ga_device_branding\",\n    \"type\": \"STRING\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"third_most_popular_ga_device_branding\",\n    \"type\": \"STRING\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"most_popular_ga_device_browser\",\n    \"type\": \"STRING\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"second_most_popular_ga_device_browser\",\n    \"type\": \"STRING\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"third_most_popular_ga_device_browser\",\n    \"type\": \"STRING\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"most_popular_ga_hostname\",\n    \"type\": \"STRING\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"second_most_popular_ga_hostname\",\n    \"type\": \"STRING\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"third_most_popular_ga_hostname\",\n    \"type\": \"STRING\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"most_popular_ga_source\",\n    \"type\": \"STRING\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"second_most_popular_ga_source\",\n    \"type\": \"STRING\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"third_most_popular_ga_source\",\n    \"type\": \"STRING\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"most_popular_ga_medium\",\n    \"type\": \"STRING\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"second_most_popular_ga_medium\",\n    \"type\": \"STRING\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"third_most_popular_ga_medium\",\n    \"type\": \"STRING\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"most_popular_ga_campaign\",\n    \"type\": \"STRING\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"second_most_popular_ga_campaign\",\n    \"type\": \"STRING\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"third_most_popular_ga_campaign\",\n    \"type\": \"STRING\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"most_popular_ga_product_color\",\n    \"type\": \"STRING\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"second_most_popular_ga_product_color\",\n    \"type\": \"STRING\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"third_most_popular_ga_product_color\",\n    \"type\": \"STRING\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"most_popular_ga_product_brand\",\n    \"type\": \"STRING\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"second_most_popular_ga_product_brand\",\n    \"type\": \"STRING\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"third_most_popular_ga_product_brand\",\n    \"type\": \"STRING\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"distinct_ga_dates\",\n    \"type\": \"INTEGER\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"distinct_ga_hours\",\n    \"type\": \"INTEGER\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"distinct_ga_day_of_weeks\",\n    \"type\": \"INTEGER\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"distinct_ga_day_in_months\",\n    \"type\": \"INTEGER\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"distinct_ga_day_of_years\",\n    \"type\": \"INTEGER\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"distinct_ga_iso_weeks\",\n    \"type\": \"INTEGER\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"distinct_ga_months\",\n    \"type\": \"INTEGER\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"distinct_ga_quarters\",\n    \"type\": \"INTEGER\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"distinct_ga_years\",\n    \"type\": \"INTEGER\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"distinct_ga_cities\",\n    \"type\": \"INTEGER\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"distinct_ga_device_categories\",\n    \"type\": \"INTEGER\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"distinct_ga_device_brandings\",\n    \"type\": \"INTEGER\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"distinct_ga_device_browsers\",\n    \"type\": \"INTEGER\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"distinct_ga_hostnames\",\n    \"type\": \"INTEGER\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"distinct_ga_sources\",\n    \"type\": \"INTEGER\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"distinct_ga_mediums\",\n    \"type\": \"INTEGER\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"distinct_ga_campaigns\",\n    \"type\": \"INTEGER\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"total_profit_response\",\n    \"type\": \"INTEGER\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"profit_14days\",\n    \"type\": \"FLOAT\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"num_orders_14_days\",\n    \"type\": \"INTEGER\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"num_products_14_days\",\n    \"type\": \"INTEGER\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"profit_1_month\",\n    \"type\": \"FLOAT\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"num_orders_1_month\",\n    \"type\": \"INTEGER\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"num_products_1_month\",\n    \"type\": \"INTEGER\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"profit_3_months\",\n    \"type\": \"FLOAT\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"num_orders_3_months\",\n    \"type\": \"INTEGER\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"num_products_3_months\",\n    \"type\": \"INTEGER\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"profit_6_months\",\n    \"type\": \"FLOAT\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"num_orders_6_months\",\n    \"type\": \"INTEGER\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"num_products_6_months\",\n    \"type\": \"INTEGER\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"avg_profit_per_order\",\n    \"type\": \"FLOAT\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"avg_cities_per_day\",\n    \"type\": \"FLOAT\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"avg_countries_per_day\",\n    \"type\": \"FLOAT\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"avg_zip_codes_per_day\",\n    \"type\": \"FLOAT\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"avg_shipping_methods_per_day\",\n    \"type\": \"FLOAT\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"avg_payment_methods_per_day\",\n    \"type\": \"FLOAT\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"avg_brands_per_day\",\n    \"type\": \"FLOAT\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"avg_product_types_per_day\",\n    \"type\": \"FLOAT\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"avg_colors_per_day\",\n    \"type\": \"FLOAT\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"avg_products_returned_per_day\",\n    \"type\": \"FLOAT\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"avg_orders_per_day\",\n    \"type\": \"FLOAT\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"avg_profit_per_day\",\n    \"type\": \"FLOAT\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"avg_ga_time_on_page_per_day\",\n    \"type\": \"FLOAT\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"avg_ga_dates_per_day\",\n    \"type\": \"FLOAT\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"avg_ga_hours_per_day\",\n    \"type\": \"FLOAT\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"avg_ga_day_of_weeks_per_day\",\n    \"type\": \"FLOAT\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"avg_ga_day_in_months_per_day\",\n    \"type\": \"FLOAT\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"avg_ga_day_of_years_per_day\",\n    \"type\": \"FLOAT\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"avg_ga_iso_weeks_per_day\",\n    \"type\": \"FLOAT\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"avg_ga_months_per_day\",\n    \"type\": \"FLOAT\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"avg_ga_quarters_per_day\",\n    \"type\": \"FLOAT\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"avg_ga_years_per_day\",\n    \"type\": \"FLOAT\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"avg_ga_cities_per_day\",\n    \"type\": \"FLOAT\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"avg_ga_device_categories_per_day\",\n    \"type\": \"FLOAT\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"avg_ga_device_brandings_per_day\",\n    \"type\": \"FLOAT\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"avg_ga_device_browsers_per_day\",\n    \"type\": \"FLOAT\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"avg_ga_hostnames_per_day\",\n    \"type\": \"FLOAT\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"avg_ga_sources_per_day\",\n    \"type\": \"FLOAT\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"avg_ga_mediums_per_day\",\n    \"type\": \"FLOAT\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"avg_ga_campaigns_per_day\",\n    \"type\": \"FLOAT\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"predicted_total_profit_response\",\n    \"type\": \"FLOAT\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"CUSTOMER_ID\",\n    \"type\": \"STRING\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"TIME_WINDOW\",\n    \"type\": \"INTEGER\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"date_added\",\n    \"type\": \"DATE\"\n  },\n  {\n    \"mode\": \"NULLABLE\",\n    \"name\": \"source\",\n    \"type\": \"STRING\"\n  }\n]",
+          "label": "Table Schema in JSON",
+          "is_required": false,
+          "type": "text",
+          "name": "schema"
+        }
+      ],
+      "id": "520e944f171349d9ab6c159e08a0f2ae",
+      "name": "Import CLV predictions CSV to BQ"
+    },
+    {
+      "hash_start_conditions": [
+        {
+          "preceding_job_id": "520e944f171349d9ab6c159e08a0f2ae",
+          "condition": "success"
+        }
+      ],
+      "worker_class": "BQQueryLauncher",
+      "params": [
+        {
+          "description": null,
+          "value": "WITH RAWDATA AS (\n    SELECT *,\n    1.26*POW(10,-6)*POW(predicted_total_profit_response,2) + 1.3*predicted_total_profit_response AS predicted_total_profit_transformed,\n    count(*) OVER (PARTITION BY CUSTOMER_ID ORDER BY date_added DESC) AS step\n    FROM `{% BQ_PROJECT_ID %}.{% BQ_DATASET_ID %}.clv`\n),\nQUARTILES AS (\n  SELECT CUSTOMER_ID,\n  NTILE(4) OVER (ORDER BY predicted_total_profit_transformed DESC) AS audience_predictedprofit_quartile_count,\n  SUM(predicted_total_profit_transformed) OVER (ORDER BY predicted_total_profit_transformed DESC) AS running_sum_predicted_profit,\n  SUM(predicted_total_profit_transformed) OVER (ORDER BY predicted_total_profit_transformed ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS total_predicted_profit,\n  NTILE(4) OVER (ORDER BY days_since_last_order) AS audience_recency_quartile,\n  NTILE(4) OVER (ORDER BY total_orders DESC) AS audience_frequecy_quartile, \n  NTILE(4) OVER (ORDER BY avg_discount DESC) AS audience_avgdiscount_quartile\n  FROM RAWDATA\n  WHERE step = 1\n)\nSELECT * EXCEPT (step, running_sum_predicted_profit, total_predicted_profit),\npredicted_total_profit_transformed - coalesce(lag(predicted_total_profit_transformed) over (partition by CUSTOMER_ID order by date_added), -1*profit_14days) as delta_predicted_profit,\nCASE\n  WHEN running_sum_predicted_profit / total_predicted_profit < 0.25 THEN 1\n  WHEN running_sum_predicted_profit / total_predicted_profit BETWEEN 0.25 AND 0.5 THEN 2\n  WHEN running_sum_predicted_profit / total_predicted_profit BETWEEN 0.5 AND 0.75 THEN 3\n  WHEN running_sum_predicted_profit / total_predicted_profit > 0.75 THEN 4\nEND AS audience_predictedprofit_quartile_value,\nIF(days_since_first_order = days_since_last_order, false, true) AS is_existing_customer\nFROM RAWDATA\nJOIN QUARTILES\nUSING (CUSTOMER_ID)",
+          "label": "Query",
+          "is_required": false,
+          "type": "sql",
+          "name": "query"
+        },
+        {
+          "description": null,
+          "value": "{% BQ_PROJECT_ID %}",
+          "label": "BQ Project ID",
+          "is_required": false,
+          "type": "string",
+          "name": "bq_project_id"
+        },
+        {
+          "description": null,
+          "value": "{% BQ_DATASET_ID %}",
+          "label": "BQ Dataset ID",
+          "is_required": false,
+          "type": "string",
+          "name": "bq_dataset_id"
+        },
+        {
+          "description": null,
+          "value": "clv_transformed",
+          "label": "BQ Table ID",
+          "is_required": false,
+          "type": "string",
+          "name": "bq_table_id"
+        },
+        {
+          "description": null,
+          "value": true,
+          "label": "Overwrite table",
+          "is_required": false,
+          "type": "boolean",
+          "name": "overwrite"
+        }
+      ],
+      "id": "29b2e6b88b3244fb8d48ef5c43639c1d",
+      "name": "Transform Predictions"
+    },
+    {
+      "hash_start_conditions": [
+        {
+          "preceding_job_id": "29b2e6b88b3244fb8d48ef5c43639c1d",
+          "condition": "success"
+        }
+      ],
+      "worker_class": "BQQueryLauncher",
+      "params": [
+        {
+          "description": null,
+          "value": "SELECT\n 1 AS v,\n 'event' AS t,\n '{% GA_TID %}' AS tid,\n # ga_client_id AS cid,\n '{% GA_CLIENT_ID %}' AS cid,\n 'ltv' AS ec,\n 'incremental_profit' AS ea,\n # transaction_id AS el,\n  CUSTOMER_ID AS el,\n # clv AS ev,\n  predicted_total_profit_transformed AS ev\nfrom\n  `{% BQ_PROJECT_ID %}.{% BQ_DATASET_ID %}.clv_transformed`",
+          "label": "Query",
+          "is_required": false,
+          "type": "sql",
+          "name": "query"
+        },
+        {
+          "description": null,
+          "value": "{% BQ_PROJECT_ID %}",
+          "label": "BQ Project ID",
+          "is_required": false,
+          "type": "string",
+          "name": "bq_project_id"
+        },
+        {
+          "description": null,
+          "value": "{% BQ_DATASET_ID %}",
+          "label": "BQ Dataset ID",
+          "is_required": false,
+          "type": "string",
+          "name": "bq_dataset_id"
+        },
+        {
+          "description": null,
+          "value": "mp_events_daily",
+          "label": "BQ Table ID",
+          "is_required": false,
+          "type": "string",
+          "name": "bq_table_id"
+        },
+        {
+          "description": null,
+          "value": true,
+          "label": "Overwrite table",
+          "is_required": false,
+          "type": "boolean",
+          "name": "overwrite"
+        }
+      ],
+      "id": "bb5b472f300e4876a4421a620c5c93ec",
+      "name": "Convert CLV to MP events in BQ"
+    }
+  ],
+  "name": "Monthly Predictions",
+  "schedules": [
+    {
+      "cron": "0 14 1 * *"
+    }
+  ]
+}
