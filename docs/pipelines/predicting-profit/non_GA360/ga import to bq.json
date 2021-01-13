@@ -94,7 +94,7 @@
           "name": "bq_table_id"
         }
       ],
-      "id": "623c862dbf7b4f388e1f7d4dc1c05e7b",
+      "id": "1f0771724140429295d81f7cd22a7a01",
       "name": "Transaction data"
     },
     {
@@ -190,7 +190,7 @@
           "name": "bq_table_id"
         }
       ],
-      "id": "f825e6e01adb43f5a2616a7cd9b05d3e",
+      "id": "a5278f020acd4aa5bbb3651ebb098d04",
       "name": "Customer Behaviour "
     },
     {
@@ -231,7 +231,7 @@
         },
         {
           "description": null,
-          "value": "ga:itemRevenue",
+          "value": "ga:localItemRevenue",
           "label": "Metrics (e.g. ga:users)",
           "is_required": false,
           "type": "string_list",
@@ -286,22 +286,22 @@
           "name": "bq_table_id"
         }
       ],
-      "id": "731d466220894b798e672f99ebe29c3a",
+      "id": "da9382d4ecc54788830416ad287a0aa1",
       "name": "Products data"
     },
     {
       "hash_start_conditions": [
         {
-          "preceding_job_id": "623c862dbf7b4f388e1f7d4dc1c05e7b",
-          "condition": "success"
+          "preceding_job_id": "1f0771724140429295d81f7cd22a7a01",
+          "condition": ""
         },
         {
-          "preceding_job_id": "f825e6e01adb43f5a2616a7cd9b05d3e",
-          "condition": "success"
+          "preceding_job_id": "a5278f020acd4aa5bbb3651ebb098d04",
+          "condition": ""
         },
         {
-          "preceding_job_id": "731d466220894b798e672f99ebe29c3a",
-          "condition": "success"
+          "preceding_job_id": "da9382d4ecc54788830416ad287a0aa1",
+          "condition": ""
         }
       ],
       "worker_class": "BQQueryLauncher",
@@ -347,11 +347,11 @@
           "name": "overwrite"
         }
       ],
-      "id": "1794707e06dc4a70b3156b49ebff66aa",
+      "id": "7d8007293b2046bcbf3efc558478b248",
       "name": "Join all GA tables"
     }
   ],
-  "name": "GA import to BQ v2",
+  "name": "GA import to BQ",
   "schedules": [
     {
       "cron": "0 0 * * *"
