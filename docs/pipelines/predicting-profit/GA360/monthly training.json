@@ -4,7 +4,7 @@
     {
       "hash_start_conditions": [
         {
-          "preceding_job_id": "19fdb87b2b1945e7984a1ecf80143b38",
+          "preceding_job_id": "ccf2657b432a4586b5d0783e08ba1f3a",
           "condition": "success"
         }
       ],
@@ -12,7 +12,7 @@
       "params": [
         {
           "description": null,
-          "value": "WITH ERPDATA_RAW AS (\n  SELECT DISTINCT\n    CUSTOMER_ID,\n    ORDER_ID, \n    PRODUCT_ID, \n    CAST(ORDER_DATE AS DATE) AS ORDER_DATE,\n    COUNTRY, \n    CITY, \n    ZIP_CODE, \n    QUANTITY, \n    RETURN_QUANTITY, \n    IF(RETURN_DATE  IS NOT NULL, \n        DATE_DIFF(CAST(RETURN_DATE AS DATE), CAST(ORDER_DATE AS DATE), DAY),\n        0) \n      AS DATE_DIFF_ORDER_RETURN,\n    IF(RETURN_DATE IS NOT NULL, TRUE, FALSE) AS HAS_RETURNED,\n    SHIPPING_METHOD, \n    PAYMENT_METHOD, \n    DISCOUNT,\n    SHIPPING_FEE,\n    IF(SHIPPING_FEE = 0, 1, 0) AS FREE_SHIPPING,\n    PRICE,\n    (QUANTITY - RETURN_QUANTITY) * (PRICE - COGS) - OTHER_COGS  AS PROFIT\n  FROM `{% BQ_PROJECT_ID %}.{% BQ_ERP_DATASET_ID %}.{% BQ_ERPTABLE_ID %}`\n),\nWINDOWS_CHECKS AS (\n  SELECT  \n    * except (slide_window, sfap, efap, stap, etap),\n    IF(order_date >= sfap \n        AND order_date <= efap, slide_window, 0) AS TIME_WINDOW\nFROM \n  {% BQ_PROJECT_ID %}.{% BQ_DATASET_ID %}.sliding_windows, \n  ERPDATA_RAW\n),\nERPDATA AS (\n  SELECT * \n  FROM WINDOWS_CHECKS \n  WHERE TIME_WINDOW != 0\n),\nMCDATA AS (\n  SELECT DISTINCT\n    CAST(mpn AS STRING) AS mpn,\n    brand,\n    product_type,\n    color\n  FROM `{% BQ_PROJECT_ID %}.{% BQ_MC_DATASET_ID %}.{% BQ_MCTABLE_ID %}` \n), \nERPMCDATA AS (\nSELECT DISTINCT\n ERPDATA.*,\n MCDATA.*\nFROM \n  ERPDATA \n  LEFT JOIN MCDATA\n  ON mpn = product_id\n),\nCOUNTS AS (\n  SELECT DISTINCT\n    CUSTOMER_ID, TIME_WINDOW,\n    CITY,\n    COUNT (*) OVER(PARTITION BY CUSTOMER_ID, TIME_WINDOW, CITY) AS CITY_count,          \n    COUNT(DISTINCT CITY) OVER(PARTITION BY CUSTOMER_ID, TIME_WINDOW) \n      AS distinct_cities,\n    COUNTRY,\n    COUNT(*) OVER(PARTITION BY CUSTOMER_ID, TIME_WINDOW, COUNTRY)                         \n      AS COUNTRY_count,                         \n    COUNT(DISTINCT COUNTRY) OVER(PARTITION BY CUSTOMER_ID, TIME_WINDOW) \n      AS distinct_countries,\n    ZIP_CODE,                         \n    COUNT (*) OVER(PARTITION BY CUSTOMER_ID, TIME_WINDOW, ZIP_CODE)                        \n      AS ZIP_CODE_count,                        \n    COUNT(DISTINCT ZIP_CODE) OVER(PARTITION BY CUSTOMER_ID, TIME_WINDOW) \n      AS distinct_zip_codes,\n    SHIPPING_METHOD, \n    COUNT (*) OVER(PARTITION BY CUSTOMER_ID, TIME_WINDOW, SHIPPING_METHOD)                 \n      AS SHIPPING_METHOD_count,                 \n    COUNT(DISTINCT SHIPPING_METHOD) OVER(PARTITION BY CUSTOMER_ID, TIME_WINDOW) \n      AS distinct_shipping_methods,\n    PAYMENT_METHOD, \n    COUNT (*) OVER(PARTITION BY CUSTOMER_ID, TIME_WINDOW, PAYMENT_METHOD)                  \n      AS PAYMENT_METHOD_count,                  \n    COUNT(DISTINCT PAYMENT_METHOD) OVER(PARTITION BY CUSTOMER_ID, TIME_WINDOW) \n      AS distinct_payment_methods,\n    brand,\n    COUNT (*) OVER(PARTITION BY CUSTOMER_ID, TIME_WINDOW, brand)                           \n      AS brand_count,                           \n    COUNT(DISTINCT brand) OVER(PARTITION BY CUSTOMER_ID, TIME_WINDOW) \n      AS distinct_brands,\n    product_type,\n    COUNT (*) OVER(PARTITION BY CUSTOMER_ID, TIME_WINDOW, product_type)                    \n      AS product_type_count,                    \n    COUNT(DISTINCT product_type) OVER(PARTITION BY CUSTOMER_ID, TIME_WINDOW) \n      AS distinct_product_types,  \n    color, \n    COUNT (*) OVER(PARTITION BY CUSTOMER_ID, TIME_WINDOW, color)\n      AS color_count,                           \n    COUNT(DISTINCT color) OVER(PARTITION BY CUSTOMER_ID, TIME_WINDOW) \n      AS distinct_colors,\n    ORDER_ID AS CUSTOMER_ORDER_ID, \n    SUM(QUANTITY) OVER (PARTITION BY CUSTOMER_ID, TIME_WINDOW, ORDER_ID)                   \n      AS products_quantity_per_order,\n    SUM(RETURN_QUANTITY) OVER (PARTITION BY CUSTOMER_ID, TIME_WINDOW, ORDER_ID)           \n      AS returned_products_qauntity_per_order\n  FROM ERPMCDATA\n), \nTOPSCITY AS (\n  SELECT DISTINCT\n  CUSTOMER_ID, TIME_WINDOW,\n  NTH_VALUE(CITY, 1) OVER (PARTITION BY CUSTOMER_ID, TIME_WINDOW \n      ORDER BY CITY_count DESC \n      ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) \n      AS most_popular_city,  \n  NTH_VALUE(CITY, 2) OVER (PARTITION BY CUSTOMER_ID, TIME_WINDOW \n      ORDER BY CITY_count DESC \n      ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) \n      AS second_most_popular_city,  \n  NTH_VALUE(CITY, 3) OVER (PARTITION BY CUSTOMER_ID, TIME_WINDOW \n      ORDER BY CITY_count DESC \n      ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) \n      AS third_most_popular_city,\n FROM (SELECT DISTINCT CUSTOMER_ID, TIME_WINDOW, CITY, CITY_count FROM COUNTS)\n),\nTOPCOUNTRY AS (\n  SELECT DISTINCT\n  CUSTOMER_ID, TIME_WINDOW,\n  NTH_VALUE(COUNTRY, 1) OVER (PARTITION BY CUSTOMER_ID, TIME_WINDOW \n      ORDER BY COUNTRY_count DESC \n      ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) \n      AS most_popular_country,  \n  NTH_VALUE(COUNTRY, 2) OVER (PARTITION BY CUSTOMER_ID, TIME_WINDOW \n      ORDER BY COUNTRY_count DESC \n      ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) \n      AS second_most_popular_country,  \n  NTH_VALUE(COUNTRY, 3) OVER (PARTITION BY CUSTOMER_ID, TIME_WINDOW \n      ORDER BY COUNTRY_count DESC \n      ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) \n      AS third_most_popular_country,\n FROM (SELECT DISTINCT CUSTOMER_ID, TIME_WINDOW, COUNTRY, COUNTRY_count \n       FROM COUNTS)\n),\nTOPZIPCODE AS (\n  SELECT DISTINCT\n  CUSTOMER_ID, TIME_WINDOW,\n  NTH_VALUE(CONCAT('zip_', ZIP_CODE), 1) OVER (PARTITION BY CUSTOMER_ID, TIME_WINDOW \n      ORDER BY ZIP_CODE_count DESC \n      ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) \n      AS most_popular_zip_code,  \n  NTH_VALUE(CONCAT('zip_', ZIP_CODE), 2) OVER (PARTITION BY CUSTOMER_ID, TIME_WINDOW \n      ORDER BY ZIP_CODE_count DESC \n      ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) \n      AS second_most_popular_zip_code,  \n  NTH_VALUE(CONCAT('zip_', ZIP_CODE), 3) OVER (PARTITION BY CUSTOMER_ID, TIME_WINDOW \n      ORDER BY ZIP_CODE_count DESC \n      ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) \n      AS third_most_popular_zip_code,\n FROM (SELECT DISTINCT CUSTOMER_ID, TIME_WINDOW, ZIP_CODE, ZIP_CODE_count \n       FROM COUNTS)\n),\nTOPSHIPPINGMETHOD AS (\n  SELECT DISTINCT\n  CUSTOMER_ID, TIME_WINDOW,\n  NTH_VALUE(SHIPPING_METHOD, 1) OVER (PARTITION BY CUSTOMER_ID, TIME_WINDOW \n      ORDER BY SHIPPING_METHOD_count DESC \n      ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) \n      AS most_popular_shipping_method,  \n  NTH_VALUE(SHIPPING_METHOD, 2) OVER (PARTITION BY CUSTOMER_ID, TIME_WINDOW \n      ORDER BY SHIPPING_METHOD_count DESC \n      ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) \n      AS second_most_shipping_method,  \n  NTH_VALUE(SHIPPING_METHOD, 3) OVER (PARTITION BY CUSTOMER_ID, TIME_WINDOW \n      ORDER BY SHIPPING_METHOD_count DESC \n      ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) \n      AS third_most_shipping_method,\n FROM (SELECT \n          DISTINCT \n            CUSTOMER_ID, TIME_WINDOW, SHIPPING_METHOD, SHIPPING_METHOD_count \n        FROM COUNTS)\n),\nTOPPAYMENT_METHOD AS (\n  SELECT DISTINCT\n  CUSTOMER_ID, TIME_WINDOW,\n  NTH_VALUE(PAYMENT_METHOD, 1) OVER (PARTITION BY CUSTOMER_ID, TIME_WINDOW \n      ORDER BY PAYMENT_METHOD_count DESC \n      ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) \n      AS most_popular_payment_method,  \n  NTH_VALUE(PAYMENT_METHOD, 2) OVER (PARTITION BY CUSTOMER_ID, TIME_WINDOW \n      ORDER BY PAYMENT_METHOD_count DESC \n      ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) \n      AS second_most_payment_method,  \n  NTH_VALUE(PAYMENT_METHOD, 3) OVER (PARTITION BY CUSTOMER_ID, TIME_WINDOW \n      ORDER BY PAYMENT_METHOD_count DESC \n      ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) \n      AS third_most_payment_method,\n FROM (SELECT DISTINCT \n        CUSTOMER_ID, TIME_WINDOW, PAYMENT_METHOD, PAYMENT_METHOD_count \n      FROM COUNTS)\n),\nTOPBRAND AS (\n  SELECT DISTINCT\n  CUSTOMER_ID, TIME_WINDOW,\n  NTH_VALUE(brand, 1) OVER (PARTITION BY CUSTOMER_ID, TIME_WINDOW \n      ORDER BY brand_count DESC \n      ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) \n      AS most_popular_brand,  \n  NTH_VALUE(brand, 2) OVER (PARTITION BY CUSTOMER_ID, TIME_WINDOW \n      ORDER BY brand_count DESC \n      ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) \n      AS second_most_popular_brand,  \n  NTH_VALUE(brand, 3) OVER (PARTITION BY CUSTOMER_ID, TIME_WINDOW\n      ORDER BY brand_count DESC \n      ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) \n      AS third_most_popular_brand,\n FROM (SELECT DISTINCT CUSTOMER_ID, TIME_WINDOW, brand, brand_count FROM COUNTS)\n),\nTOPPRODUCTTYPE AS (\n  SELECT DISTINCT\n  CUSTOMER_ID, TIME_WINDOW,\n  NTH_VALUE(product_type, 1) OVER (PARTITION BY CUSTOMER_ID, TIME_WINDOW \n      ORDER BY product_type_count DESC \n      ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) \n      AS most_popular_product_type,  \n  NTH_VALUE(product_type, 2) OVER (PARTITION BY CUSTOMER_ID, TIME_WINDOW \n      ORDER BY product_type_count DESC \n      ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) \n      AS second_most_popular_product_type,  \n  NTH_VALUE(product_type, 3) OVER (PARTITION BY CUSTOMER_ID, TIME_WINDOW \n      ORDER BY product_type_count DESC \n      ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) \n      AS third_most_popular_product_type,\n FROM (SELECT DISTINCT \n         CUSTOMER_ID, TIME_WINDOW, product_type, product_type_count \n       FROM COUNTS)\n),\nTOPCOLOR AS (\n  SELECT DISTINCT\n  CUSTOMER_ID, TIME_WINDOW,\n  NTH_VALUE(color, 1) OVER (PARTITION BY CUSTOMER_ID, TIME_WINDOW \n      ORDER BY color_count DESC \n      ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) \n      AS most_popular_color,  \n  NTH_VALUE(color, 2) OVER (PARTITION BY CUSTOMER_ID, TIME_WINDOW \n      ORDER BY color_count DESC \n      ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) \n      AS second_most_popular_color,  \n  NTH_VALUE(color, 3) OVER (PARTITION BY CUSTOMER_ID, TIME_WINDOW \n      ORDER BY color_count DESC \n      ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) \n      AS third_most_popular_color,\n FROM (SELECT DISTINCT CUSTOMER_ID, TIME_WINDOW, color, color_count FROM COUNTS)\n),\nORDER_DATES_ARRAY AS (\nSELECT \n    CUSTOMER_ID, TIME_WINDOW, \n    ARRAY_AGG(DISTINCT ORDER_DATE) AS order_dates\nFROM ERPMCDATA\nGROUP BY 1,2\n),\nORDER_DATES_DELTAS AS (\nSELECT \n  CUSTOMER_ID, TIME_WINDOW, \n  DATE_DIFF(order_date, \n      LAG(order_date, 1, NULL) \n        OVER (PARTITION BY CUSTOMER_ID, TIME_WINDOW ORDER BY order_date), \n      DAY)\n    AS delta\nFROM \n  ORDER_DATES_ARRAY AS dates, \n  dates.order_dates AS order_date\n),\nAGG_DELTAS AS (\n  SELECT \n    CUSTOMER_ID, \n    TIME_WINDOW,\n    ROUND(AVG(delta), 1) AS avg_days_between_orders,\n    MAX(delta) AS max_days_between_orders, \n    MIN(delta) AS min_days_between_orders\n  FROM ORDER_DATES_DELTAS\n  GROUP BY CUSTOMER_ID, TIME_WINDOW\n),\nSAFE_AGG_DELTAS AS (\n  SELECT \n    DISTINCT\n      CUSTOMER_ID, \n      TIME_WINDOW,\n      IF(avg_days_between_orders IS NULL, 0, avg_days_between_orders) AS avg_days_between_orders,\n      IF(max_days_between_orders IS NULL, 0, max_days_between_orders) AS max_days_between_orders,\n      IF(min_days_between_orders IS NULL, 0, min_days_between_orders) AS min_days_between_orders\n  FROM AGG_DELTAS\n),\nQUANTITYPERORDER AS (\n  SELECT \n    DISTINCT \n      CUSTOMER_ID, TIME_WINDOW, \n      CUSTOMER_ORDER_ID, \n      products_quantity_per_order, \n      returned_products_qauntity_per_order\n  FROM COUNTS\n),\nAGG_QUANTITYPERORDER AS (\n  SELECT \n    CUSTOMER_ID, \n    TIME_WINDOW,\n    MIN(products_quantity_per_order) AS min_product_quantity_per_order,\n    MAX(products_quantity_per_order) AS max_product_quantity_per_order,\n    AVG(products_quantity_per_order) AS avg_product_quantity_per_order,\n    \n    MIN(returned_products_qauntity_per_order) \n      AS min_returned_products_qauntity_per_order,\n    MAX(returned_products_qauntity_per_order) \n      AS max_returned_products_qauntity_per_order,\n    AVG(returned_products_qauntity_per_order) \n      AS avg_returned_products_qauntity_per_order,\n  FROM QUANTITYPERORDER\n  GROUP BY CUSTOMER_ID, TIME_WINDOW\n),\nEtaps AS (\n  SELECT \n    DISTINCT\n      slide_window AS TIME_WINDOW,\n      efap\n  FROM `{% BQ_PROJECT_ID %}.{% BQ_DATASET_ID %}.sliding_windows`\n),\nDEDUPPED AS (\n  SELECT DISTINCT\n    CUSTOMER_ID, \n    TIME_WINDOW,\n    ORDER_ID, \n    PRODUCT_ID,\n    SHIPPING_FEE,\n    DISCOUNT,\n    DATE_DIFF_ORDER_RETURN,\n    HAS_RETURNED,\n    PROFIT,\n    PRICE,\n    ORDER_DATE\n  FROM \n    ERPMCDATA\n),\nDAYS_SINCE AS (\n   SELECT \n    CUSTOMER_ID, TIME_WINDOW, efap,\n    DATE_DIFF(efap, MIN(ORDER_DATE), DAY) AS days_since_first_order,\n    DATE_DIFF(efap, MAX(ORDER_DATE), DAY) AS days_since_last_order\n   FROM DEDUPPED\n   JOIN Etaps\n   USING (TIME_WINDOW)\n   GROUP BY 1,2,3\n),\nAGG_PRICING_STATS AS (\n  SELECT \n    CUSTOMER_ID, TIME_WINDOW,\n    MIN(SHIPPING_FEE) AS min_shipping_fee,\n    MAX(SHIPPING_FEE) AS max_shipping_fee,\n    AVG(SHIPPING_FEE) AS avg_shipping_fee,\n    SUM(SHIPPING_FEE) AS sum_shipping_fee,\n\n    MIN(DISCOUNT) AS min_discount,\n    MAX(DISCOUNT) AS max_discount,\n    AVG(DISCOUNT) AS avg_discount,\n    SUM(DISCOUNT) AS sum_discount,\n\n    MIN(DATE_DIFF_ORDER_RETURN) AS min_days_to_return_products,\n    MAX(DATE_DIFF_ORDER_RETURN) AS max_days_to_return_products,\n    AVG(DATE_DIFF_ORDER_RETURN) AS avg_days_to_return_products,\n\n    COUNTIF(HAS_RETURNED) AS total_products_returned,\n    COUNT(DISTINCT ORDER_ID) AS total_orders,\n    SUM(PROFIT) AS total_profit,\n    \n    MIN(PRICE) AS min_price,\n    MAX(PRICE) AS max_price,\n    AVG(PRICE) AS avg_price,\n    SUM(PRICE) AS sum_price,\n\n    ARRAY_AGG(DISTINCT ORDER_DATE) AS order_dates\n  FROM DEDUPPED \n  GROUP BY 1,2\n),\nAGGREGATES AS (\n  SELECT * \n  FROM AGG_PRICING_STATS\n  JOIN DAYS_SINCE\n  USING(CUSTOMER_ID, TIME_WINDOW)\n  JOIN AGG_QUANTITYPERORDER\n  USING(CUSTOMER_ID, TIME_WINDOW)\n  JOIN SAFE_AGG_DELTAS\n  USING(CUSTOMER_ID, TIME_WINDOW)\n)\nSELECT \n   * EXCEPT (order_dates, efap)\nFROM\n  TOPSCITY\n  JOIN TOPCOUNTRY\n  USING (CUSTOMER_ID, TIME_WINDOW)\n  JOIN TOPZIPCODE \n  USING (CUSTOMER_ID, TIME_WINDOW) \n  JOIN TOPSHIPPINGMETHOD \n  USING (CUSTOMER_ID, TIME_WINDOW) \n  JOIN TOPPAYMENT_METHOD \n  USING (CUSTOMER_ID, TIME_WINDOW) \n  JOIN TOPBRAND \n  USING (CUSTOMER_ID, TIME_WINDOW) \n  JOIN TOPPRODUCTTYPE \n  USING (CUSTOMER_ID, TIME_WINDOW) \n  JOIN TOPCOLOR \n  USING (CUSTOMER_ID, TIME_WINDOW) \n  JOIN \n  ( SELECT DISTINCT \n      CUSTOMER_ID, TIME_WINDOW, \n      distinct_cities,\n      distinct_countries,\n      distinct_zip_codes,\n      distinct_shipping_methods,\n      distinct_payment_methods,\n      distinct_brands,\n      distinct_product_types,\n      distinct_colors\n    FROM COUNTS)\n  USING (CUSTOMER_ID, TIME_WINDOW)\n  JOIN AGGREGATES\n  USING (CUSTOMER_ID, TIME_WINDOW)\n",
+          "value": "WITH ERPDATA_RAW AS (\n  SELECT DISTINCT\n    CUSTOMER_ID,\n    ORDER_ID, \n    PRODUCT_ID, \n    CAST(ORDER_DATE AS DATE) AS ORDER_DATE,\n    COUNTRY, \n    CITY, \n    ZIP_CODE, \n    QUANTITY, \n    RETURN_QUANTITY, \n    IF(RETURN_DATE IS NOT NULL AND RETURN_QUANTITY > 0, \n        DATE_DIFF(CAST(RETURN_DATE AS DATE), CAST(ORDER_DATE AS DATE), DAY),\n        0) \n      AS DATE_DIFF_ORDER_RETURN,\n    IF(RETURN_QUANTITY > 0, TRUE, FALSE) AS HAS_RETURNED,\n    SHIPPING_METHOD, \n    PAYMENT_METHOD, \n    DISCOUNT,\n    SHIPPING_FEE,\n    IF(SHIPPING_FEE = 0, 1, 0) AS FREE_SHIPPING,\n    PRICE,\n    (IFNULL(QUANTITY,0) - IFNULL(RETURN_QUANTITY,0)) * (IFNULL(PRICE,0) - IFNULL(COGS,0)) - IFNULL(OTHER_COGS,0)  AS PROFIT\n  FROM `{% BQ_PROJECT_ID %}.{% BQ_ERP_DATASET_ID %}.{% BQ_ERPTABLE_ID %}`\n),\nWINDOWS_CHECKS AS (\n  SELECT  \n    * except (slide_window, sfap, efap, stap, etap),\n    IF(order_date >= sfap \n        AND order_date <= efap, slide_window, 0) AS TIME_WINDOW\nFROM \n  {% BQ_PROJECT_ID %}.{% BQ_DATASET_ID %}.sliding_windows, \n  ERPDATA_RAW\n),\nERPDATA AS (\n  SELECT * \n  FROM WINDOWS_CHECKS \n  WHERE TIME_WINDOW != 0\n),\nMCDATA AS (\n  SELECT DISTINCT\n    CAST(mpn AS STRING) AS mpn,\n    brand,\n    product_type,\n    color\n  FROM `{% BQ_PROJECT_ID %}.{% BQ_MC_DATASET_ID %}.{% BQ_MCTABLE_ID %}` \n), \nERPMCDATA AS (\nSELECT DISTINCT\n ERPDATA.*,\n MCDATA.*\nFROM \n  ERPDATA \n  LEFT JOIN MCDATA\n  ON mpn = product_id\n),\nCOUNTS AS (\n  SELECT DISTINCT\n    CUSTOMER_ID, TIME_WINDOW,\n    CITY,\n    COUNT (*) OVER(PARTITION BY CUSTOMER_ID, TIME_WINDOW, CITY) AS CITY_count,          \n    COUNT(DISTINCT CITY) OVER(PARTITION BY CUSTOMER_ID, TIME_WINDOW) \n      AS distinct_cities,\n    COUNTRY,\n    COUNT(*) OVER(PARTITION BY CUSTOMER_ID, TIME_WINDOW, COUNTRY)                         \n      AS COUNTRY_count,                         \n    COUNT(DISTINCT COUNTRY) OVER(PARTITION BY CUSTOMER_ID, TIME_WINDOW) \n      AS distinct_countries,\n    ZIP_CODE,                         \n    COUNT (*) OVER(PARTITION BY CUSTOMER_ID, TIME_WINDOW, ZIP_CODE)                        \n      AS ZIP_CODE_count,                        \n    COUNT(DISTINCT ZIP_CODE) OVER(PARTITION BY CUSTOMER_ID, TIME_WINDOW) \n      AS distinct_zip_codes,\n    SHIPPING_METHOD, \n    COUNT (*) OVER(PARTITION BY CUSTOMER_ID, TIME_WINDOW, SHIPPING_METHOD)                 \n      AS SHIPPING_METHOD_count,                 \n    COUNT(DISTINCT SHIPPING_METHOD) OVER(PARTITION BY CUSTOMER_ID, TIME_WINDOW) \n      AS distinct_shipping_methods,\n    PAYMENT_METHOD, \n    COUNT (*) OVER(PARTITION BY CUSTOMER_ID, TIME_WINDOW, PAYMENT_METHOD)                  \n      AS PAYMENT_METHOD_count,                  \n    COUNT(DISTINCT PAYMENT_METHOD) OVER(PARTITION BY CUSTOMER_ID, TIME_WINDOW) \n      AS distinct_payment_methods,\n    brand,\n    COUNT (*) OVER(PARTITION BY CUSTOMER_ID, TIME_WINDOW, brand)                           \n      AS brand_count,                           \n    COUNT(DISTINCT brand) OVER(PARTITION BY CUSTOMER_ID, TIME_WINDOW) \n      AS distinct_brands,\n    product_type,\n    COUNT (*) OVER(PARTITION BY CUSTOMER_ID, TIME_WINDOW, product_type)                    \n      AS product_type_count,                    \n    COUNT(DISTINCT product_type) OVER(PARTITION BY CUSTOMER_ID, TIME_WINDOW) \n      AS distinct_product_types,  \n    color, \n    COUNT (*) OVER(PARTITION BY CUSTOMER_ID, TIME_WINDOW, color)\n      AS color_count,                           \n    COUNT(DISTINCT color) OVER(PARTITION BY CUSTOMER_ID, TIME_WINDOW) \n      AS distinct_colors,\n    ORDER_ID AS CUSTOMER_ORDER_ID, \n    SUM(QUANTITY) OVER (PARTITION BY CUSTOMER_ID, TIME_WINDOW, ORDER_ID)                   \n      AS products_quantity_per_order,\n    SUM(RETURN_QUANTITY) OVER (PARTITION BY CUSTOMER_ID, TIME_WINDOW, ORDER_ID)           \n      AS returned_products_qauntity_per_order\n  FROM ERPMCDATA\n), \nTOPSCITY AS (\n  SELECT DISTINCT\n  CUSTOMER_ID, TIME_WINDOW,\n  NTH_VALUE(CITY, 1) OVER (PARTITION BY CUSTOMER_ID, TIME_WINDOW \n      ORDER BY CITY_count DESC \n      ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) \n      AS most_popular_city,  \n  NTH_VALUE(CITY, 2) OVER (PARTITION BY CUSTOMER_ID, TIME_WINDOW \n      ORDER BY CITY_count DESC \n      ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) \n      AS second_most_popular_city,  \n  NTH_VALUE(CITY, 3) OVER (PARTITION BY CUSTOMER_ID, TIME_WINDOW \n      ORDER BY CITY_count DESC \n      ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) \n      AS third_most_popular_city,\n FROM (SELECT DISTINCT CUSTOMER_ID, TIME_WINDOW, CITY, CITY_count FROM COUNTS)\n),\nTOPCOUNTRY AS (\n  SELECT DISTINCT\n  CUSTOMER_ID, TIME_WINDOW,\n  NTH_VALUE(COUNTRY, 1) OVER (PARTITION BY CUSTOMER_ID, TIME_WINDOW \n      ORDER BY COUNTRY_count DESC \n      ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) \n      AS most_popular_country,  \n  NTH_VALUE(COUNTRY, 2) OVER (PARTITION BY CUSTOMER_ID, TIME_WINDOW \n      ORDER BY COUNTRY_count DESC \n      ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) \n      AS second_most_popular_country,  \n  NTH_VALUE(COUNTRY, 3) OVER (PARTITION BY CUSTOMER_ID, TIME_WINDOW \n      ORDER BY COUNTRY_count DESC \n      ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) \n      AS third_most_popular_country,\n FROM (SELECT DISTINCT CUSTOMER_ID, TIME_WINDOW, COUNTRY, COUNTRY_count \n       FROM COUNTS)\n),\nTOPZIPCODE AS (\n  SELECT DISTINCT\n  CUSTOMER_ID, TIME_WINDOW,\n  NTH_VALUE(CONCAT('zip_', ZIP_CODE), 1) OVER (PARTITION BY CUSTOMER_ID, TIME_WINDOW \n      ORDER BY ZIP_CODE_count DESC \n      ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) \n      AS most_popular_zip_code,  \n  NTH_VALUE(CONCAT('zip_', ZIP_CODE), 2) OVER (PARTITION BY CUSTOMER_ID, TIME_WINDOW \n      ORDER BY ZIP_CODE_count DESC \n      ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) \n      AS second_most_popular_zip_code,  \n  NTH_VALUE(CONCAT('zip_', ZIP_CODE), 3) OVER (PARTITION BY CUSTOMER_ID, TIME_WINDOW \n      ORDER BY ZIP_CODE_count DESC \n      ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) \n      AS third_most_popular_zip_code,\n FROM (SELECT DISTINCT CUSTOMER_ID, TIME_WINDOW, ZIP_CODE, ZIP_CODE_count \n       FROM COUNTS)\n),\nTOPSHIPPINGMETHOD AS (\n  SELECT DISTINCT\n  CUSTOMER_ID, TIME_WINDOW,\n  NTH_VALUE(SHIPPING_METHOD, 1) OVER (PARTITION BY CUSTOMER_ID, TIME_WINDOW \n      ORDER BY SHIPPING_METHOD_count DESC \n      ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) \n      AS most_popular_shipping_method,  \n  NTH_VALUE(SHIPPING_METHOD, 2) OVER (PARTITION BY CUSTOMER_ID, TIME_WINDOW \n      ORDER BY SHIPPING_METHOD_count DESC \n      ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) \n      AS second_most_shipping_method,  \n  NTH_VALUE(SHIPPING_METHOD, 3) OVER (PARTITION BY CUSTOMER_ID, TIME_WINDOW \n      ORDER BY SHIPPING_METHOD_count DESC \n      ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) \n      AS third_most_shipping_method,\n FROM (SELECT \n          DISTINCT \n            CUSTOMER_ID, TIME_WINDOW, SHIPPING_METHOD, SHIPPING_METHOD_count \n        FROM COUNTS)\n),\nTOPPAYMENT_METHOD AS (\n  SELECT DISTINCT\n  CUSTOMER_ID, TIME_WINDOW,\n  NTH_VALUE(PAYMENT_METHOD, 1) OVER (PARTITION BY CUSTOMER_ID, TIME_WINDOW \n      ORDER BY PAYMENT_METHOD_count DESC \n      ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) \n      AS most_popular_payment_method,  \n  NTH_VALUE(PAYMENT_METHOD, 2) OVER (PARTITION BY CUSTOMER_ID, TIME_WINDOW \n      ORDER BY PAYMENT_METHOD_count DESC \n      ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) \n      AS second_most_payment_method,  \n  NTH_VALUE(PAYMENT_METHOD, 3) OVER (PARTITION BY CUSTOMER_ID, TIME_WINDOW \n      ORDER BY PAYMENT_METHOD_count DESC \n      ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) \n      AS third_most_payment_method,\n FROM (SELECT DISTINCT \n        CUSTOMER_ID, TIME_WINDOW, PAYMENT_METHOD, PAYMENT_METHOD_count \n      FROM COUNTS)\n),\nTOPBRAND AS (\n  SELECT DISTINCT\n  CUSTOMER_ID, TIME_WINDOW,\n  NTH_VALUE(brand, 1) OVER (PARTITION BY CUSTOMER_ID, TIME_WINDOW \n      ORDER BY brand_count DESC \n      ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) \n      AS most_popular_brand,  \n  NTH_VALUE(brand, 2) OVER (PARTITION BY CUSTOMER_ID, TIME_WINDOW \n      ORDER BY brand_count DESC \n      ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) \n      AS second_most_popular_brand,  \n  NTH_VALUE(brand, 3) OVER (PARTITION BY CUSTOMER_ID, TIME_WINDOW\n      ORDER BY brand_count DESC \n      ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) \n      AS third_most_popular_brand,\n FROM (SELECT DISTINCT CUSTOMER_ID, TIME_WINDOW, brand, brand_count FROM COUNTS)\n),\nTOPPRODUCTTYPE AS (\n  SELECT DISTINCT\n  CUSTOMER_ID, TIME_WINDOW,\n  NTH_VALUE(product_type, 1) OVER (PARTITION BY CUSTOMER_ID, TIME_WINDOW \n      ORDER BY product_type_count DESC \n      ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) \n      AS most_popular_product_type,  \n  NTH_VALUE(product_type, 2) OVER (PARTITION BY CUSTOMER_ID, TIME_WINDOW \n      ORDER BY product_type_count DESC \n      ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) \n      AS second_most_popular_product_type,  \n  NTH_VALUE(product_type, 3) OVER (PARTITION BY CUSTOMER_ID, TIME_WINDOW \n      ORDER BY product_type_count DESC \n      ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) \n      AS third_most_popular_product_type,\n FROM (SELECT DISTINCT \n         CUSTOMER_ID, TIME_WINDOW, product_type, product_type_count \n       FROM COUNTS)\n),\nTOPCOLOR AS (\n  SELECT DISTINCT\n  CUSTOMER_ID, TIME_WINDOW,\n  NTH_VALUE(color, 1) OVER (PARTITION BY CUSTOMER_ID, TIME_WINDOW \n      ORDER BY color_count DESC \n      ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) \n      AS most_popular_color,  \n  NTH_VALUE(color, 2) OVER (PARTITION BY CUSTOMER_ID, TIME_WINDOW \n      ORDER BY color_count DESC \n      ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) \n      AS second_most_popular_color,  \n  NTH_VALUE(color, 3) OVER (PARTITION BY CUSTOMER_ID, TIME_WINDOW \n      ORDER BY color_count DESC \n      ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) \n      AS third_most_popular_color,\n FROM (SELECT DISTINCT CUSTOMER_ID, TIME_WINDOW, color, color_count FROM COUNTS)\n),\nORDER_DATES_ARRAY AS (\nSELECT \n    CUSTOMER_ID, TIME_WINDOW, \n    ARRAY_AGG(DISTINCT ORDER_DATE) AS order_dates\nFROM ERPMCDATA\nGROUP BY 1,2\n),\nORDER_DATES_DELTAS AS (\nSELECT \n  CUSTOMER_ID, TIME_WINDOW, \n  DATE_DIFF(order_date, \n      LAG(order_date, 1, NULL) \n        OVER (PARTITION BY CUSTOMER_ID, TIME_WINDOW ORDER BY order_date), \n      DAY)\n    AS delta\nFROM \n  ORDER_DATES_ARRAY AS dates, \n  dates.order_dates AS order_date\n),\nAGG_DELTAS AS (\n  SELECT \n    CUSTOMER_ID, \n    TIME_WINDOW,\n    ROUND(AVG(delta), 1) AS avg_days_between_orders,\n    MAX(delta) AS max_days_between_orders, \n    MIN(delta) AS min_days_between_orders\n  FROM ORDER_DATES_DELTAS\n  GROUP BY CUSTOMER_ID, TIME_WINDOW\n),\nSAFE_AGG_DELTAS AS (\n  SELECT \n    DISTINCT\n      CUSTOMER_ID, \n      TIME_WINDOW,\n      IF(avg_days_between_orders IS NULL, 0, avg_days_between_orders) AS avg_days_between_orders,\n      IF(max_days_between_orders IS NULL, 0, max_days_between_orders) AS max_days_between_orders,\n      IF(min_days_between_orders IS NULL, 0, min_days_between_orders) AS min_days_between_orders\n  FROM AGG_DELTAS\n),\nQUANTITYPERORDER AS (\n  SELECT \n    DISTINCT \n      CUSTOMER_ID, TIME_WINDOW, \n      CUSTOMER_ORDER_ID, \n      products_quantity_per_order, \n      returned_products_qauntity_per_order\n  FROM COUNTS\n),\nAGG_QUANTITYPERORDER AS (\n  SELECT \n    CUSTOMER_ID, \n    TIME_WINDOW,\n    MIN(products_quantity_per_order) AS min_product_quantity_per_order,\n    MAX(products_quantity_per_order) AS max_product_quantity_per_order,\n    AVG(products_quantity_per_order) AS avg_product_quantity_per_order,\n    \n    MIN(returned_products_qauntity_per_order) \n      AS min_returned_products_qauntity_per_order,\n    MAX(returned_products_qauntity_per_order) \n      AS max_returned_products_qauntity_per_order,\n    AVG(returned_products_qauntity_per_order) \n      AS avg_returned_products_qauntity_per_order,\n  FROM QUANTITYPERORDER\n  GROUP BY CUSTOMER_ID, TIME_WINDOW\n),\nEtaps AS (\n  SELECT \n    DISTINCT\n      slide_window AS TIME_WINDOW,\n      efap\n  FROM `{% BQ_PROJECT_ID %}.{% BQ_DATASET_ID %}.sliding_windows`\n),\nDEDUPPED AS (\n  SELECT DISTINCT\n    CUSTOMER_ID, \n    TIME_WINDOW,\n    ORDER_ID, \n    PRODUCT_ID,\n    SHIPPING_FEE,\n    DISCOUNT,\n    DATE_DIFF_ORDER_RETURN,\n    HAS_RETURNED,\n    PROFIT,\n    PRICE,\n    ORDER_DATE\n  FROM \n    ERPMCDATA\n),\nDAYS_SINCE AS (\n   SELECT \n    CUSTOMER_ID, TIME_WINDOW, efap,\n    DATE_DIFF(efap, MIN(ORDER_DATE), DAY) AS days_since_first_order,\n    DATE_DIFF(efap, MAX(ORDER_DATE), DAY) AS days_since_last_order\n   FROM DEDUPPED\n   JOIN Etaps\n   USING (TIME_WINDOW)\n   GROUP BY 1,2,3\n),\nAGG_PRICING_STATS AS (\n  SELECT \n    CUSTOMER_ID, TIME_WINDOW,\n    MIN(SHIPPING_FEE) AS min_shipping_fee,\n    MAX(SHIPPING_FEE) AS max_shipping_fee,\n    AVG(SHIPPING_FEE) AS avg_shipping_fee,\n    SUM(SHIPPING_FEE) AS sum_shipping_fee,\n\n    MIN(DISCOUNT) AS min_discount,\n    MAX(DISCOUNT) AS max_discount,\n    AVG(DISCOUNT) AS avg_discount,\n    SUM(DISCOUNT) AS sum_discount,\n\n    MIN(DATE_DIFF_ORDER_RETURN) AS min_days_to_return_products,\n    MAX(DATE_DIFF_ORDER_RETURN) AS max_days_to_return_products,\n    AVG(DATE_DIFF_ORDER_RETURN) AS avg_days_to_return_products,\n\n    COUNTIF(HAS_RETURNED) AS total_products_returned,\n    COUNT(DISTINCT ORDER_ID) AS total_orders,\n    SUM(PROFIT) AS total_profit,\n    \n    MIN(PRICE) AS min_price,\n    MAX(PRICE) AS max_price,\n    AVG(PRICE) AS avg_price,\n    SUM(PRICE) AS sum_price,\n\n    ARRAY_AGG(DISTINCT ORDER_DATE) AS order_dates\n  FROM DEDUPPED \n  GROUP BY 1,2\n),\nAGGREGATES AS (\n  SELECT * \n  FROM AGG_PRICING_STATS\n  JOIN DAYS_SINCE\n  USING(CUSTOMER_ID, TIME_WINDOW)\n  JOIN AGG_QUANTITYPERORDER\n  USING(CUSTOMER_ID, TIME_WINDOW)\n  JOIN SAFE_AGG_DELTAS\n  USING(CUSTOMER_ID, TIME_WINDOW)\n)\nSELECT \n   * EXCEPT (order_dates, efap)\nFROM\n  TOPSCITY\n  JOIN TOPCOUNTRY\n  USING (CUSTOMER_ID, TIME_WINDOW)\n  JOIN TOPZIPCODE \n  USING (CUSTOMER_ID, TIME_WINDOW) \n  JOIN TOPSHIPPINGMETHOD \n  USING (CUSTOMER_ID, TIME_WINDOW) \n  JOIN TOPPAYMENT_METHOD \n  USING (CUSTOMER_ID, TIME_WINDOW) \n  JOIN TOPBRAND \n  USING (CUSTOMER_ID, TIME_WINDOW) \n  JOIN TOPPRODUCTTYPE \n  USING (CUSTOMER_ID, TIME_WINDOW) \n  JOIN TOPCOLOR \n  USING (CUSTOMER_ID, TIME_WINDOW) \n  JOIN \n  ( SELECT DISTINCT \n      CUSTOMER_ID, TIME_WINDOW, \n      distinct_cities,\n      distinct_countries,\n      distinct_zip_codes,\n      distinct_shipping_methods,\n      distinct_payment_methods,\n      distinct_brands,\n      distinct_product_types,\n      distinct_colors\n    FROM COUNTS)\n  USING (CUSTOMER_ID, TIME_WINDOW)\n  JOIN AGGREGATES\n  USING (CUSTOMER_ID, TIME_WINDOW)\n",
           "label": "Query",
           "is_required": false,
           "type": "sql",
@@ -51,13 +51,13 @@
           "name": "overwrite"
         }
       ],
-      "id": "6a401730be1f4518b00a461996e92fc6",
+      "id": "8fee7dbba30c4079b0e882795582485d",
       "name": "Creating ERP MC agg"
     },
     {
       "hash_start_conditions": [
         {
-          "preceding_job_id": "19fdb87b2b1945e7984a1ecf80143b38",
+          "preceding_job_id": "ccf2657b432a4586b5d0783e08ba1f3a",
           "condition": "success"
         }
       ],
@@ -104,13 +104,13 @@
           "name": "overwrite"
         }
       ],
-      "id": "6f1f359c9f414b0cb2fcb38c1b1c418f",
+      "id": "928fbaa4aad847648295c339a5750e04",
       "name": "Creating ga ids"
     },
     {
       "hash_start_conditions": [
         {
-          "preceding_job_id": "b45a7c529b714516be64782eb68084e2",
+          "preceding_job_id": "1e180570357340ef8e46261523fd1642",
           "condition": "success"
         }
       ],
@@ -157,21 +157,21 @@
           "name": "overwrite"
         }
       ],
-      "id": "599f70220510413ead8dd70b89bd88c5",
+      "id": "4b59e12340be4559bb0af637d4e5f9a9",
       "name": "Creating GA agg"
     },
     {
       "hash_start_conditions": [
         {
-          "preceding_job_id": "6a401730be1f4518b00a461996e92fc6",
+          "preceding_job_id": "8fee7dbba30c4079b0e882795582485d",
           "condition": "success"
         },
         {
-          "preceding_job_id": "599f70220510413ead8dd70b89bd88c5",
+          "preceding_job_id": "4b59e12340be4559bb0af637d4e5f9a9",
           "condition": "success"
         },
         {
-          "preceding_job_id": "8485341a375f4490bcbaa5fada0c1d73",
+          "preceding_job_id": "49fbc3cdc15c40bc9189e7736b3eed91",
           "condition": "success"
         }
       ],
@@ -179,7 +179,7 @@
       "params": [
         {
           "description": null,
-          "value": "SELECT\n* EXCEPT(CUSTOMER_ID, TIME_WINDOW)\nFROM\n  `{% BQ_PROJECT_ID %}.{% BQ_DATASET_ID %}.erp_mc_agg_monthly` AS ERPMCDATA\nJOIN\n  `{% BQ_PROJECT_ID %}.{% BQ_DATASET_ID %}.ga_agg_monthly` AS GADATA\n  USING(CUSTOMER_ID, TIME_WINDOW)\nJOIN \n  `{% BQ_PROJECT_ID %}.{% BQ_DATASET_ID %}.customer_profit_monthly` AS CUSTOMERDATA\n  USING(CUSTOMER_ID, TIME_WINDOW)",
+          "value": "SELECT\n  * EXCEPT(CUSTOMER_ID, TIME_WINDOW),\n  total_profit / IF(total_orders=0,1,total_orders) AS avg_profit_per_order,\n  distinct_cities / (days_since_first_order + 1) AS avg_cities_per_day,\n  distinct_countries / (days_since_first_order + 1) AS avg_countries_per_day,\n  distinct_zip_codes / (days_since_first_order + 1) AS avg_zip_codes_per_day,\n  distinct_shipping_methods / (days_since_first_order + 1) AS avg_shipping_methods_per_day,\n  distinct_payment_methods / (days_since_first_order + 1) AS avg_payment_methods_per_day,\n  distinct_brands / (days_since_first_order + 1) AS avg_brands_per_day,\n  distinct_product_types / (days_since_first_order + 1) AS avg_product_types_per_day,\n  distinct_colors / (days_since_first_order + 1) AS avg_colors_per_day,\n  total_products_returned / (days_since_first_order + 1) AS avg_products_returned_per_day,\n  total_orders / (days_since_first_order + 1) AS avg_orders_per_day,\n  total_profit / (days_since_first_order + 1) AS avg_profit_per_day,\n  sum_ga_time_on_page / (days_since_first_order + 1) AS avg_ga_time_on_page_per_day,\n  sum_ga_search_bar_keyword / (days_since_first_order + 1) AS avg_ga_search_bar_keyword_per_day,\n  sum_ga_products_in_detail_viewed / (days_since_first_order + 1) AS avg_ga_products_in_detail_viewed_per_day,\n  sum_ga_products_in_list_viewed / (days_since_first_order + 1) AS avg_ga_products_in_list_viewed_per_day,\n  distinct_ga_dates / (days_since_first_order + 1) AS avg_ga_dates_per_day,\n  distinct_ga_hours / (days_since_first_order + 1) AS avg_ga_hours_per_day,\n  distinct_ga_day_of_weeks / (days_since_first_order + 1) AS avg_ga_day_of_weeks_per_day,\n  distinct_ga_day_in_months / (days_since_first_order + 1) AS avg_ga_day_in_months_per_day,\n  distinct_ga_day_of_years / (days_since_first_order + 1) AS avg_ga_day_of_years_per_day,\n  distinct_ga_iso_weeks / (days_since_first_order + 1) AS avg_ga_iso_weeks_per_day,\n  distinct_ga_months / (days_since_first_order + 1) AS avg_ga_months_per_day,\n  distinct_ga_quarters / (days_since_first_order + 1) AS avg_ga_quarters_per_day,\n  distinct_ga_years / (days_since_first_order + 1) AS avg_ga_years_per_day,\n  distinct_ga_cities / (days_since_first_order + 1) AS avg_ga_cities_per_day,\n  distinct_ga_device_categories / (days_since_first_order + 1) AS avg_ga_device_categories_per_day,\n  distinct_ga_device_brandings / (days_since_first_order + 1) AS avg_ga_device_brandings_per_day,\n  distinct_ga_device_browsers / (days_since_first_order + 1) AS avg_ga_device_browsers_per_day,\n  distinct_ga_hostnames / (days_since_first_order + 1) AS avg_ga_hostnames_per_day,\n  distinct_ga_sources / (days_since_first_order + 1) AS avg_ga_sources_per_day,\n  distinct_ga_mediums / (days_since_first_order + 1) AS avg_ga_mediums_per_day,\n  distinct_ga_campaigns / (days_since_first_order + 1) AS avg_ga_campaigns_per_day,\n  distinct_ga_search_bar_keywords / (days_since_first_order + 1) AS avg_ga_search_bar_keywords_per_day,\n  distinct_ga_action_types / (days_since_first_order + 1) AS avg_ga_action_types_per_day\nFROM\n  `{% BQ_PROJECT_ID %}.{% BQ_DATASET_ID %}.erp_mc_agg_monthly` AS ERPMCDATA\nLEFT JOIN\n  `{% BQ_PROJECT_ID %}.{% BQ_DATASET_ID %}.ga_agg_monthly` AS GADATA\n  USING(CUSTOMER_ID, TIME_WINDOW)\nJOIN \n  `{% BQ_PROJECT_ID %}.{% BQ_DATASET_ID %}.customer_profit_monthly` AS CUSTOMERDATA\n  USING(CUSTOMER_ID, TIME_WINDOW)",
           "label": "Query",
           "is_required": false,
           "type": "sql",
@@ -218,13 +218,13 @@
           "name": "overwrite"
         }
       ],
-      "id": "8f07c300f00d4a54ad73a9eb3409782b",
+      "id": "13a3905cbf7c452f9a0fbe8158948bdf",
       "name": "Creating final table"
     },
     {
       "hash_start_conditions": [
         {
-          "preceding_job_id": "8f07c300f00d4a54ad73a9eb3409782b",
+          "preceding_job_id": "13a3905cbf7c452f9a0fbe8158948bdf",
           "condition": "success"
         }
       ],
@@ -287,13 +287,13 @@
           "name": "input_gcs_uri"
         }
       ],
-      "id": "9daf5175e23f48a1900b43186e0d866b",
+      "id": "0bbb63182c4c4ef5b216b01f2252fd1b",
       "name": "Import training data to AutoML"
     },
     {
       "hash_start_conditions": [
         {
-          "preceding_job_id": "9daf5175e23f48a1900b43186e0d866b",
+          "preceding_job_id": "0bbb63182c4c4ef5b216b01f2252fd1b",
           "condition": "success"
         }
       ],
@@ -388,11 +388,16 @@
           "name": "stop_early"
         }
       ],
-      "id": "2f915474da734dc5ae0fe906190282be",
+      "id": "24e3e558602044048a7b5eab9ff89902",
       "name": "Train monthly model in AutoML"
     },
     {
-      "hash_start_conditions": [],
+      "hash_start_conditions": [
+        {
+          "preceding_job_id": "8e8c14f11cfd432cb75e04775d78924c",
+          "condition": "success"
+        }
+      ],
       "worker_class": "BQQueryLauncher",
       "params": [
         {
@@ -436,13 +441,13 @@
           "name": "overwrite"
         }
       ],
-      "id": "19fdb87b2b1945e7984a1ecf80143b38",
+      "id": "ccf2657b432a4586b5d0783e08ba1f3a",
       "name": "Create sliding windows time ranges"
     },
     {
       "hash_start_conditions": [
         {
-          "preceding_job_id": "19fdb87b2b1945e7984a1ecf80143b38",
+          "preceding_job_id": "ccf2657b432a4586b5d0783e08ba1f3a",
           "condition": "success"
         }
       ],
@@ -450,7 +455,7 @@
       "params": [
         {
           "description": null,
-          "value": "WITH ERPDATA_RAW AS (\n  SELECT DISTINCT\n    CUSTOMER_ID,\n    ORDER_ID, \n    PRODUCT_ID, \n    CAST(ORDER_DATE AS DATE) AS ORDER_DATE,\n    COUNTRY, \n    CITY, \n    ZIP_CODE, \n    QUANTITY, \n    RETURN_QUANTITY, \n    IF(RETURN_DATE  IS NOT NULL, \n        DATE_DIFF(CAST(RETURN_DATE AS DATE), CAST(ORDER_DATE AS DATE), DAY),\n        0) \n      AS DATE_DIFF_ORDER_RETURN,\n    IF(RETURN_DATE IS NOT NULL, TRUE, FALSE) AS HAS_RETURNED,\n    SHIPPING_METHOD, \n    PAYMENT_METHOD, \n    DISCOUNT,\n    SHIPPING_FEE,\n    IF(SHIPPING_FEE = 0, 1, 0) AS FREE_SHIPPING,\n    PRICE,\n    (QUANTITY - RETURN_QUANTITY) * (PRICE - COGS) - OTHER_COGS  AS PROFIT\n  FROM `{% BQ_PROJECT_ID %}.{% BQ_ERP_DATASET_ID %}.{% BQ_ERPTABLE_ID %}`\n),\nWINDOWS_CHECKS_FAP AS (\n  SELECT  \n    * except (slide_window), -- sfap, efap, stap, etap\n    IF(order_date >= sfap \n        AND order_date <= efap, slide_window, 0) AS TIME_WINDOW\nFROM \n  {% BQ_PROJECT_ID %}.{% BQ_DATASET_ID %}.sliding_windows, \n  ERPDATA_RAW\n),\nERPDATA_FAP AS (\n  SELECT * \n  FROM WINDOWS_CHECKS_FAP \n  WHERE TIME_WINDOW != 0 \n),\nWINDOWS_CHECKS_TAP AS (\n  SELECT  \n    * except (slide_window), -- sfap, efap, stap, etap\n    IF(order_date >= stap \n        AND order_date <= etap, slide_window, 0) AS TIME_WINDOW\nFROM \n  {% BQ_PROJECT_ID %}.{% BQ_DATASET_ID %}.sliding_windows,  \n  ERPDATA_RAW\n),\nERPDATA_TAP AS (\n  SELECT * \n  FROM WINDOWS_CHECKS_TAP \n  WHERE TIME_WINDOW != 0 \n),\nTWO_WEEKS_DAYS_DATA AS (\n  SELECT \n    CUSTOMER_ID, TIME_WINDOW,\n    SUM(profit) AS profit_14days,\n    COUNT(DISTINCT order_id) AS num_orders_14_days,\n    COUNT(DISTINCT product_id) AS num_products_14_days\n  FROM ERPDATA_FAP\n  WHERE \n    ORDER_DATE >= DATE_SUB(efap, INTERVAL 14 DAY) \n    AND ORDER_DATE <= efap\n  GROUP BY 1,2\n), \nONE_MONTH_DATA AS (\n  SELECT \n    CUSTOMER_ID, TIME_WINDOW, \n    SUM(profit) AS profit_1_month,\n    COUNT(DISTINCT order_id) AS num_orders_1_month,\n    COUNT(DISTINCT product_id) AS num_products_1_month\n  FROM ERPDATA_FAP\n  WHERE \n    ORDER_DATE >= DATE_SUB(efap, INTERVAL 1 MONTH) \n    AND ORDER_DATE <= efap\n  GROUP BY 1,2\n), \nTHREE_MONTHS_DATA AS (\n  SELECT \n    CUSTOMER_ID, TIME_WINDOW, \n    SUM(profit) AS profit_3_months,\n    COUNT(DISTINCT order_id) AS num_orders_3_months,\n    COUNT(DISTINCT product_id) AS num_products_3_months\n  FROM ERPDATA_FAP\n  WHERE \n    ORDER_DATE >= DATE_SUB(efap, INTERVAL 3 MONTH) \n    AND ORDER_DATE <= efap\n  GROUP BY 1,2\n), \nSIX_MONTHS_DATA AS (\n  SELECT \n    CUSTOMER_ID, TIME_WINDOW, \n    SUM(profit) AS profit_6_months,\n    COUNT(DISTINCT order_id) AS num_orders_6_months,\n    COUNT(DISTINCT product_id) AS num_products_6_months\n  FROM ERPDATA_FAP\n  WHERE \n    ORDER_DATE >= DATE_SUB(efap, INTERVAL 6 MONTH) \n    AND ORDER_DATE <= efap\n  GROUP BY 1,2\n), \nTOTAL_DATA AS (\nSELECT\n  CUSTOMER_ID, TIME_WINDOW, \n  IF(SUM(PROFIT) IS NULL, 0, SUM(PROFIT)) AS total_profit_response\nFROM ERPDATA_TAP\nWHERE \n  ORDER_DATE >= stap\n  AND ORDER_DATE <= etap\nGROUP BY 1,2\n),\nDISTINCT_CUSTOMERS AS (\n    SELECT DISTINCT CUSTOMER_ID,\n    TIME_WINDOW\n    FROM ERPDATA_FAP\n)\nSELECT \n  CUSTOMER_ID, TIME_WINDOW, \n  IF(total_profit_response IS NULL, 0, total_profit_response) AS total_profit_response,\n  IF(profit_14days IS NULL, 0, profit_14days) AS profit_14days,\n  IF(num_orders_14_days IS NULL, 0, num_orders_14_days) AS num_orders_14_days,\n  IF(num_products_14_days IS NULL, 0, num_products_14_days) AS num_products_14_days,\n  IF(profit_1_month IS NULL, 0, profit_1_month) AS profit_1_month,\n  IF(num_orders_1_month IS NULL, 0, num_orders_1_month) AS num_orders_1_month,\n  IF(num_products_1_month IS NULL, 0, num_products_1_month) AS num_products_1_month,\n  IF(profit_3_months IS NULL, 0, profit_3_months) AS profit_3_months,\n  IF(num_orders_3_months IS NULL, 0, num_orders_3_months) AS num_orders_3_months,\n  IF(num_products_3_months IS NULL, 0, num_products_3_months) AS num_products_3_months,\n  IF(profit_6_months IS NULL, 0, profit_6_months) AS profit_6_months,\n  IF(num_orders_6_months IS NULL, 0, num_orders_6_months) AS num_orders_6_months,\n  IF(num_products_6_months IS NULL, 0, num_products_6_months) AS num_products_6_months\nFROM DISTINCT_CUSTOMERS\nFULL JOIN TOTAL_DATA\nUSING(CUSTOMER_ID, TIME_WINDOW)\nFULL JOIN TWO_WEEKS_DAYS_DATA\nUSING(CUSTOMER_ID, TIME_WINDOW)\nFULL JOIN ONE_MONTH_DATA\nUSING(CUSTOMER_ID, TIME_WINDOW)\nFULL JOIN THREE_MONTHS_DATA\nUSING(CUSTOMER_ID, TIME_WINDOW)\nFULL JOIN SIX_MONTHS_DATA\nUSING(CUSTOMER_ID, TIME_WINDOW)\n",
+          "value": "WITH ERPDATA_RAW AS (\n  SELECT DISTINCT\n    CUSTOMER_ID,\n    ORDER_ID, \n    PRODUCT_ID, \n    CAST(ORDER_DATE AS DATE) AS ORDER_DATE,\n    COUNTRY, \n    CITY, \n    ZIP_CODE, \n    QUANTITY, \n    RETURN_QUANTITY, \n    IF(RETURN_DATE IS NOT NULL AND RETURN_QUANTITY > 0, \n        DATE_DIFF(CAST(RETURN_DATE AS DATE), CAST(ORDER_DATE AS DATE), DAY),\n        0) \n      AS DATE_DIFF_ORDER_RETURN,\n    IF(RETURN_QUANTITY > 0, TRUE, FALSE) AS HAS_RETURNED,\n    SHIPPING_METHOD, \n    PAYMENT_METHOD, \n    DISCOUNT,\n    SHIPPING_FEE,\n    IF(SHIPPING_FEE = 0, 1, 0) AS FREE_SHIPPING,\n    PRICE,\n    (IFNULL(QUANTITY,0) - IFNULL(RETURN_QUANTITY,0)) * (IFNULL(PRICE,0) - IFNULL(COGS,0)) - IFNULL(OTHER_COGS,0)  AS PROFIT\n  FROM `{% BQ_PROJECT_ID %}.{% BQ_ERP_DATASET_ID %}.{% BQ_ERPTABLE_ID %}`\n),\nWINDOWS_CHECKS_FAP AS (\n  SELECT  \n    * except (slide_window), -- sfap, efap, stap, etap\n    IF(order_date >= sfap \n        AND order_date <= efap, slide_window, 0) AS TIME_WINDOW\nFROM \n  {% BQ_PROJECT_ID %}.{% BQ_DATASET_ID %}.sliding_windows, \n  ERPDATA_RAW\n),\nERPDATA_FAP AS (\n  SELECT * \n  FROM WINDOWS_CHECKS_FAP \n  WHERE TIME_WINDOW != 0 \n),\nWINDOWS_CHECKS_TAP AS (\n  SELECT  \n    * except (slide_window), -- sfap, efap, stap, etap\n    IF(order_date >= stap \n        AND order_date <= etap, slide_window, 0) AS TIME_WINDOW\nFROM \n  {% BQ_PROJECT_ID %}.{% BQ_DATASET_ID %}.sliding_windows,  \n  ERPDATA_RAW\n),\nERPDATA_TAP AS (\n  SELECT * \n  FROM WINDOWS_CHECKS_TAP \n  WHERE TIME_WINDOW != 0 \n),\nTWO_WEEKS_DAYS_DATA AS (\n  SELECT \n    CUSTOMER_ID, TIME_WINDOW,\n    SUM(profit) AS profit_14days,\n    COUNT(DISTINCT order_id) AS num_orders_14_days,\n    COUNT(DISTINCT product_id) AS num_products_14_days\n  FROM ERPDATA_FAP\n  WHERE \n    ORDER_DATE >= DATE_SUB(efap, INTERVAL 14 DAY) \n    AND ORDER_DATE <= efap\n  GROUP BY 1,2\n), \nONE_MONTH_DATA AS (\n  SELECT \n    CUSTOMER_ID, TIME_WINDOW, \n    SUM(profit) AS profit_1_month,\n    COUNT(DISTINCT order_id) AS num_orders_1_month,\n    COUNT(DISTINCT product_id) AS num_products_1_month\n  FROM ERPDATA_FAP\n  WHERE \n    ORDER_DATE >= DATE_SUB(efap, INTERVAL 1 MONTH) \n    AND ORDER_DATE <= efap\n  GROUP BY 1,2\n), \nTHREE_MONTHS_DATA AS (\n  SELECT \n    CUSTOMER_ID, TIME_WINDOW, \n    SUM(profit) AS profit_3_months,\n    COUNT(DISTINCT order_id) AS num_orders_3_months,\n    COUNT(DISTINCT product_id) AS num_products_3_months\n  FROM ERPDATA_FAP\n  WHERE \n    ORDER_DATE >= DATE_SUB(efap, INTERVAL 3 MONTH) \n    AND ORDER_DATE <= efap\n  GROUP BY 1,2\n), \nSIX_MONTHS_DATA AS (\n  SELECT \n    CUSTOMER_ID, TIME_WINDOW, \n    SUM(profit) AS profit_6_months,\n    COUNT(DISTINCT order_id) AS num_orders_6_months,\n    COUNT(DISTINCT product_id) AS num_products_6_months\n  FROM ERPDATA_FAP\n  WHERE \n    ORDER_DATE >= DATE_SUB(efap, INTERVAL 6 MONTH) \n    AND ORDER_DATE <= efap\n  GROUP BY 1,2\n), \nTOTAL_DATA AS (\nSELECT\n  CUSTOMER_ID, TIME_WINDOW, \n  IF(SUM(PROFIT) IS NULL, 0, SUM(PROFIT)) AS total_profit_response\nFROM ERPDATA_TAP\nWHERE \n  ORDER_DATE >= stap\n  AND ORDER_DATE <= etap\nGROUP BY 1,2\n),\nDISTINCT_CUSTOMERS AS (\n    SELECT DISTINCT CUSTOMER_ID,\n    TIME_WINDOW\n    FROM ERPDATA_FAP\n)\nSELECT \n  CUSTOMER_ID, TIME_WINDOW, \n  IF(total_profit_response IS NULL, 0, total_profit_response) AS total_profit_response,\n  IF(profit_14days IS NULL, 0, profit_14days) AS profit_14days,\n  IF(num_orders_14_days IS NULL, 0, num_orders_14_days) AS num_orders_14_days,\n  IF(num_products_14_days IS NULL, 0, num_products_14_days) AS num_products_14_days,\n  IF(profit_1_month IS NULL, 0, profit_1_month) AS profit_1_month,\n  IF(num_orders_1_month IS NULL, 0, num_orders_1_month) AS num_orders_1_month,\n  IF(num_products_1_month IS NULL, 0, num_products_1_month) AS num_products_1_month,\n  IF(profit_3_months IS NULL, 0, profit_3_months) AS profit_3_months,\n  IF(num_orders_3_months IS NULL, 0, num_orders_3_months) AS num_orders_3_months,\n  IF(num_products_3_months IS NULL, 0, num_products_3_months) AS num_products_3_months,\n  IF(profit_6_months IS NULL, 0, profit_6_months) AS profit_6_months,\n  IF(num_orders_6_months IS NULL, 0, num_orders_6_months) AS num_orders_6_months,\n  IF(num_products_6_months IS NULL, 0, num_products_6_months) AS num_products_6_months\nFROM DISTINCT_CUSTOMERS\nFULL JOIN TOTAL_DATA\nUSING(CUSTOMER_ID, TIME_WINDOW)\nFULL JOIN TWO_WEEKS_DAYS_DATA\nUSING(CUSTOMER_ID, TIME_WINDOW)\nFULL JOIN ONE_MONTH_DATA\nUSING(CUSTOMER_ID, TIME_WINDOW)\nFULL JOIN THREE_MONTHS_DATA\nUSING(CUSTOMER_ID, TIME_WINDOW)\nFULL JOIN SIX_MONTHS_DATA\nUSING(CUSTOMER_ID, TIME_WINDOW)\n",
           "label": "Query",
           "is_required": false,
           "type": "sql",
@@ -489,13 +494,13 @@
           "name": "overwrite"
         }
       ],
-      "id": "8485341a375f4490bcbaa5fada0c1d73",
+      "id": "49fbc3cdc15c40bc9189e7736b3eed91",
       "name": "Creating Customer Profit "
     },
     {
       "hash_start_conditions": [
         {
-          "preceding_job_id": "6f1f359c9f414b0cb2fcb38c1b1c418f",
+          "preceding_job_id": "928fbaa4aad847648295c339a5750e04",
           "condition": "success"
         }
       ],
@@ -503,7 +508,7 @@
       "params": [
         {
           "description": null,
-          "value": "WITH MAX_DATE AS (\n  SELECT \n    MAX(PARSE_DATE('%Y%m%d', date)) AS max_ga_date\n  FROM \n    `{% BQ_GA_PROJECT_ID %}.{% BQ_GA_DATASET_ID %}.ga_sessions_*`\n),\nGADATA_RAW AS (\n  SELECT \n    * \n  FROM \n    `{% BQ_GA_PROJECT_ID %}.{% BQ_GA_DATASET_ID %}.ga_sessions_*`,\n    MAX_DATE\n),\nWINDOWS_CHECKS AS (\n  SELECT  \n    * except (slide_window, sfap, efap, stap, etap),\n    IF(CAST(PARSE_DATE('%Y%m%d', date) AS DATE) >= sfap \n        AND CAST(PARSE_DATE('%Y%m%d', date) AS DATE) <= efap, \n        slide_window, \n        0) AS TIME_WINDOW\n  FROM \n    {% BQ_PROJECT_ID %}.{% BQ_DATASET_ID %}.sliding_windows, \n    GADATA_RAW\n),\nGADATA_WINDOWS AS (\n  SELECT * \n  FROM WINDOWS_CHECKS \n  WHERE TIME_WINDOW != 0\n), \nGADATA AS (\nSELECT DISTINCT\n PARSE_DATE('%Y%m%d', date)     AS ga_date,\n fullVisitorId                  AS fullVisitorId,\n TIME_WINDOW                    AS ga_time_window,\n visitStartTime                 AS visitStartTime,\n Hits.transaction.transactionId AS transaction_id,\n geoNetwork.city                AS city,\n device.deviceCategory          AS device_category,\n device.mobileDeviceBranding    AS device_branding,\n device.browser                 AS device_browser,\n trafficSource.source           AS source, \n trafficSource.medium           AS medium, \n trafficSource.campaign         AS campaign, \n totals.transactions            AS transactions, \n totals.pageviews               AS pageviews, \n totals.timeOnSite              AS timeOnSite,\n Hits.page.hostname             AS hostname,\n Products.v2ProductName\t        AS ga_product_discount,\n Products.productVariant\t    AS ga_product_color,\n Products.productBrand          AS ga_product_brand,\n IF(Hits.page.searchKeyword IS NULL, 0, 1) AS search_bar_keyword,\n CASE(Hits.eCommerceAction.action_type)\n     WHEN \"0\" THEN 'Unknown' \n     WHEN \"1\" THEN 'Click_product_lists' \n     WHEN \"2\" THEN 'Product_detail_views' \n     WHEN \"3\" THEN 'Add_to_cart' \n     WHEN \"4\" THEN 'Remove_from_cart' \n     WHEN \"5\" THEN 'Check_out' \n     WHEN \"6\" THEN 'Completed_purchase' \n     WHEN \"7\" THEN 'Refund_of_purchase' \n     WHEN \"8\" THEN 'Checkout_options' \n     ELSE 'Unknown' \n   END AS action_type,\n COUNT(DISTINCT Products.productSKU) OVER(\n   PARTITION BY \n     visitId, \n     fullVisitorId,\n     TIME_WINDOW,\n     Products.isImpression, \n     Hits.eCommerceAction.action_type\n   ) AS products_viewed,\n Products.isImpression AS is_impression,\n SUM(Products.LocalProductPrice/1000000) OVER(\n   PARTITION BY \n     visitId, \n     fullVisitorId,\n     TIME_WINDOW,\n     Hits.eCommerceAction.action_type\n   ) AS products_viewed_local_price,\n SUM(Products.ProductPrice/1000000) OVER(\n   PARTITION BY \n     visitId, \n     fullVisitorId,\n     TIME_WINDOW,\n     Hits.eCommerceAction.action_type\n   ) AS products_viewed_price\nFROM \n  GADATA_WINDOWS AS GADATA, \n  GADATA.hits AS Hits, \n  Hits.product as Products\n),\nJOINED AS (\n SELECT *\n FROM GADATA\n JOIN \n {% BQ_PROJECT_ID %}.{% BQ_DATASET_ID %}.ga_ids_monthly AS GAIDS \n USING (fullVisitorId)\n),\nUNNESTED AS (\n  SELECT * EXCEPT(CUSTOMER_IDS)\n  FROM JOINED, JOINED.CUSTOMER_IDS AS CUSTOMER_ID \n)\nSELECT \n *,\n SUM(IF(\n       (is_impression IS NULL OR is_impression IS FALSE) \n       AND action_type = \"Product_detail_views\", \n       products_viewed, 0)\n   ) AS products_in_detail_viewed,\n SUM(IF(is_impression, products_viewed, 0)) AS products_in_list_viewed,\nFROM UNNESTED\nGROUP BY\n  1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26",
+          "value": "WITH MAX_DATE AS (\n  SELECT \n    MAX(PARSE_DATE('%Y%m%d', date)) AS max_ga_date\n  FROM \n    `{% BQ_GA_PROJECT_ID %}.{% BQ_GA_DATASET_ID %}.ga_sessions_*`\n),\nGADATA_RAW AS (\n  SELECT \n    * \n  FROM \n    `{% BQ_GA_PROJECT_ID %}.{% BQ_GA_DATASET_ID %}.ga_sessions_*`,\n    MAX_DATE\n),\nWINDOWS_CHECKS AS (\n  SELECT  \n    * except (slide_window, sfap, efap, stap, etap),\n    IF(CAST(PARSE_DATE('%Y%m%d', date) AS DATE) >= sfap \n        AND CAST(PARSE_DATE('%Y%m%d', date) AS DATE) <= efap, \n        slide_window, \n        0) AS TIME_WINDOW\n  FROM \n    {% BQ_PROJECT_ID %}.{% BQ_DATASET_ID %}.sliding_windows, \n    GADATA_RAW\n),\nGADATA_WINDOWS AS (\n  SELECT * \n  FROM WINDOWS_CHECKS \n  WHERE TIME_WINDOW != 0\n), \nGADATA AS (\nSELECT DISTINCT\n PARSE_DATE('%Y%m%d', date)     AS ga_date,\n fullVisitorId                  AS fullVisitorId,\n TIME_WINDOW                    AS ga_time_window,\n visitStartTime                 AS visitStartTime,\n Hits.transaction.transactionId AS transaction_id,\n geoNetwork.city                AS city,\n device.deviceCategory          AS device_category,\n device.mobileDeviceBranding    AS device_branding,\n device.browser                 AS device_browser,\n trafficSource.source           AS source, \n trafficSource.medium           AS medium, \n trafficSource.campaign         AS campaign, \n totals.transactions            AS transactions, \n totals.pageviews               AS pageviews, \n totals.timeOnSite              AS timeOnSite,\n Hits.page.hostname             AS hostname,\n Products.v2ProductName\t        AS ga_product_discount,\n Products.productVariant\t    AS ga_product_color,\n Products.productBrand          AS ga_product_brand,\n IF(Hits.page.searchKeyword IS NULL, 0, 1) AS search_bar_keyword,\n CASE(Hits.eCommerceAction.action_type)\n     WHEN \"0\" THEN 'Unknown' \n     WHEN \"1\" THEN 'Click_product_lists' \n     WHEN \"2\" THEN 'Product_detail_views' \n     WHEN \"3\" THEN 'Add_to_cart' \n     WHEN \"4\" THEN 'Remove_from_cart' \n     WHEN \"5\" THEN 'Check_out' \n     WHEN \"6\" THEN 'Completed_purchase' \n     WHEN \"7\" THEN 'Refund_of_purchase' \n     WHEN \"8\" THEN 'Checkout_options' \n     ELSE 'Unknown' \n   END AS action_type,\n COUNT(DISTINCT Products.productSKU) OVER(\n   PARTITION BY \n     visitId, \n     fullVisitorId,\n     TIME_WINDOW,\n     Products.isImpression, \n     Hits.eCommerceAction.action_type\n   ) AS products_viewed,\n Products.isImpression AS is_impression,\n SUM(Products.LocalProductPrice/1000000) OVER(\n   PARTITION BY \n     visitId, \n     fullVisitorId,\n     TIME_WINDOW,\n     Hits.eCommerceAction.action_type\n   ) AS products_viewed_local_price,\n SUM(Products.ProductPrice/1000000) OVER(\n   PARTITION BY \n     visitId, \n     fullVisitorId,\n     TIME_WINDOW,\n     Hits.eCommerceAction.action_type\n   ) AS products_viewed_price\nFROM \n  GADATA_WINDOWS AS GADATA, \n  GADATA.hits AS Hits, \n  Hits.product as Products\nWHERE Hits.eventInfo.eventCategory != 'API'\n),\nJOINED AS (\n SELECT *\n FROM GADATA\n JOIN \n {% BQ_PROJECT_ID %}.{% BQ_DATASET_ID %}.ga_ids_monthly AS GAIDS \n USING (fullVisitorId)\n),\nUNNESTED AS (\n  SELECT * EXCEPT(CUSTOMER_IDS)\n  FROM JOINED, JOINED.CUSTOMER_IDS AS CUSTOMER_ID \n)\nSELECT \n *,\n SUM(IF(\n       (is_impression IS NULL OR is_impression IS FALSE) \n       AND action_type = \"Product_detail_views\", \n       products_viewed, 0)\n   ) AS products_in_detail_viewed,\n SUM(IF(is_impression, products_viewed, 0)) AS products_in_list_viewed,\nFROM UNNESTED\nGROUP BY\n  1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26",
           "label": "Query",
           "is_required": false,
           "type": "sql",
@@ -542,21 +547,16 @@
           "name": "overwrite"
         }
       ],
-      "id": "b45a7c529b714516be64782eb68084e2",
+      "id": "1e180570357340ef8e46261523fd1642",
       "name": "Creating GA Filtered"
     },
     {
-      "hash_start_conditions": [
-        {
-          "preceding_job_id": "2f915474da734dc5ae0fe906190282be",
-          "condition": "success"
-        }
-      ],
+      "hash_start_conditions": [],
       "worker_class": "BQQueryLauncher",
       "params": [
         {
           "description": null,
-          "value": "SELECT 1 AS cleared",
+          "value": "SELECT \nCURRENT_TIMESTAMP() AS timestamp,\n\"MONTHLY_TRAINING_START\" AS event,\n0 AS customer_count",
           "label": "Query",
           "is_required": false,
           "type": "sql",
@@ -580,7 +580,7 @@
         },
         {
           "description": null,
-          "value": "erp_mc_agg_monthly",
+          "value": "event_logs",
           "label": "BQ Table ID",
           "is_required": false,
           "type": "string",
@@ -588,20 +588,20 @@
         },
         {
           "description": null,
-          "value": true,
+          "value": false,
           "label": "Overwrite table",
           "is_required": false,
           "type": "boolean",
           "name": "overwrite"
         }
       ],
-      "id": "875d9b1f9858463cb705aec1dc9796dd",
-      "name": "Wipe erp_mc_agg_monthly Table"
+      "id": "8e8c14f11cfd432cb75e04775d78924c",
+      "name": "Log Event"
     },
     {
       "hash_start_conditions": [
         {
-          "preceding_job_id": "2f915474da734dc5ae0fe906190282be",
+          "preceding_job_id": "24e3e558602044048a7b5eab9ff89902",
           "condition": "success"
         }
       ],
@@ -609,7 +609,7 @@
       "params": [
         {
           "description": null,
-          "value": "SELECT 1 as cleared",
+          "value": "SELECT \nCURRENT_TIMESTAMP() AS timestamp,\n\"MONTHLY_TRAINING_END\" AS event,\nCOUNT(*) AS customer_count\nFROM `{% BQ_PROJECT_ID %}.{% BQ_DATASET_ID %}.final_table_monthly`",
           "label": "Query",
           "is_required": false,
           "type": "sql",
@@ -633,7 +633,7 @@
         },
         {
           "description": null,
-          "value": "ga_ids_monthly",
+          "value": "event_logs",
           "label": "BQ Table ID",
           "is_required": false,
           "type": "string",
@@ -641,227 +641,15 @@
         },
         {
           "description": null,
-          "value": true,
+          "value": false,
           "label": "Overwrite table",
           "is_required": false,
           "type": "boolean",
           "name": "overwrite"
         }
       ],
-      "id": "f5e6bb4b19044d61a19ee1786a10031d",
-      "name": "Wipe ga_ids_monthly Table"
-    },
-    {
-      "hash_start_conditions": [
-        {
-          "preceding_job_id": "2f915474da734dc5ae0fe906190282be",
-          "condition": "success"
-        }
-      ],
-      "worker_class": "BQQueryLauncher",
-      "params": [
-        {
-          "description": null,
-          "value": "SELECT 1 as cleared",
-          "label": "Query",
-          "is_required": false,
-          "type": "sql",
-          "name": "query"
-        },
-        {
-          "description": null,
-          "value": "{% BQ_PROJECT_ID %}",
-          "label": "BQ Project ID",
-          "is_required": false,
-          "type": "string",
-          "name": "bq_project_id"
-        },
-        {
-          "description": null,
-          "value": "{% BQ_DATASET_ID %}",
-          "label": "BQ Dataset ID",
-          "is_required": false,
-          "type": "string",
-          "name": "bq_dataset_id"
-        },
-        {
-          "description": null,
-          "value": "customer_profit_monthly",
-          "label": "BQ Table ID",
-          "is_required": false,
-          "type": "string",
-          "name": "bq_table_id"
-        },
-        {
-          "description": null,
-          "value": true,
-          "label": "Overwrite table",
-          "is_required": false,
-          "type": "boolean",
-          "name": "overwrite"
-        }
-      ],
-      "id": "0aea40a61f2f49d89ac0432a3e87d28d",
-      "name": "Wipe customer_profit_monthly Table"
-    },
-    {
-      "hash_start_conditions": [
-        {
-          "preceding_job_id": "2f915474da734dc5ae0fe906190282be",
-          "condition": "success"
-        }
-      ],
-      "worker_class": "BQQueryLauncher",
-      "params": [
-        {
-          "description": null,
-          "value": "SELECT 1 as cleared",
-          "label": "Query",
-          "is_required": false,
-          "type": "sql",
-          "name": "query"
-        },
-        {
-          "description": null,
-          "value": "{% BQ_PROJECT_ID %}",
-          "label": "BQ Project ID",
-          "is_required": false,
-          "type": "string",
-          "name": "bq_project_id"
-        },
-        {
-          "description": null,
-          "value": "{% BQ_DATASET_ID %}",
-          "label": "BQ Dataset ID",
-          "is_required": false,
-          "type": "string",
-          "name": "bq_dataset_id"
-        },
-        {
-          "description": null,
-          "value": "ga_filtered_monthly",
-          "label": "BQ Table ID",
-          "is_required": false,
-          "type": "string",
-          "name": "bq_table_id"
-        },
-        {
-          "description": null,
-          "value": true,
-          "label": "Overwrite table",
-          "is_required": false,
-          "type": "boolean",
-          "name": "overwrite"
-        }
-      ],
-      "id": "84c5a5b79ee64c04ac8d8f900249a2f6",
-      "name": "Wipe ga_filtered_monthly Table"
-    },
-    {
-      "hash_start_conditions": [
-        {
-          "preceding_job_id": "2f915474da734dc5ae0fe906190282be",
-          "condition": "success"
-        }
-      ],
-      "worker_class": "BQQueryLauncher",
-      "params": [
-        {
-          "description": null,
-          "value": "SELECT 1 AS cleared",
-          "label": "Query",
-          "is_required": false,
-          "type": "sql",
-          "name": "query"
-        },
-        {
-          "description": null,
-          "value": "{% BQ_PROJECT_ID %}",
-          "label": "BQ Project ID",
-          "is_required": false,
-          "type": "string",
-          "name": "bq_project_id"
-        },
-        {
-          "description": null,
-          "value": "{% BQ_DATASET_ID %}",
-          "label": "BQ Dataset ID",
-          "is_required": false,
-          "type": "string",
-          "name": "bq_dataset_id"
-        },
-        {
-          "description": null,
-          "value": "ga_agg_monthly",
-          "label": "BQ Table ID",
-          "is_required": false,
-          "type": "string",
-          "name": "bq_table_id"
-        },
-        {
-          "description": null,
-          "value": true,
-          "label": "Overwrite table",
-          "is_required": false,
-          "type": "boolean",
-          "name": "overwrite"
-        }
-      ],
-      "id": "076b32c78ad64ffcb6ef17281f544b67",
-      "name": "Wipe ga_agg_monthly Table"
-    },
-    {
-      "hash_start_conditions": [
-        {
-          "preceding_job_id": "2f915474da734dc5ae0fe906190282be",
-          "condition": "success"
-        }
-      ],
-      "worker_class": "BQQueryLauncher",
-      "params": [
-        {
-          "description": null,
-          "value": "SELECT 1 AS cleared",
-          "label": "Query",
-          "is_required": false,
-          "type": "sql",
-          "name": "query"
-        },
-        {
-          "description": null,
-          "value": "{% BQ_PROJECT_ID %}",
-          "label": "BQ Project ID",
-          "is_required": false,
-          "type": "string",
-          "name": "bq_project_id"
-        },
-        {
-          "description": null,
-          "value": "{% BQ_DATASET_ID %}",
-          "label": "BQ Dataset ID",
-          "is_required": false,
-          "type": "string",
-          "name": "bq_dataset_id"
-        },
-        {
-          "description": null,
-          "value": "final_table_monthly",
-          "label": "BQ Table ID",
-          "is_required": false,
-          "type": "string",
-          "name": "bq_table_id"
-        },
-        {
-          "description": null,
-          "value": true,
-          "label": "Overwrite table",
-          "is_required": false,
-          "type": "boolean",
-          "name": "overwrite"
-        }
-      ],
-      "id": "4aed5e5eab954b6d9ed12c1ad9e7108a",
-      "name": "Wipe final_table_monthly Table"
+      "id": "4b5a7847abc64d2ca3221fe0043eccef",
+      "name": "Log Event"
     }
   ],
   "name": "Monthly Training",
