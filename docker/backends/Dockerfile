@@ -64,10 +64,10 @@ WORKDIR /app/backends
 RUN apk add --update mariadb-client-libs \
     && apk add --no-cache --virtual .bootstrap-deps linux-headers \
         bash curl python-dev musl-dev mariadb-dev gcc build-base git \
+    && pip install "watchdog==0.10.6" "sphinx==1.7.2" "sphinx-autobuild==0.7.1" \
     && pip install -r core/requirements_dev.txt -t lib_dev \
     && pip install -r ibackend/requirements.txt -t lib \
     && pip install -r jbackend/requirements.txt -t lib \
-    && pip install "sphinx==1.7.2" "sphinx-autobuild==0.7.1" \
     && pip install Mysql-Python \
     && apk del .bootstrap-deps
 
