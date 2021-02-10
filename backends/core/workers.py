@@ -190,7 +190,9 @@ class BQWorker(Worker):
         'https://www.googleapis.com/auth/cloud-platform',
         'https://www.googleapis.com/auth/drive')
     client = bigquery.Client.from_service_account_json(_KEY_FILE)
-    if self._params['bq_project_id'].strip():
+    if self._params['bq_execution_project_id'].strip():
+      client.project = self._params['bq_execution_project_id']
+    elif self._params['bq_project_id'].strip():
       client.project = self._params['bq_project_id']
     return client
 
@@ -255,6 +257,7 @@ class BQQueryLauncher(BQWorker):
 
   PARAMS = [
       ('query', 'sql', True, '', 'Query'),
+      ('bq_execution_project_id', 'string', False, '', 'BQ Execution Project ID'),
       ('bq_project_id', 'string', False, '', 'BQ Project ID'),
       ('bq_dataset_id', 'string', True, '', 'BQ Dataset ID'),
       ('bq_table_id', 'string', True, '', 'BQ Table ID'),
