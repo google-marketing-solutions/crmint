@@ -560,7 +560,7 @@ class Param(BaseModel):
       if arg_param['type'] == 'boolean':
         param.value = arg_param['value']
       else:
-        param.value = arg_param['value'].encode('utf-8')
+        param.value = str(arg_param['value']).encode('utf-8')
       param.save()
       arg_param_ids.append(param.id)
     # Removing
