@@ -13,6 +13,7 @@
 # limitations under the License.
 
 
+from traceback import format_exc
 from flask import Flask, json, request
 from common import auth_filter
 from common.message import BadRequestError, TooEarlyError
@@ -59,7 +60,7 @@ def start_task():
     result = Result(task.name, task.job_id, False)
     result.report()
   except Exception as e:  # pylint: disable=broad-except
-    worker.log_error('Unexpected error: %s: %s', e.__class__.__name__, e)
+    worker.log_error('Unexpected error %s', format_exc())
     if task.attempts < worker.MAX_ATTEMPTS:
       task.reenqueue()
     else:

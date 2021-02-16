@@ -15,14 +15,9 @@
 """Module with CRMint's base Worker and WorkerException classes."""
 
 
-from functools import wraps
 import json
-from random import random
-import time
-from urllib.error import HTTPError
-from apiclient.errors import HttpError
 from common import crmint_logging
-
+from google.api_core.retry import Retry
 
 _DEFAULT_MAX_RETRIES = 3
 
@@ -58,8 +53,9 @@ class Worker:
         self._params[p[0]] = p[3]
     self._workers_to_enqueue = []
 
+  @Retry()
   def _log(self, level, message, *substs):
-    self.retry(crmint_logging.logger.log_struct)({
+    crmint_logging.logger.log_struct({
         'labels': {
             'pipeline_id': self._pipeline_id,
             'job_id': self._job_id,
@@ -82,10 +78,11 @@ class Worker:
     self.log_info('Started with params: %s',
                   json.dumps(self._params, sort_keys=True, indent=2,
                              separators=(', ', ': ')))
-    try:
-      self._execute()
-    except Exception as e:
-      raise WorkerException(e) from e
+    # try:
+    #   self._execute()
+    # except Exception as e:
+    #   raise WorkerException(e) from e
+    self._execute()
     self.log_info('Finished successfully')
     return self._workers_to_enqueue
 
@@ -94,28 +91,3 @@ class Worker:
 
   def _enqueue(self, worker_class, worker_params, delay=0):
     self._workers_to_enqueue.append((worker_class, worker_params, delay))
-
-  def retry(self, func, max_retries=_DEFAULT_MAX_RETRIES):
-    """Decorator implementing retries with exponentially increasing delays."""
-    @wraps(func)
-    def func_with_retries(*args, **kwargs):
-      """Retriable version of function being decorated."""
-      tries = 0
-      while tries < max_retries:
-        try:
-          return func(*args, **kwargs)
-        except HttpError as e:
-          # If it is a client side error, then there's no reason to retry.
-          if e.resp.status > 399 and e.resp.status < 500:
-            raise e
-        except HTTPError as e:
-          # If it is a client side error, then there's no reason to retry.
-          if e.code > 399 and e.code < 500:
-            raise e
-        except Exception as e:  # pylint: disable=broad-except
-          pass
-        tries += 1
-        delay = 5 * 2 ** (tries + random())
-        time.sleep(delay)
-      return func(*args, **kwargs)
-    return func_with_retries

@@ -22,12 +22,13 @@ EXPOSED = (
     # 'AutoMLImporter',
     # 'AutoMLPredictor',
     # 'AutoMLTrainer',
-    # 'BQMLTrainer',
-    # 'BQQueryLauncher',
+    'BQMLTrainer',
+    'BQQueryLauncher',
+    'BQScriptExecutor',
     # 'BQToAppConversionAPI',
     # 'BQToCM',
     # 'BQToMeasurementProtocol',
-    # 'BQToStorageExporter',
+    'BQToStorageExporter',
     'Commenter',
     # 'GAAudiencesUpdater',
     # 'GADataImporter',
@@ -37,7 +38,7 @@ EXPOSED = (
     # 'MLVersionDeployer',
     # 'StorageChecker',
     # 'StorageCleaner',
-    # 'StorageToBQImporter',
+    'StorageToBQImporter',
 )
 
 
