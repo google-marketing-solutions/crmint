@@ -1,2 +1,4 @@
 -r common/requirements.txt
 google-api-python-client==1.12.3
+google-cloud-bigquery==2.6.2
+google-cloud-storage==1.35.0
