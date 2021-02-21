@@ -47,7 +47,7 @@
         },
         {
           "description": null,
-          "value": "ga:transactionId\nga:sourceMedium\nga:campaign\nga:city\nga:browser\nga:deviceCategory\nga:hostname\nga:mobileDeviceBranding",
+          "value": "ga:transactionId\nga:sourceMedium\nga:campaign\nga:city\nga:browser\nga:deviceCategory\nga:hostname\nga:mobileDeviceBranding\nga:clientId",
           "label": "Dimensions (e.g. ga:source)",
           "is_required": false,
           "type": "string_list",
@@ -94,7 +94,7 @@
           "name": "bq_table_id"
         }
       ],
-      "id": "1f0771724140429295d81f7cd22a7a01",
+      "id": "c3c30bc0efe343a588da578043d37766",
       "name": "Transaction data"
     },
     {
@@ -190,7 +190,7 @@
           "name": "bq_table_id"
         }
       ],
-      "id": "a5278f020acd4aa5bbb3651ebb098d04",
+      "id": "251fa28a668d4522a64c49807f9d9458",
       "name": "Customer Behaviour "
     },
     {
@@ -286,21 +286,21 @@
           "name": "bq_table_id"
         }
       ],
-      "id": "da9382d4ecc54788830416ad287a0aa1",
+      "id": "8ffe55760f6a4d2dbecb9f7f18eb9b1b",
       "name": "Products data"
     },
     {
       "hash_start_conditions": [
         {
-          "preceding_job_id": "1f0771724140429295d81f7cd22a7a01",
+          "preceding_job_id": "c3c30bc0efe343a588da578043d37766",
           "condition": ""
         },
         {
-          "preceding_job_id": "a5278f020acd4aa5bbb3651ebb098d04",
+          "preceding_job_id": "251fa28a668d4522a64c49807f9d9458",
           "condition": ""
         },
         {
-          "preceding_job_id": "da9382d4ecc54788830416ad287a0aa1",
+          "preceding_job_id": "8ffe55760f6a4d2dbecb9f7f18eb9b1b",
           "condition": ""
         }
       ],
@@ -347,7 +347,7 @@
           "name": "overwrite"
         }
       ],
-      "id": "7d8007293b2046bcbf3efc558478b248",
+      "id": "563bc35b1d104b65a98c67a9686605af",
       "name": "Join all GA tables"
     }
   ],
