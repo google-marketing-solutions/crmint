@@ -4,7 +4,7 @@
     {
       "hash_start_conditions": [
         {
-          "preceding_job_id": "2e5cbadb535348e09ab25d573b42b904",
+          "preceding_job_id": "0813a01c46df448ea00be3c15a2495b4",
           "condition": "success"
         }
       ],
@@ -51,13 +51,13 @@
           "name": "overwrite"
         }
       ],
-      "id": "af6d330cfe5449bab542b0ee1f65affb",
+      "id": "2b7ba2c7119842c8be3efd138ac3f633",
       "name": "Creating ERP MC agg"
     },
     {
       "hash_start_conditions": [
         {
-          "preceding_job_id": "2e5cbadb535348e09ab25d573b42b904",
+          "preceding_job_id": "0813a01c46df448ea00be3c15a2495b4",
           "condition": "success"
         }
       ],
@@ -104,13 +104,13 @@
           "name": "overwrite"
         }
       ],
-      "id": "b40d7a5e36cd4f90bbda70e3baaf7bbb",
+      "id": "c19cea9485074d0381fed54285b05e2e",
       "name": "Creating ga ids"
     },
     {
       "hash_start_conditions": [
         {
-          "preceding_job_id": "c7572fab076c4ac18d8120f15d3cf88d",
+          "preceding_job_id": "87345955700844ceb3e3f144c576b4af",
           "condition": "success"
         }
       ],
@@ -157,21 +157,21 @@
           "name": "overwrite"
         }
       ],
-      "id": "fed7e3fdef81491a97fed92477f9347a",
+      "id": "ff0f023fc0cf4a64a08d827b53b1556f",
       "name": "Creating GA agg"
     },
     {
       "hash_start_conditions": [
         {
-          "preceding_job_id": "af6d330cfe5449bab542b0ee1f65affb",
+          "preceding_job_id": "2b7ba2c7119842c8be3efd138ac3f633",
           "condition": "success"
         },
         {
-          "preceding_job_id": "fed7e3fdef81491a97fed92477f9347a",
+          "preceding_job_id": "ff0f023fc0cf4a64a08d827b53b1556f",
           "condition": "success"
         },
         {
-          "preceding_job_id": "633b941ff8dd4ddc95c0a7b375354a88",
+          "preceding_job_id": "f172c6b6ecd0408394c92af708bb4c41",
           "condition": "success"
         }
       ],
@@ -218,13 +218,13 @@
           "name": "overwrite"
         }
       ],
-      "id": "613075e9a6484f78ab0370f145166dee",
+      "id": "bb281fb9917f42cabf7cee98bd33b984",
       "name": "Creating final table"
     },
     {
       "hash_start_conditions": [
         {
-          "preceding_job_id": "2e5cbadb535348e09ab25d573b42b904",
+          "preceding_job_id": "0813a01c46df448ea00be3c15a2495b4",
           "condition": "success"
         }
       ],
@@ -271,13 +271,13 @@
           "name": "overwrite"
         }
       ],
-      "id": "633b941ff8dd4ddc95c0a7b375354a88",
+      "id": "f172c6b6ecd0408394c92af708bb4c41",
       "name": "Creating Customer Profit "
     },
     {
       "hash_start_conditions": [
         {
-          "preceding_job_id": "b40d7a5e36cd4f90bbda70e3baaf7bbb",
+          "preceding_job_id": "c19cea9485074d0381fed54285b05e2e",
           "condition": "success"
         }
       ],
@@ -324,13 +324,13 @@
           "name": "overwrite"
         }
       ],
-      "id": "c7572fab076c4ac18d8120f15d3cf88d",
+      "id": "87345955700844ceb3e3f144c576b4af",
       "name": "Creating GA Filtered"
     },
     {
       "hash_start_conditions": [
         {
-          "preceding_job_id": "613075e9a6484f78ab0370f145166dee",
+          "preceding_job_id": "bb281fb9917f42cabf7cee98bd33b984",
           "condition": "success"
         }
       ],
@@ -409,13 +409,13 @@
           "name": "output_gcs_uri_prefix"
         }
       ],
-      "id": "1a423f2abf1840c5a8b571860dfa4492",
+      "id": "86cb645ca5264926ba80d629c94d79e4",
       "name": "Predict CLV for scoring data"
     },
     {
       "hash_start_conditions": [
         {
-          "preceding_job_id": "1a423f2abf1840c5a8b571860dfa4492",
+          "preceding_job_id": "86cb645ca5264926ba80d629c94d79e4",
           "condition": "success"
         }
       ],
@@ -518,13 +518,13 @@
           "name": "schema"
         }
       ],
-      "id": "8983973fd68d4f579b269da9f4f93bb1",
+      "id": "a28b96e55b6644399c2f5f7cb891bfe8",
       "name": "Import CLV predictions CSV to BQ"
     },
     {
       "hash_start_conditions": [
         {
-          "preceding_job_id": "8983973fd68d4f579b269da9f4f93bb1",
+          "preceding_job_id": "a28b96e55b6644399c2f5f7cb891bfe8",
           "condition": "success"
         }
       ],
@@ -571,13 +571,13 @@
           "name": "overwrite"
         }
       ],
-      "id": "60ba742df3a84645941732f7900c2d04",
+      "id": "59398facf41b4793a69f3bc1d848ef29",
       "name": "Transform Predictions"
     },
     {
       "hash_start_conditions": [
         {
-          "preceding_job_id": "0a6e3f03064d41eda58893abcf3b9a28",
+          "preceding_job_id": "166b359a6a7945b9a05342d2a03f080b",
           "condition": "success"
         }
       ],
@@ -585,7 +585,7 @@
       "params": [
         {
           "description": null,
-          "value": "WITH ERPDATA AS (\n\n  SELECT DISTINCT\n    CUSTOMER_ID,\n    ORDER_ID\n  FROM `{% BQ_PROJECT_ID %}.{% BQ_ERP_DATASET_ID %}.{% BQ_ERPTABLE_ID %}`\n  \n), \nLastEvent AS (\n    SELECT CAST(MAX(timestamp) AS DATE) as last_mp_event \n    FROM `{% BQ_PROJECT_ID %}.{% BQ_DATASET_ID %}.event_logs`\n    WHERE event = \"MP_END\"\n), EVENTS AS (\n    SELECT\n     1                          AS v,\n     'event'                    AS t,\n     '{% GA_TID %}'             AS tid,\n     'predprofit'               AS ec,\n     'delta'                    AS ea,\n     CUSTOMER_ID                AS el,\n     CAST(IF(delta_predicted_profit > 0, ROUND(delta_predicted_profit), 0) AS INT64)     AS ev\n    FROM\n      `{% BQ_PROJECT_ID %}.{% BQ_DATASET_ID %}.clv_transformed`\n    WHERE source = \"DAILY_PIPELINE\" AND date_added > (SELECT last_mp_event FROM LastEvent)\n    \n    UNION ALL\n    \n    SELECT\n     1                                      AS v,\n     'event'                                AS t,\n     '{% GA_TID %}'                         AS tid,\n     'predprofit'                           AS ec,\n     'predprofit'                           AS ea,\n     CUSTOMER_ID                            AS el,\n     CAST(IF(predicted_total_profit_transformed > 0, ROUND(predicted_total_profit_transformed), 0) AS INT64)     AS ev\n    FROM\n      `{% BQ_PROJECT_ID %}.{% BQ_DATASET_ID %}.clv_transformed`\n    WHERE source = \"DAILY_PIPELINE\" AND date_added > (SELECT last_mp_event FROM LastEvent)\n    \n    UNION ALL\n    \n    SELECT\n     1                                      AS v,\n     'event'                                AS t,\n     '{% GA_TID %}'                         AS tid,\n     'predprofit'                           AS ec,\n     'orderprofit'                          AS ea,\n     CUSTOMER_ID                            AS el,\n     CAST(IF(last_order_profit > 0, ROUND(last_order_profit), 0) AS INT64)     AS ev\n    FROM\n      `{% BQ_PROJECT_ID %}.{% BQ_DATASET_ID %}.clv_transformed`\n    WHERE source = \"DAILY_PIPELINE\" AND date_added > (SELECT last_mp_event FROM LastEvent)\n)\nSELECT * EXCEPT(CUSTOMER_ID, ga_transactionId),\n    CUSTOMER_ID AS cid\nFROM EVENTS AS EV",
+          "value": "WITH ERPDATA AS (\n\n  SELECT DISTINCT\n    CUSTOMER_ID,\n    ORDER_ID\n  FROM `{% BQ_PROJECT_ID %}.{% BQ_ERP_DATASET_ID %}.{% BQ_ERPTABLE_ID %}`\n  \n), GA_IDS AS (\n    SELECT\n      CUSTOMER_ID,\n      ARRAY_AGG(ga_clientId IGNORE NULLS ORDER BY PARSE_DATE('%Y%m%d', ga_date) DESC)[OFFSET(0)] AS clientId\n    FROM\n      `{% BQ_GA_PROJECT_ID %}.{% BQ_GA_DATASET_ID %}.ga_sessions_*` AS GADATA\n    JOIN\n      ERPDATA\n      ON CAST(ERPDATA.ORDER_ID AS STRING) = GADATA.ga_transactionId\n    WHERE ga_clientId IS NOT NULL\n    GROUP BY CUSTOMER_ID\n), LastEvent AS (\n    SELECT CAST(MAX(timestamp) AS DATE) as last_mp_event \n    FROM `{% BQ_PROJECT_ID %}.{% BQ_DATASET_ID %}.event_logs`\n    WHERE event = \"MP_END\"\n), EVENTS AS (\n    SELECT\n     1                          AS v,\n     'event'                    AS t,\n     '{% GA_TID %}'             AS tid,\n     'predprofit'               AS ec,\n     'delta'                    AS ea,\n     CUSTOMER_ID                AS el,\n     CAST(IF(delta_predicted_profit > 0, ROUND(delta_predicted_profit), 0) AS INT64)     AS ev\n    FROM\n      `{% BQ_PROJECT_ID %}.{% BQ_DATASET_ID %}.clv_transformed`\n    WHERE source = \"DAILY_PIPELINE\" AND date_added > (SELECT last_mp_event FROM LastEvent)\n    \n    UNION ALL\n    \n    SELECT\n     1                                      AS v,\n     'event'                                AS t,\n     '{% GA_TID %}'                         AS tid,\n     'predprofit'                           AS ec,\n     'predprofit'                           AS ea,\n     CUSTOMER_ID                            AS el,\n     CAST(IF(predicted_total_profit_transformed > 0, ROUND(predicted_total_profit_transformed), 0) AS INT64)     AS ev\n    FROM\n      `{% BQ_PROJECT_ID %}.{% BQ_DATASET_ID %}.clv_transformed`\n    WHERE source = \"DAILY_PIPELINE\" AND date_added > (SELECT last_mp_event FROM LastEvent)\n    \n    UNION ALL\n    \n    SELECT\n     1                                      AS v,\n     'event'                                AS t,\n     '{% GA_TID %}'                         AS tid,\n     'predprofit'                           AS ec,\n     'orderprofit'                          AS ea,\n     CUSTOMER_ID                            AS el,\n     CAST(IF(last_order_profit > 0, ROUND(last_order_profit), 0) AS INT64)     AS ev\n    FROM\n      `{% BQ_PROJECT_ID %}.{% BQ_DATASET_ID %}.clv_transformed`\n    WHERE source = \"DAILY_PIPELINE\" AND date_added > (SELECT last_mp_event FROM LastEvent)\n)\nSELECT * EXCEPT(CUSTOMER_ID, clientId),\n    CIDS.clientId AS cid\nFROM EVENTS AS EV\nJOIN GA_IDS AS CIDS\nON CIDS.CUSTOMER_ID = CAST(EV.el AS STRING)",
           "label": "Query",
           "is_required": false,
           "type": "sql",
@@ -624,13 +624,13 @@
           "name": "overwrite"
         }
       ],
-      "id": "53437af526184f72a79d2633c60a5a06",
+      "id": "b5ff0479de354600a3be7a9391a6ab3c",
       "name": "Convert CLV to MP events in BQ"
     },
     {
       "hash_start_conditions": [
         {
-          "preceding_job_id": "60ba742df3a84645941732f7900c2d04",
+          "preceding_job_id": "59398facf41b4793a69f3bc1d848ef29",
           "condition": "success"
         }
       ],
@@ -677,13 +677,13 @@
           "name": "overwrite"
         }
       ],
-      "id": "0a6e3f03064d41eda58893abcf3b9a28",
+      "id": "166b359a6a7945b9a05342d2a03f080b",
       "name": "Log Event"
     },
     {
       "hash_start_conditions": [
         {
-          "preceding_job_id": "53437af526184f72a79d2633c60a5a06",
+          "preceding_job_id": "9274cea3c18c43d1b0a73add18a3ea04",
           "condition": "success"
         }
       ],
@@ -730,7 +730,7 @@
           "name": "overwrite"
         }
       ],
-      "id": "355876e756ac4c2fbe6fc9cb29b53cb0",
+      "id": "05291ca8e7da4b738fd696d318856133",
       "name": "Log Event"
     },
     {
@@ -778,8 +778,114 @@
           "name": "overwrite"
         }
       ],
-      "id": "2e5cbadb535348e09ab25d573b42b904",
+      "id": "0813a01c46df448ea00be3c15a2495b4",
       "name": "Log Event"
+    },
+    {
+      "hash_start_conditions": [
+        {
+          "preceding_job_id": "33b04993242c450993486bb5343e9791",
+          "condition": "success"
+        }
+      ],
+      "worker_class": "BQQueryLauncher",
+      "params": [
+        {
+          "description": null,
+          "value": "SELECT *,\n  CURRENT_TIMESTAMP() as date_added\n  FROM `{% BQ_PROJECT_ID %}.{% BQ_DATASET_ID %}.mp_events_daily`",
+          "label": "Query",
+          "is_required": false,
+          "type": "sql",
+          "name": "query"
+        },
+        {
+          "description": null,
+          "value": "{% BQ_PROJECT_ID %}",
+          "label": "BQ Project ID",
+          "is_required": false,
+          "type": "string",
+          "name": "bq_project_id"
+        },
+        {
+          "description": null,
+          "value": "{% BQ_DATASET_ID %}",
+          "label": "BQ Dataset ID",
+          "is_required": false,
+          "type": "string",
+          "name": "bq_dataset_id"
+        },
+        {
+          "description": null,
+          "value": "mp_events_history",
+          "label": "BQ Table ID",
+          "is_required": false,
+          "type": "string",
+          "name": "bq_table_id"
+        },
+        {
+          "description": null,
+          "value": false,
+          "label": "Overwrite table",
+          "is_required": false,
+          "type": "boolean",
+          "name": "overwrite"
+        }
+      ],
+      "id": "9274cea3c18c43d1b0a73add18a3ea04",
+      "name": "Store MP Events"
+    },
+    {
+      "hash_start_conditions": [
+        {
+          "preceding_job_id": "b5ff0479de354600a3be7a9391a6ab3c",
+          "condition": "success"
+        }
+      ],
+      "worker_class": "BQToMeasurementProtocol",
+      "params": [
+        {
+          "description": null,
+          "value": "{% BQ_PROJECT_ID %}",
+          "label": "BQ Project ID",
+          "is_required": false,
+          "type": "string",
+          "name": "bq_project_id"
+        },
+        {
+          "description": null,
+          "value": "{% BQ_DATASET_ID %}",
+          "label": "BQ Dataset ID",
+          "is_required": false,
+          "type": "string",
+          "name": "bq_dataset_id"
+        },
+        {
+          "description": null,
+          "value": "mp_events_daily",
+          "label": "BQ Table ID",
+          "is_required": false,
+          "type": "string",
+          "name": "bq_table_id"
+        },
+        {
+          "description": null,
+          "value": "20",
+          "label": "Measurement Protocol batch size (https://goo.gl/7VeWuB)",
+          "is_required": false,
+          "type": "number",
+          "name": "mp_batch_size"
+        },
+        {
+          "description": null,
+          "value": true,
+          "label": "Debug mode",
+          "is_required": false,
+          "type": "boolean",
+          "name": "debug"
+        }
+      ],
+      "id": "33b04993242c450993486bb5343e9791",
+      "name": "Send events to MP"
     }
   ],
   "name": "Daily Predictions",
