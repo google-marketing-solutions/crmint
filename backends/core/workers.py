@@ -1218,6 +1218,8 @@ class BQToMeasurementProtocolProcessorGA4(BQWorker):
     payload = {
       'client_id': data.get('client_id').encode('utf-8'),
       'events': [event]}
+    if data.get('user_id', 'UNKNOWN') is not 'UNKNOWN':
+      payload['user_id'] = data.get('user_id').encode('utf-8')
     return payload
 
   def _send_payload_list(self, payloads):
