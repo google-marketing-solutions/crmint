@@ -1135,6 +1135,8 @@ class BQToMeasurementProtocolGA4(BQWorker):
       ('bq_table_id', 'string', True, '', 'BQ Table ID'),
       ('measurement_id', 'string', True, '', 'Measurement ID'),
       ('api_secret', 'string', True, '', 'API Secret'),
+      ('template', 'text', True, '', ('GA4 Measurement Protocol '
+                                      'JSON template')),
       ('mp_batch_size', 'number', True, 20, ('Measurement Protocol '
                                              'batch size')),
       ('debug', 'boolean', True, False, 'Debug mode'),
@@ -1177,59 +1179,16 @@ class BQToMeasurementProtocolGA4(BQWorker):
 
 
 class BQToMeasurementProtocolProcessorGA4(BQWorker):
-  """Worker pushing to Measurement Protocol the first page only of a query."""
-
-  def _ga4_required_events_reference(self, event_name):
-    ga4_events = {'post_score': ['score']}
-    return ga4_events.get(event_name, None)
-
-  def _get_payload_from_data(self, data):
-    reference_url = 'https://developers.google.com/analytics/devguides/collection/protocol/ga4/reference/events?client_type=gtag'
-    required_event_params = self._ga4_required_events_reference(
-      data.get('event_name'))
-    # Check that the event name is a valid GA4 event.
-    if required_event_params is None:
-      raise MeasurementProtocolException(
-        'Event name, %s, is not a valid GA4 event. Full reference: %s.'
-        % (data.get('event_name'), reference_url))
-    mp_event_params = {}
-    for item in data:
-      if item in required_event_params:
-        mp_event_params[item.encode('utf-8')] = str(
-          data.get(item)).encode('utf-8')
-    # Check that the required parameters are included.
-    if len(mp_event_params) != len(required_event_params):
-      raise MeasurementProtocolException(
-        'Event name, %s, does not include required parameters: %s.'
-        % (data.get('event_name'), required_event_params))
-    # If there were any optional/additional parameters included, add them now.
-    for item in data:
-      if item not in required_event_params or (
-        item != 'event_name' or item != 'client_id'):
-        mp_event_params[item.encode('utf-8')] = str(
-          data.get(item)).encode('utf-8')
-    event = {
-      'name': data.get('event_name').encode('utf-8'),
-      'params': mp_event_params}
-    # Confirm that a client id is provided.
-    if data.get('client_id', None) is None:
-      raise MeasurementProtocolException(
-        'Client ID is required for GA4 measurement protocol.')
-    payload = {
-      'client_id': data.get('client_id').encode('utf-8'),
-      'events': [event]}
-    if data.get('user_id', 'UNKNOWN') is not 'UNKNOWN':
-      payload['user_id'] = data.get('user_id').encode('utf-8')
-    return payload
+  """Worker pushing to Measurement Protocol for Google Analytics 4 Properties."""
 
   def _send_payload_list(self, payloads):
     headers = {'content-type': 'application/json'}
-    if self._debug:
-      domain = 'https://www.google-analytics.com/debug/mp/collect'
-      url = '{domain}?measurement_id={measurement_id}&api_secret={api_secret}'.format(
-        domain=domain, measurement_id=self._measurement_id,
-        api_secret=self._api_secret)
-      for payload in payloads:
+    for payload in payloads:
+      if self._debug:
+        domain = 'https://www.google-analytics.com/debug/mp/collect'
+        url = '{domain}?measurement_id={measurement_id}&api_secret={api_secret}'.format(
+          domain=domain, measurement_id=self._measurement_id,
+          api_secret=self._api_secret)
         response = requests.post(
           url,
           data=json.dumps(payload),
@@ -1238,12 +1197,11 @@ class BQToMeasurementProtocolProcessorGA4(BQWorker):
         for msg in result['validationMessages']:
           self.log_warn('Validation Message: %s,  Payload: %s' % (
             msg['description'], payload))
-    else:
-      domain = 'https://www.google-analytics.com/mp/collect'
-      url = '{domain}?measurement_id={measurement_id}&api_secret={api_secret}'.format(
-        domain=domain, measurement_id=self._measurement_id,
-        api_secret=self._api_secret)
-      for payload in payloads:
+      else:
+        domain = 'https://www.google-analytics.com/mp/collect'
+        url = '{domain}?measurement_id={measurement_id}&api_secret={api_secret}'.format(
+          domain=domain, measurement_id=self._measurement_id,
+          api_secret=self._api_secret)
         response = requests.post(
           url,
           data=json.dumps(payload),
@@ -1255,18 +1213,22 @@ class BQToMeasurementProtocolProcessorGA4(BQWorker):
 
   def _process_query_results(self, query_data, query_schema):
     """Sends event hits from query data."""
-    fields = [f.name for f in query_schema]
+    fields = [f.name.encode('utf-8') for f in query_schema]
     payload_list = []
     for row in query_data:
-      data = dict(zip(fields, row))
-      payload = self._get_payload_from_data(data)
-      payload_list.append(payload)
+      utf8_row = []
+      for item in row:
+        utf8_row.append(str(item).encode('utf-8'))
+      template = self._params['template'] % dict(zip(fields, utf8_row))
+      filtered_template = {k:v for k, v in template.items() if v}
+      measurement_protocol_payload = json.loads(filtered_template)
+      payload_list.append(measurement_protocol_payload)
       if len(payload_list) >= self._params['mp_batch_size']:
         self._send_payload_list(payload_list)
         payload_list = []
-      if payload_list:
-        # Sends remaining payloads.
-        self._send_payload_list(payload_list)
+    if payload_list:
+      # Sends remaining payloads.
+      self._send_payload_list(payload_list)
 
   def _execute(self):
     self._bq_setup()
