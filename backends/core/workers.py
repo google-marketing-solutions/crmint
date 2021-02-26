@@ -1194,7 +1194,7 @@ class BQToMeasurementProtocolProcessorGA4(BQWorker):
           headers=headers)
         result = json.loads(response.text)
         for msg in result['validationMessages']:
-          self.log_warn('Validation Message: %s,  Payload: %s' % (
+          self.log_warn('Validation Message: %s, Payload: %s' % (
             msg['description'], payload))
       else:
         domain = 'https://www.google-analytics.com/mp/collect'
@@ -1219,8 +1219,7 @@ class BQToMeasurementProtocolProcessorGA4(BQWorker):
       for item in row:
         utf8_row.append(str(item).encode('utf-8'))
       template = self._params['template'] % dict(zip(fields, utf8_row))
-      filtered_template = {k:v for k, v in template.items() if v}
-      measurement_protocol_payload = json.loads(filtered_template)
+      measurement_protocol_payload = json.loads(template)
       payload_list.append(measurement_protocol_payload)
       if len(payload_list) >= self._params['mp_batch_size']:
         self._send_payload_list(payload_list)
