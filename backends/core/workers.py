@@ -845,7 +845,8 @@ class GAGoalsUpdater(BQWorker, GAWorker):
     fields = [f.name for f in self._table.schema]
     for row in self._table.fetch_data():
       try:
-        template_rendered = self._params['template'] % dict(zip(fields, row))
+        template_rendered = self._params['template'] % (
+          dict(zip(fields, row)))
         goal = json.loads(template_rendered)
       except ValueError as e:
         raise WorkerException(e)
@@ -876,8 +877,8 @@ class GAGoalsUpdater(BQWorker, GAWorker):
   def _equal(self, patch, goal):
     """Checks whether applying a patch would not change a goal.
     Args:
-        patch: An object that is going to be used as a patch to update the
-            goal.
+        patch: An object that is going to be used as a patch
+            to update the goal.
         goal: An object representing goal to be patched.
     Returns:
        True if applying the patch won't change the goal, False otherwise.
@@ -1162,7 +1163,8 @@ class BQToMeasurementProtocolGA4(BQWorker):
       worker_params = self._params.copy()
       worker_params['bq_page_token'] = page_token
       worker_params['bq_batch_size'] = self.BQ_BATCH_SIZE
-      self._enqueue('BQToMeasurementProtocolProcessorGA4', worker_params, 0)
+      self._enqueue(
+        'BQToMeasurementProtocolProcessorGA4', worker_params, 0)
       enqueued_jobs_count += 1
 
       # Updates the page token reference for the next iteration.
@@ -1178,7 +1180,7 @@ class BQToMeasurementProtocolGA4(BQWorker):
 
 
 class BQToMeasurementProtocolProcessorGA4(BQWorker):
-  """Worker pushing to Measurement Protocol for Google Analytics 4 Properties."""
+  """Worker pushing to Measurement Protocol for GA4 Properties."""
 
   def _send_payload_list(self, payloads):
     headers = {'content-type': 'application/json'}
@@ -1207,8 +1209,8 @@ class BQToMeasurementProtocolProcessorGA4(BQWorker):
           headers=headers)
         if response.status_code != requests.codes.no_content:
           raise MeasurementProtocolException(
-              'Failed to send event hit with status code (%s) and parameters: %s'
-              % (response.status_code, payload))
+            'Failed to send event with status code (%s) and parameters: %s'
+            % (response.status_code, payload))
 
   def _process_query_results(self, query_data, query_schema):
     """Sends event hits from query data."""
