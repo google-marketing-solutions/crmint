@@ -43,6 +43,7 @@ import zeep.cache
 _KEY_FILE = os.path.join(os.path.dirname(__file__), '..', 'data',
                          'service-account.json')
 AVAILABLE = (
+    'AdsDataHubQueryLauncher',
     'AutoMLImporter',
     'AutoMLPredictor',
     'AutoMLTrainer',
@@ -1842,3 +1843,71 @@ class AutoMLTrainer(AutoMLWorker):
     response = client.projects().locations().datasets() \
                      .patch(name=dataset_resource_name, body=body).execute()
     self.log_info('Modified target column for dataset: %s', response)
+
+
+class AdsDataHubWorker(Worker):
+  """Abstract AdsDataHub worker."""
+
+  GLOBAL_SETTINGS = ['developer_token']
+  ADH_SCOPE = 'https://www.googleapis.com/auth/adsdatahub'
+
+  def _get_adh_client(self):
+    credentials = ServiceAccountCredentials.from_json_keyfile_name(
+        _KEY_FILE,
+        scopes=[ADH_SCOPE])
+
+    self._adh_client = build(
+        'adsdatahub',
+        'v1',
+        credentials=credentials,
+        developerKey=self._params['developer_token'].strip())
+
+
+class AdsDataHubQueryLauncher(AdsDataHubWorker):
+  """AdsDataHub worker that launches a pre-existing query."""
+
+  PARAMS = [
+    ('customer_id', 'string', True, '', 'Customer Id'),
+    ('query_id', 'string', True, '', 'Query Id'),
+    ('payload', 'text', True, '', 'Payload')
+  ]
+
+  def _execute(self):
+    self._get_adh_client()
+
+    operation = self._adh_client.customers().analysisQueries().start(
+        name='customers/{customer_id}/analysisQueries/{query_id}'
+          .format(
+              query_id=self._params['query_id'],
+              customer_id=self._params['customer_id']),
+        body=json.loads(self._params['payload'])
+    ).execute()
+
+    self.log_info('New operation %s created', operation['name'])
+
+    self._enqueue('AdsDataHubQueryWaiter',
+                    {'operation_name': operation['name']}, 60)
+
+
+class AdsDataHubQueryWaiter(AdsDataHubWorker):
+  """Worker that keeps respawning until an AdsDataHub operation is done."""
+
+  PARAMS = [
+    ('operation_name', 'string', True, '', 'Operation name'),
+  ]
+
+  def _execute(self):
+    self._get_adh_client()
+
+    operation = self._adh_client.operations().get(
+        name=self._params['operation_name']).execute()
+
+    # API is not behaving as expected, i.e. done is not added to response
+    # before the execution is finished
+    if not operation.get('done', False):
+      self._enqueue('AdsDataHubQueryWaiter',
+                    {'operation_name': self._params['operation_name']}, 60)
+    elif 'error' in operation:
+      raise WorkerException('Ads Data Hub operation failed: %s' % operation['error'])
+    elif 'response' in operation:
+      self.log_info('Ads Data Hub operation completed successfully: %s', operation['response'])
