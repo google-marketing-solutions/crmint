@@ -346,6 +346,9 @@ def deploy_dispatch_rules(stage, debug=False):
 
 def install_backends_dependencies(stage, debug=False):
   commands = [
+      # HACK: fix missing MySQL header for compilation
+      "sudo wget https://raw.githubusercontent.com/paulfitz/mysql-connector-c/master/include/my_config.h -P /usr/include/mysql/",
+      # Install dependencies in virtualenv
       "virtualenv --python=python2 env",
       "mkdir -p lib",
       "pip install -r ibackend/requirements.txt -t lib",
