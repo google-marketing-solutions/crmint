@@ -6,7 +6,7 @@ Flask-Migrate==2.0.3
 #Flask-SQLAlchemy==2.3.2
 # NB: Flask SQLAlchemy is only compatible with Flask 1.0+ in master branch for now
 git+https://github.com/dulacp/flask-sqlalchemy.git@python27-compat#egg=Flask-SQLAlchemy
-SQLAlchemy==1.3.18
+SQLAlchemy==1.3.24
 MySQL-python==1.2.5
 sqlalchemy_mixins==0.2.2
 google-cloud-bigquery==0.27
