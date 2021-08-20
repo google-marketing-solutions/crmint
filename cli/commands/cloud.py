@@ -199,7 +199,6 @@ def activate_services(stage, debug=False):
   gcloud_command = "$GOOGLE_CLOUD_SDK/bin/gcloud --quiet"
   command = "{gcloud_bin} services enable \
     --project={project_id} \
-    --async \
     analytics.googleapis.com \
     analyticsreporting.googleapis.com \
     bigquery-json.googleapis.com \
@@ -207,7 +206,8 @@ def activate_services(stage, debug=False):
     logging.googleapis.com \
     storage-api.googleapis.com \
     storage-component.googleapis.com \
-    sqladmin.googleapis.com".format(
+    sqladmin.googleapis.com \
+    cloudscheduler.googleapis.com".format(
       gcloud_bin=gcloud_command,
       project_id=stage.project_id_gae)
   shared.execute_command("Activate services", command, debug=debug)
@@ -520,12 +520,12 @@ def setup(stage_name, debug):
 
   # Runs setup steps.
   components = [
+      activate_services,
       create_appengine,
       create_service_account_key_if_needed,
       create_mysql_instance_if_needed,
       create_mysql_user_if_needed,
       create_mysql_database_if_needed,
-      activate_services,
       download_config_files,
   ]
   for component in components:
