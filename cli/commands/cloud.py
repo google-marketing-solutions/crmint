@@ -86,6 +86,24 @@ def create_service_account_key_if_needed(stage, debug=False):
       service_account_file=service_account_file)
   shared.execute_command("Create the service account key", command, debug=debug)
 
+  
+def grant_cloud_build_permissions(stage, debug=False):
+  gcloud_command = "$GOOGLE_CLOUD_SDK/bin/gcloud --quiet"
+  project_number_command = "{gcloud_bin} projects list \
+    --filter=\"{project_id}\" \
+    --format=\"value(PROJECT_NUMBER)\"".format(
+      gcloud_bin=gcloud_command,
+      project_id=stage.project_id_gae)
+  status, out, err = shared.execute_command(
+      "Getting the project number", project_number_command, debug=debug)
+  command = "{gcloud_bin} projects add-iam-policy-binding {project_id} \
+    --member=\"serviceAccount:{project_number}@cloudbuild.gserviceaccount.com\" \
+    --role=\"roles/storage.objectViewer\"".format(
+      gcloud_bin=gcloud_command,
+      project_id=stage.project_id_gae,
+      project_number=out.strip())
+  shared.execute_command("Grant Cloud Build permissions", command, debug=debug)
+
 
 def _check_if_mysql_instance_exists(stage, debug=False):
   gcloud_command = "$GOOGLE_CLOUD_SDK/bin/gcloud --quiet"
@@ -524,6 +542,7 @@ def setup(stage_name, debug):
       activate_services,
       create_appengine,
       create_service_account_key_if_needed,
+      grant_cloud_build_permissions,
       create_mysql_instance_if_needed,
       create_mysql_user_if_needed,
       create_mysql_database_if_needed,
