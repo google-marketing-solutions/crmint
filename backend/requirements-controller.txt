@@ -1,7 +1,7 @@
 -r common/requirements.txt
-simpleeval==0.9.10
+simpleeval==0.9.11
 Flask-SQLAlchemy==2.4.4
-sqlalchemy_mixins==1.2.1
+sqlalchemy_mixins==1.5
 Flask-RESTful==0.3.8
 oauthlib==3.1.0
 Flask-Cors==3.0.9
