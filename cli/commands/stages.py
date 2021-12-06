@@ -102,10 +102,10 @@ def _get_regions(project_id):
     region = out.strip().split()[1]
   else:  # Get the list of available App Engine regions and prompt user.
     click.echo('     No App Engine app has been deployed yet.')
-    cmd = f'{gcloud} app regions list'
+    cmd = f"{gcloud} app regions list --format='value(region)'"
     status, out, err = shared.execute_command(
         'Get available App Engine regions', cmd, stream_output_in_debug=False)
-    regions = [l.split()[0] for l in out.strip().split('\n')][1:]
+    regions = out.strip().split('\n')
     for i, region in enumerate(regions):
       click.echo(f'{i + 1}) {region}')
     i = -1
