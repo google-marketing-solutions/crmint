@@ -85,13 +85,14 @@ def _check_if_cloudsql_instance_exists(stage, debug=False):
   project_id = stage.project_id_gae
   db_instance_name = stage.db_instance_name
   cmd = (
-      f' {GCLOUD} sql instances list --project={project_id} 2>/dev/null'
-      f' | egrep -q "^{db_instance_name}\s"'
+      f' {GCLOUD} sql instances list --project={project_id}'
+      f" --format='value(name)'"
+      f" --filter='name={db_instance_name}'"
   )
-  status, _, _ = shared.execute_command(
+  _, out, _ = shared.execute_command(
       'Check if CloudSQL instance already exists',
       cmd, report_empty_err=False, debug=debug)
-  return status == 0
+  return out.strip() == db_instance_name
 
 
 def create_cloudsql_instance_if_needed(stage, debug=False):
@@ -117,13 +118,14 @@ def _check_if_cloudsql_user_exists(stage, debug=False):
   db_username = stage.db_username
   cmd = (
       f' {GCLOUD} sql users list --project={project_id}'
-      f' --instance={db_instance_name} 2>/dev/null'
-      f' | egrep -q "^{db_username}\s"'
+      f' --instance={db_instance_name}'
+      f" --format='value(name)'"
+      f" --filter='name={db_username}'"
   )
-  status, _, _ = shared.execute_command(
+  _, out, _ = shared.execute_command(
       'Check if CloudSQL user already exists',
       cmd, report_empty_err=False, debug=debug)
-  return status == 0
+  return out.strip() == db_username
 
 
 def create_cloudsql_user_if_needed(stage, debug=False):
@@ -153,12 +155,13 @@ def _check_if_cloudsql_database_exists(stage, debug=False):
   cmd = (
       f' {GCLOUD} sql databases list --project={project_id}'
       f' --instance={db_instance_name} 2>/dev/null'
-      f' | egrep -q "^{db_name}\s"'
+      f" --format='value(name)'"
+      f" --filter='name={db_name}'"
   )
-  status, _, _ = shared.execute_command(
+  _, out, _ = shared.execute_command(
       'Check if CloudSQL database already exists',
       cmd, report_empty_err=False, debug=debug)
-  return status == 0
+  return out.strip() == db_name
 
 
 def create_cloudsql_database_if_needed(stage, debug=False):
@@ -286,7 +289,7 @@ def create_scheduler_job(stage, debug=False):
 def activate_services(stage, debug=False):
   project_id = stage.project_id_gae
   cmd = (
-      f' {GCLOUD} services enable --project={project_id} --async'
+      f' {GCLOUD} services enable --project={project_id}'
       f' analytics.googleapis.com'
       f' analyticsreporting.googleapis.com'
       f' bigquery-json.googleapis.com'
@@ -296,6 +299,7 @@ def activate_services(stage, debug=False):
       f' storage-api.googleapis.com'
       f' storage-component.googleapis.com'
       f' sqladmin.googleapis.com'
+      f' cloudscheduler.googleapis.com'
   )
   shared.execute_command('Activate Cloud services', cmd, debug=debug)
 
@@ -382,12 +386,13 @@ def deploy_frontend(stage, debug=False):
   project_id = stage.project_id_gae
   max_old_space_size = "$((`free -m | egrep ^Mem: | awk '{print $4}'` / 4 * 3))"
   cmds = [
+      ' npm install -g npm@latest',
       (f' NODE_OPTIONS="--max-old-space-size={max_old_space_size}"'
-       ' NG_CLI_ANALYTICS=ci npm install'),
+       ' NG_CLI_ANALYTICS=ci npm install --legacy-peer-deps'),
       (f' node --max-old-space-size={max_old_space_size}'
        ' ./node_modules/@angular/cli/bin/ng build'),
       (f' {GCLOUD} --project={project_id} app deploy'
-       f' frontend_app.yaml --version=v1'),
+       ' frontend_app.yaml --version=v1'),
   ]
   cmd_workdir = os.path.join(stage.workdir, 'frontend')
   total = len(cmds)
@@ -561,6 +566,7 @@ def setup(stage_name, debug):
   components = [
       activate_services,
       create_appengine,
+      activate_services,
       create_cloudsql_instance_if_needed,
       create_cloudsql_user_if_needed,
       create_cloudsql_database_if_needed,
@@ -568,7 +574,6 @@ def setup(stage_name, debug):
       create_pubsub_subscriptions,
       grant_pubsub_permissions,
       create_scheduler_job,
-      activate_services,
       download_config_files,
   ]
   for component in components:
