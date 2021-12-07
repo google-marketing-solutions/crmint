@@ -33,5 +33,5 @@ class BQQueryLauncher(BQScriptExecutor):  # pylint: disable=too-few-public-metho
     or_replace = 'OR REPLACE' if self._params['overwrite'] else ''
     table = self._get_full_table_name()
     query = self._params['query'].strip()
-    script = f'CREATE {or_replace} TABLE {table} AS {query}'
+    script = f'CREATE {or_replace} TABLE `{table}` AS {query}'
     self._execute_sql_script(script)
