@@ -14,17 +14,27 @@
 
 
 import click
+import json
+from controller import models, database
 
 
 def add(app):
   @app.cli.command()
   def db_seeds():
     """Initialize the database."""
-    from controller import database
     database.load_fixtures(logger_func=click.echo)
 
   @app.cli.command()
   def reset_pipelines():
     """Reset pipelines and jobs statuses."""
-    from controller import database
     database.reset_jobs_and_pipelines_statuses_to_idle()
+
+  @app.cli.command()
+  @click.argument('files', nargs=-1)
+  def import_pipelines(files):
+    for filename in files:
+      with open(filename) as f:
+        data = json.loads(f.read())
+        pipeline = models.Pipeline(name=data['name'])
+        pipeline.save()
+        pipeline.import_data(data)
