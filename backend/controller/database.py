@@ -69,7 +69,8 @@ def load_fixtures(logger_func=None):
         logger_func('Added setting %s' % setting)
 
 def reset_jobs_and_pipelines_statuses_to_idle():
-  from controller.models import Pipeline
+  from controller.models import Pipeline, TaskEnqueued
+  TaskEnqueued.query.delete()
   for pipeline in Pipeline.all():
     for job in pipeline.jobs:
       job.update(status='idle')
