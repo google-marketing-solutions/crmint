@@ -42,7 +42,7 @@
   <ng-template ngSwitchCase="loaded">
     <div class="crmi-log-list" *ngIf="logs.length > 0; else nologs">
       <div class="crmi-log-load-more-wrap">
-        <button class="crmi-log-load-more-btn" mat-button [disabled]="btnNewestState=='loading'" (click)="loadNewestLogs()">
+        <button class="crmi-log-load-more-btn" mat-raised-button [disabled]="btnNewestState=='loading'" (click)="loadNewestLogs()">
           {{btnNewestText()}}
         </button>
       </div>
@@ -58,7 +58,7 @@
         </div>
       </div>
       <div class="crmi-log-load-more-wrap">
-        <button class="crmi-log-load-more-btn" mat-button [disabled]="btnState=='loading'" (click)="loadLogs()">
+        <button class="crmi-log-load-more-btn" mat-raised-button [disabled]="btnState=='loading'" (click)="loadLogs()">
           {{btnText()}}
         </button>
       </div>

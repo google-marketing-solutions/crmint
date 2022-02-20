@@ -1,0 +1,4 @@
+-r common/requirements.in
+google-api-python-client
+google-cloud-bigquery
+google-cloud-storage
