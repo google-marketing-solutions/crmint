@@ -1,0 +1,5 @@
+google-cloud-logging
+google-cloud-pubsub
+Flask
+CacheControl
+gunicorn

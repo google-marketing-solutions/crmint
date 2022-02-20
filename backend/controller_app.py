@@ -25,3 +25,7 @@ CONFIG = config.DevConfig if helpers.get_debug_flag() else config.ProdConfig
 app = app.create_app(extensions.api, config_object=CONFIG)
 flask_tasks.add(app)
 auth_filter.add(app)
+
+
+if __name__ == '__main__':
+  app.run(host='0.0.0.0', port=8080, debug=True)
