@@ -48,6 +48,9 @@ STAGE_FILE_TEMPLATE = """
 # Variables for stage
 ###
 
+# Service account email
+service_account_email = "{service_account_email}"
+
 # Project ID in Google Cloud
 project_id_gae = "{project_id_gae}"
 

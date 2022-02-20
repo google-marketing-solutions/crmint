@@ -67,13 +67,15 @@ export class PipelineLogsComponent implements OnInit {
     }
     this.btnState = 'loading';
     const promise1 = this.pipelinesService.getLogs(this.pipeline.id, this.getFilters())
-                                          .then(logs => {
-                                            if (!this.logs.length || logs.next_page_token !== this.filters.next_page_token) {
-                                              const temp_logs = plainToClass(Log, this.logs.concat(logs.entries) as Log[]);
-                                              this.logs = this.removeDuplicates(temp_logs, 'timestamp');
-                                              this.filters.next_page_token = logs.next_page_token;
-                                            }
-                                          });
+        .then(logs => {
+          if (!this.logs.length || logs.next_page_token !== this.filters.next_page_token) {
+            // const temp_logs = plainToClass(Log, this.logs.concat(logs.entries) as Log[]);
+            // this.logs = this.removeDuplicates(temp_logs, 'timestamp');
+            // this.filters.next_page_token = logs.next_page_token;
+            this.logs = plainToClass(Log, this.logs.concat(logs.entries) as Log[]);
+            this.filters.next_page_token = this.logs[this.logs.length - 1].timestamp;
+          }
+        });
     const promise2 = this.workersService.getWorkers().then(data => this.worker_classes = data);
     Promise.all([promise1, promise2]).then(() => {
       this.state = 'loaded';
@@ -91,16 +93,19 @@ export class PipelineLogsComponent implements OnInit {
     }
     this.btnNewestState = 'loading';
     this.filters.next_page_token = null;
-    const promise1 = this.pipelinesService.getLogs(this.pipeline.id, this.getFilters())
-                                          .then(logs => {
-                                            if (filterLoading) {
-                                              this.logs = plainToClass(Log, logs.entries as Log[]);
-                                            } else {
-                                              const temp_logs = plainToClass(Log, logs.entries.concat(this.logs) as Log[]);
-                                              this.logs = this.removeDuplicates(temp_logs, 'timestamp');
-                                            }
-                                            this.filters.next_page_token = logs.next_page_token;
-                                          });
+    const promise1 = this.pipelinesService
+        .getLogs(this.pipeline.id, this.getFilters())
+        .then(logs => {
+          // if (filterLoading) {
+          //   this.logs = plainToClass(Log, logs.entries as Log[]);
+          // } else {
+          //   const temp_logs = plainToClass(Log, logs.entries.concat(this.logs) as Log[]);
+          //   this.logs = this.removeDuplicates(temp_logs, 'timestamp');
+          // }
+          // this.filters.next_page_token = logs.next_page_token;
+          this.logs = plainToClass(Log, logs.entries as Log[]);
+          this.filters.next_page_token = this.logs[this.logs.length - 1].timestamp;
+        });
     Promise.all([promise1]).then(() => {
       this.state = 'loaded';
       this.btnNewestState = 'pending';
@@ -134,11 +139,11 @@ export class PipelineLogsComponent implements OnInit {
   }
 
   btnText() {
-    return this.btnState === 'pending' ? 'Load more' : 'Loading...';
+    return this.btnState === 'pending' ? 'Load older log entries' : 'Loading...';
   }
 
   btnNewestText() {
-    return this.btnNewestState === 'pending' ? 'Load newest' : 'Loading...';
+    return this.btnNewestState === 'pending' ? 'Load the most recent log entries' : 'Loading...';
   }
 
 }

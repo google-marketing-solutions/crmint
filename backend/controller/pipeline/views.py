@@ -308,15 +308,8 @@ class PipelineLogs(Resource):
   def get(self, pipeline_id):
     args = log_parser.parse_args()
     entries = []
-    # urlfetch.set_default_fetch_deadline(300)
 
-    next_page_token = args.get('next_page_token')
-    page_size = 20
-
-    filter_ = (
-        f'logName="projects/{_PROJECT_ID}/logs/{crmint_logging.logger_name}"'
-        f' AND jsonPayload.labels.pipeline_id="{pipeline_id}"'
-    )
+    filter_ = f'jsonPayload.labels.pipeline_id="{pipeline_id}"'
     if args.get('worker_class'):
       filter_ += ' AND jsonPayload.labels.worker_class="%s"' \
           % args.get('worker_class')
@@ -330,16 +323,12 @@ class PipelineLogs(Resource):
       filter_ += ' AND timestamp>="%s"' % args.get('fromdate')
     if args.get('todate'):
       filter_ += ' AND timestamp<="%s"' % args.get('todate')
-    iterator = crmint_logging.client.list_entries(
-        projects=[_PROJECT_ID],
+    if args.get('next_page_token'):
+      filter_ += ' AND timestamp<"%s"' % args.get('next_page_token')
+    list_entries = crmint_logging.client.list_entries(
         filter_=filter_,
-        order_by=DESCENDING,
-        page_size=page_size,
-        page_token=next_page_token
-    )
-    page = next(iterator.pages)
-
-    for entry in page:
+        order_by=DESCENDING)
+    for entry in list_entries:
       if isinstance(entry.payload, dict) \
          and entry.payload.get('labels') \
          and entry.payload.get('labels').get('job_id'):
@@ -347,24 +336,20 @@ class PipelineLogs(Resource):
         job = Job.find(entry.payload.get('labels').get('job_id'))
         if job:
           log = {
-              'timestamp': entry.timestamp.__str__(),
+              'timestamp': entry.timestamp.isoformat().replace('+00:00', 'Z'),
               'payload': entry.payload,
               'job_name': job.name,
               'log_level': entry.payload.get('log_level', 'INFO')
           }
         else:
           log = {
-              'timestamp': entry.timestamp.__str__(),
+              'timestamp': entry.timestamp.isoformat().replace('+00:00', 'Z'),
               'payload': entry.payload,
               'job_name': 'N/A',
               'log_level': entry.payload.get('log_level', 'INFO')
           }
         entries.append(log)
-      next_page_token = iterator.next_page_token
-    return {
-        'entries': entries,
-        'next_page_token': next_page_token
-    }
+    return {'entries': entries}
 
 
 api.add_resource(PipelineList, '/pipelines')

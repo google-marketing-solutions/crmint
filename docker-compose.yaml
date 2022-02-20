@@ -16,8 +16,21 @@ version: '3'
 
 volumes:
   db_data:
+  root_config_gcloud:
+  root_cache_pip:
 
 services:
+  gcloud:
+    profiles: ["gcloud"]
+    image: gcr.io/google.com/cloudsdktool/cloud-sdk:alpine
+    volumes:
+      - root_config_gcloud:/root/.config/gcloud
+    environment:
+      GOOGLE_CLOUD_PROJECT: $GOOGLE_CLOUD_PROJECT
+    command: >
+      gcloud auth application-default login
+          --project=$GOOGLE_CLOUD_PROJECT
+
   db:
     image: mysql:8.0
     environment:
@@ -33,38 +46,6 @@ services:
       context: .
       dockerfile: docker/pubsub/Dockerfile
 
-  migrations:
-    build:
-      context: .
-      dockerfile: docker/backend/Dockerfile
-    environment:
-      GOOGLE_CLOUD_PROJECT: $GOOGLE_CLOUD_PROJECT
-      PUBSUB_EMULATOR_HOST: pubsub:8432
-      PUBSUB_PROJECT_ID: $GOOGLE_CLOUD_PROJECT
-      PUBSUB_VERIFICATION_TOKEN: CRMintPubSubVerificationToken
-      DATABASE_URI: mysql+mysqlconnector://crmint:crmint@db:3306/crmint_development
-      GOOGLE_APPLICATION_CREDENTIALS: /app/backend/data/$GOOGLE_CLOUD_PROJECT.json
-      FLASK_APP: controller_app.py
-      FLASK_ENV: development
-    volumes:
-      - ./backend:/app/backend
-    depends_on:
-      - db
-      - pubsub
-    command: >
-      bash -c "cd /app/backend; \
-               [ ! -d ".venv_controller" ] && \
-                   python3 -m venv .venv_controller && \
-                   . .venv_controller/bin/activate && \
-                   pip install --upgrade pip && \
-                   deactivate; \
-               . .venv_controller/bin/activate; \
-               pip install -r requirements-controller.txt; \
-               while ! mysqladmin ping -h db --silent; do sleep 3; done; \
-               python -m flask db upgrade; \
-               python -m flask db-seeds; \
-               python setup_pubsub.py"
-
   jobs:
     build:
       context: .
@@ -73,24 +54,28 @@ services:
       - "8081:8081"
     volumes:
       - ./backend:/app/backend
+      - root_config_gcloud:/root/.config/gcloud
+      - root_cache_pip:/root/.cache/pip
     environment:
       GOOGLE_CLOUD_PROJECT: $GOOGLE_CLOUD_PROJECT
       PUBSUB_EMULATOR_HOST: pubsub:8432
       PUBSUB_PROJECT_ID: $GOOGLE_CLOUD_PROJECT
       PUBSUB_VERIFICATION_TOKEN: CRMintPubSubVerificationToken
-      GOOGLE_APPLICATION_CREDENTIALS: /app/backend/data/$GOOGLE_CLOUD_PROJECT.json
       FLASK_ENV: development
     depends_on:
       - pubsub
     command: >
-      bash -c "cd /app/backend; \
-               [ ! -d ".venv_jobs" ] && \
-                   python3 -m venv .venv_jobs && \
-                   . .venv_jobs/bin/activate && \
-                   pip install --upgrade pip && \
-                   deactivate; \
-               . .venv_jobs/bin/activate; \
-               pip install -r requirements-jobs.txt; \
+      bash -c "cd /app/backend;
+               [ ! -d '.venv_jobs' ] &&
+                   python3 -m venv .venv_jobs &&
+                   . .venv_jobs/bin/activate &&
+                   pip install --upgrade pip wheel setuptools pip-tools \\
+                       --no-cache &&
+                   deactivate;
+               . .venv_jobs/bin/activate;
+               pip-compile -q --output-file requirements-jobs.txt \\
+                   requirements-jobs.in;
+               pip-sync requirements-jobs.txt;
                python jobs_app.py"
 
   controller:
@@ -104,21 +89,37 @@ services:
       PUBSUB_EMULATOR_HOST: pubsub:8432
       PUBSUB_PROJECT_ID: $GOOGLE_CLOUD_PROJECT
       PUBSUB_VERIFICATION_TOKEN: CRMintPubSubVerificationToken
-      DATABASE_URI: mysql+mysqlconnector://crmint:crmint@db:3306/crmint_development
-      GOOGLE_APPLICATION_CREDENTIALS: /app/backend/data/$GOOGLE_CLOUD_PROJECT.json
+      DATABASE_URI: >
+        mysql+mysqlconnector://crmint:crmint@db:3306/crmint_development
       FLASK_APP: controller_app.py
       FLASK_ENV: development
     volumes:
       - ./backend:/app/backend
+      - root_config_gcloud:/root/.config/gcloud
+      - root_cache_pip:/root/.cache/pip
     depends_on:
       - db
       - pubsub
       - jobs
     command: >
-      bash -c "cd /app/backend; \
-               . .venv_controller/bin/activate; \
-               while ! mysqladmin ping -h db --silent; do sleep 3; done; \
-               flask run -p 8080 -h 0.0.0.0"
+      bash -c "cd /app/backend;
+               while ! wget -q --spider jobs:8081/api/workers 2>/dev/null;
+                   do sleep 3; done;
+               [ ! -d '.venv_controller' ] &&
+                   python3 -m venv .venv_controller &&
+                   . .venv_controller/bin/activate &&
+                   pip install --upgrade pip wheel setuptools pip-tools \\
+                       --no-cache &&
+                   deactivate;
+               . .venv_controller/bin/activate;
+               pip-compile -q --output-file requirements-controller.txt \\
+                   requirements-controller.in;
+               pip-sync requirements-controller.txt;
+               while ! mysqladmin ping -h db --silent; do sleep 3; done;
+               python -m flask db upgrade;
+               python -m flask db-seeds;
+               python setup_pubsub.py;
+               python controller_app.py"
 
   frontend:
     build:
