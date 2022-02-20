@@ -1,0 +1,11 @@
+-r common/requirements.in
+simpleeval
+Flask-SQLAlchemy
+sqlalchemy_mixins
+Flask-RESTful
+oauthlib
+Flask-Cors
+Flask-Migrate
+mysql-connector-python
+google-cloud-bigquery
+croniter

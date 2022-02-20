@@ -287,13 +287,15 @@ class Job(BaseModel):
       secondary='start_conditions',
       primaryjoin='Job.id==StartCondition.preceding_job_id',
       secondaryjoin='StartCondition.job_id==Job.id',
-      back_populates='affecting_jobs')
+      back_populates='affecting_jobs',
+      overlaps='affected_conditions,start_conditions')
   affecting_jobs = relationship(
       'Job',
       secondary='start_conditions',
       primaryjoin='Job.id==StartCondition.job_id',
       secondaryjoin='StartCondition.preceding_job_id==Job.id',
-      back_populates='dependent_jobs')
+      back_populates='dependent_jobs',
+      overlaps='affected_conditions,start_conditions')
 
   class STATUS:  # pylint: disable=too-few-public-methods
     IDLE = 'idle'
@@ -594,9 +596,11 @@ class StartCondition(BaseModel):
   condition = Column(String(255))
 
   job = relationship('Job', foreign_keys=[job_id],
-                     back_populates='start_conditions')
+                     back_populates='start_conditions',
+                     overlaps='affecting_jobs,dependent_jobs')
   preceding_job = relationship('Job', foreign_keys=[preceding_job_id],
-                     back_populates='affected_conditions')
+                     back_populates='affected_conditions',
+                     overlaps='affecting_jobs,dependent_jobs')
 
   class CONDITION:  # pylint: disable=too-few-public-methods
     SUCCESS = 'success'

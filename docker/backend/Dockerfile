@@ -14,10 +14,10 @@
 
 # Docker: Google App Engine
 
-FROM python:3.7.9-alpine3.12
+FROM python:3.9.10-alpine3.15
 MAINTAINER Alex Prikhodko <aprikhodko@google.com>
 
 WORKDIR /root
-RUN apk update && apk add bash gcc linux-headers python3-dev musl-dev g++ libffi-dev mysql-client
+RUN apk update && apk add bash gcc linux-headers python3-dev musl-dev g++ libffi-dev mysql-client rust cargo
 
 WORKDIR /app/backend
