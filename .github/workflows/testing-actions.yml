@@ -1,5 +1,6 @@
 name: testing-actions
 on:
+  push:
   pull_request:
     branches:
       - master
