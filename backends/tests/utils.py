@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import mock
 import unittest
 
 from flask_restful import Api
@@ -65,7 +66,8 @@ class BaseTestCase(TestCase):
 
 class IBackendBaseTest(BaseTestCase):
 
-  def create_app(self):
+  @mock.patch('google.cloud.logging.Client')
+  def create_app(self, patched_client):
     api_blueprint = Api()
     app = ibackend_create_app(api_blueprint, config_object=self)
     app.config['TESTING'] = True
@@ -75,7 +77,8 @@ class IBackendBaseTest(BaseTestCase):
 
 class JBackendBaseTest(BaseTestCase):
 
-  def create_app(self):
+  @mock.patch('google.cloud.logging.Client')
+  def create_app(self, patched_client):
     api_blueprint = Api()
     app = jbackend_create_app(api_blueprint, config_object=self)
     app.config['TESTING'] = True
