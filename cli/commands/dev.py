@@ -106,15 +106,15 @@ def init():
   components = [
       (
           "Create database",
-          "echo \"CREATE DATABASE IF NOT EXISTS {db_name} CHARACTER SET utf8;\" | mysql -u root".format(**params),
+          "echo \"CREATE DATABASE IF NOT EXISTS {db_name} CHARACTER SET utf8;\" | mysql -h 127.0.0.1 -u root -proot".format(**params),
       ),
       (
           "Grant privileges to {db_user}".format(**params),
-          "echo \"GRANT ALL PRIVILEGES ON {db_user}.* TO '{db_user}'@'localhost' IDENTIFIED BY '{db_pass}';\" | mysql -u root".format(**params),
+          "echo \"GRANT ALL PRIVILEGES ON {db_user}.* TO '{db_user}'@'localhost' IDENTIFIED BY '{db_pass}';\" | mysql -h 127.0.0.1 -u root -proot".format(**params),
       ),
       (
           "Cleaning",
-          "echo \"FLUSH PRIVILEGES;\" | mysql -u root".format(**params),
+          "echo \"FLUSH PRIVILEGES;\" | mysql -h 127.0.0.1 -u root -proot".format(**params),
       ),
       (
           "Create local service account file from a template",
