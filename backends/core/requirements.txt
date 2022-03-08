@@ -1,7 +1,7 @@
 --no-binary MySQL-python
 urllib3==1.25.10
 Flask==1.1.2
-Flask-Cors==3.0.2
+Flask-Cors==3.0.9
 Flask-Migrate==2.0.3
 #Flask-SQLAlchemy==2.3.2
 # NB: Flask SQLAlchemy is only compatible with Flask 1.0+ in master branch for now
