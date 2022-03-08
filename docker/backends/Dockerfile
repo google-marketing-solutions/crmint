@@ -21,7 +21,7 @@ WORKDIR /root
 
 # Download Google App Engine SDK
 RUN apk add --no-cache --virtual .bootstrap-deps wget ca-certificates \
-    && wget -O cloud.tar.gz https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-sdk-217.0.0-linux-x86_64.tar.gz \
+    && wget -O cloud.tar.gz https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-sdk-296.0.1-linux-x86_64.tar.gz \
     && tar xzf cloud.tar.gz \
     && rm cloud.tar.gz \
     && apk del .bootstrap-deps
@@ -63,7 +63,7 @@ RUN apk update && apk add build-base gcc musl-dev libxml2-dev libxslt-dev
 WORKDIR /app/backends
 RUN apk add --update mariadb-client-libs \
     && apk add --no-cache --virtual .bootstrap-deps linux-headers \
-        bash curl python-dev musl-dev mariadb-dev gcc build-base \
+        bash curl python-dev musl-dev mariadb-dev gcc build-base git \
     && pip install -r core/requirements_dev.txt -t lib_dev \
     && pip install -r ibackend/requirements.txt -t lib \
     && pip install -r jbackend/requirements.txt -t lib \
@@ -76,7 +76,7 @@ WORKDIR /app
 COPY ./backends/ /app/backends
 
 # We need bash to run multiline commands in docker-compose.
-RUN apk add --no-cache bash
+RUN apk add --no-cache bash vim
 
 CMD /root/google-cloud-sdk/platform/google_appengine/dev_appserver.py \
       --skip_sdk_update_check \

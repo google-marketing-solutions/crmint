@@ -18,6 +18,7 @@ from datetime import datetime
 from datetime import timedelta
 from fnmatch import fnmatch
 from functools import wraps
+from pprint import pprint
 import json
 import os
 from random import random
@@ -42,16 +43,21 @@ import zeep.cache
 _KEY_FILE = os.path.join(os.path.dirname(__file__), '..', 'data',
                          'service-account.json')
 AVAILABLE = (
+    'AdsDataHubQueryLauncher',
+    'AutoMLImporter',
     'AutoMLPredictor',
+    'AutoMLTrainer',
     'BQMLTrainer',
     'BQQueryLauncher',
     'BQToAppConversionAPI',
     'BQToCM',
     'BQToMeasurementProtocol',
+    'BQToMeasurementProtocolGA4',
     'BQToStorageExporter',
     'Commenter',
     'GAAudiencesUpdater',
     'GADataImporter',
+    'GAGoalsUpdater',
     'GAToBQImporter',
     'MLPredictor',
     'MLTrainer',
@@ -154,9 +160,10 @@ class Worker(object):
           if e.code > 399 and e.code < 500:
             raise e
         except Exception as e:  # pylint: disable=broad-except
-          tries += 1
-          delay = 5 * 2 ** (tries + random())
-          time.sleep(delay)
+          pass
+        tries += 1
+        delay = 5 * 2 ** (tries + random())
+        time.sleep(delay)
       return func(*args, **kwargs)
     return func_with_retries
 
@@ -358,11 +365,46 @@ class StorageToBQImporter(StorageWorker, BQWorker):
       ('rows_to_skip', 'number', False, 0, 'Header rows to skip'),
       ('errors_to_allow', 'number', False, 0, 'Number of errors allowed'),
       ('import_json', 'boolean', False, False, 'Source is in JSON format'),
+      ('csv_null_marker', 'string', False, '', 'CSV Null marker'),
+      ('schema', 'text', False, '', 'Table Schema in JSON'),
   ]
 
   def _get_source_uris(self):
     stats = self._get_matching_stats(self._params['source_uris'])
     return ['gs:/%s' % s.filename for s in stats]
+
+
+  def _get_field_schema(self, field):
+    name = field['name']
+    field_type = field.get('type', 'STRING')
+    mode = field.get('mode', 'NULLABLE')
+    fields = field.get('fields', [])
+
+    if fields:
+      subschema = []
+      for f in fields:
+        fields_res = self._get_field_schema(f)
+        subschema.append(fields_res)
+    else:
+      subschema = []
+
+    field_schema = bigquery.schema.SchemaField(
+      name=name,
+      field_type=field_type,
+      mode=mode,
+      fields=tuple(subschema)
+    )
+
+    return field_schema
+
+  def _parse_bq_json_schema(self, schema_json_string):
+    table_schema = []
+    jsonschema = json.loads(schema_json_string)
+
+    for field in jsonschema:
+      table_schema.append(self._get_field_schema(field))
+
+    return table_schema
 
   def _execute(self):
     self._bq_setup()
@@ -377,6 +419,10 @@ class StorageToBQImporter(StorageWorker, BQWorker):
       except KeyError:
         job.skip_leading_rows = 0
     job.autodetect = self._params['autodetect']
+
+    if self._params['csv_null_marker']:
+      job.null_marker = self._params['csv_null_marker']
+
     if job.autodetect:
       # Ugly patch to make autodetection work. See https://goo.gl/shWLKf
       # pylint: disable=protected-access
@@ -390,6 +436,10 @@ class StorageToBQImporter(StorageWorker, BQWorker):
       job.allow_jagged_rows = True
       job.allow_quoted_newlines = True
       job.ignore_unknown_values = True
+
+      if self._params['schema']:
+        job.schema = self._parse_bq_json_schema(self._params['schema'])
+
     try:
       job.max_bad_records = self._params['errors_to_allow']
     except KeyError:
@@ -773,6 +823,134 @@ class GAAudiencesUpdater(BQWorker, GAWorker):
     self._get_diff()
     self._update_ga_audiences()
 
+    
+class GAGoalsUpdater(BQWorker, GAWorker):
+  """Worker to update GA goals using values from a BQ table.
+  See: https://developers.google.com/analytics/devguides/config/mgmt/v3/mgmtReference/management/goals#resource-representations
+  for more details on the required GA Goal JSON template format.
+  """
+
+  PARAMS = [
+      ('property_id', 'string', True, '',
+       'GA Property Tracking ID (e.g. UA-12345-3)'),
+      ('view_id', 'string', True, '', 'GA View ID (e.g. 345678)'),
+      ('bq_project_id', 'string', False, '', 'BQ Project ID'),
+      ('bq_dataset_id', 'string', True, '', 'BQ Dataset ID'),
+      ('bq_table_id', 'string', True, '', 'BQ Table ID'),
+      ('template', 'text', True, '', 'GA goal JSON template'),
+      ('account_id', 'string', False, '', 'GA Account ID'),
+  ]
+
+  def _infer_goals(self):
+    self._inferred_goals = {}
+    fields = [f.name for f in self._table.schema]
+    for row in self._table.fetch_data():
+      try:
+        template_rendered = self._params['template'] % (
+          dict(zip(fields, row)))
+        goal = json.loads(template_rendered)
+      except ValueError as e:
+        raise WorkerException(e)
+      self._inferred_goals[goal['name']] = goal
+
+  def _get_goals(self):
+    goals = []
+    start_index = 1
+    max_results = 100
+    total_results = 100
+    while start_index <= total_results:
+      request = self._ga_client.management().goals().list(
+          accountId=self._account_id,
+          webPropertyId=self._params['property_id'],
+          profileId=self._params['view_id'],
+          start_index=start_index,
+          max_results=max_results)
+      response = self.retry(request.execute)()
+      total_results = response['totalResults']
+      start_index += max_results
+      goals += response['items']
+    self._current_goals = {}
+    names = self._inferred_goals.keys()
+    for goal in goals:
+      if goal['name'] in names:
+        self._current_goals[goal['name']] = goal
+
+  def _equal(self, patch, goal):
+    """Checks whether applying a patch would not change a goal.
+    Args:
+        patch: An object that is going to be used as a patch
+            to update the goal.
+        goal: An object representing goal to be patched.
+    Returns:
+       True if applying the patch won't change the goal, False otherwise.
+    """
+    dicts = [(patch, goal)]
+    for d1, d2 in dicts:
+      keys = d1 if isinstance(d1, dict) else xrange(len(d1))
+      for k in keys:
+        try:
+          d2[k]
+        except (IndexError, KeyError):
+          return False
+        if isinstance(d1[k], dict):
+          if isinstance(d2[k], dict):
+            dicts.append((d1[k], d2[k]))
+          else:
+            return False
+        elif isinstance(d1[k], list):
+          if isinstance(d2[k], list) and len(d1[k]) == len(d2[k]):
+            dicts.append((d1[k], d2[k]))
+          else:
+            return False
+        elif d1[k] != d2[k]:
+          return False
+    return True
+
+  def _get_diff(self):
+    """Composes lists of goals to be created and updated in GA."""
+    self._goals_to_insert = []
+    self._goals_to_patch = {}
+    for name in self._inferred_goals:
+      inferred_goal = self._inferred_goals[name]
+      if name in self._current_goals:
+        current_goal = self._current_goals[name]
+        if not self._equal(inferred_goal, current_goal):
+          self._goals_to_patch[current_goal['id']] = inferred_goal
+      else:
+        self._goals_to_insert.append(inferred_goal)
+
+  def _update_ga_goals(self):
+    """Updates and/or creates goals in GA."""
+    for goal in self._goals_to_insert:
+      request = self._ga_client.management().goals().insert(
+          accountId=self._account_id,
+          webPropertyId=self._params['property_id'],
+          profileId=self._params['view_id'],
+          body=goal)
+      self.retry(request.execute)()
+    for goal_id in self._goals_to_patch:
+      goal = self._goals_to_patch[goal_id]
+      request = self._ga_client.management().goals().patch(
+          accountId=self._account_id,
+          webPropertyId=self._params['property_id'],
+          profileId=self._params['view_id'],
+          goalId=goal_id,
+          body=goal)
+      self.retry(request.execute)()
+
+  def _execute(self):
+    if self._params['account_id']:
+      self._account_id = self._params['account_id']
+    else:
+      self._account_id = self._parse_accountid_from_propertyid()
+    self._bq_setup()
+    self._table.reload()
+    self._ga_setup('v3')
+    self._infer_goals()
+    self._get_goals()
+    self._get_diff()
+    self._update_ga_goals()    
+
 
 class MLWorker(Worker):
   """Abstract ML Engine worker."""
@@ -947,6 +1125,125 @@ class MLVersionDeployer(MLWorker, StorageWorker):
 class MeasurementProtocolException(WorkerException):
   """Measurement Protocol execution exception."""
   pass
+
+
+class BQToMeasurementProtocolGA4(BQWorker):
+  """Worker to push data through Measurement Protocol."""
+
+  PARAMS = [
+      ('bq_project_id', 'string', False, '', 'BQ Project ID'),
+      ('bq_dataset_id', 'string', True, '', 'BQ Dataset ID'),
+      ('bq_table_id', 'string', True, '', 'BQ Table ID'),
+      ('measurement_id', 'string', True, '', 'Measurement ID'),
+      ('api_secret', 'string', True, '', 'API Secret'),
+      ('template', 'text', True, '', ('GA4 Measurement Protocol '
+                                      'JSON template')),
+      ('mp_batch_size', 'number', True, 20, ('Measurement Protocol '
+                                             'batch size')),
+      ('debug', 'boolean', True, False, 'Debug mode'),
+  ]
+
+  # BigQuery batch size for querying results. Default to 1000.
+  BQ_BATCH_SIZE = int(1e3)
+
+  # Maximum number of jobs to enqueued before spawning a new scheduler.
+  MAX_ENQUEUED_JOBS = 50
+
+  def _execute(self):
+    self._bq_setup()
+    self._table.reload()
+    page_token = self._params.get('bq_page_token', None)
+    batch_size = self.BQ_BATCH_SIZE
+    query_iterator = self.retry(self._table.fetch_data)(
+        max_results=batch_size,
+        page_token=page_token)
+
+    enqueued_jobs_count = 0
+    for query_page in query_iterator.pages:  # pylint: disable=unused-variable
+      # Enqueue job for this page
+      worker_params = self._params.copy()
+      worker_params['bq_page_token'] = page_token
+      worker_params['bq_batch_size'] = self.BQ_BATCH_SIZE
+      self._enqueue(
+        'BQToMeasurementProtocolProcessorGA4', worker_params, 0)
+      enqueued_jobs_count += 1
+
+      # Updates the page token reference for the next iteration.
+      page_token = query_iterator.next_page_token
+
+      # Spawns a new job to schedule the remaining pages.
+      if (enqueued_jobs_count >= self.MAX_ENQUEUED_JOBS
+          and page_token is not None):
+        worker_params = self._params.copy()
+        worker_params['bq_page_token'] = page_token
+        self._enqueue(self.__class__.__name__, worker_params, 0)
+        return
+
+
+class BQToMeasurementProtocolProcessorGA4(BQWorker):
+  """Worker pushing to Measurement Protocol for GA4 Properties."""
+
+  def _send_payload_list(self, payloads):
+    headers = {'content-type': 'application/json'}
+    for payload in payloads:
+      if self._debug:
+        domain = 'https://www.google-analytics.com/debug/mp/collect'
+        url = '{domain}?measurement_id={measurement_id}&api_secret={api_secret}'.format(
+          domain=domain, measurement_id=self._measurement_id,
+          api_secret=self._api_secret)
+        response = requests.post(
+          url,
+          data=json.dumps(payload),
+          headers=headers)
+        result = json.loads(response.text)
+        for msg in result['validationMessages']:
+          self.log_warn('Validation Message: %s, Payload: %s' % (
+            msg['description'], payload))
+      else:
+        domain = 'https://www.google-analytics.com/mp/collect'
+        url = '{domain}?measurement_id={measurement_id}&api_secret={api_secret}'.format(
+          domain=domain, measurement_id=self._measurement_id,
+          api_secret=self._api_secret)
+        response = requests.post(
+          url,
+          data=json.dumps(payload),
+          headers=headers)
+        if response.status_code != requests.codes.no_content:
+          raise MeasurementProtocolException(
+            'Failed to send event with status code (%s) and parameters: %s'
+            % (response.status_code, payload))
+
+  def _process_query_results(self, query_data, query_schema):
+    """Sends event hits from query data."""
+    fields = [f.name.encode('utf-8') for f in query_schema]
+    payload_list = []
+    for row in query_data:
+      utf8_row = []
+      for item in row:
+        utf8_row.append(str(item).encode('utf-8'))
+      template = self._params['template'] % dict(zip(fields, utf8_row))
+      measurement_protocol_payload = json.loads(template)
+      payload_list.append(measurement_protocol_payload)
+      if len(payload_list) >= self._params['mp_batch_size']:
+        self._send_payload_list(payload_list)
+        payload_list = []
+    if payload_list:
+      # Sends remaining payloads.
+      self._send_payload_list(payload_list)
+
+  def _execute(self):
+    self._bq_setup()
+    self._table.reload()
+    self._debug = self._params['debug']
+    self._measurement_id = self._params['measurement_id']
+    self._api_secret = self._params['api_secret']
+    page_token = self._params['bq_page_token'] or None
+    batch_size = self._params['bq_batch_size']
+    query_iterator = self.retry(self._table.fetch_data)(
+        max_results=batch_size,
+        page_token=page_token)
+    query_first_page = next(query_iterator.pages)
+    self._process_query_results(query_first_page, query_iterator.schema)
 
 
 class BQToMeasurementProtocol(BQWorker):
@@ -1398,25 +1695,82 @@ class BQToAppConversionAPI(BQWorker):
 class AutoMLWorker(Worker):
   """Abstract AutoML worker."""
 
-  @staticmethod
-  def _get_automl_client():
+  def _get_automl_client(self, location):
     """Constructs a Resource for interacting with the AutoML API."""
+    # Use the location-appropriate AutoML endpoint
+    # Otherwise, API calls fail with HttpError 400
+    if location == 'eu':
+      endpoint = 'eu-automl'
+    else:  # global: us-central1, etc
+      endpoint = 'automl'
+    api_endpoint = 'https://{}.googleapis.com'.format(endpoint)
+    self.log_info('Using AutoML client with endpoint: %s', api_endpoint)
+
     # You might be wondering why we're using the discovery-based Google API
     # client library as opposed to the more modern Google Cloud client library.
     # The reason is that the modern client libraries (e.g. google-cloud-automl)
     # are not supported on App Engine's Python 2 runtime.
     # See: https://github.com/googleapis/google-cloud-python
+    client_options = {'api_endpoint': api_endpoint}
     credentials = ServiceAccountCredentials.from_json_keyfile_name(_KEY_FILE)
-    return build('automl', 'v1beta1', credentials=credentials)
+    return build(endpoint, 'v1beta1', credentials=credentials, client_options=client_options)
+
+  @staticmethod
+  def _get_automl_parent_name(project, location):
+    """Constructs the parent location path."""
+    return "projects/{project}/locations/{location}".format(
+        project=project,
+        location=location,
+    )
 
   @staticmethod
   def _get_full_model_name(project, location, model):
     """Constructs the fully-qualified name for the given AutoML model."""
-    return "projects/{project}/locations/{location}/models/{model}".format(
-        project=project,
-        location=location,
+    return "{parent}/models/{model}".format(
+        parent=AutoMLWorker._get_automl_parent_name(project, location),
         model=model,
     )
+
+  @staticmethod
+  def _get_full_dataset_name(project, location, dataset):
+    """Constructs the fully-qualified name for the given AutoML dataset."""
+    return "{parent}/datasets/{dataset}".format(
+        parent=AutoMLWorker._get_automl_parent_name(project, location),
+        dataset=dataset,
+    )
+
+  @staticmethod
+  def _build_display_name(name, strftime_format):
+    """ Constructs an strftime formatted display name"""
+    display_name = name
+    if strftime_format:
+      strftime = datetime.now().strftime(strftime_format)
+      display_name += strftime
+    return display_name
+
+  @staticmethod
+  def _get_latest_dataset_id(client, parent, display_name):
+    """Finds the latest dataset matching the given name"""
+    response = client.projects().locations().datasets() \
+                     .list(parent=parent).execute()
+
+    for dataset in response['datasets']:
+      if dataset['displayName'] == display_name:
+        return dataset['name'].split('/')[-1]
+    else:
+      raise WorkerException('Dataset with given name was not found: %s' % display_name)
+
+  @staticmethod
+  def _get_latest_model_id(client, parent, display_name):
+    """Finds the latest model matching the given name"""
+    response = client.projects().locations().models() \
+                     .list(parent=parent).execute()
+
+    for model in response['model']:
+      if model['displayName'] == display_name:
+        return model['name'].split('/')[-1]
+    else:
+      raise WorkerException('Model with given name was not found: %s' % display_name)
 
 
 class AutoMLPredictor(AutoMLWorker):
@@ -1425,9 +1779,11 @@ class AutoMLPredictor(AutoMLWorker):
   PARAMS = [
       ('model_project_id', 'string', True, '', 'AutoML Project ID'),
       ('model_location', 'string', True, '', 'AutoML Model Location'),
-      ('model_id', 'string', True, '', 'AutoML Model ID'),
+      ('model_id', 'string', False, '', 'AutoML Model ID'),
+      ('model_name', 'string', False, '', 'AutoML Model Name'),
+      ('strftime_format', 'string', False, '', 'AutoML Model strftime format'),
       ('input_bq_uri', 'string', False, '',
-       'Input - BigQuery Table URI (e.g. bq://projectId/dataset/table)'),
+       'Input - BigQuery Table URI (e.g. bq://projectId.dataset.table)'),
       ('input_gcs_uri', 'string', False, '',
        'Input - Cloud Storage CSV URI (e.g. gs://bucket/directory/file.csv)'),
       ('output_bq_project_uri', 'string', False, '',
@@ -1437,27 +1793,36 @@ class AutoMLPredictor(AutoMLWorker):
   ]
 
   def _execute(self):
+    model_location = self._params['model_location']
+    parent = self._get_automl_parent_name(self._params['model_project_id'],
+                                          model_location)
+
+    client = self._get_automl_client(location=model_location)
+
+    model_id = self._get_model_id(client, parent)
+
     # Construct the fully-qualified model name and config for the prediction.
     model_name = self._get_full_model_name(self._params['model_project_id'],
-                                           self._params['model_location'],
-                                           self._params['model_id'])
+                                           model_location,
+                                           model_id)
     body = {
         'inputConfig': self._generate_input_config(),
         'outputConfig': self._generate_output_config()
     }
 
     # Launch the prediction and retrieve its operation name so we can track it.
-    client = self._get_automl_client()
+    self.log_info('Launching batch prediction job @ %s: %s', parent, body)
+    client = self._get_automl_client(location=model_location)
     response = client.projects().locations().models() \
                      .batchPredict(name=model_name, body=body).execute()
-
-    self.log_info('Launched batch prediction job: %s -> %s', body, response)
+    self.log_info('Launched batch prediction job: %s', response)
 
     # Since the batch prediction might take more than the 10 minutes the job
     # service has to serve a response to the Push Queue, we can't wait on it
     # here. We thus spawn a worker that waits until the operation is completed.
     operation_name = response.get('name')
-    self._enqueue('AutoMLWaiter', {'operation_name': operation_name}, 60)
+    waiter_params = {'operation_name': operation_name, 'location': model_location}
+    self._enqueue('AutoMLWaiter', waiter_params, 5 * 60)
 
   def _generate_input_config(self):
     """Constructs the input configuration for the batch prediction request."""
@@ -1483,12 +1848,28 @@ class AutoMLPredictor(AutoMLWorker):
     else:
       raise WorkerException('Provide either a BigQuery or GCS destination.')
 
+  def _get_model_id(self, client, parent):
+    model_id = self._params['model_id']
+    model_name = self._params['model_name']
+    strftime_format = self._params['strftime_format']
+
+    if model_id and not (model_name and strftime_format):
+      self.log_info('Using Model with ID: %s', model_id)
+    elif (model_name and strftime_format) and not model_id:
+      model_display_name = self._build_display_name(model_name, strftime_format)
+      self.log_info('Searching for Model name matching: %s', model_display_name)
+      model_id = self._get_latest_model_id(client, parent, model_display_name)
+      self.log_info('Found Model with ID: %s', model_id)
+    else:
+      raise WorkerException('Provide either a Model ID or name & strftime format.')
+    return model_id
+
 
 class AutoMLWaiter(AutoMLWorker):
   """Worker that keeps respawning until an AutoML operation is completed."""
 
   def _execute(self):
-    client = self._get_automl_client()
+    client = self._get_automl_client(location=self._params['location'])
     operation_name = self._params['operation_name']
 
     response = client.projects().locations().operations() \
@@ -1501,4 +1882,281 @@ class AutoMLWaiter(AutoMLWorker):
         self.log_info('AutoML operation completed successfully: %s', response)
     else:
       self.log_info('AutoML operation still running: %s', response)
-      self._enqueue('AutoMLWaiter', self._params, 60)
+      self._enqueue('AutoMLWaiter', self._params, self._params.get('delay', 10 * 60))
+
+
+class AutoMLImporter(AutoMLWorker):
+  """Worker to create AutoML datasets by importing data from Bigquery or GCS."""
+
+  PARAMS = [
+    ('dataset_project_id', 'string', True, '', 'AutoML Project ID'),
+    ('dataset_location', 'string', True, '', 'AutoML Dataset Location'),
+    ('dataset_name', 'string', True, '', 'Dataset Name'),
+    ('strftime_format', 'string', False, '', 'strftime format (appended to name for uniqueness)'),
+    ('dataset_metadata', 'text', False, '', 'Dataset metadata in JSON'),
+    ('input_bq_uri', 'string', False, '',
+      'Input - BigQuery Table URI (e.g. bq://projectId.dataset.table)'),
+    ('input_gcs_uri', 'string', False, '',
+      'Input - Cloud Storage CSV URI (e.g. gs://bucket/directory/file.csv)'),
+  ]
+
+  def _execute(self):
+    dataset_location = self._params['dataset_location']
+    display_name = self._build_display_name(self._params['dataset_name'],
+                                            self._params['strftime_format'])
+
+    parent = self._get_automl_parent_name(self._params['dataset_project_id'],
+                                          dataset_location)
+
+    dataset_metadata = self._params['dataset_metadata']
+    if dataset_metadata:
+      metadata = json.loads(dataset_metadata)
+    else:
+      metadata = {}
+
+    body = {
+      'displayName': display_name,
+      'tablesDatasetMetadata': metadata
+    }
+
+    # Launch the dataset creation and retrieve the fully qualified name.
+    self.log_info('Launching dataset creation job @ %s: %s', parent, body)
+    client = self._get_automl_client(location=dataset_location)
+    response = client.projects().locations().datasets() \
+                     .create(parent=parent, body=body).execute()
+    self.log_info('Launched dataset creation job: %s', response)
+
+    dataset_name = response.get('name')
+
+    self.log_info('Created dataset at: %s', dataset_name)
+
+    body = {
+      'inputConfig': self._generate_input_config()
+    }
+
+    # Launch the data import and retrieve its operation name so we can track it.
+    self.log_info('Launching data import job @ %s: %s', parent, body)
+    client = self._get_automl_client(location=dataset_location)
+    response = client.projects().locations().datasets() \
+                     .importData(name=dataset_name, body=body).execute()
+    self.log_info('Launched data import job: %s', response)
+
+    # Since the data import might take more than the 10 minutes the job
+    # service has to serve a response to the Push Queue, we can't wait on it
+    # here. We thus spawn a worker that waits until the operation is completed.
+    operation_name = response.get('name')
+    waiter_params = {
+      'operation_name': operation_name,
+      'delay': 15 * 60,
+      'location': dataset_location,
+    }
+    self._enqueue('AutoMLWaiter', waiter_params, 15 * 60)
+
+  def _generate_input_config(self):
+    """Constructs the input configuration for the data import request."""
+    input_bq_uri = self._params['input_bq_uri']
+    input_gcs_uri = self._params['input_gcs_uri']
+
+    if input_bq_uri and not input_gcs_uri:
+      return {'bigquery_source': {'input_uri': input_bq_uri}}
+    elif input_gcs_uri and not input_bq_uri:
+      return {'gcs_source': {'input_uris': [input_gcs_uri]}}
+    else:
+      raise WorkerException('Provide either a BigQuery or GCS source.')
+
+
+class AutoMLTrainer(AutoMLWorker):
+  """Worker to train AutoML models."""
+
+  PARAMS = [
+      ('model_project_id', 'string', True, '', 'AutoML Project ID'),
+      ('model_location', 'string', True, '', 'AutoML Model Location'),
+      ('model_name', 'string', True, '', 'AutoML Model Name'),
+      ('model_strftime_format', 'string', False, '', 'strftime format (appended to name for uniqueness)'),
+      ('dataset_id', 'string', False, '', 'AutoML Dataset ID'),
+      ('dataset_name', 'string', False, '', 'AutoML Dataset Name'),
+      ('dataset_strftime_format', 'string', False, '', 'AutoML Dataset strftime format'),
+      ('training_columns', 'string_list', False, '', 'Training Column names (else, all are used)'),
+      ('target_column', 'string', True, '', 'Target Column name'),
+      ('optimization_objective', 'string', False, '', 'Optimization objective'),
+      ('training_budget', 'number', True, '', 'Training budget (in hours)'),
+      ('stop_early', 'boolean', True, False, 'Stop training early (if possible)'),
+  ]
+
+  def _execute(self):
+    model_location = self._params['model_location']
+    display_name = self._build_display_name(self._params['model_name'],
+                                            self._params['model_strftime_format'])
+
+    parent = self._get_automl_parent_name(self._params['model_project_id'],
+                                          model_location)
+
+    client = self._get_automl_client(location=model_location)
+
+    dataset_id = self._get_dataset_id(client, parent)
+    dataset_resource_name = self._get_full_dataset_name(self._params['model_project_id'],
+                                                        model_location,
+                                                        dataset_id)
+
+    column_specs = self._get_column_specs(client, dataset_resource_name)
+
+    target_column_spec = self._get_column_spec(column_specs, self._params['target_column'])
+    self._set_target_column(client, dataset_resource_name, target_column_spec)
+
+    training_columns = filter(None, map(lambda column: column.strip(),
+                                        self._params['training_columns']))
+    training_columns_specs = map(
+      lambda column: self._get_column_spec(column_specs, column), training_columns)
+
+    body = {
+      'displayName': display_name,
+      'datasetId': dataset_id,
+      'tablesModelMetadata': self._generate_model_metadata(target_column_spec,
+                                                           training_columns_specs)
+    }
+
+    # Launch the prediction and retrieve its operation name so we can track it.
+    self.log_info('Launching model training job @ %s: %s', parent, body)
+    response = client.projects().locations().models() \
+                     .create(parent=parent, body=body).execute()
+    self.log_info('Launched model training job: %s', response)
+
+    # Since the model training might take more than the 10 minutes the job
+    # service has to serve a response to the Push Queue, we can't wait on it
+    # here. We thus spawn a worker that waits until the operation is completed.
+    operation_name = response.get('name')
+    waiter_params = {
+      'operation_name': operation_name,
+      'delay': self._params['training_budget'] * 60 * 30,
+      'location': model_location,
+    }
+    self._enqueue('AutoMLWaiter', waiter_params, 15 * 60)
+
+  def _generate_model_metadata(self, target_column_spec, training_columns_specs):
+    model_metadata = {
+      'targetColumnSpec': {'name': target_column_spec},
+      'trainBudgetMilliNodeHours': self._params['training_budget'] * 1000,
+      'disableEarlyStopping': not self._params['stop_early']
+    }
+
+    if len(training_columns_specs) > 0:
+      model_metadata['inputFeatureColumnSpecs'] = map(lambda cid: {'name': cid},
+                                                      training_columns_specs)
+
+    if self._params['optimization_objective']:
+      model_metadata['optimizationObjective'] = self._params['optimization_objective']
+
+    return model_metadata
+
+  def _get_dataset_id(self, client, parent):
+    dataset_id = self._params['dataset_id']
+    dataset_name = self._params['dataset_name']
+    dataset_strftime_format = self._params['dataset_strftime_format']
+
+    if dataset_id and not (dataset_name and dataset_strftime_format):
+      self.log_info('Using dataset with ID: %s', dataset_id)
+    elif (dataset_name and dataset_strftime_format) and not dataset_id:
+      dataset_display_name = self._build_display_name(dataset_name, dataset_strftime_format)
+      self.log_info('Searching for dataset name matching: %s', dataset_display_name)
+      dataset_id = self._get_latest_dataset_id(client, parent, dataset_display_name)
+      self.log_info('Found dataset with ID: %s', dataset_id)
+    else:
+      raise WorkerException('Provide either a Dataset ID or name & strftime format.')
+    return dataset_id
+
+  def _get_column_specs(self, client, dataset_resource_name):
+    response = client.projects().locations().datasets() \
+                     .get(name=dataset_resource_name).execute()
+
+    table_spec_id = response['tablesDatasetMetadata']['primaryTableSpecId']
+    table_resource_name = '{parent}/tableSpecs/{table}'.format(parent=dataset_resource_name,
+                                                               table=table_spec_id)
+
+    response = client.projects().locations().datasets().tableSpecs().columnSpecs() \
+                     .list(parent=table_resource_name).execute()
+    return response['columnSpecs']
+
+  def _get_column_spec(self, column_specs, column):
+    for column_spec in column_specs:
+      if column_spec['displayName'] == column:
+        return column_spec['name']
+    else:
+      raise WorkerException('Column with given name not found: %s' % column)
+
+  def _set_target_column(self, client, dataset_resource_name, target_column_spec):
+    body = {
+      'tablesDatasetMetadata': {'targetColumnSpecId': target_column_spec.split('/')[-1]}
+    }
+    # Set target column for dataset
+    self.log_info('Modifying target column for dataset: %s', body)
+    response = client.projects().locations().datasets() \
+                     .patch(name=dataset_resource_name, body=body).execute()
+    self.log_info('Modified target column for dataset: %s', response)
+
+
+class AdsDataHubWorker(Worker):
+  """Abstract AdsDataHub worker."""
+
+  GLOBAL_SETTINGS = ['developer_token']
+  ADH_SCOPE = 'https://www.googleapis.com/auth/adsdatahub'
+
+  def _get_adh_client(self):
+    credentials = ServiceAccountCredentials.from_json_keyfile_name(
+        _KEY_FILE,
+        scopes=[ADH_SCOPE])
+
+    self._adh_client = build(
+        'adsdatahub',
+        'v1',
+        credentials=credentials,
+        developerKey=self._params['developer_token'].strip())
+
+
+class AdsDataHubQueryLauncher(AdsDataHubWorker):
+  """AdsDataHub worker that launches a pre-existing query."""
+
+  PARAMS = [
+    ('customer_id', 'string', True, '', 'Customer Id'),
+    ('query_id', 'string', True, '', 'Query Id'),
+    ('payload', 'text', True, '', 'Payload')
+  ]
+
+  def _execute(self):
+    self._get_adh_client()
+
+    operation = self._adh_client.customers().analysisQueries().start(
+        name='customers/{customer_id}/analysisQueries/{query_id}'
+          .format(
+              query_id=self._params['query_id'],
+              customer_id=self._params['customer_id']),
+        body=json.loads(self._params['payload'])
+    ).execute()
+
+    self.log_info('New operation %s created', operation['name'])
+
+    self._enqueue('AdsDataHubQueryWaiter',
+                    {'operation_name': operation['name']}, 60)
+
+
+class AdsDataHubQueryWaiter(AdsDataHubWorker):
+  """Worker that keeps respawning until an AdsDataHub operation is done."""
+
+  PARAMS = [
+    ('operation_name', 'string', True, '', 'Operation name'),
+  ]
+
+  def _execute(self):
+    self._get_adh_client()
+
+    operation = self._adh_client.operations().get(
+        name=self._params['operation_name']).execute()
+
+    # API is not behaving as expected, i.e. done is not added to response
+    # before the execution is finished
+    if not operation.get('done', False):
+      self._enqueue('AdsDataHubQueryWaiter',
+                    {'operation_name': self._params['operation_name']}, 60)
+    elif 'error' in operation:
+      raise WorkerException('Ads Data Hub operation failed: %s' % operation['error'])
+    elif 'response' in operation:
+      self.log_info('Ads Data Hub operation completed successfully: %s', operation['response'])

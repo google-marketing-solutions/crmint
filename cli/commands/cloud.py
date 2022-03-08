@@ -140,22 +140,26 @@ def _check_if_mysql_user_exists(stage, debug=False):
 
 
 def create_mysql_user_if_needed(stage, debug=False):
+  gcloud_command = "$GOOGLE_CLOUD_SDK/bin/gcloud --quiet"
   if _check_if_mysql_user_exists(stage, debug=debug):
     click.echo("     MySQL user already exists.")
-    return
-
-  gcloud_command = "$GOOGLE_CLOUD_SDK/bin/gcloud --quiet"
-  command = "{gcloud_bin} sql users create {db_username} \
+    sql_users_command = "set-password"
+    message = "Setting MySQL user's password"
+  else:
+    sql_users_command = "create"
+    message = "Creating MySQL user"
+  command = "{gcloud_bin} sql users {sql_users_command} {db_username} \
     --host % \
     --instance={db_instance_name} \
     --password={db_password} \
     --project={project_id}".format(
       gcloud_bin=gcloud_command,
+      sql_users_command=sql_users_command,
       project_id=stage.project_id_gae,
       db_instance_name=stage.db_instance_name,
       db_username=stage.db_username,
       db_password=stage.db_password)
-  shared.execute_command("Creating MySQL user", command, debug=debug)
+  shared.execute_command(message, command, debug=debug)
 
 
 def _check_if_mysql_database_exists(stage, debug=False):
@@ -195,7 +199,6 @@ def activate_services(stage, debug=False):
   gcloud_command = "$GOOGLE_CLOUD_SDK/bin/gcloud --quiet"
   command = "{gcloud_bin} services enable \
     --project={project_id} \
-    --async \
     analytics.googleapis.com \
     analyticsreporting.googleapis.com \
     bigquery-json.googleapis.com \
@@ -203,7 +206,8 @@ def activate_services(stage, debug=False):
     logging.googleapis.com \
     storage-api.googleapis.com \
     storage-component.googleapis.com \
-    sqladmin.googleapis.com".format(
+    sqladmin.googleapis.com \
+    cloudscheduler.googleapis.com".format(
       gcloud_bin=gcloud_command,
       project_id=stage.project_id_gae)
   shared.execute_command("Activate services", command, debug=debug)
@@ -309,7 +313,7 @@ def deploy_frontend(stage, debug=False):
   # NB: Limit the node process memory usage to avoid overloading
   #     the Cloud Shell VM memory which makes it unresponsive.
   commands = [
-      "npm install",
+      "npm install --legacy-peer-deps",
       "node --max-old-space-size=512 ./node_modules/@angular/cli/bin/ng build",
       "{gcloud_bin} --project={project_id} app deploy gae.yaml --version=v1".format(
           gcloud_bin=gcloud_command,
@@ -342,10 +346,13 @@ def deploy_dispatch_rules(stage, debug=False):
 
 def install_backends_dependencies(stage, debug=False):
   commands = [
+      # HACK: fix missing MySQL header for compilation
+      "sudo wget https://raw.githubusercontent.com/paulfitz/mysql-connector-c/master/include/my_config.h -P /usr/include/mysql/",
+      # Install dependencies in virtualenv
       "virtualenv --python=python2 env",
       "mkdir -p lib",
-      "pip install -r ibackend/requirements.txt -t lib -q",
-      "pip install -r jbackend/requirements.txt -t lib -q",
+      "pip install -r ibackend/requirements.txt -t lib",
+      "pip install -r jbackend/requirements.txt -t lib",
       # Applying patches requered in GAE environment (alas!).
       "cp -r \"%(patches_dir)s\"/lib/* lib/" % dict(patches_dir=constants.PATCHES_DIR),
       "find \"%(workdir)s\" -name '*.pyc' -exec rm {} \;" % dict(workdir=stage.workdir),
@@ -513,12 +520,12 @@ def setup(stage_name, debug):
 
   # Runs setup steps.
   components = [
+      activate_services,
       create_appengine,
       create_service_account_key_if_needed,
       create_mysql_instance_if_needed,
       create_mysql_user_if_needed,
       create_mysql_database_if_needed,
-      activate_services,
       download_config_files,
   ]
   for component in components:
