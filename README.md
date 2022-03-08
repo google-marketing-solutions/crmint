@@ -11,8 +11,8 @@ advertisers.**
 
 | Status | Coverage | Branch | Description |
 | :----- | :--------- | :----- | :---------- |
-| [![Build Status](https://travis-ci.org/google/crmint.svg?branch=dev)](https://travis-ci.org/google/crmint) | - | [dev](https://github.com/google/crmint/tree/dev) | Latest build, use it at your own risks  |
-| [![Build Status](https://travis-ci.org/google/crmint.svg?branch=master)](https://travis-ci.org/google/crmint) | - | [master](https://github.com/google/crmint/tree/master) | Production ready releases |
+| [![testing-actions](https://github.com/google/crmint/actions/workflows/testing-actions.yml/badge.svg?branch=dev)](https://github.com/google/crmint/actions/workflows/testing-actions.yml) | - | [dev](https://github.com/google/crmint/tree/dev) | Latest build, use it at your own risks  |
+| [![testing-actions](https://github.com/google/crmint/actions/workflows/testing-actions.yml/badge.svg?branch=master)](https://github.com/google/crmint/actions/workflows/testing-actions.yml) | - | [master](https://github.com/google/crmint/tree/master) | Production ready releases |
 
 > You can have data without information, but you cannot have information
 > without data.
