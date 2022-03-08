@@ -1,5 +1,5 @@
 --no-binary MySQL-python
-urllib3==1.25.10
+urllib3==1.26.5
 Flask==1.1.2
 Flask-Cors==3.0.2
 Flask-Migrate==2.0.3
