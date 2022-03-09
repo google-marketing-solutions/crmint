@@ -91,17 +91,44 @@ enabled_stages = False
 
 """.strip()
 
+def _get_regions(project_id):
+  gcloud = '$GOOGLE_CLOUD_SDK/bin/gcloud --quiet'
+  cmd = '{gcloud} app describe --verbosity critical --project={project_id} | grep locationId'.format(
+    gcloud=gcloud,
+    project_id=project_id)
+  status, out, err = shared.execute_command(
+      'Get App Engine region', cmd, stream_output_in_debug=False)
+  if status == 0:  # App Engine app had already been deployed in some region.
+    region = out.strip().split()[1]
+  else:  # Get the list of available App Engine regions and prompt user.
+    click.echo('     No App Engine app has been deployed yet.')
+    cmd = "{gcloud} app regions list --format='value(region)'".format(gcloud=gcloud)
+    status, out, err = shared.execute_command(
+        'Get available App Engine regions', cmd, stream_output_in_debug=False)
+    regions = out.strip().split('\n')
+    for i, region in enumerate(regions):
+      index = i + 1
+      click.echo('{index}) {region}'.format(index=index, region=region))
+    i = -1
+    while i < 0 or i >= len(regions):
+      i = click.prompt(
+          'Enter an index of the region to deploy CRMint in', type=int) - 1
+    region = regions[i]
+  sql_region = region if region[-1].isdigit() else '{region}1'.format(region=region)
+  return region, sql_region
+
 
 def _default_stage_context(stage_name):
   # Generates a cryptographically secured random password for the database user.
   # Source: https://stackoverflow.com/a/23728630
   random_password = ''.join(random.SystemRandom().choice(
       string.ascii_lowercase + string.digits) for _ in range(16))
+  region, sql_region = _get_regions(stage_name)
   return dict(
       service_account_file="{}.json".format(stage_name),
       project_id_gae=stage_name,
-      project_region="europe-west",
-      project_sql_region="europe-west1",
+      project_region=region,
+      project_sql_region=sql_region,
       project_sql_tier="db-g1-small",
       workdir="/tmp/{}".format(stage_name),
       db_name="crmintapp",
