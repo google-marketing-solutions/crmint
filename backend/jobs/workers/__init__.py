@@ -31,17 +31,17 @@ EXPOSED = (
     'BQToStorageExporter',
     'BQToVertexAIDataset',
     'Commenter',
-    'GAAudiencesUpdater',
-    'GADataImporter',
+    #'GAAudiencesUpdater',
+    #'GADataImporter',
     # 'GAToBQImporter',
     # 'MLPredictor',
     # 'MLTrainer',
     # 'MLVersionDeployer',
     # 'StorageChecker',
-    'StorageCleaner',
+    #'StorageCleaner',
     'StorageToBQImporter',
-    'VertexAITabularTrainer',
-    'VertexAIToBQPredictor',
+    #'VertexAITabularTrainer',
+    #'VertexAIToBQPredictor',
 )
 
 
