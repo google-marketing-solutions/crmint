@@ -14,11 +14,12 @@
 
 """Legacy worker running SQL queries; please use BQScriptExecutor instead."""
 
+from google.api_core import exceptions
+from google.cloud.bigquery.job import QueryJobConfig
+from jobs.workers.bigquery.bq_worker import BQWorker
 
-from jobs.workers.bigquery.bq_script_executor import BQScriptExecutor
 
-
-class BQQueryLauncher(BQScriptExecutor):  # pylint: disable=too-few-public-methods
+class BQQueryLauncher(BQWorker):  # pylint: disable=too-few-public-methods
   """Legacy worker to run SQL queries and store results in tables."""
 
   PARAMS = [
@@ -26,12 +27,28 @@ class BQQueryLauncher(BQScriptExecutor):  # pylint: disable=too-few-public-metho
       ('bq_project_id', 'string', False, '', 'BQ Project ID'),
       ('bq_dataset_id', 'string', True, '', 'BQ Dataset ID'),
       ('bq_table_id', 'string', True, '', 'BQ Table ID'),
+      ('bq_dataset_location', 'string', True, '', 'BQ Dataset Location'),
       ('overwrite', 'boolean', True, False, 'Overwrite table'),
   ]
 
   def _execute(self):
-    or_replace = 'OR REPLACE' if self._params['overwrite'] else ''
-    table = self._get_full_table_name()
+    client = self._get_client()
+    job_id = self._get_job_id()
+    destination_table = self._get_full_table_name()
     query = self._params['query'].strip()
-    script = f'CREATE {or_replace} TABLE `{table}` AS {query}'
-    self._execute_sql_script(script)
+    location = self._params['bq_dataset_location']
+    try:
+      job = client.get_job(job_id)
+      job.reload()
+    except exceptions.NotFound:
+      if self._params['overwrite']:
+        write_disposition = 'WRITE_TRUNCATE'
+      else:
+        write_disposition = 'WRITE_APPEND'
+      job_config = QueryJobConfig(
+        destination=destination_table,
+        write_disposition=write_disposition,
+      )
+      job = client.query(
+        query=query, job_id=job_id, location=location, job_config=job_config)
+    self._wait(job)
