@@ -14,7 +14,7 @@
 
 """Worker to export a BigQuery table to a CSV or JSON file."""
 
-
+from google.api_core import exceptions
 from google.cloud.bigquery.job import ExtractJobConfig
 from jobs.workers.bigquery.bq_worker import BQWorker
 
@@ -26,6 +26,7 @@ class BQToStorageExporter(BQWorker):  # pylint: disable=too-few-public-methods
       ('bq_project_id', 'string', False, '', 'BQ Project ID'),
       ('bq_dataset_id', 'string', True, '', 'BQ Dataset ID'),
       ('bq_table_id', 'string', True, '', 'BQ Table ID'),
+      ('bq_dataset_location', 'string', True, '', 'BQ Dataset Location'),
       ('destination_uri', 'string', True, '',
        'Destination CSV or JSON file URI (e.g. gs://bucket/data.csv)'),
       ('print_header', 'boolean', True, False, 'Include a header row'),
@@ -33,20 +34,34 @@ class BQToStorageExporter(BQWorker):  # pylint: disable=too-few-public-methods
       ('export_gzip', 'boolean', False, False, 'Export GZIP-compressed'),
   ]
 
-  def _execute(self):
+  def _execute_extract_table(
+    self, destination_uri, bq_dataset_location, export_gzip,
+    export_json, print_header):
     """Starts an data export job and waits fot it's completion."""
     client = self._get_client()
-    if self._params['export_json']:
+    job_id = self._get_job_id()
+    if export_json:
       destination_format = 'NEWLINE_DELIMITED_JSON'
     else:
       destination_format = 'CSV'
     job_config = ExtractJobConfig(
-        print_header=self._params['print_header'],
+        print_header=print_header,
         destination_format=destination_format,
-        compression='GZIP' if self._params['export_gzip'] else 'NONE')
-    job = client.extract_table(
+        compression='GZIP' if export_gzip else 'NONE')
+    try:
+      job = client.get_job(job_id)
+      job.reload()
+    except exceptions.NotFound:
+      job = client.extract_table(
         self._get_full_table_name(),
-        self._params['destination_uri'],
-        job_id_prefix=self._get_prefix(),
-        job_config=job_config)
+        destination_uri,
+        job_id=job_id,
+        job_config=job_config,
+        location=bq_dataset_location)
     self._wait(job)
+    
+  def _execute(self):
+    self._execute_extract_table(
+      self._params['destination_uri'], self._params['bq_dataset_location'],
+      self._params['export_gzip'], self._params['export_json'],
+      self._params['print_header'])
