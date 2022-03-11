@@ -150,7 +150,7 @@ def before_hook(stage, stage_name):
     if os.path.exists(target_dir):
       shutil.rmtree(target_dir)
   except Exception as e:
-    raise Exception(f'Stage 1 error when copying to workdir: {e}') from e
+    raise Exception("Stage 1 error when copying to workdir: %s" % e.message)
 
   return stage
 
