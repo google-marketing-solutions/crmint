@@ -15,7 +15,7 @@
 """Create Pipelines
 
 Revision ID: 94039d1c8c45
-Revises: 
+Revises:
 Create Date: 2017-04-23 14:52:39.978915
 
 """

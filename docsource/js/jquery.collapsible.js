@@ -76,7 +76,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
             var $thisEven = $(this).children(':even');
             var $thisOdd = $(this).children(':odd');
             var accord = 'accordion-active';
-            
+
 
             switch (effect) {
               case 'accordion-open':
@@ -91,10 +91,10 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
                             $(this).next().slideUp(settings.accordionUpSpeed).removeClass(accord);
                             $(this).children(':first-child').toggleClass(settings.arrowRclass + ' ' + settings.arrowDclass);
                    } else {
-                            $($thisEven).children().removeClass(settings.arrowDclass).addClass(settings.arrowRclass); 
+                            $($thisEven).children().removeClass(settings.arrowDclass).addClass(settings.arrowRclass);
                             $($thisOdd).slideUp(settings.accordionUpSpeed).removeClass(accord);
-                            $(this).next().slideDown(settings.accordionDownSpeed).addClass(accord); 
-                            $(this).children(':first-child').toggleClass(settings.arrowRclass + ' ' + settings.arrowDclass);              
+                            $(this).next().slideDown(settings.accordionDownSpeed).addClass(accord);
+                            $(this).children(':first-child').toggleClass(settings.arrowRclass + ' ' + settings.arrowDclass);
                    }
                    });
                  break;

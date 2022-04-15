@@ -1,4 +1,4 @@
-<div 
+<div
     class="crmi-pipeline-graph"
     style="height: {{getGraphHeight()}}px;">
     <mat-menu #jobMenu>
@@ -15,26 +15,26 @@
             <span>Start</span>
         </button>
     </mat-menu>
-    <div 
+    <div
         *ngFor="let line of pgraph.lines"
         class="graph-line"
         style="{{generateLineStyle(line)}}">
     </div>
     <ng-container *ngFor="let row of pgraph.collection">
-        <div 
+        <div
             *ngFor="let box of row"
             class="job-box"
             style="left: {{box.x_offset}}px; top: {{box.y_offset}}px;"
             routerLink="/jobs/{{box.id}}/edit"
             >
-            <mat-icon 
+            <mat-icon
                 class="job-status-icon"
                 style="color: {{getJobIconForStatus(box.job.status).color}};">
                 {{getJobIconForStatus(box.job.status).icon}}
             </mat-icon>
             <span class="job-name" title="{{box.job.name}}">{{box.job.name}}</span>
-            <button 
-                mat-icon-button 
+            <button
+                mat-icon-button
                 class="job-menu"
                 [matMenuTriggerFor]="jobMenu"
                 (click)="showJobMenu($event, box.job)"

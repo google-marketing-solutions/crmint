@@ -1,6 +1,6 @@
 .markdown {
   padding-bottom: 60px;
-  
+
   // Text Blocks
   p {
     margin: 10px 0;
@@ -10,8 +10,8 @@
       margin: 20px 0;
     }
   }
-  
-  em { 
+
+  em {
     font-style: italic;
   }
 
@@ -42,7 +42,7 @@
       margin: 0;
     }
   }
-  
+
   ol {
     list-style: decimal;
   }
@@ -51,19 +51,19 @@
     color: $secondBrandColor;
   }
 
-  // Section Headlines 
+  // Section Headlines
   h2 {
-    margin-bottom: 20px; 
+    margin-bottom: 20px;
     margin-top: 30px;
   }
 
-  // Section Headlines 
+  // Section Headlines
   h3 {
     color: $dark-gray;
     font-size: 18px;
     font-weight: 400;
     letter-spacing: 1px;
-    margin-bottom: 20px; 
+    margin-bottom: 20px;
     margin-top: 30px;
   }
 
@@ -73,8 +73,8 @@
     font-size: 16px;
     font-weight: 450;
     color: $black;
-    
-    // Text immediately following h4 should have same level of indention  
+
+    // Text immediately following h4 should have same level of indention
     + p {
       margin: 10px 0;
 

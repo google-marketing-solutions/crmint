@@ -523,7 +523,7 @@ class GAToBQImporter(BQWorker, GAWorker):
     }
 
   def _get_report(self, view_id, start_date, end_date):
-    # TODO(dulacp): refactor this method, too complex branching logic
+    # TODO: refactor this method, too complex branching logic
 
     log_str = 'View ID %s from %s till %s' % (view_id, start_date, end_date)
     self.log_info('Fetch for %s started', log_str)
@@ -821,7 +821,7 @@ class GAAudiencesUpdater(BQWorker, GAWorker):
     self._get_diff()
     self._update_ga_audiences()
 
-    
+
 class GAGoalsUpdater(BQWorker, GAWorker):
   """Worker to update GA goals using values from a BQ table.
   See: https://developers.google.com/analytics/devguides/config/mgmt/v3/mgmtReference/management/goals#resource-representations
@@ -947,7 +947,7 @@ class GAGoalsUpdater(BQWorker, GAWorker):
     self._infer_goals()
     self._get_goals()
     self._get_diff()
-    self._update_ga_goals()    
+    self._update_ga_goals()
 
 
 class MLWorker(Worker):

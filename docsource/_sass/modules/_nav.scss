@@ -37,7 +37,7 @@
       right: $spacing--xs;
     }
   }
-  
+
   .nav li a:active, .nav li a:focus, .nav li a:hover {
     background: initial;
     border-bottom: 0;
@@ -47,7 +47,7 @@
 
   .page-headline {
     color: $white;
-    font-weight: 300; 
+    font-weight: 300;
   }
 
   .nav-logo {
@@ -96,7 +96,7 @@
 // Mobile Navigation
 .top-nav {
   background-color: #4f4f4f;
-  border-image: linear-gradient(to right, $black, rgba(0, 0, 0, 0)) 1 100%; 
+  border-image: linear-gradient(to right, $black, rgba(0, 0, 0, 0)) 1 100%;
   border-style: solid;
   border-width: 5px 0 5px 5px;
   display: initial;
@@ -111,13 +111,13 @@
   @media (min-width: $tablet) {
     display: none;
   }
-  
+
   &.right {
     right: -300px;
   }
 
   .icon-caret {
-    background: url('../img/caret.svg') no-repeat center/cover;  
+    background: url('../img/caret.svg') no-repeat center/cover;
     cursor: pointer;
     height: 20px;
     position: absolute;
@@ -144,7 +144,7 @@
   }
 
   .doc-list {
-    
+
     li {
       display: none;
     }
@@ -171,7 +171,7 @@
     }
   }
   .icon-close {
-    background: url('../img/x.svg') no-repeat center/cover;  
+    background: url('../img/x.svg') no-repeat center/cover;
     cursor: pointer;
     height: 20px;
     position: absolute;
@@ -197,7 +197,7 @@
 #sticky-nav{
     @extend #common-nav;
     background: url('../img/hero-bg.png') no-repeat center/cover;
-    position: fixed;    
+    position: fixed;
     width: 100%;
     z-index: 9000;
     top: -61px;
