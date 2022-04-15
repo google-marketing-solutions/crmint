@@ -26,7 +26,7 @@ Typical use cases for the CRMint platform include:
 In this process of bringing your business data to Google products, CRMint can perform the following roles:
 
 *   **Automation**: Often data could be imported manually from sources such as your CRM or Google Analytics, however, CRMint enables you to automate this process, with flexible scheduling options.
-*   **Transformation and pre-processing**: Your business data may not be in the format or in the location required for your objectives. 
+*   **Transformation and pre-processing**: Your business data may not be in the format or in the location required for your objectives.
 
     CRMint allows you to define and run pipelines on your business data with reusable modules - there are many predefined modules for common actions such as exporting Google Analytics reports to BigQuery.
 

@@ -52,7 +52,7 @@ export class PipelineGraphComponent implements OnInit {
   }
 
   getGraphHeight() {
-    return this.pgraph.collection.reduce((max, row) => 
+    return this.pgraph.collection.reduce((max, row) =>
       Math.max(max, row.reduce((max, box) => Math.max(max, box.y_offset), 0))
     , 0) + 100;
   }

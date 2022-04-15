@@ -39,7 +39,7 @@ def _parse_num(s):
   except ValueError:
     try:
       return float(s)
-    # TODO(dulacp) should raise a ValueError exception, not silence it
+    # TODO should raise a ValueError exception, not silence it
     except ValueError:
       return 0
 

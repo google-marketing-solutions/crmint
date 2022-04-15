@@ -66,7 +66,7 @@ function createPlayer(key) {
 // click event for presentations/talks in docs/talks
 $('.pt').on('click', function() {
   var self = this;
-  var video = $(self).data('key'); 
+  var video = $(self).data('key');
 
   createPlayer(video);
 
@@ -86,7 +86,7 @@ $('.pt-lightbox').on('click', function() {
   }
 });
 
-// Resize Player 
+// Resize Player
 function resizePlayer() {
   var $inner = $('.pt-player'),
       defaultHeight = window.innerHeight || document.documentElement.clientHeight,
@@ -100,15 +100,15 @@ function resizePlayer() {
       if (newHeight > maxHeight){
         newWidth = 16 * maxHeight / 9;
         newHeight = maxHeight;
-      }   
+      }
   } else {
       newWidth = 16 * maxHeight / 9;
       newHeight = maxHeight;
       if (newWidth > maxWidth){
-          newHeight = 9 * maxWidth / 16; 
+          newHeight = 9 * maxWidth / 16;
           newWidth = maxWidth;
-      }   
-  }   
+      }
+  }
 
   $inner.css({"width": newWidth, "height": newHeight});
 }
@@ -159,7 +159,7 @@ $(document).ready(function() {
         }
         iScrollPos = iCurScrollPos;
     });
-    
+
     $('.toc').click(function(){
       setTimeout(function(){
         $('#sticky-nav').addClass("on-page");
@@ -177,7 +177,7 @@ $(document).ready(function() {
       $('html, body').scrollTo(('#' +($(this).data("target"))), 350);
     })
 
-    // Invoke slick JS carousel 
+    // Invoke slick JS carousel
     // Detailed documentation: http://kenwheeler.github.io/slick/
     $('.pt-container').slick({
       arrows: true,
@@ -185,14 +185,14 @@ $(document).ready(function() {
       autoplay: false,
       infinite: true,
       slidesToShow: 4,
-      slidesToScroll: 1, 
+      slidesToScroll: 1,
       responsive: [
         {
           breakpoint: 1024,
           settings: {
             slidesToShow: 3,
             dots: false,
-            arrows: true 
+            arrows: true
           }
         },
         {
@@ -220,7 +220,7 @@ $(document).ready(function() {
           }
         }
       ]
-    });                
+    });
 
     $('.slick-next').on('click', function() {
       $('.slick-prev').addClass('active');

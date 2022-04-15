@@ -1,25 +1,25 @@
 // Docs layout specific
 .docs {
-  
-  *[id]:before { 
-    display: block; 
-    content: " "; 
+
+  *[id]:before {
+    display: block;
+    content: " ";
     margin-top: -1em;
     height: 1em;
-    visibility: hidden; 
+    visibility: hidden;
   }
 
   .doc-header {
     padding-bottom: 30px;
     padding-top: 30px;
   }
-  
+
   .doc-description {
     color: $dark-gray;
     display: block;
     margin: 0 0 40px;
 
-    p { 
+    p {
       font-size: 18px;
       font-weight: 400;
     }
@@ -30,7 +30,7 @@
     display: block;
     margin: 20px 0;
 
-    p { 
+    p {
       font-size: 15px;
       font-weight: 300;
     }
@@ -53,7 +53,7 @@
       padding: 6px 10px;
       width: 47%;
     }
-    
+
     .lang-card-title {
       background: $light-gray;
       color: $dark-gray;
@@ -110,7 +110,7 @@
     font-weight: 300;
     margin-top: $spacing--xs;
     text-align: center;
-    
+
     @media (min-width: 800px) {
       margin: 0;
       text-align: left;
@@ -188,7 +188,7 @@
       -o-transition: 250ms linear;
     }
   }
-  
+
   .pt-player {
     position: fixed;
     top: 0;
@@ -205,7 +205,7 @@
       height: calc(75%*.5625);
     }
   }
-  
+
   .pt-video-wrapper {
     height: 0;
     position: relative;
