@@ -160,4 +160,4 @@ def check_variables():
   if not os.environ.get("GOOGLE_CLOUD_SDK", None):
     gcloud_path = subprocess.Popen("gcloud --format='value(installation.sdk_root)' info",
                                    shell=True, stdout=subprocess.PIPE)
-    os.environ["GOOGLE_CLOUD_SDK"] = gcloud_path.communicate()[0].decode('utf-8').strip()
+    os.environ["GOOGLE_CLOUD_SDK"] = str(gcloud_path.communicate()[0].strip())
