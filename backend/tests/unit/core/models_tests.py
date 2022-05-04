@@ -234,7 +234,7 @@ class TestJob(utils.ModelTestCase):
 class TestParam(utils.ModelTestCase):
 
   def test_job_id_and_pipeline_id_mutually_exclusive(self):
-    # TODO implement this check
+    # TODO(dulacp) implement this check
     pass
 
 

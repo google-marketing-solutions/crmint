@@ -523,7 +523,7 @@ class GAToBQImporter(BQWorker, GAWorker):
     }
 
   def _get_report(self, view_id, start_date, end_date):
-    # TODO: refactor this method, too complex branching logic
+    # TODO(dulacp): refactor this method, too complex branching logic
 
     log_str = 'View ID %s from %s till %s' % (view_id, start_date, end_date)
     self.log_info('Fetch for %s started', log_str)
