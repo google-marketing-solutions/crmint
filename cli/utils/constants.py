@@ -22,7 +22,6 @@ import os
 PROJECT_DIR = os.path.join(os.path.dirname(__file__), '../..')
 FRONTEND_DIR = os.path.join(PROJECT_DIR, "frontend")
 BACKENDS_DIR = os.path.join(PROJECT_DIR, "backends")
-PATCHES_DIR = "{}/cli/patches".format(PROJECT_DIR)
 STAGE_DIR = "{}/cli/stages".format(PROJECT_DIR)
 
 SERVICE_ACCOUNT_PATH = "{}/backends/data/".format(PROJECT_DIR)
