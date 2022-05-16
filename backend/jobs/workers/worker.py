@@ -16,12 +16,17 @@
 
 
 import json
-from common import crmint_logging
+from typing import Any, Optional
+
 from google.api_core.retry import Retry
+from google.auth import credentials
+
+from common import crmint_logging
 
 _DEFAULT_MAX_RETRIES = 3
 
 
+# TODO(dulacp): Change this exception name to `WorkerError`
 class WorkerException(Exception):  # pylint: disable=too-few-public-methods
   """Worker execution exceptions expected in task handler."""
 
@@ -42,7 +47,21 @@ class Worker:
   # Maximum number of worker execution attempts.
   MAX_ATTEMPTS = 1
 
-  def __init__(self, params, pipeline_id, job_id):
+  def __init__(self,
+               params: dict[str, Any],
+               pipeline_id: int,
+               job_id: int,
+               logger_project: Optional[str] = None,
+               logger_credentials: Optional[credentials.Credentials] = None):
+    """Create an instance of Worker.
+
+    Args:
+      params: Dictionary of parameters for the worker.
+      pipeline_id: Integer representing the pipeline id in the database.
+      job_id: Integer representing the job id in the database.
+      logger_project: String representing the GCP Project ID.
+      logger_credentials: Credentials for the logging client.
+    """
     self._pipeline_id = pipeline_id
     self._job_id = job_id
     self._params = params
@@ -52,10 +71,12 @@ class Worker:
       except KeyError:
         self._params[p[0]] = p[3]
     self._workers_to_enqueue = []
+    self.logger = crmint_logging.get_logger(
+        project=logger_project, credentials=logger_credentials)
 
   @Retry()
   def _log(self, level, message, *substs):
-    crmint_logging.logger.log_struct({
+    self.logger.log_struct({
         'labels': {
             'pipeline_id': self._pipeline_id,
             'job_id': self._job_id,
@@ -75,19 +96,18 @@ class Worker:
     self._log('ERROR', message, *substs)
 
   def execute(self):
-    self.log_info('Started with params: %s',
-                  json.dumps(self._params, sort_keys=True, indent=2,
-                             separators=(', ', ': ')))
-    # try:
-    #   self._execute()
-    # except Exception as e:
-    #   raise WorkerException(e) from e
+    """Wrapper around the `_execute` method, logging valuable informations."""
+    format_separators = (', ', ': ')
+    formatted_params = json.dumps(
+        self._params, sort_keys=True, indent=2, separators=format_separators)
+    self.log_info(f'Started with params: {formatted_params}')
     self._execute()
     self.log_info('Finished successfully')
     return self._workers_to_enqueue
 
   def _execute(self):
     """Abstract method that does actual worker's job."""
+    raise NotImplementedError
 
   def _enqueue(self, worker_class, worker_params, delay=0):
     self._workers_to_enqueue.append((worker_class, worker_params, delay))

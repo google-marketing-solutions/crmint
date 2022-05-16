@@ -13,8 +13,10 @@
 # limitations under the License.
 
 from datetime import datetime
+import numbers
 import re
 import uuid
+
 from simpleeval import simple_eval
 from simpleeval import InvalidExpression
 from sqlalchemy import Column
@@ -33,15 +35,22 @@ from controller.database import BaseModel
 from controller.mailers import NotificationMailer
 
 
-def _parse_num(s):
+def _str_to_number(x: str) -> numbers.Number:
+  """Converts the input string into a number.
+
+  Args:
+    x: String containing the numerical value to parse (e.g. '3' or '2.75').
+
+  Returns:
+    Parsed input value as a number type.
+
+  Raises:
+    ValueError: if the input is neither a valid literal `int` nor a `float`.
+  """
   try:
-    return int(s)
+    return int(x)
   except ValueError:
-    try:
-      return float(s)
-    # TODO(dulacp) should raise a ValueError exception, not silence it
-    except ValueError:
-      return 0
+    return float(x)
 
 
 class Pipeline(BaseModel):
@@ -149,7 +158,7 @@ class Pipeline(BaseModel):
         message = 'Invalid pipeline variable "%s": %s' % (param.label, e)
       else:
         message = 'Invalid global variable "%s": %s' % (param.label, e)
-      crmint_logging.logger.log_struct({
+      crmint_logging.get_logger().log_struct({
           'labels': {
               'pipeline_id': self.id,
               'job_id': job_id,
@@ -533,12 +542,15 @@ class Param(BaseModel):
     if self.type == 'boolean':
       return self.runtime_value == '1'
     if self.type == 'number':
-      return _parse_num(self.runtime_value)
+      return _str_to_number(self.runtime_value)
     if self.type == 'string_list':
       return self.runtime_value.split('\n')
     if self.type == 'number_list':
-      return [_parse_num(l) for l in self.runtime_value.split('\n')
-              if l.strip()]
+      return [
+          _str_to_number(x)
+          for x in self.runtime_value.split('\n')
+          if x.strip()
+      ]
     return self.runtime_value
 
   @property

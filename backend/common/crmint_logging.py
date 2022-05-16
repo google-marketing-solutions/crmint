@@ -12,9 +12,25 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import Optional
+
+from google.auth import credentials as auth_credentials
 from google.cloud import logging
+from google.cloud.logging import Logger
 
 
-client = logging.Client()
-logger_name = 'crmint-logger'
-logger = client.logger(logger_name)
+def get_logger(
+    *,
+    project: Optional[str] = None,
+    credentials: Optional[auth_credentials.Credentials] = None) -> Logger:
+  """Helper to create a CRMint logger.
+
+  Args:
+    project: GCP Project ID string or None.
+    credentials: Instance of `google.auth.credentials.Credentials` or None.
+
+  Returns:
+    Configured `google.cloud.logging.logger.Logger` instance.
+  """
+  client = logging.Client(project=project, credentials=credentials)
+  return client.logger('crmint-logger')

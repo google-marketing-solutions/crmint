@@ -15,17 +15,17 @@
 """CRMint's worker that waits for a BigQuery job completion."""
 
 
-from jobs.workers.worker import WorkerException
-from jobs.workers.bigquery.bq_worker import BQWorker
+from jobs.workers import worker
+from jobs.workers.bigquery import bq_worker
 
 
-class BQWaiter(BQWorker):
+class BQWaiter(bq_worker.BQWorker):
   """Worker that polls job status and respawns itself if the job is not done."""
 
   def _execute(self):
     client = self._get_client()
     job = client.get_job(self._params['job_id'])
     if job.error_result is not None:
-      raise WorkerException(job.error_result['message'])
+      raise worker.WorkerException(job.error_result['message'])
     if job.state != 'DONE':
       self._enqueue('BQWaiter', {'job_id': self._params['job_id']}, 60)

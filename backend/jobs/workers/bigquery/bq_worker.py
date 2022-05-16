@@ -16,11 +16,13 @@
 
 
 import time
+
 from google.cloud import bigquery
-from jobs.workers.worker import Worker, WorkerException
+
+from jobs.workers import worker
 
 
-class BQWorker(Worker):
+class BQWorker(worker.Worker):
   """Abstract BigQuery worker."""
 
   _SCOPES = [
@@ -49,7 +51,7 @@ class BQWorker(Worker):
       time.sleep(delay)
       waiting_time += delay
     if job.error_result is not None:
-      raise WorkerException(job.error_result['message'])
+      raise worker.WorkerException(job.error_result['message'])
 
   def _get_full_table_name(self):
     project = self._params['bq_project_id'].strip()
