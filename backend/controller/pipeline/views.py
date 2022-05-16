@@ -325,7 +325,7 @@ class PipelineLogs(Resource):
       filter_ += ' AND timestamp<="%s"' % args.get('todate')
     if args.get('next_page_token'):
       filter_ += ' AND timestamp<"%s"' % args.get('next_page_token')
-    list_entries = crmint_logging.client.list_entries(
+    list_entries = crmint_logging.get_logger().client.list_entries(
         filter_=filter_,
         order_by=DESCENDING)
     for entry in list_entries:

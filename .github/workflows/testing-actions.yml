@@ -27,16 +27,18 @@ jobs:
       # Configure python
       - uses: actions/setup-python@v2
         with:
-          python-version: '2.x'
+          python-version: '3.x'
       # Download App Engine SDK
       - uses: google-github-actions/setup-gcloud@v0
       # Update the App Engine environment
       - run: gcloud -q components update
       - run: gcloud -q components install app-engine-python
-      # Setup the CRMint project
-      - run: pip install -e cli/
-      - run: crmint dev init --no-insight
-      - run: crmint dev do requirements --no-insight
-      - run: pip install -r backends/tests/requirements.txt
+      # Setup the CRMint test environment
+      - run: echo "CREATE DATABASE IF NOT EXISTS crmintapp CHARACTER SET utf8;" | mysql -h 127.0.0.1 -u root -proot
+      - run: echo "GRANT ALL PRIVILEGES ON crmintapp.* TO 'crmintapp'@'localhost' IDENTIFIED BY 'crmintapp';" | mysql -h 127.0.0.1 -u root -proot
+      - run: echo "FLUSH PRIVILEGES;" | mysql -h 127.0.0.1 -u root -proot
+      - run: pip install -r backend/requirements-controller.txt
+      - run: pip install -r backend/requirements-jobs.txt
+      - run: pip install -r backend/tests/requirements.txt
       # Run the tests
-      - run: cd backends && python runtests.py $(gcloud info --format="value(installation.sdk_root)")
+      - run: cd backend && python runtests.py

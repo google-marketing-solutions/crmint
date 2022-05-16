@@ -15,10 +15,10 @@
 """Module with CRMint's Commenter worker class."""
 
 
-from worker import Worker, WorkerException
+from jobs.workers import worker
 
 
-class Commenter(Worker):  # pylint: disable=too-few-public-methods
+class Commenter(worker.Worker):
   """Dummy worker that fails when checkbox is unchecked."""
 
   PARAMS = [
@@ -28,5 +28,5 @@ class Commenter(Worker):  # pylint: disable=too-few-public-methods
 
   def _execute(self):
     if not self._params['success']:
-      raise WorkerException(
+      raise worker.WorkerException(
           f'"{self.PARAMS[1][4]}" is unchecked: {self._params["comment"]}')
