@@ -16,10 +16,11 @@
 
 
 from google.cloud.bigquery.job import ExtractJobConfig
-from jobs.workers.bigquery.bq_worker import BQWorker
+
+from jobs.workers.bigquery import bq_worker
 
 
-class BQToStorageExporter(BQWorker):  # pylint: disable=too-few-public-methods
+class BQToStorageExporter(bq_worker.BQWorker):
   """Worker to export a BigQuery table to a CSV or JSON file."""
 
   PARAMS = [
@@ -34,7 +35,7 @@ class BQToStorageExporter(BQWorker):  # pylint: disable=too-few-public-methods
   ]
 
   def _execute(self):
-    """Starts an data export job and waits fot it's completion."""
+    """Starts an data export job and waits fot its completion."""
     client = self._get_client()
     if self._params['export_json']:
       destination_format = 'NEWLINE_DELIMITED_JSON'
