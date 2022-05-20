@@ -28,6 +28,7 @@ EXPOSED = (
     # 'BQToAppConversionAPI',
     # 'BQToCM',
     # 'BQToMeasurementProtocol',
+    'BQToMeasurementProtocolGA4',
     'BQToStorageExporter',
     'Commenter',
     # 'GAAudiencesUpdater',
