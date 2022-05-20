@@ -75,7 +75,7 @@ class Worker:
         project=logger_project, credentials=logger_credentials)
 
   @Retry()
-  def _log(self, level, message, *substs):
+  def _log(self, level: str, message: str) -> None:
     self.logger.log_struct({
         'labels': {
             'pipeline_id': self._pipeline_id,
@@ -83,17 +83,32 @@ class Worker:
             'worker_class': self.__class__.__name__,
         },
         'log_level': level,
-        'message': message % substs,
+        'message': message,
     })
 
-  def log_info(self, message, *substs):
-    self._log('INFO', message, *substs)
+  def log_info(self, message: str) -> None:
+    """Logs a message at the INFO level.
 
-  def log_warn(self, message, *substs):
-    self._log('WARNING', message, *substs)
+    Args:
+      message: String containg the message to log.
+    """
+    self._log('INFO', message)
 
-  def log_error(self, message, *substs):
-    self._log('ERROR', message, *substs)
+  def log_warn(self, message: str) -> None:
+    """Logs a message at the WARNING level.
+
+    Args:
+      message: String containg the message to log.
+    """
+    self._log('WARNING', message)
+
+  def log_error(self, message: str) -> None:
+    """Logs a message at the ERROR level.
+
+    Args:
+      message: String containg the message to log.
+    """
+    self._log('ERROR', message)
 
   def execute(self):
     """Wrapper around the `_execute` method, logging valuable informations."""
