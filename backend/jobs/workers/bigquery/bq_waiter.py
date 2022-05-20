@@ -29,3 +29,5 @@ class BQWaiter(bq_worker.BQWorker):
       raise worker.WorkerException(job.error_result['message'])
     if job.state != 'DONE':
       self._enqueue('BQWaiter', {'job_id': self._params['job_id']}, 60)
+    else:
+      self.log_info('Finished successfully!')
