@@ -50,6 +50,7 @@ class BQWaiterTest(parameterized.TestCase):
             '_enqueue',
             autospec=True,
             spec_set=True))
+    self.enter_context(mock.patch.object(worker_inst, '_log', autospec=True))
     worker_inst._execute()
     if enqueue_called:
       patched_enqueue.assert_called_once()

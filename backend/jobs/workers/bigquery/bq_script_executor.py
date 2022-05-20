@@ -14,21 +14,47 @@
 
 """CRMint's worker executing Standard SQL scripts in BigQuery."""
 
+from typing import Optional
 
-from jobs.workers.bigquery.bq_worker import BQWorker
+from jobs.workers.bigquery import bq_worker
 
 
-class BQScriptExecutor(BQWorker):  # pylint: disable=too-few-public-methods
-  """Worker to run SQL scripts in BigQuery."""
+class BQScriptExecutor(bq_worker.BQWorker):
+  """Worker to run SQL scripts in BigQuery.
+
+  We expect the given SQL script to contain all the necessary logic to
+  create, alter, and delete resources, such as tables, views, user-defined
+  functions (UDFs), and row-level access policies. This can be achieved using
+  Data Definition Language (DDL) statements in standard SQL.
+
+  For example, to store query results in a table you can use the
+  `CREATE OR REPLACE TABLE ...` statement, more details in the documentation:
+  https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language#create_table_statement.
+
+  You can read about the available DDL statements in the BigQuery documentation:
+  https://cloud.google.com/bigquery/docs/reference/standard-sql/data-definition-language.
+  """
 
   PARAMS = [
-      ('query', 'sql', True, '', 'SQL script'),
+      ('script', 'sql', True, '', 'SQL script'),
+      ('bq_dataset_location', 'string', False, None, ('BQ Dataset Location '
+                                                      '(optional)')),
   ]
 
-  def _execute_sql_script(self, sql):
+  def execute_script(self,
+                     script: str,
+                     location: Optional[str] = None) -> None:
+    """Runs an SQL script.
+
+    Args:
+      script: String containing the SQL script in the standard SQL dialect.
+      location: Optional string representing the location where to run the job.
+    """
     client = self._get_client()
-    job = client.query(sql, job_id_prefix=self._get_prefix())
+    job = client.query(
+        script, location=location, job_id_prefix=self._get_prefix())
     self._wait(job)
 
-  def _execute(self):
-    self._execute_sql_script(self._params['query'])
+  def _execute(self) -> None:
+    self.execute_script(self._params['script'],
+                        self._params['bq_dataset_location'])
