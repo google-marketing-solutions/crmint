@@ -14,8 +14,8 @@
 
 """Worker to import a CSV file into a BigQuery table."""
 
+from google.cloud import bigquery
 from google.cloud import storage
-from google.cloud.bigquery.job import LoadJobConfig
 
 from jobs.workers.bigquery import bq_utils
 from jobs.workers.bigquery import bq_worker
@@ -44,7 +44,7 @@ class StorageToBQImporter(bq_worker.BQWorker):
   ]
 
   def _execute(self):
-    job_config = LoadJobConfig()
+    job_config = bigquery.LoadJobConfig()
 
     if self._params['import_json']:
       job_config.source_format = 'NEWLINE_DELIMITED_JSON'
@@ -81,10 +81,12 @@ class StorageToBQImporter(bq_worker.BQWorker):
     gcs_client = storage.Client()
     matched_uris = storage_utils.get_matched_uris(gcs_client,
                                                   self._params['source_uris'])
+    dataset_ref = bigquery.DatasetReference(
+        self._params['bq_project_id'], self._params['bq_dataset_id'])
     bq_client = self._get_client()
     job = bq_client.load_table_from_uri(
         matched_uris,
-        self._get_full_table_name(),
+        bigquery.TableReference(dataset_ref, self._params['bq_table_id']),
         job_id_prefix=self._get_prefix(),
         job_config=job_config)
     self._wait(job)
