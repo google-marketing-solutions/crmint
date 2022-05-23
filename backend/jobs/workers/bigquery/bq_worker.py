@@ -52,12 +52,3 @@ class BQWorker(worker.Worker):
       waiting_time += delay
     if job.error_result is not None:
       raise worker.WorkerException(job.error_result['message'])
-
-  def _get_full_table_name(self):
-    project = self._params['bq_project_id'].strip()
-    if project:
-      project += '.'
-    dataset = self._params['bq_dataset_id'].strip()
-    table = self._params['bq_table_id'].strip()
-    return f'{project}{dataset}.{table}'
-

@@ -15,7 +15,7 @@
 """Worker to export a BigQuery table to a CSV or JSON file."""
 
 
-from google.cloud.bigquery.job import ExtractJobConfig
+from google.cloud import bigquery
 
 from jobs.workers.bigquery import bq_worker
 
@@ -36,18 +36,20 @@ class BQToStorageExporter(bq_worker.BQWorker):
 
   def _execute(self):
     """Starts an data export job and waits fot its completion."""
-    client = self._get_client()
     if self._params['export_json']:
       destination_format = 'NEWLINE_DELIMITED_JSON'
     else:
       destination_format = 'CSV'
-    job_config = ExtractJobConfig(
+    job_config = bigquery.ExtractJobConfig(
         print_header=self._params['print_header'],
         destination_format=destination_format,
         compression='GZIP' if self._params['export_gzip'] else 'NONE')
+    dataset_ref = bigquery.DatasetReference(
+        self._params['bq_project_id'], self._params['bq_dataset_id'])
+    client = self._get_client()
     job = client.extract_table(
-        self._get_full_table_name(),
-        self._params['destination_uri'],
+        bigquery.TableReference(dataset_ref, self._params['bq_table_id']),
+        destination_uris=self._params['destination_uri'],
         job_id_prefix=self._get_prefix(),
         job_config=job_config)
     self._wait(job)
