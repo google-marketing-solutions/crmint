@@ -129,6 +129,7 @@ def _default_stage_context(stage_name):
       string.ascii_lowercase + string.digits) for _ in range(32))
   region, sql_region = _get_regions(stage_name)
   return dict(
+      service_account_email=f'{stage_name}@appspot.gserviceaccount.com',
       project_id_gae=stage_name,
       project_region=region,
       project_sql_region=sql_region,
