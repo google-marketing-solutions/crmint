@@ -15,7 +15,16 @@
 """Legacy worker runnig BQML queries; please use BQScriptExecutor instead."""
 
 
-from jobs.workers.bigquery.bq_script_executor import BQScriptExecutor
+from google3.third_party.professional_services.solutions.crmint.backend.jobs.workers.bigquery.bq_script_executor import BQScriptExecutor
 
-class BQMLTrainer(BQScriptExecutor):  # pylint: disable=too-few-public-methods
-  pass
+
+class BQMLTrainer(bq_script_executor.BQScriptExecutor):
+  """Worker to run a BQML query.
+
+  *Deprecated since CRMint 2.0:* Switch to the new `BQScriptExecutor` worker.
+  """
+
+  def _execute(self) -> None:
+    self.log_warn('Deprepcated: BQMLTrainer has been deprecated, please '
+                  'upgrade to the new BQScriptExecutor worker.')
+    super()._execute()

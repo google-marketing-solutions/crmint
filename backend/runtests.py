@@ -28,12 +28,19 @@ import os
 import sys
 import unittest
 
+from absl import flags
 from absl.testing import absltest
 
+FLAGS = flags.FLAGS
 
-def main(test_path, test_pattern):
+
+def main(test_path, test_pattern, unparsed_args):
   # Set test env vars.
   os.environ['APPLICATION_ID'] = 'crmint-dev'
+
+  # Parses FLAGS from the unparsed arguments, needed to mimick
+  # `absltest.main()` behavior.
+  FLAGS([sys.argv[0]] + unparsed_args)
 
   # Discover and run tests.
   suite = absltest.TestLoader().discover(test_path, test_pattern)
@@ -53,7 +60,6 @@ if __name__ == '__main__':
       help='The file pattern for test modules, defaults to *_tests.py.',
       default='*_tests.py')
 
-  args = parser.parse_args()
-  result = main(args.test_path, args.test_pattern)
-  if not result.wasSuccessful():
-    sys.exit(1)
+  args, unparsed = parser.parse_known_args()
+  result = main(args.test_path, args.test_pattern, unparsed)
+  sys.exit(0 if result.wasSuccessful() else 1)
