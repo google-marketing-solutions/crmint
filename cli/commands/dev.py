@@ -175,7 +175,7 @@ def do_add_migration(args, debug):
       google_sdk_dir=os.environ["GOOGLE_CLOUD_SDK"])
   os.environ['FLASK_APP'] = "run_ibackend.py"
   os.environ['FLASK_DEBUG'] = "1"
-  os.environ['APPLICATION_ID'] = ""
+  os.environ['GAE_APPLICATION'] = ""
   components = [
       (
           "Create new migration (if needed)",
@@ -199,7 +199,7 @@ def do_migrations(debug):
       google_sdk_dir=os.environ["GOOGLE_CLOUD_SDK"])
   os.environ['FLASK_APP'] = "run_ibackend.py"
   os.environ['FLASK_DEBUG'] = "1"
-  os.environ['APPLICATION_ID'] = ""
+  os.environ['GAE_APPLICATION'] = ""
   components = [
       (
           "Run the db upgrade",

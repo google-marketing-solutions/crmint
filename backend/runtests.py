@@ -36,7 +36,7 @@ FLAGS = flags.FLAGS
 
 def main(test_path, test_pattern, unparsed_args):
   # Set test env vars.
-  os.environ['APPLICATION_ID'] = 'crmint-dev'
+  os.environ['GAE_APPLICATION_ID'] = 'crmint-dev'
 
   # Parses FLAGS from the unparsed arguments, needed to mimick
   # `absltest.main()` behavior.
