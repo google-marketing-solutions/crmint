@@ -48,3 +48,21 @@ def get_matched_uris(client: storage.Client,
           blobs.append(blob)
           break
   return [f'gs://{b.bucket}/{b.name}' for b in blobs]
+
+
+def download_file(client: storage.Client,
+                  *,
+                  uri_path: str,
+                  destination_path: str) -> None:
+  """Downloads a file from GCS on disk at a given destination path.
+
+  Args:
+    client: An instance of `google.cloud.storage.Client`.
+    uri_path: Path to the Google Cloud Storage file to download.
+    destination_path: Destination path on disk to store the downloaded content.
+  """
+  uri_path = uri_path.removeprefix('gs://')
+  bucket_name, blob_name = uri_path.split('/', 1)
+  bucket = client.bucket(bucket_name)
+  source_blob = bucket.get_blob(blob_name)
+  source_blob.download_to_filename(destination_path)

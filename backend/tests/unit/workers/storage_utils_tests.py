@@ -4,9 +4,15 @@ from unittest import mock
 
 from absl.testing import absltest
 from absl.testing import parameterized
+from google.auth import credentials
 from google.cloud import storage
 
 from jobs.workers.storage import storage_utils
+
+
+def _make_credentials():
+  return mock.create_autospec(
+      credentials.Credentials, instance=True, spec_set=True)
 
 
 class StorageUtilsTest(parameterized.TestCase):
@@ -59,6 +65,23 @@ class StorageUtilsTest(parameterized.TestCase):
   def test_matching_uris(self, uri_patterns, expected_matched_uris):
     matched_uris = storage_utils.get_matched_uris(self.client, uri_patterns)
     self.assertCountEqual(matched_uris, expected_matched_uris)
+
+  def test_download_file(self):
+    client = storage.Client(project='PROJECT', credentials=_make_credentials())
+    self.enter_context(mock.patch.object(storage.Blob, 'reload', autospec=True))
+
+    def _write_content(unused_blob, file_obj, *unused_args, **unused_kwargs):
+      file_obj.write(b'hello world!')
+
+    self.enter_context(
+        mock.patch.object(
+            client, 'download_blob_to_file', side_effect=_write_content))
+    output_file = self.create_tempfile()
+    storage_utils.download_file(
+        client,
+        uri_path='gs://bucket1/foo/bar.csv',
+        destination_path=output_file.full_path)
+    self.assertEqual(output_file.read_text(), 'hello world!')
 
 
 if __name__ == '__main__':
