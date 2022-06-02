@@ -16,13 +16,13 @@
 
 import collections
 import fnmatch
-from typing import Iterable
+from typing import Iterable, Sequence
 
 from google.cloud import storage
 
 
 def get_matched_uris(client: storage.Client,
-                     uri_patterns: Iterable[str]) -> Iterable[str]:
+                     uri_patterns: Iterable[str]) -> Sequence[str]:
   """Matches blob uris from given GCS uri patterns.
 
   Args:
@@ -60,9 +60,14 @@ def download_file(client: storage.Client,
     client: An instance of `google.cloud.storage.Client`.
     uri_path: Path to the Google Cloud Storage file to download.
     destination_path: Destination path on disk to store the downloaded content.
+
+  Raises:
+    ValueError: if the file cannot be found on GCS.
   """
   uri_path = uri_path.removeprefix('gs://')
   bucket_name, blob_name = uri_path.split('/', 1)
   bucket = client.bucket(bucket_name)
   source_blob = bucket.get_blob(blob_name)
+  if source_blob is None:
+    raise ValueError(f'Blob not found for uri: {uri_path}')
   source_blob.download_to_filename(destination_path)

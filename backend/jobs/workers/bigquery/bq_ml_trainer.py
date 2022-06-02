@@ -15,7 +15,7 @@
 """Legacy worker runnig BQML queries; please use BQScriptExecutor instead."""
 
 
-from google3.third_party.professional_services.solutions.crmint.backend.jobs.workers.bigquery.bq_script_executor import BQScriptExecutor
+from jobs.workers.bigquery import bq_script_executor
 
 
 class BQMLTrainer(bq_script_executor.BQScriptExecutor):

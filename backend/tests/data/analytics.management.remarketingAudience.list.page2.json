@@ -1,0 +1,45 @@
+{
+  "kind": "analytics#remarketingAudiences",
+  "username": "dulacp@google.com",
+  "totalResults": 2,
+  "startIndex": 2,
+  "itemsPerPage": 1,
+  "previousLink": "https://www.googleapis.com/analytics/v3/management/accounts/127959147/webproperties/UA-127959147-2/remarketingAudiences?start-index=1&max-results=1",
+  "items": [
+    {
+      "kind": "analytics#remarketingAudience",
+      "id": "PYDOUJQdSdGjAh6vERFpQQ",
+      "accountId": "127959147",
+      "webPropertyId": "UA-127959147-2",
+      "internalWebPropertyId": "189770817",
+      "created": "2019-02-15T15:40:08.571Z",
+      "updated": "2019-02-17T11:43:06.766Z",
+      "name": "All Users",
+      "description": "All Users",
+      "linkedAdAccounts": [
+        {
+          "kind": "analytics#linkedForeignAccount",
+          "id": "720cpssIQtOoowlLvabs_g",
+          "accountId": "127959147",
+          "webPropertyId": "UA-127959147-2",
+          "internalWebPropertyId": "189770817",
+          "remarketingAudienceId": "PYDOUJQdSdGjAh6vERFpQQ",
+          "type": "ANALYTICS",
+          "status": "CLOSED"
+        }
+      ],
+      "linkedViews": [
+        "186088628"
+      ],
+      "audienceType": "SIMPLE",
+      "audienceDefinition": {
+        "includeConditions": {
+          "kind": "analytics#includeConditions",
+          "isSmartList": false,
+          "segment": "",
+          "membershipDurationDays": 30
+        }
+      }
+    }
+  ]
+}
