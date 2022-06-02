@@ -4,13 +4,21 @@ import dataclasses
 import enum
 import functools
 import re
-from typing import Callable, Optional, Union
+from typing import Callable, Mapping, NewType, Optional, TypeVar, Union
 
+from google.api_core import retry
 from googleapiclient import discovery
 from googleapiclient import http as api_httplib
 import httplib2
 
+from common import utils
+
+_MAX_RESULTS_PER_CALL = 100
 _NUMBER_OF_RETRIES = 3
+
+
+def _null_progress_callback(unused_msg: str) -> None:
+  """Default progress callback. Used to simplify the tests."""
 
 
 @functools.cache
@@ -175,3 +183,105 @@ def upload_dataimport(
   # Sends a completion signal once the upload has finished.
   if progress_callback:
     progress_callback(1.0)
+
+
+class AudienceOperationBase:
+  """Abtract class for operation on audiences."""
+
+
+Audience = NewType('Audience', dict)
+AudiencePatch = NewType('AudiencePatch', dict)
+AudienceOperation = TypeVar('AudienceOperation', bound=AudienceOperationBase)
+
+
+@dataclasses.dataclass(frozen=True)
+class AudienceOperationInsert(AudienceOperationBase):
+  data: AudiencePatch
+
+
+@dataclasses.dataclass(frozen=True)
+class AudienceOperationUpdate(AudienceOperationBase):
+  id: str
+  data: AudiencePatch
+
+
+def fetch_audiences(ga_client: discovery.Resource,
+                    property_id: str) -> Mapping[str, Audience]:
+  """Returns a mapping of remarketing audiences from Google Analytics API.
+
+  Args:
+    ga_client: Google Analytics API client.
+    property_id: Identifier for the Google Analytics Property to retrieve
+      audiences from.
+  """
+  request = ga_client.management().remarketingAudience().list(
+      accountId=extract_accountid(property_id),
+      webPropertyId=property_id,
+      start_index=None,
+      max_results=_MAX_RESULTS_PER_CALL)
+  result = retry.Retry()(request.execute)()
+  items = result['items']
+  # If there are more results than could be returned by a single call,
+  # continue requesting results until they've all been retrieved.
+  while result.get('nextLink', None):
+    request.uri = result['nextLink']
+    result = retry.Retry()(request.execute)()
+    items += result['items']
+  return dict((item['name'], Audience(item)) for item in items)
+
+
+def get_audience_operations(
+    patches: list[AudiencePatch],
+    audiences_map: Mapping[str, Audience]) -> list[AudienceOperation]:
+  """Returns list of operations to insert or update GA remarketing lists.
+
+  Args:
+    patches: List of audiences used as update patches.
+    audiences_map: Map of audiences to apply patches to.
+  """
+  operations = []
+  for patch in patches:
+    target = audiences_map.get(patch['name'], None)
+    if target and utils.detect_patch_update(patch, target):
+      operations.append(AudienceOperationUpdate(id=target['id'], data=patch))
+    else:
+      operations.append(AudienceOperationInsert(data=patch))
+  return operations
+
+
+def run_audience_operations(
+    ga_client: discovery.Resource,
+    property_id: str,
+    operations: list[AudienceOperation],
+    progress_callback: Optional[Callable[[str], None]] = None
+) -> None:
+  """Executes audience operations.
+
+  Args:
+    ga_client: Google Analytics API client.
+    property_id: Identifier for the Google Analytics Property to update
+      remarketing audiences from.
+    operations: List of operations on audiences, either insert or update.
+    progress_callback: Callback to send progress messages.
+
+  Raises:
+    ValueError: if the operation type is unsupported.
+  """
+  progress_callback = progress_callback or _null_progress_callback
+  for op in operations:
+    if isinstance(op, AudienceOperationInsert):
+      request = ga_client.management().remarketingAudience().insert(
+          accountId=extract_accountid(property_id),
+          webPropertyId=property_id,
+          body=op.data)
+      progress_callback('Inserting new audience')
+    elif isinstance(op, AudienceOperationUpdate):
+      request = ga_client.management().remarketingAudience().patch(
+          accountId=extract_accountid(property_id),
+          webPropertyId=property_id,
+          remarketingAudienceId=op.id,
+          body=op.data)
+      progress_callback(f'Updating existing audience for id: {op.id}')
+    else:
+      raise ValueError(f'Unsupported operation type: {op}')
+    retry.Retry()(request.execute)()

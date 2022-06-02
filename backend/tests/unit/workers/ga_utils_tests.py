@@ -17,15 +17,21 @@ from jobs.workers.ga import ga_utils
 DATA_DIR = os.path.join(os.path.dirname(__file__), '../../data')
 
 
-def datafile(filename):
+def _datafile(filename):
   return os.path.join(DATA_DIR, filename)
+
+
+def _read_datafile(filename):
+  with open(_datafile(filename), 'rb') as f:
+    content = f.read()
+  return content
 
 
 class GoogleAnalyticsUtilsTest(parameterized.TestCase):
 
   def setUp(self):
     super().setUp()
-    self.http_v3 = http.HttpMock(datafile('google_analytics_v3.json'),
+    self.http_v3 = http.HttpMock(_datafile('google_analytics_v3.json'),
                                  headers={'status': '200'})
 
   @parameterized.parameters(
@@ -108,7 +114,7 @@ class GoogleAnalyticsUtilsTest(parameterized.TestCase):
 
   @parameterized.named_parameters(
       ('Deleted All', None, ['5qan4As6S7WgAa', 'qmcaotljicrpdw']),
-      ('Keep most recent upload', 1,['5qan4As6S7WgAa']),
+      ('Keep most recent upload', 1, ['5qan4As6S7WgAa']),
       ('Keep 2 most recent uploads', 2, []),
   )
   def test_delete_all_uploads(self, max_to_keep, expected_deleted_ids):
@@ -161,7 +167,7 @@ class GoogleAnalyticsUtilsTest(parameterized.TestCase):
           mock.ANY, mock.ANY, max_to_keep=max_to_keep)
 
   def test_upload_dataimport_without_progress_callback(self):
-    ga_api_discovery_file = datafile('google_analytics_v3.json')
+    ga_api_discovery_file = _datafile('google_analytics_v3.json')
     with open(ga_api_discovery_file, 'rb') as f:
       ga_api_discovery_content = f.read()
     http_seq = http.HttpMockSequence(
@@ -196,7 +202,7 @@ class GoogleAnalyticsUtilsTest(parameterized.TestCase):
                          'that we handled all the chunks as expected.')
 
   def test_upload_dataimport_with_progress_callback(self):
-    ga_api_discovery_file = datafile('google_analytics_v3.json')
+    ga_api_discovery_file = _datafile('google_analytics_v3.json')
     with open(ga_api_discovery_file, 'rb') as f:
       ga_api_discovery_content = f.read()
     http_seq = http.HttpMockSequence(
@@ -239,6 +245,85 @@ class GoogleAnalyticsUtilsTest(parameterized.TestCase):
         ),
         mock_progress_callback.mock_calls,
     )
+
+  def test_fetch_audiences_with_two_pages_result(self):
+    ga_api_discovery_file = _datafile('google_analytics_v3.json')
+    with open(ga_api_discovery_file, 'rb') as f:
+      ga_api_discovery_content = f.read()
+    http_seq = http.HttpMockSequence([
+        # Page 1
+        ({'status': '200'},
+         _read_datafile(
+             'analytics.management.remarketingAudience.list.page1.json')),
+        # Page 2
+        ({'status': '200'},
+         _read_datafile(
+             'analytics.management.remarketingAudience.list.page2.json')),
+    ])
+    client = discovery.build_from_document(
+        service=ga_api_discovery_content, http=http_seq)
+    audiences_map = ga_utils.fetch_audiences(client, 'UA-123456-2')
+    self.assertEmpty(http_seq._iterable,
+                     msg='The sequence of HttpMock should be empty, indicating '
+                         'that we handled all the chunks as expected.')
+    self.assertCountEqual(list(audiences_map.keys()),
+                          ['New Visitors', 'All Users'])
+
+  def test_get_audience_operations(self):
+    patches = [
+        ga_utils.AudiencePatch({'name': 'abc', 'a': 1, 'b': 2}),
+        ga_utils.AudiencePatch({'name': 'def', 'a': 1}),
+    ]
+    audiences = {
+        'foo': ga_utils.Audience({'id': '123', 'name': 'foo', 'd': 4}),
+        'abc': ga_utils.Audience({'id': '456', 'name': 'abc', 'a': 1, 'c': 3}),
+    }
+    self.assertCountEqual(
+        ga_utils.get_audience_operations(patches, audiences),
+        (
+            ga_utils.AudienceOperationUpdate(
+                id='456',
+                data=ga_utils.AudiencePatch({'name': 'abc', 'a': 1, 'b': 2})),
+            ga_utils.AudienceOperationInsert(
+                data=ga_utils.AudiencePatch({'name': 'def', 'a': 1})),
+        )
+    )
+
+  def test_run_audience_operations(self):
+    request_builder = http.RequestMockBuilder(
+        {
+            'analytics.management.remarketingAudience.insert': (None, b'{}'),
+            'analytics.management.remarketingAudience.patch': (None, b'{}'),
+        })
+    client = ga_utils.get_client(
+        http=self.http_v3, request_builder=request_builder)
+    operations = [
+        ga_utils.AudienceOperationUpdate(
+            id='456',
+            data=ga_utils.AudiencePatch({'name': 'abc', 'a': 1, 'b': 2})),
+        ga_utils.AudienceOperationInsert(
+            data=ga_utils.AudiencePatch({'name': 'def', 'a': 1})),
+    ]
+    logger = mock.Mock()
+    ga_utils.run_audience_operations(client, 'UA-123456-2', operations, logger)
+    self.assertSequenceEqual(
+        [
+            mock.call('Updating existing audience for id: 456'),
+            mock.call('Inserting new audience'),
+        ],
+        logger.mock_calls,
+    )
+
+  def test_run_audience_operations_raises_error(self):
+    """Raises a ValueError on a new unsupported operation type."""
+
+    class AudienceOperationDelete(ga_utils.AudienceOperationBase):
+      pass
+
+    client = ga_utils.get_client(http=self.http_v3)
+    operations = [AudienceOperationDelete()]
+    with self.assertRaisesRegex(ValueError, 'Unsupported operation'):
+      ga_utils.run_audience_operations(client, 'UA-123456-2', operations)
 
 
 if __name__ == '__main__':
