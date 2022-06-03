@@ -31,8 +31,8 @@ EXPOSED = (
     'BQToMeasurementProtocolGA4',
     'BQToStorageExporter',
     'Commenter',
-    # 'GAAudiencesUpdater',
-    # 'GADataImporter',
+    'GAAudiencesUpdater',
+    'GADataImporter',
     # 'GAToBQImporter',
     # 'MLPredictor',
     # 'MLTrainer',
@@ -46,6 +46,7 @@ EXPOSED = (
 sys.path.insert(1, 'jobs/workers')
 
 
+# TODO(dulacp): Replace this logic with inline explicit imports
 def find(class_name):
   """Finds and returns a worker class."""
   module_names = [
