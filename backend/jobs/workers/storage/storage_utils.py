@@ -21,17 +21,14 @@ from typing import Iterable, Sequence
 from google.cloud import storage
 
 
-def get_matched_uris(client: storage.Client,
-                     uri_patterns: Iterable[str]) -> Sequence[str]:
-  """Matches blob uris from given GCS uri patterns.
+def get_matching_blobs(client: storage.Client,
+                       uri_patterns: Iterable[str]) -> Sequence[storage.Blob]:
+  """Returns a list of Blob from matching uri patterns on GCS.
 
   Args:
     client: An instance of `google.cloud.storage.Client`.
     uri_patterns: Iterable of strings representing GCS paths, can contain
         a wildcard to match multiple files.
-
-  Returns:
-    List of strings of GCS matching blobs uris.
   """
   bucket_to_pattern_map = collections.defaultdict(list)
   for pattern in uri_patterns:
@@ -47,7 +44,23 @@ def get_matched_uris(client: storage.Client,
         if fnmatch.fnmatch(blob.name, blob_name_pattern):
           blobs.append(blob)
           break
-  return [f'gs://{b.bucket}/{b.name}' for b in blobs]
+  return blobs
+
+
+def get_matched_uris(client: storage.Client,
+                     uri_patterns: Iterable[str]) -> Sequence[str]:
+  """Matches blob uris from given GCS uri patterns.
+
+  Args:
+    client: An instance of `google.cloud.storage.Client`.
+    uri_patterns: Iterable of strings representing GCS paths, can contain
+        a wildcard to match multiple files.
+
+  Returns:
+    List of strings of GCS matching blobs uris.
+  """
+  blobs = get_matching_blobs(client, uri_patterns)
+  return [f'gs://{b.bucket.name}/{b.name}' for b in blobs]
 
 
 def download_file(client: storage.Client,
