@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+"""CRMint's worker that push data into a Data Import on Google Analytics."""
+
 import os
 import tempfile
 

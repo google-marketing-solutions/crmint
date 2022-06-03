@@ -38,7 +38,7 @@ EXPOSED = (
     # 'MLTrainer',
     # 'MLVersionDeployer',
     # 'StorageChecker',
-    # 'StorageCleaner',
+    'StorageCleaner',
     'StorageToBQImporter',
 )
 

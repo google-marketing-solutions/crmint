@@ -25,13 +25,17 @@ class StorageUtilsTest(parameterized.TestCase):
     def _list_blobs(bucket):
       if bucket.name == 'bucket1':
         return [
-            storage.Blob('foo/file1.csv', 'bucket1'),
-            storage.Blob('foo/file2.csv', 'bucket1'),
-            storage.Blob('bar/file3.csv', 'bucket1'),
+            storage.Blob(
+                'foo/file1.csv', storage.Bucket(mock_client, name='bucket1')),
+            storage.Blob(
+                'foo/file2.csv', storage.Bucket(mock_client, name='bucket1')),
+            storage.Blob(
+                'bar/file3.csv', storage.Bucket(mock_client, name='bucket1')),
         ]
       elif bucket.name == 'bucket2':
         return [
-            storage.Blob('foo/file1.csv', 'bucket2'),
+            storage.Blob(
+                'foo/file1.csv', storage.Bucket(mock_client, name='bucket2')),
         ]
       else:
         raise ValueError(f'Unknown bucket: {bucket.name}')
