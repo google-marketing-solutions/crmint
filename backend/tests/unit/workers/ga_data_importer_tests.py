@@ -13,7 +13,6 @@ from googleapiclient import http
 from jobs.workers.ga import ga_data_importer
 from jobs.workers.ga import ga_utils
 
-
 DATA_DIR = os.path.join(os.path.dirname(__file__), '../../data')
 
 
