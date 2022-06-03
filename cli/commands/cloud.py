@@ -329,6 +329,11 @@ def display_workdir(stage, debug=False):
   click.echo("     Working directory: %s" % stage.workdir)
 
 
+def display_appengine_url(stage, debug=False):
+  cmd = f'{GCLOUD} app browse --no-launch-browser'
+  shared.execute_command('CRMint UI', cmd, force_std_out=True, debug=debug)
+
+
 def copy_src_to_workdir(stage, debug=False):
   workdir = stage.workdir
   app_title = stage.app_title
@@ -634,6 +639,8 @@ def deploy(stage_name, debug, frontend, controller, jobs, dispatch_rules,
         stop_cloud_sql_proxy,
     ])
 
+  # Displays the frontend url to improve the user experience.
+  components.append(display_appengine_url)
   for component in components:
     component(stage, debug=debug)
   click.echo(click.style("Done.", fg='magenta', bold=True))
