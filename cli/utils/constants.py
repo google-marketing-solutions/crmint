@@ -12,18 +12,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""
-Constants used in the cli/commands package.
-"""
+"""Constants used in the cli/commands package."""
 
 import os
 
+GCLOUD = "$GOOGLE_CLOUD_SDK/bin/gcloud --quiet"
 
-PROJECT_DIR = os.path.join(os.path.dirname(__file__), '../..')
+PROJECT_DIR = os.path.join(os.path.dirname(__file__), "../..")
 FRONTEND_DIR = os.path.join(PROJECT_DIR, "frontend")
 BACKENDS_DIR = os.path.join(PROJECT_DIR, "backends")
 STAGE_DIR = "{}/cli/stages".format(PROJECT_DIR)
 
+# TODO(dulacp): remove unused constants
 SERVICE_ACCOUNT_PATH = "{}/backends/data/".format(PROJECT_DIR)
 
 REQUIREMENTS_DIR = os.path.join(PROJECT_DIR, "cli/requirements.txt")
