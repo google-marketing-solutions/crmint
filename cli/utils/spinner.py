@@ -1,18 +1,27 @@
+"""Defines methods to create a spinning wheel on stdout."""
+
+import itertools
 import sys
 import threading
 import time
-import itertools
+from typing import Optional
 
 import click
 
 
 class Spinner(object):
-  """
+  """Implements a context manager to display a spinner on stdout.
+
   Inspired from https://github.com/click-contrib/click-spinner
   """
   spinner_cycle = itertools.cycle(['-', '/', '|', '\\'])
 
-  def __init__(self, beep=False, disable=False, force=False, color=None, bold=False):
+  def __init__(self,
+               beep: bool = False,
+               disable: bool = False,
+               force: bool = False,
+               color: str = None,
+               bold: bool = False):
     self.disable = disable
     self.beep = beep
     self.force = force
@@ -35,8 +44,10 @@ class Spinner(object):
       self.spin_thread.join()
 
   def init_spin(self):
+    sys.stdout.write(click.style(' ', fg=self.color, bold=self.bold))
     while not self.stop_running.is_set():
-      sys.stdout.write(click.style(next(self.spinner_cycle), fg=self.color, bold=self.bold))
+      sys.stdout.write(
+          click.style(next(self.spinner_cycle), fg=self.color, bold=self.bold))
       sys.stdout.flush()
       time.sleep(0.25)
       sys.stdout.write('\b')
@@ -55,32 +66,34 @@ class Spinner(object):
       sys.stdout.flush()
     else:
       sys.stdout.write(' ')
+      sys.stdout.write('\N{check mark}')
       sys.stdout.flush()
     return False
 
 
-def spinner(beep=False, disable=False, force=False, color=None, bold=False):
-  """This function creates a context manager that is used to display a
-  spinner on stdout as long as the context has not exited.
+def spinner(beep: bool = False,
+            disable: bool = False,
+            force: bool = False,
+            color: Optional[str] = None,
+            bold: bool = False) -> Spinner:
+  """Returns a context manager that is used to display a spinner.
 
   The spinner is created only if stdout is not redirected, or if the spinner
   is forced using the `force` parameter.
 
-  Parameters
-  ----------
-  beep : bool
-      Beep when spinner finishes.
-  disable : bool
-      Hide spinner.
-  force : bool
-      Force creation of spinner even when stdout is redirected.
+  The spinner will stop when the context has exited.
 
-  Example
-  -------
+  Example:
 
-      with spinner():
-        do_something()
-        do_something_else()
+    with spinner():
+      do_something()
+      do_something_else()
 
+  Args:
+    beep: Beep when spinner finishes.
+    disable: Hides spinner.
+    force: Force creation of spinner even when stdout is redirected.
+    color: Color of the spinning wheel.
+    bold: Draws the spinning wheel in bold.
   """
   return Spinner(beep, disable, force, color=color, bold=bold)

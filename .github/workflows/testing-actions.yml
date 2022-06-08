@@ -41,3 +41,4 @@ jobs:
       - run: pip install -r backend/tests/requirements.txt
       # Run the tests
       - run: cd backend && python runtests.py
+      - run: cd cli && python runtests.py

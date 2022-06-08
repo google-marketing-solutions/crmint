@@ -12,22 +12,51 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import os
-import random
-import string
+import pathlib
+import sys
+import textwrap
+import types
+from typing import NewType, Tuple, Union
 
 import click
 
 from cli.utils import constants
+from cli.utils import settings
 from cli.utils import shared
+from cli.utils.constants import GCLOUD
 
+SpecVersion = NewType('SpecVersion', str)
 
-STAGE_VERSION_1_0 = "v1.0"
-STAGE_VERSION_2_0 = "v2.0"
+STAGE_VERSION_1_0 = SpecVersion('v1.0')
+STAGE_VERSION_2_0 = SpecVersion('v2.0')
+STAGE_VERSION_3_0 = SpecVersion('v3.0')
 
-SUPPORTED_STAGE_VERSIONS = (STAGE_VERSION_1_0, STAGE_VERSION_2_0)
+LATEST_STAGE_VERSION = STAGE_VERSION_3_0
+SUPPORTED_STAGE_VERSIONS = (
+    STAGE_VERSION_1_0,
+    STAGE_VERSION_2_0,
+    STAGE_VERSION_3_0
+)
 
+MAPPING_v3_from_v2 = {
+    'project_id': 'project_id_gae',
+    'project_region': 'project_region',
+    'database_tier': 'project_sql_tier',
+    'database_region': 'project_sql_region',
+    'workdir': 'workdir',
+    'database_name': 'db_name',
+    'database_username': 'db_username',
+    'database_password': 'db_password',
+    'database_instance_name': 'db_instance_name',
+    'database_project': 'project_id_gae',
+    'notification_sender_email': 'notification_sender_email',
+    'gae_app_title': 'app_title',
+    'gae_project': 'project_id_gae',
+    'network_project': 'project_id_gae',
+    'enabled_stages': 'enabled_stages',
+}
 
+# TODO(dulacp): remove the config `enabled_stages`
 STAGE_FILE_TEMPLATE = """
 #
 # Copyright 2018 Google Inc
@@ -44,70 +73,75 @@ STAGE_FILE_TEMPLATE = """
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# Version of the stage definition
+spec_version = "v3.0"
+
 ###
 # Variables for stage
 ###
 
-# Service account email
-service_account_email = "{service_account_email}"
-
-# Project ID in Google Cloud
-project_id_gae = "{project_id_gae}"
-
-# Region. Use `gcloud app regions list` to list available regions.
-project_region = "{project_region}"
-
-# Machine Type. Use `gcloud sql tiers list` to list available machine types.
-project_sql_tier = "{project_sql_tier}"
-
-# SQL region. Use `gcloud sql tiers list | grep db-g1-small` to list available regions.
-project_sql_region = "{project_sql_region}"
+# Project config
+project_id = "{ctx.project_id}"
+project_region = "{ctx.project_region}"
 
 # Directory on your space to deploy
-# NB: if kept empty this will defaults to /tmp/<project_id_gae>
-workdir = "{workdir}"
+# NB: if kept empty this will defaults to /tmp/<project_id>
+workdir = "{ctx.workdir}"
 
-# Database name
-db_name = "{db_name}"
+# Database config
+database_name = "{ctx.database_name}"
+database_username = "{ctx.database_username}"
+database_password = "{ctx.database_password}"
+database_instance_name = "{ctx.database_instance_name}"
+database_backup_enabled = "{ctx.database_backup_enabled}"
+database_ha_type = "{ctx.database_ha_type}"
+database_region = "{ctx.database_region}"
+database_tier = "{ctx.database_tier}"
+database_project = "{ctx.database_project}"
 
-# Database username
-db_username = "{db_username}"
-
-# Database password
-db_password = "{db_password}"
-
-# Database instance name
-db_instance_name = "{db_instance_name}"
-
-# PubSub verification token
-pubsub_verification_token = "{pubsub_verification_token}"
+# PubSub config
+pubsub_verification_token = "{ctx.pubsub_verification_token}"
 
 # Sender email for notifications
-notification_sender_email = "{notification_sender_email}"
+notification_sender_email = "{ctx.notification_sender_email}"
 
-# Title name for application
-app_title = "{app_title}"
+# AppEngine config
+gae_app_title = "{ctx.gae_app_title}"
+gae_project = "{ctx.gae_project}"
+gae_region = "{ctx.gae_region}"
 
 # Enable flag for looking of pipelines on other stages
 # Options: True, False
 enabled_stages = False
 
+# Network configuration
+network = "{ctx.network}"
+subnet = "{ctx.subnet}"
+subnet_region = "{ctx.subnet_region}"
+subnet_cidr = "{ctx.subnet_cidr}"
+connector = "{ctx.connector}"
+connector_subnet = "{ctx.connector_subnet}"
+connector_cidr = "{ctx.connector_cidr}"
+connector_min_instances = "{ctx.connector_min_instances}"
+connector_max_instances = "{ctx.connector_max_instances}"
+connector_machine_type = "{ctx.connector_machine_type}"
+network_project = "{ctx.network_project}"
+
 """.strip()
 
 
-def _get_regions(project_id):
-  gcloud = '$GOOGLE_CLOUD_SDK/bin/gcloud --quiet'
-  cmd = f'{gcloud} app describe --verbosity critical --project={project_id}'
+def _get_regions(project_id: shared.ProjectId) -> Tuple[str, str]:
+  cmd = f'{GCLOUD} app describe --verbosity critical --project={project_id}'
   cmd += '| grep locationId'
-  status, out, err = shared.execute_command(
-      'Get App Engine region', cmd, stream_output_in_debug=False)
+  status, out, _ = shared.execute_command(
+      'Get App Engine region', cmd, debug_uses_std_out=False)
   if status == 0:  # App Engine app had already been deployed in some region.
     region = out.strip().split()[1]
   else:  # Get the list of available App Engine regions and prompt user.
     click.echo('     No App Engine app has been deployed yet.')
-    cmd = f"{gcloud} app regions list --format='value(region)'"
-    status, out, err = shared.execute_command(
-        'Get available App Engine regions', cmd, stream_output_in_debug=False)
+    cmd = f'{GCLOUD} app regions list --format="value(region)"'
+    _, out, _ = shared.execute_command(
+        'Get available App Engine regions', cmd, debug_uses_std_out=False)
     regions = out.strip().split('\n')
     for i, region in enumerate(regions):
       click.echo(f'{i + 1}) {region}')
@@ -120,158 +154,168 @@ def _get_regions(project_id):
   return region, sql_region
 
 
-def _default_stage_context(stage_name):
-  # Generates a cryptographically secured random password for the database user.
-  # Source: https://stackoverflow.com/a/23728630
-  random_password = ''.join(random.SystemRandom().choice(
-      string.ascii_lowercase + string.digits) for _ in range(16))
-  random_token = ''.join(random.SystemRandom().choice(
-      string.ascii_lowercase + string.digits) for _ in range(32))
-  region, sql_region = _get_regions(stage_name)
-  return dict(
-      service_account_email=f'{stage_name}@appspot.gserviceaccount.com',
-      project_id_gae=stage_name,
+def _default_stage_context(project_id: shared.ProjectId) -> shared.StageContext:
+  region, sql_region = _get_regions(project_id)
+  gae_app_title = ' '.join(project_id.split('-')).title()
+  namespace = types.SimpleNamespace(
+      project_id=project_id,
       project_region=region,
-      project_sql_region=sql_region,
-      project_sql_tier='db-g1-small',
-      workdir=f'/tmp/{stage_name}',
-      db_name='crmint',
-      db_username='crmint',
-      db_password=random_password,
-      db_instance_name='crmint',
-      pubsub_verification_token=random_token,
-      notification_sender_email=f'noreply@{stage_name}.appspotmail.com',
-      app_title=' '.join(stage_name.split('-')).title())
+      workdir=f'/tmp/{project_id}',
+      database_name=settings.DATABASE_NAME,
+      database_region=sql_region,
+      database_tier=settings.DATABASE_TIER,
+      database_username=settings.DATABASE_USER,
+      database_password=settings.DATABASE_PASSWORD,
+      database_instance_name=settings.DATABASE_INSTANCE_NAME,
+      database_backup_enabled=settings.DATABASE_BACKUP_ENABLED,
+      database_ha_type=settings.DATABASE_HA_TYPE,
+      database_project=settings.DATABASE_PROJECT or project_id,
+      network=settings.NETWORK,
+      subnet=settings.SUBNET,
+      subnet_region=settings.SUBNET_REGION,
+      subnet_cidr=settings.SUBNET_CIDR,
+      connector=settings.CONNECTOR,
+      connector_subnet=settings.CONNECTOR_SUBNET,
+      connector_cidr=settings.CONNECTOR_CIDR,
+      connector_min_instances=settings.CONNECTOR_MIN_INSTANCES,
+      connector_max_instances=settings.CONNECTOR_MAX_INSTANCES,
+      connector_machine_type=settings.CONNECTOR_MACHINE_TYPE,
+      network_project=settings.NETWORK_PROJECT or project_id,
+      gae_project=settings.GAE_PROJECT or project_id,
+      gae_region=region,
+      gae_app_title=settings.GAE_APP_TITLE or gae_app_title,
+      pubsub_verification_token=settings.PUBSUB_VERIFICATION_TOKEN,
+      notification_sender_email=f'noreply@{project_id}.appspotmail.com',
+      enabled_stages=False)
+  return shared.StageContext(namespace)
 
 
-def _create_stage_file(stage_name, context=None):
-  filename = f'{stage_name}.py'
-  filepath = os.path.join(constants.STAGE_DIR, filename)
-  if context is None:
-    context = _default_stage_context(stage_name)
-  content = STAGE_FILE_TEMPLATE.format(**context)
-  with open(filepath, 'w+') as fp:
+def _create_stage_file(stage_path: pathlib.Path,
+                       context: shared.StageContext) -> None:
+  content = STAGE_FILE_TEMPLATE.format(ctx=context)
+  with open(stage_path, 'w+') as fp:
     fp.write(content)
-  return filepath
 
 
-def _detect_stage_version(stage_name):
-  """
+def _detect_stage_version(stage_path: pathlib.Path) -> SpecVersion:
+  """Returns the spec version detected for a given stage_path.
+
   Stage version is defined as:
     - `v1` for bash script stage definitions
-    - `v2+` for python stage definitions
+    - `v2` for python stage definitions
+    - `v3` new python stage definitions with VPC support
 
   Starts by checking for latest version.
 
-  Returns:
-      (version, filepath)
+  Args:
+    stage_path: Path to the stage file.
+
+  Raises:
+    ValueError: if the spec version is unsupported or the path does not exist.
   """
-  stage_python_filepath = shared.get_stage_file(stage_name)
-  if os.path.exists(stage_python_filepath):
-    stage = shared.get_stage_object(stage_name)
-    stage_version = getattr(stage, "spec_version", STAGE_VERSION_2_0)
+  if stage_path.exists():
+    stage = shared.load_stage(stage_path)
+    # NOTE: `spec_version` flag was not in the v2 template,
+    #       which is why it's defined as the default value.
+    stage_version = getattr(stage, 'spec_version', STAGE_VERSION_2_0)
     if stage_version not in SUPPORTED_STAGE_VERSIONS:
-      raise ValueError("Unsupported spec version: '%s'. "
-                       "Supported versions are %s" % (
-                            stage_version,
-                            SUPPORTED_STAGE_VERSIONS))
-    return stage_version, stage_python_filepath
+      raise ValueError(f'Unsupported spec version: "{stage_version}". '
+                       f'Supported versions are {SUPPORTED_STAGE_VERSIONS}')
+    return stage_version
 
-  stage_bash_filepath = os.path.join(
-      constants.PROJECT_DIR,
-      "scripts/variables/stages",
-      "%s.sh" % stage_name)
-  if os.path.exists(stage_bash_filepath):
-    return STAGE_VERSION_1_0, stage_bash_filepath
+  stage_bash_filename = f'{stage_path.stem}.sh'
+  stage_bash_filepath = pathlib.Path(
+      constants.PROJECT_DIR, 'scripts/variables/stages', stage_bash_filename)
+  if stage_bash_filepath.exists():
+    return STAGE_VERSION_1_0
 
-  raise ValueError("No stage file found for name: '%s'" % stage_name)
+  raise ValueError(f'Stage file not found neither at path: "{stage_path}" '
+                   f'nor at path: {stage_bash_filepath}')
 
 
-def _parse_old_stage_file(stage_name):
-  """
-  Parse old stage file content.
-  """
-  old_version, old_filepath = _detect_stage_version(stage_name)
-  if old_version == STAGE_VERSION_1_0:
+def _parse_stage_file(stage_path: pathlib.Path) -> shared.StageContext:
+  stage_version = _detect_stage_version(stage_path)
+  if stage_version == STAGE_VERSION_1_0:
     # Loads bash env variables.
-    cmd = "source %s" % old_filepath
-    cmd += " && set 2>/dev/null"
-    status, out, err = shared.execute_command(
-        "Load bash environment variables",
+    cmd = f'source {stage_path} && set 2>/dev/null'
+    _, out, _ = shared.execute_command(
+        'Load bash environment variables',
         cmd,
         cwd=constants.PROJECT_DIR,
-        stream_output_in_debug=False)
-
+        debug_uses_std_out=False)
     # Converts these env vars to dict representation.
-    old_stage = {}
-    for line in out.split("\n"):
-      key, _, value = line.partition("=")
-      old_stage[key] = value
-
-    return old_stage
-  elif old_version == STAGE_VERSION_2_0:
-    # Latest version
-    return None
+    old_stage = types.SimpleNamespace()
+    for line in out.split('\n'):
+      key, _, value = line.partition('=')
+      setattr(old_stage, key, value)
+    return shared.StageContext(old_stage)
+  else:
+    return shared.load_stage(stage_path)
 
 
 @click.group()
 def cli():
-  """Manage multiple instances of CRMint"""
-  pass
+  """Manage multiple instances of CRMint."""
 
 
 @cli.command('create')
-@click.option('--stage_name', default=None)
-def create(stage_name):
-  """Create new stage file"""
-  if not stage_name:
-    stage_name = shared.get_default_stage_name()
+@click.option('--stage_path', default=None)
+def create(stage_path: Union[None, str]):
+  """Create new stage file."""
+  if not stage_path:
+    stage_path = shared.get_default_stage_path()
+  else:
+    stage_path = pathlib.Path(stage_path)
 
-  if shared.check_stage_file(stage_name):
-    click.echo(click.style("This stage name already exists. You can list "
-                           "them all with: `$ crmint stages list`",
-                           fg='red', bold=True))
-    exit(1)
+  if stage_path.exists():
+    click.echo(click.style(f'This stage file "{stage_path}" already exists. '
+                           f'List them all with: `$ crmint stages list`.',
+                           fg='red',
+                           bold=True))
+    sys.exit(1)
 
-  filepath = _create_stage_file(stage_name)
-  click.echo(click.style("Stage file created: %s" % filepath, fg='green'))
-
-
-def _ignore_stage_file(file_name):
-  IGNORED_STAGE_FILES = ["__init__.py", "__pycache__"]
-  ENDS_WITH = [".pyc", ".example"]
-  return file_name in IGNORED_STAGE_FILES or file_name.endswith(tuple(ENDS_WITH))
+  project_id = shared.get_current_project_id()
+  context = _default_stage_context(project_id)
+  _create_stage_file(stage_path, context)
+  click.echo(click.style(f'Stage file created: {stage_path}', fg='green'))
 
 
 @cli.command('list')
-def list_stages():
-  """List your stages defined in cli/stages directory"""
-  for file_name in os.listdir(constants.STAGE_DIR):
-    if not _ignore_stage_file(file_name):
-      click.echo(file_name[:-3])
+@click.option('--stage_dir', default=None)
+def list_stages(stage_dir: Union[None, str]):
+  """List your stages defined in cli/stages directory."""
+  if stage_dir is None:
+    stage_dir = constants.STAGE_DIR
+  for stage_path in pathlib.Path(stage_dir).glob('*.py'):
+    if not stage_path.name.startswith('__'):
+      click.echo(stage_path.stem)
 
 
 @cli.command('migrate')
-@click.option('--stage_name', default=None)
-def migrate(stage_name):
-  """Migrate old stage file format to the latest one"""
-  if not stage_name:
-    stage_name = shared.get_default_stage_name()
+@click.option('--stage_path', default=None)
+def migrate(stage_path: Union[None, str]):
+  """Migrate old stage file format to the latest one."""
+  if not stage_path:
+    stage_path = shared.get_default_stage_path()
+
+  stage_version = _detect_stage_version(stage_path)
+  if stage_version == LATEST_STAGE_VERSION:
+    click.echo(click.style(
+        f'Already latest version detected: {stage_path}', fg='green'))
+    sys.exit(0)
 
   try:
-    old_context = _parse_old_stage_file(stage_name)
-    if old_context is None:
-      click.echo(click.style(
-        "Already latest version detected: %s" % stage_name, fg='green'))
-      exit(0)
+    old_context = _parse_stage_file(stage_path)
   except ValueError as inst:
     click.echo(click.style(str(inst), fg='red', bold=True))
-    exit(1)
+    sys.exit(1)
 
   # Save the new stage
-  # NB: we expect the variable names to be identical between old and new context
-  new_stage = _default_stage_context(stage_name)
-  new_stage.update(old_context)
-  filepath = _create_stage_file(stage_name, new_stage)
+  project_id = shared.get_current_project_id()
+  new_context = _default_stage_context(project_id)
+  # NOTE: Variable names are identical in spec v1 and v2
+  for key_v3, key_v2 in MAPPING_v3_from_v2.items():
+    setattr(new_context, key_v3, getattr(old_context, key_v2))
+  _create_stage_file(stage_path, new_context)
   click.echo(click.style(
-      "Successfully migrated stage file to: %s" % filepath, fg='green'))
+      f'Successfully migrated stage file at: {stage_path}', fg='green'))
