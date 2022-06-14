@@ -92,18 +92,75 @@ class PubSubHelpersTest(parameterized.TestCase):
         entities)
 
 
+class CloudSetupWithBillingDisabledTest(absltest.TestCase):
+
+  def test_billing_not_configured(self):
+    def _system_call(cmd, **unused_kwargs):
+      mock_result = mock.create_autospec(
+          subprocess.CompletedProcess, instance=True)
+      mock_result.returncode = 0
+      mock_result.stdout = b'output'
+      mock_result.stderr = b''
+      if 'billingAccountName' in cmd:
+        mock_result.stdout = b''  # An unconfigured billing account.
+      elif 'billingEnabled' in cmd:
+        mock_result.stdout = b'False'
+      return mock_result
+
+    self.enter_context(
+        mock.patch.object(
+            subprocess, 'run', autospec=True, side_effect=_system_call))
+    self.enter_context(
+        mock.patch.object(cloud, 'fetch_stage_or_default', autospec=True))
+    runner = testing.CliRunner()
+    result = runner.invoke(cloud.setup, catch_exceptions=False)
+    self.assertEqual(result.exit_code, 1, msg=result.output)
+    self.assertIn('Please configure your billing', result.output)
+
+  def test_billing_not_enabled(self):
+    def _system_call(cmd, **unused_kwargs):
+      mock_result = mock.create_autospec(
+          subprocess.CompletedProcess, instance=True)
+      mock_result.returncode = 0
+      mock_result.stdout = b'output'
+      mock_result.stderr = b''
+      if 'billingAccountName' in cmd:
+        mock_result.stdout = b'billingAccountName/XXX-YYY'
+      elif 'billingEnabled' in cmd:
+        mock_result.stdout = b'False'
+      return mock_result
+
+    self.enter_context(
+        mock.patch.object(
+            subprocess, 'run', autospec=True, side_effect=_system_call))
+    self.enter_context(
+        mock.patch.object(cloud, 'fetch_stage_or_default', autospec=True))
+    runner = testing.CliRunner()
+    result = runner.invoke(cloud.setup, catch_exceptions=False)
+    self.assertEqual(result.exit_code, 1, msg=result.output)
+    self.assertIn('Please enable billing', result.output)
+
+
 class CloudBaseTest(parameterized.TestCase):
 
   def setUp(self):
     super().setUp()
-    mock_result = mock.create_autospec(
-        subprocess.CompletedProcess, instance=True)
-    mock_result.returncode = 0
-    mock_result.stdout = b'output'
-    mock_result.stderr = b'error'
+
+    def _system_call(cmd, **unused_kwargs):
+      mock_result = mock.create_autospec(
+          subprocess.CompletedProcess, instance=True)
+      mock_result.returncode = 0
+      mock_result.stdout = b'output'
+      mock_result.stderr = b''
+      if 'billingAccountName' in cmd:
+        mock_result.stdout = b'billingAccountName/XXX-YYY'
+      elif 'billingEnabled' in cmd:
+        mock_result.stdout = b'True'
+      return mock_result
+
     self.enter_context(
         mock.patch.object(
-            subprocess, 'run', autospec=True, return_value=mock_result))
+            subprocess, 'run', autospec=True, side_effect=_system_call))
     self.enter_context(
         mock.patch.object(
             shared,
@@ -155,6 +212,8 @@ class CloudSetupTest(CloudBaseTest):
         textwrap.dedent("""\
             >>>> Setup
                  Project ID found: dummy_stage_v3
+            ---> Retrieve billing account name ✓
+            ---> Check that billing is enabled ✓
             ---> Activate Cloud services ✓
             ---> Check if App Engine app already exists ✓
             (.|\\n)*
@@ -177,6 +236,8 @@ class CloudSetupTest(CloudBaseTest):
         textwrap.dedent("""\
             >>>> Setup
                  Project ID found: dummy_stage_v3
+            ---> Retrieve billing account name ✓
+            ---> Check that billing is enabled ✓
             ---> Activate Cloud services ✓
             ---> Create the VPC ✓
             ---> Allocating an IP address range ✓
@@ -274,7 +335,7 @@ class CloudDeployTest(CloudBaseTest):
     """Should raise an exception inviting the user to migrate."""
     stage_path = pathlib.Path(constants.STAGE_DIR, 'dummy_stage_v3.py')
     try:
-      _, stage = cloud.fetch_stage_or_default(stage_path)
+      stage = cloud.fetch_stage_or_default(stage_path)
     except cloud.CannotFetchStageError:
       self.fail('Should not raise an exception on latest spec')
     self.assertEqual(stage.spec_version, 'v3.0')

@@ -19,6 +19,7 @@ from google.cloud import pubsub_v1
 
 def setup_pubsub():  # pylint: disable=too-many-locals
   """Create CRMint's PubSub topics and subscriptions."""
+  # TODO(dulacp): share this setting with `cli.cloud.SUBSCRIPTIONS` to be DRY
   crmint_subscriptions = {
       'crmint-start-task': {
         'push_endpoint': 'http://jobs:8081/push/start-task',
