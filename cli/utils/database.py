@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+"""Constants used for the database used in the cli/commands package."""
 
 DATABASE_NAME = "crmintapp"
 DATABASE_USER = "crmintapp"

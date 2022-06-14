@@ -4,11 +4,9 @@ import os
 import pathlib
 import shutil
 import subprocess
-import textwrap
 from unittest import mock
 
 from absl.testing import absltest
-import click
 from click import testing
 
 from cli.commands import stages
@@ -22,66 +20,12 @@ def _datafile(filename):
   return os.path.join(DATA_DIR, filename)
 
 
-class GetRegionTests(absltest.TestCase):
-
-  def test_get_regions_with_existing_app_engine(self):
-    mock_result = mock.create_autospec(subprocess.CompletedProcess,
-                                       instance=True)
-    mock_result.returncode = 0
-    mock_result.stdout = b'locationId: europe-west'
-    mock_result.stderr = b''
-    self.enter_context(
-        mock.patch.object(
-            subprocess, 'run', autospec=True, return_value=mock_result))
-    self.assertEqual(stages._get_regions(shared.ProjectId('dummy_stage_v3')),
-                     ('europe-west', 'europe-west1'))
-
-  def test_get_regions_no_app_engine(self):
-    # No appengine
-    mock_result_1 = mock.create_autospec(subprocess.CompletedProcess,
-                                         instance=True)
-    mock_result_1.returncode = 1
-    mock_result_1.stdout = b'output'
-    mock_result_1.stderr = b'error'
-    # List of regions
-    list_of_regions_bytes = textwrap.dedent("""\
-        asia-east1
-        asia-northeast1
-        asia-southeast1
-        australia-southeast1
-        europe-west
-        europe-west2
-        europe-west3
-        us-central
-        us-east1
-        us-east4
-        us-west1
-        us-west2
-        us-west3
-        us-west4""").encode('utf-8')
-    mock_result_2 = mock.create_autospec(subprocess.CompletedProcess,
-                                         instance=True)
-    mock_result_2.returncode = 0
-    mock_result_2.stdout = list_of_regions_bytes
-    mock_result_2.stderr = b''
-    self.enter_context(
-        mock.patch.object(
-            subprocess,
-            'run',
-            autospec=True,
-            side_effect=[mock_result_1, mock_result_2]))
-    self.enter_context(
-        mock.patch.object(click, 'prompt', autospec=True, return_value=4))
-    self.assertEqual(stages._get_regions(shared.ProjectId('dummy_stage_v3')),
-                     ('australia-southeast1', 'australia-southeast1'))
-
-
 class StagesTest(absltest.TestCase):
 
   def setUp(self):
     super().setUp()
-    mock_result = mock.create_autospec(subprocess.CompletedProcess,
-                                       instance=True)
+    mock_result = mock.create_autospec(
+        subprocess.CompletedProcess, instance=True)
     mock_result.returncode = 0
     mock_result.stdout = b'output'
     mock_result.stderr = b''
@@ -120,8 +64,8 @@ class StagesTest(absltest.TestCase):
             return_value='new_dummy_stage'))
     self.enter_context(
         mock.patch.object(
-            stages,
-            '_get_regions',
+            shared,
+            'get_regions',
             autospec=True,
             return_value=('europe-west', 'europe-west1')))
     with self.subTest('Creates the stage file'):
@@ -133,7 +77,7 @@ class StagesTest(absltest.TestCase):
     with self.subTest('Validates content of the stage file'):
       stage_path = shared.get_default_stage_path()
       stage = shared.load_stage(stage_path)
-      expected_context = stages._default_stage_context(
+      expected_context = shared.default_stage_context(
           shared.ProjectId('new_dummy_stage'))
       expected_context.spec_version = 'v3.0'
       self.assertEqual(stage.__dict__, expected_context.__dict__)
@@ -141,8 +85,8 @@ class StagesTest(absltest.TestCase):
   def test_migrate_stage_from_v2_to_v3(self):
     self.enter_context(
         mock.patch.object(
-            stages,
-            '_get_regions',
+            shared,
+            'get_regions',
             autospec=True,
             return_value=('us-central', 'us-central1')))
     self.enter_context(
@@ -179,8 +123,8 @@ class StagesTest(absltest.TestCase):
   def test_migrate_latest_spec_does_nothing(self):
     self.enter_context(
         mock.patch.object(
-            stages,
-            '_get_regions',
+            shared,
+            'get_regions',
             autospec=True,
             return_value=('us-central', 'us-central1')))
     self.enter_context(
@@ -189,15 +133,15 @@ class StagesTest(absltest.TestCase):
             'get_current_project_id',
             autospec=True,
             return_value='dummy_stage_v3'))
-    stages._create_stage_file(
+    shared.create_stage_file(
         pathlib.Path(constants.STAGE_DIR, 'dummy_stage_v2.py'),
-        stages._default_stage_context(shared.ProjectId('id')))
+        shared.default_stage_context(shared.ProjectId('id')))
     stage_path = shared.get_default_stage_path()
     stage = shared.load_stage(stage_path)
     with self.subTest('Before migration spec version'):
       stage_path = shared.get_default_stage_path()
       stage = shared.load_stage(stage_path)
-      self.assertEqual(stage.spec_version, stages.LATEST_STAGE_VERSION)
+      self.assertEqual(stage.spec_version, constants.LATEST_STAGE_VERSION)
     with self.subTest('Migrate does nothing'):
       runner = testing.CliRunner()
       result = runner.invoke(stages.migrate, catch_exceptions=False)
@@ -206,7 +150,7 @@ class StagesTest(absltest.TestCase):
     with self.subTest('After migration spec version'):
       stage_path = shared.get_default_stage_path()
       stage = shared.load_stage(stage_path)
-      self.assertEqual(stage.spec_version, stages.LATEST_STAGE_VERSION)
+      self.assertEqual(stage.spec_version, constants.LATEST_STAGE_VERSION)
 
 
 if __name__ == '__main__':
