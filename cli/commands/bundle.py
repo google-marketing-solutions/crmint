@@ -32,6 +32,7 @@ def install(ctx: click.Context, debug: bool) -> None:
   """Runs all commands needed to deploy CRMint in one command."""
   ctx.invoke(stages.create, debug=debug)
   ctx.invoke(stages.migrate, debug=debug)
+  ctx.invoke(cloud.checklist, debug=debug)
   ctx.invoke(cloud.setup, debug=debug)
   ctx.invoke(cloud.deploy, debug=debug)
 

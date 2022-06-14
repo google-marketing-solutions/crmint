@@ -103,6 +103,46 @@ def cli():
 ####################### SETUP #######################
 
 
+def get_user_email(debug: bool = False) -> str:
+  """Returns the user email configured in the gcloud config.
+
+  Args:
+    debug: Enables the debug mode on system calls.
+  """
+  cmd = f'{GCLOUD} config list --format="value(core.account)"'
+  _, out, _ = shared.execute_command(
+      'Retrieve gcloud current user',
+      cmd,
+      debug=debug,
+      debug_uses_std_out=False)
+  return out.strip()
+
+
+def check_if_user_is_owner(user_email: str,
+                           stage: shared.StageContext,
+                           debug: bool = False) -> bool:
+  """Returns True if the current gcloud user has roles/owner.
+
+  Args:
+    user_email: Email address to check the owner role on.
+    stage: Stage context.
+    debug: Enables the debug mode on system calls.
+  """
+  project_number = get_project_number(stage, debug=debug)
+  cmd = textwrap.dedent(f"""\
+      {GCLOUD} projects get-iam-policy {project_number} \\
+          --flatten="bindings[].members" \\
+          --filter="bindings.members=user:{user_email}" \\
+          --format="value(bindings.role)"
+      """)
+  _, out, _ = shared.execute_command(
+      'Validates current user has roles/owner',
+      cmd,
+      debug=debug,
+      debug_uses_std_out=False)
+  return out.strip() == 'roles/owner'
+
+
 def check_billing_configured(stage: shared.StageContext,
                              debug: bool = False) -> bool:
   """Returns True if billing is configured for the given project.
@@ -318,7 +358,13 @@ def create_pubsub_topics(stage, debug=False):
       'Creating CRMint\'s PubSub topics', cmd, debug=debug)
 
 
-def _get_project_number(stage: shared.StageContext, debug: bool = False) -> str:
+def get_project_number(stage: shared.StageContext, debug: bool = False) -> str:
+  """Returns the project number as a string.
+
+  Args:
+    stage: Stage context.
+    debug: Enables the debug mode on system calls.
+  """
   project_id = stage.project_id
   cmd = textwrap.dedent(f"""\
       {GCLOUD} projects describe {project_id} --format="value(projectNumber)"
@@ -379,7 +425,7 @@ def create_pubsub_subscriptions(stage, debug=False):
 
 def _grant_required_permissions(stage, debug=False):
   project_id = stage.project_id
-  project_number = _get_project_number(stage, debug)
+  project_number = get_project_number(stage, debug)
   commands = [
       textwrap.dedent(f"""\
           {GCLOUD} projects add-iam-policy-binding {project_id} \\
@@ -805,6 +851,46 @@ def _run_reset_pipelines(stage, debug=False):
 ####################### SUB-COMMANDS #################
 
 
+@cli.command('checklist')
+@click.option('--stage_path', type=str, default=None)
+@click.option('--debug/--no-debug', default=False)
+def checklist(stage_path: Union[None, str], debug: bool) -> None:
+  """Validates that we can safely deploy CRMint."""
+  click.echo(click.style('>>>> Checklist', fg='magenta', bold=True))
+
+  if stage_path is not None:
+    stage_path = pathlib.Path(stage_path)
+
+  try:
+    stage = fetch_stage_or_default(stage_path, debug=debug)
+  except CannotFetchStageError:
+    sys.exit(1)
+
+  user_email = get_user_email(debug=debug)
+  if not check_if_user_is_owner(user_email, stage, debug=debug):
+    click.secho(textwrap.indent(textwrap.dedent(f"""\
+        Missing roles/owner for user ({user_email}), which is needed for
+        deploying CRMint. Please contact your administrator to get this role.
+        """), _INDENT_PREFIX), fg='red', bold=True)
+    sys.exit(1)
+
+  if not check_billing_configured(stage, debug=debug):
+    click.secho(textwrap.indent(textwrap.dedent("""\
+        Please configure your billing account before deploying CRMint:
+        https://cloud.google.com/billing/docs/how-to/modify-project#change_the_billing_account_for_a_project
+        """), _INDENT_PREFIX), fg='red', bold=True)
+    sys.exit(1)
+
+  if not check_billing_enabled(stage, debug=debug):
+    click.secho(textwrap.indent(textwrap.dedent("""\
+        Please enable billing before deploying CRMint:
+        https://cloud.google.com/billing/docs/how-to/modify-project#enable_billing_for_a_project
+        """), _INDENT_PREFIX), fg='red', bold=True)
+    sys.exit(1)
+
+  click.echo(click.style('Done.', fg='magenta', bold=True))
+
+
 @cli.command('setup')
 @click.option('--stage_path', type=str, default=None)
 @click.option('--debug/--no-debug', default=False)
@@ -827,19 +913,6 @@ def setup(stage_path: Union[None, str], debug: bool, use_vpc: bool) -> None:
 
   # Beta flags
   stage.use_vpc = use_vpc
-
-  if not check_billing_configured(stage, debug=debug):
-    click.secho(textwrap.indent(textwrap.dedent("""\
-        Please configure your billing account before deploying CRMint:
-        https://cloud.google.com/billing/docs/how-to/modify-project#change_the_billing_account_for_a_project
-        """), _INDENT_PREFIX), fg='red', bold=True)
-    sys.exit(1)
-  if not check_billing_enabled(stage, debug=debug):
-    click.secho(textwrap.indent(textwrap.dedent("""\
-        Please enable billing before deploying CRMint:
-        https://cloud.google.com/billing/docs/how-to/modify-project#enable_billing_for_a_project
-        """), _INDENT_PREFIX), fg='red', bold=True)
-    sys.exit(1)
 
   # Runs setup steps.
   components = [

@@ -16,6 +16,7 @@ from click import testing
 from cli.commands import cloud
 from cli.utils import constants
 from cli.utils import shared
+from cli.utils import test_helpers
 from cli.utils import vpc_helpers
 
 DATA_DIR = os.path.join(os.path.dirname(__file__), '../testdata')
@@ -92,75 +93,86 @@ class PubSubHelpersTest(parameterized.TestCase):
         entities)
 
 
-class CloudSetupWithBillingDisabledTest(absltest.TestCase):
+class CloudChecklistTest(parameterized.TestCase):
 
-  def test_billing_not_configured(self):
-    def _system_call(cmd, **unused_kwargs):
-      mock_result = mock.create_autospec(
-          subprocess.CompletedProcess, instance=True)
-      mock_result.returncode = 0
-      mock_result.stdout = b'output'
-      mock_result.stderr = b''
-      if 'billingAccountName' in cmd:
-        mock_result.stdout = b''  # An unconfigured billing account.
-      elif 'billingEnabled' in cmd:
-        mock_result.stdout = b'False'
-      return mock_result
-
+  @parameterized.named_parameters(
+      ('User not project owner', 'roles/editor', 1),
+      ('User is project owner', 'roles/owner', 0),
+  )
+  def test_user_not_project_owner(self, user_role, exit_code):
+    side_effect_run = test_helpers.mock_subprocess_result_side_effect(
+        user_role=user_role)
     self.enter_context(
         mock.patch.object(
-            subprocess, 'run', autospec=True, side_effect=_system_call))
+            subprocess, 'run', autospec=True, side_effect=side_effect_run))
     self.enter_context(
         mock.patch.object(cloud, 'fetch_stage_or_default', autospec=True))
     runner = testing.CliRunner()
-    result = runner.invoke(cloud.setup, catch_exceptions=False)
+    result = runner.invoke(cloud.checklist, catch_exceptions=False)
+    self.assertEqual(result.exit_code, exit_code, msg=result.output)
+    if exit_code == 0:
+      self.assertNotIn('Missing roles/owner for user', result.output)
+    else:
+      self.assertIn('Missing roles/owner for user', result.output)
+
+  def test_billing_not_configured(self):
+    side_effect_run = test_helpers.mock_subprocess_result_side_effect(
+        billing_account_name=b'', billing_enabled=False)
+    self.enter_context(
+        mock.patch.object(
+            subprocess, 'run', autospec=True, side_effect=side_effect_run))
+    self.enter_context(
+        mock.patch.object(cloud, 'fetch_stage_or_default', autospec=True))
+    runner = testing.CliRunner()
+    result = runner.invoke(cloud.checklist, catch_exceptions=False)
     self.assertEqual(result.exit_code, 1, msg=result.output)
     self.assertIn('Please configure your billing', result.output)
 
   def test_billing_not_enabled(self):
-    def _system_call(cmd, **unused_kwargs):
-      mock_result = mock.create_autospec(
-          subprocess.CompletedProcess, instance=True)
-      mock_result.returncode = 0
-      mock_result.stdout = b'output'
-      mock_result.stderr = b''
-      if 'billingAccountName' in cmd:
-        mock_result.stdout = b'billingAccountName/XXX-YYY'
-      elif 'billingEnabled' in cmd:
-        mock_result.stdout = b'False'
-      return mock_result
-
+    side_effect_run = test_helpers.mock_subprocess_result_side_effect(
+        billing_account_name=b'XXX-YYY', billing_enabled=False)
     self.enter_context(
         mock.patch.object(
-            subprocess, 'run', autospec=True, side_effect=_system_call))
+            subprocess, 'run', autospec=True, side_effect=side_effect_run))
     self.enter_context(
         mock.patch.object(cloud, 'fetch_stage_or_default', autospec=True))
     runner = testing.CliRunner()
-    result = runner.invoke(cloud.setup, catch_exceptions=False)
+    result = runner.invoke(cloud.checklist, catch_exceptions=False)
     self.assertEqual(result.exit_code, 1, msg=result.output)
     self.assertIn('Please enable billing', result.output)
+
+  def test_validates_stdout(self):
+    side_effect_run = test_helpers.mock_subprocess_result_side_effect()
+    self.enter_context(
+        mock.patch.object(
+            subprocess, 'run', autospec=True, side_effect=side_effect_run))
+    self.enter_context(
+        mock.patch.object(cloud, 'fetch_stage_or_default', autospec=True))
+    runner = testing.CliRunner()
+    result = runner.invoke(cloud.checklist, catch_exceptions=False)
+    self.assertEqual(result.exit_code, 0, msg=result.output)
+    self.assertEqual(
+        result.output,
+        textwrap.dedent("""\
+            >>>> Checklist
+            ---> Retrieve gcloud current user ✓
+            ---> Getting project number ✓
+            ---> Validates current user has roles/owner ✓
+            ---> Retrieve billing account name ✓
+            ---> Check that billing is enabled ✓
+            Done.
+            """)
+    )
 
 
 class CloudBaseTest(parameterized.TestCase):
 
   def setUp(self):
     super().setUp()
-
-    def _system_call(cmd, **unused_kwargs):
-      mock_result = mock.create_autospec(
-          subprocess.CompletedProcess, instance=True)
-      mock_result.returncode = 0
-      mock_result.stdout = b'output'
-      mock_result.stderr = b''
-      if 'billingAccountName' in cmd:
-        mock_result.stdout = b'billingAccountName/XXX-YYY'
-      elif 'billingEnabled' in cmd:
-        mock_result.stdout = b'True'
-      return mock_result
-
+    side_effect_run = test_helpers.mock_subprocess_result_side_effect()
     self.enter_context(
         mock.patch.object(
-            subprocess, 'run', autospec=True, side_effect=_system_call))
+            subprocess, 'run', autospec=True, side_effect=side_effect_run))
     self.enter_context(
         mock.patch.object(
             shared,
@@ -212,8 +224,6 @@ class CloudSetupTest(CloudBaseTest):
         textwrap.dedent("""\
             >>>> Setup
                  Project ID found: dummy_stage_v3
-            ---> Retrieve billing account name ✓
-            ---> Check that billing is enabled ✓
             ---> Activate Cloud services ✓
             ---> Check if App Engine app already exists ✓
             (.|\\n)*
@@ -236,8 +246,6 @@ class CloudSetupTest(CloudBaseTest):
         textwrap.dedent("""\
             >>>> Setup
                  Project ID found: dummy_stage_v3
-            ---> Retrieve billing account name ✓
-            ---> Check that billing is enabled ✓
             ---> Activate Cloud services ✓
             ---> Create the VPC ✓
             ---> Allocating an IP address range ✓
@@ -310,7 +318,7 @@ class CloudSetupTest(CloudBaseTest):
             return_value=('us-central', 'us-central1')))
     self.enter_context(
         mock.patch.object(
-            cloud, '_get_project_number', autospec=True, return_value='123'))
+            cloud, 'get_project_number', autospec=True, return_value='123'))
     stage = shared.default_stage_context(shared.ProjectId('foo'))
 
     @click.command('custom')

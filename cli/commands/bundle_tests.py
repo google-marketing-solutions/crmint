@@ -12,6 +12,7 @@ from click import testing
 from cli.commands import bundle
 from cli.utils import constants
 from cli.utils import shared
+from cli.utils import test_helpers
 
 DATA_DIR = os.path.join(os.path.dirname(__file__), '../testdata')
 
@@ -25,21 +26,10 @@ class BundleTest(absltest.TestCase):
   def setUp(self):
     super().setUp()
 
-    def _system_call(cmd, **unused_kwargs):
-      mock_result = mock.create_autospec(
-          subprocess.CompletedProcess, instance=True)
-      mock_result.returncode = 0
-      mock_result.stdout = b'output'
-      mock_result.stderr = b''
-      if 'billingAccountName' in cmd:
-        mock_result.stdout = b'billingAccountName/XXX-YYY'
-      elif 'billingEnabled' in cmd:
-        mock_result.stdout = b'True'
-      return mock_result
-
+    side_effect_run = test_helpers.mock_subprocess_result_side_effect()
     self.enter_context(
         mock.patch.object(
-            subprocess, 'run', autospec=True, side_effect=_system_call))
+            subprocess, 'run', autospec=True, side_effect=side_effect_run))
     # Overrides the default stage directory with a custom temporary directory.
     tmp_stage_dir = self.create_tempdir('stage_dir')
     self.enter_context(
@@ -65,6 +55,7 @@ class BundleTest(absltest.TestCase):
     self.assertEqual(result.exit_code, 0, msg=result.output)
     self.assertIn('>>>> Create stage', result.output)
     self.assertIn('>>>> Migrate stage', result.output)
+    self.assertIn('>>>> Checklist', result.output)
     self.assertIn('Successfully migrated stage file', result.output)
     self.assertIn('>>>> Setup', result.output)
     self.assertIn('>>>> Deploy', result.output)
