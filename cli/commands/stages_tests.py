@@ -55,6 +55,18 @@ class StagesTest(absltest.TestCase):
     self.assertEqual(result.exit_code, 0, msg=result.output)
     self.assertEqual(result.output, '')
 
+  def test_create_new_stage_file_already_exists(self):
+    self.enter_context(
+        mock.patch.object(
+            shared,
+            'get_current_project_id',
+            autospec=True,
+            return_value='dummy_stage_v3'))
+    runner = testing.CliRunner()
+    result = runner.invoke(stages.create, catch_exceptions=False)
+    self.assertEqual(result.exit_code, 0, msg=result.output)
+    self.assertIn('already exists', result.output)
+
   def test_create_new_stage_file(self):
     self.enter_context(
         mock.patch.object(

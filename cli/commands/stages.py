@@ -109,8 +109,11 @@ def cli():
 
 @cli.command('create')
 @click.option('--stage_path', default=None)
-def create(stage_path: Union[None, str]):
+@click.option('--debug/--no-debug', default=False)
+def create(stage_path: Union[None, str], debug: bool) -> None:
   """Create new stage file."""
+  click.echo(click.style('>>>> Create stage', fg='magenta', bold=True))
+
   if not stage_path:
     stage_path = shared.get_default_stage_path()
   else:
@@ -121,12 +124,11 @@ def create(stage_path: Union[None, str]):
                            f'List them all with: `$ crmint stages list`.',
                            fg='red',
                            bold=True))
-    sys.exit(1)
-
-  project_id = shared.get_current_project_id()
-  context = shared.default_stage_context(project_id)
-  shared.create_stage_file(stage_path, context)
-  click.echo(click.style(f'Stage file created: {stage_path}', fg='green'))
+  else:
+    project_id = shared.get_current_project_id(debug=debug)
+    context = shared.default_stage_context(project_id)
+    shared.create_stage_file(stage_path, context)
+    click.echo(click.style(f'Stage file created: {stage_path}', fg='green'))
 
 
 @cli.command('list')
@@ -142,10 +144,13 @@ def list_stages(stage_dir: Union[None, str]):
 
 @cli.command('migrate')
 @click.option('--stage_path', default=None)
-def migrate(stage_path: Union[None, str]):
+@click.option('--debug/--no-debug', default=False)
+def migrate(stage_path: Union[None, str], debug: bool) -> None:
   """Migrate old stage file format to the latest one."""
+  click.echo(click.style('>>>> Migrate stage', fg='magenta', bold=True))
+
   if not stage_path:
-    stage_path = shared.get_default_stage_path()
+    stage_path = shared.get_default_stage_path(debug=debug)
 
   stage_version = _detect_stage_version(stage_path)
   if stage_version == constants.LATEST_STAGE_VERSION:
@@ -160,7 +165,7 @@ def migrate(stage_path: Union[None, str]):
     sys.exit(1)
 
   # Save the new stage
-  project_id = shared.get_current_project_id()
+  project_id = shared.get_current_project_id(debug=debug)
   new_context = shared.default_stage_context(project_id)
   # NOTE: Variable names are identical in spec v1 and v2
   for key_v3, key_v2 in MAPPING_v3_from_v2.items():
