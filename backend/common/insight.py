@@ -79,7 +79,6 @@ class GAProvider(object):
     return self.force_opt_out or self.config.get('opt_out', None)
 
   def _send(self, payload):
-    """TODO: implement an async method to send the hits, and fail silently if it does."""
     now_ms = math.floor(time.time() * 1000)
     qs = {
       # GA Measurement Protocol API version

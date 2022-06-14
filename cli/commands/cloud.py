@@ -12,43 +12,88 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+"""Command line to setup and deploy CRMint on GCP."""
+
+import json
 import os
+import pathlib
+import re
+import shutil
 import sys
+import textwrap
+from typing import Tuple, Union
+
 import click
+import yaml
+
 from cli.utils import constants
 from cli.utils import shared
+from cli.utils import vpc_helpers
+from cli.utils.constants import GCLOUD
 
+_INDENT_PREFIX = '     '
 
-GCLOUD = '$GOOGLE_CLOUD_SDK/bin/gcloud --quiet'
+# TODO(dulacp): use dataclass to leverage typing
 SUBSCRIPTIONS = {
     'crmint-start-task': {
-      'path': 'push/start-task',
+        'path': 'push/start-task',
         'ack_deadline_seconds': 600,
         'minimum_backoff': 60,  # seconds
     },
     'crmint-task-finished': {
-      'path': 'push/task-finished',
+        'path': 'push/task-finished',
         'ack_deadline_seconds': 60,
         'minimum_backoff': 10,  # seconds
     },
     'crmint-start-pipeline': {
-      'path': 'push/start-pipeline',
+        'path': 'push/start-pipeline',
         'ack_deadline_seconds': 60,
         'minimum_backoff': 10,  # seconds
     },
     'crmint-pipeline-finished': None,
 }
 
+SUBSCRIPTION_PUSH_ENDPOINT = 'https://{project_id}.appspot.com/{path}?token={token}'
 
-def fetch_stage_or_default(stage_name=None, debug=False):
-  if not stage_name:
-    stage_name = shared.get_default_stage_name(debug=debug)
-  if not shared.check_stage_file(stage_name):
-    click.echo(click.style(
-        "Stage file '%s' not found." % stage_name, fg='red', bold=True))
-    return None
-  stage = shared.get_stage_object(stage_name)
-  return stage_name, stage
+
+class CannotFetchStageError(Exception):
+  """Raised when the stage file cannot be fetched."""
+
+
+def fetch_stage_or_default(
+    stage_path: Union[None, pathlib.Path],
+    debug: bool = False
+) -> Tuple[pathlib.Path, shared.StageContext]:
+  """Returns the loaded stage (path, context).
+
+  Args:
+    stage_path: Stage path to load. If None a default stage path is used.
+    debug: Enables the debug mode on system calls.
+
+  Raises:
+    CannotFetchStageError: if the stage file can be fetched.
+  """
+  if not stage_path:
+    stage_path = shared.get_default_stage_path(debug=debug)
+  if not stage_path.exists():
+    click.secho(f'Stage file not found at path: {stage_path}',
+                fg='red',
+                bold=True)
+    click.secho('Fix this by running: $ crmint stages create', fg='green')
+    raise CannotFetchStageError(f'Not found at: {stage_path}')
+
+  stage = shared.load_stage(stage_path)
+  stage.stage_path = stage_path
+  if stage.spec_version != constants.LATEST_STAGE_VERSION:
+    click.secho(f'Stage file "{stage_path}" needs to be migrated. '
+                f'Current spec_version: {stage.spec_version}, '
+                f'latest: {constants.LATEST_STAGE_VERSION}',
+                fg='red',
+                bold=True)
+    click.secho('Fix this by running: $ crmint stages migrate', fg='green')
+    raise CannotFetchStageError('Stage file needs migration')
+
+  return stage_path, stage
 
 
 @click.group()
@@ -60,135 +105,160 @@ def cli():
 
 
 def _check_if_appengine_instance_exists(stage, debug=False):
-  project_id = stage.project_id_gae
-  cmd = (
-      f'{GCLOUD} app describe --verbosity critical --project={project_id}'
-      f' | grep -q codeBucket'
-  )
+  project_id = stage.project_id
+  cmd = (f'{GCLOUD} app describe --verbosity critical --project={project_id}'
+         f' | grep -q codeBucket')
   status, _, _ = shared.execute_command(
       'Check if App Engine app already exists',
-      cmd, report_empty_err=False, debug=debug)
+      cmd,
+      report_empty_err=False,
+      debug=debug)
   return status == 0
 
 
 def create_appengine(stage, debug=False):
   if _check_if_appengine_instance_exists(stage, debug=debug):
-    click.echo('     App Engine app already exists.')
+    click.echo(
+        textwrap.indent('App Engine app already exists.', _INDENT_PREFIX))
     return
-  project_id = stage.project_id_gae
+  project_id = stage.project_id
   region = stage.project_region
   cmd = f'{GCLOUD} app create --project={project_id} --region={region}'
   shared.execute_command('Create App Engine instance', cmd, debug=debug)
 
 
 def _check_if_cloudsql_instance_exists(stage, debug=False):
-  project_id = stage.project_id_gae
-  db_instance_name = stage.db_instance_name
-  cmd = (
-      f' {GCLOUD} sql instances list --project={project_id}'
-      f" --format='value(name)'"
-      f" --filter='name={db_instance_name}'"
-  )
+  project_id = stage.database_project
+  db_instance_name = stage.database_instance_name
+  cmd = (f'{GCLOUD} sql instances list --project={project_id}'
+         f' --format="value(name)"'
+         f' --filter="name={db_instance_name}"')
   _, out, _ = shared.execute_command(
       'Check if CloudSQL instance already exists',
-      cmd, report_empty_err=False, debug=debug)
+      cmd,
+      report_empty_err=False,
+      debug_uses_std_out=False,
+      debug=debug)
   return out.strip() == db_instance_name
 
 
 def create_cloudsql_instance_if_needed(stage, debug=False):
   if _check_if_cloudsql_instance_exists(stage, debug=debug):
-    click.echo('     CloudSQL instance already exists.')
+    click.echo(
+        textwrap.indent('CloudSQL instance already exists.', _INDENT_PREFIX))
     return
-  db_instance_name = stage.db_instance_name
-  project_id = stage.project_id_gae
-  project_sql_region = stage.project_sql_region
-  project_sql_tier = stage.project_sql_tier
-  cmd = (
-      f' {GCLOUD} sql instances create {db_instance_name}'
-      f' --tier={project_sql_tier} --region={project_sql_region}'
-      f' --project={project_id} --database-version MYSQL_5_7'
-      f' --storage-auto-increase'
-  )
-  shared.execute_command("Creating a CloudSQL instance", cmd, debug=debug)
+  db_instance_name = stage.database_instance_name
+  project_id = stage.database_project
+  project_sql_region = stage.database_region
+  project_sql_tier = stage.database_tier
+  network_project = stage.network_project
+  network = stage.network
+  database_ha_type = stage.database_ha_type
+  subnet_cidr = stage.subnet_cidr
+  if stage.use_vpc:
+    cmd = textwrap.dedent(f"""\
+        {GCLOUD} beta sql instances create {db_instance_name} \\
+            --tier={project_sql_tier} \\
+            --region={project_sql_region} \\
+            --project={project_id} \\
+            --database-version MYSQL_5_7 \\
+            --storage-auto-increase \\
+            --network=projects/{network_project}/global/networks/{network} \\
+            --availability-type={database_ha_type} \\
+            --authorized-networks={subnet_cidr} \\
+            --no-assign-ip
+        """)
+    shared.execute_command(
+        'Creating a CloudSQL instance (with beta VPC)', cmd, debug=debug)
+  else:
+    cmd = textwrap.dedent(f"""\
+        {GCLOUD} sql instances create {db_instance_name} \\
+            --tier={project_sql_tier} \\
+            --region={project_sql_region} \\
+            --project={project_id} \\
+            --database-version MYSQL_5_7 \\
+            --storage-auto-increase \\
+            --availability-type={database_ha_type}
+        """)
+    shared.execute_command(
+        'Creating a CloudSQL instance (with public IP)', cmd, debug=debug)
 
 
 def _check_if_cloudsql_user_exists(stage, debug=False):
-  project_id = stage.project_id_gae
-  db_instance_name = stage.db_instance_name
-  db_username = stage.db_username
-  cmd = (
-      f' {GCLOUD} sql users list --project={project_id}'
-      f' --instance={db_instance_name}'
-      f" --format='value(name)'"
-      f" --filter='name={db_username}'"
-  )
+  project_id = stage.database_project
+  db_instance_name = stage.database_instance_name
+  db_username = stage.database_username
+  cmd = (f'{GCLOUD} sql users list'
+         f' --project={project_id}'
+         f' --instance={db_instance_name}'
+         f' --format="value(name)"'
+         f' --filter="name={db_username}"')
   _, out, _ = shared.execute_command(
       'Check if CloudSQL user already exists',
-      cmd, report_empty_err=False, debug=debug)
+      cmd,
+      report_empty_err=False,
+      debug_uses_std_out=False,
+      debug=debug)
   return out.strip() == db_username
 
 
 def create_cloudsql_user_if_needed(stage, debug=False):
-  project_id = stage.project_id_gae
-  db_instance_name = stage.db_instance_name
-  db_username = stage.db_username
-  db_password = stage.db_password
+  project_id = stage.database_project
+  db_instance_name = stage.database_instance_name
+  db_username = stage.database_username
+  db_password = stage.database_password
   if _check_if_cloudsql_user_exists(stage, debug=debug):
-    click.echo('     CloudSQL user already exists.')
+    click.echo(textwrap.indent('CloudSQL user already exists.', _INDENT_PREFIX))
     sql_users_command = 'set-password'
-    message = "Setting CloudSQL user's password"
+    message = 'Setting CloudSQL user\'s password'
   else:
     sql_users_command = 'create'
     message = 'Creating CloudSQL user'
-  cmd = (
-      f' {GCLOUD} sql users {sql_users_command} {db_username}'
-      f' --host % --instance={db_instance_name} --password={db_password}'
-      f' --project={project_id}'
-  )
+  cmd = (f'{GCLOUD} sql users {sql_users_command} {db_username}'
+         f' --host % --instance={db_instance_name} --password={db_password}'
+         f' --project={project_id}')
   shared.execute_command(message, cmd, debug=debug)
 
 
 def _check_if_cloudsql_database_exists(stage, debug=False):
-  project_id = stage.project_id_gae
-  db_instance_name = stage.db_instance_name
-  db_name = stage.db_name
-  cmd = (
-      f' {GCLOUD} sql databases list --project={project_id}'
-      f' --instance={db_instance_name} 2>/dev/null'
-      f" --format='value(name)'"
-      f" --filter='name={db_name}'"
-  )
+  project_id = stage.database_project
+  db_instance_name = stage.database_instance_name
+  db_name = stage.database_name
+  cmd = (f'{GCLOUD} sql databases list --project={project_id}'
+         f' --instance={db_instance_name} 2>/dev/null'
+         f' --format="value(name)"'
+         f' --filter="name={db_name}"')
   _, out, _ = shared.execute_command(
       'Check if CloudSQL database already exists',
-      cmd, report_empty_err=False, debug=debug)
+      cmd,
+      report_empty_err=False,
+      debug_uses_std_out=False,
+      debug=debug)
   return out.strip() == db_name
 
 
 def create_cloudsql_database_if_needed(stage, debug=False):
   if _check_if_cloudsql_database_exists(stage, debug=debug):
-    click.echo('     CloudSQL database already exists.')
+    click.echo(
+        textwrap.indent('CloudSQL database already exists.', _INDENT_PREFIX))
     return
-  project_id = stage.project_id_gae
-  db_instance_name = stage.db_instance_name
-  db_name = stage.db_name
-  cmd = (
-      f' {GCLOUD} sql databases create {db_name}'
-      f' --instance={db_instance_name} --project={project_id}'
-  )
+  project_id = stage.database_project
+  db_instance_name = stage.database_instance_name
+  db_name = stage.database_name
+  cmd = (f'{GCLOUD} sql databases create {db_name}'
+         f' --instance={db_instance_name} --project={project_id}')
   shared.execute_command('Creating CloudSQL database', cmd, debug=debug)
 
 
-def _get_existing_pubsub_entities(stage, entities, debug=False):
-  project_id = stage.project_id_gae
-  cmd = (
-      f' {GCLOUD} --project={project_id} pubsub {entities} list'
-      f' | grep -P ^name:'
-  )
+def _get_existing_pubsub_entities(stage, entity_name, debug=False) -> list[str]:
+  project_id = stage.project_id
+  cmd = f'{GCLOUD} --project={project_id} pubsub {entity_name} list'
   _, out, _ = shared.execute_command(
-      f'Fetching list of PubSub {entities}', cmd, debug=debug)
-  lines = out.strip().split('\n')
-  entities = [l.split('/')[-1] for l in lines]
-  return entities
+      f'Fetching list of PubSub {entity_name}',
+      cmd,
+      debug_uses_std_out=False,
+      debug=debug)
+  return re.findall(rf'{entity_name}/(.*)', out.strip())
 
 
 def create_pubsub_topics(stage, debug=False):
@@ -196,71 +266,113 @@ def create_pubsub_topics(stage, debug=False):
   crmint_topics = SUBSCRIPTIONS.keys()
   topics_to_create = [t for t in crmint_topics if t not in existing_topics]
   if not topics_to_create:
-    click.echo("     CRMint's PubSub topics already exist")
+    click.echo(textwrap.indent('CRMint\'s PubSub topics already exist',
+                               _INDENT_PREFIX))
     return
-  project_id = stage.project_id_gae
+  project_id = stage.project_id
   topics = ' '.join(topics_to_create)
   cmd = f'{GCLOUD} --project={project_id} pubsub topics create {topics}'
   shared.execute_command(
-      "Creating CRMint's PubSub topics", cmd, debug=debug)
+      'Creating CRMint\'s PubSub topics', cmd, debug=debug)
 
 
-def _get_project_number(stage, debug=False):
-  project_id = stage.project_id_gae
-  cmd = (
-      f'{GCLOUD} projects describe {project_id}'
-      f' | grep -Po "(?<=projectNumber: .)\d+"'
-  )
+def _get_project_number(stage: shared.StageContext, debug: bool = False) -> str:
+  project_id = stage.project_id
+  cmd = textwrap.dedent(f"""\
+      {GCLOUD} projects describe {project_id} --format="value(projectNumber)"
+      """)
   _, out, _ = shared.execute_command(
-      "Getting project number", cmd, debug=debug)
+      'Getting project number',
+      cmd,
+      debug_uses_std_out=False,
+      debug=debug)
   return out.strip()
+
+
+def _update_pubsub_subscription_endpoint(*, subscription_id: str,
+                                         push_endpoint: str,
+                                         stage: shared.StageContext,
+                                         debug: bool) -> None:
+  cmd = (f'{GCLOUD} --project={stage.project_id} pubsub subscriptions '
+         f'update {subscription_id} '
+         f'--push-endpoint={push_endpoint}')
+  shared.execute_command('Updating subscription token', cmd, debug=debug)
+
 
 def create_pubsub_subscriptions(stage, debug=False):
   existing_subscriptions = _get_existing_pubsub_entities(
       stage, 'subscriptions', debug)
-  project_id = stage.project_id_gae
-  service_account = f'{project_id}@appspot.gserviceaccount.com'
+  project_id = stage.project_id
   for topic_id in SUBSCRIPTIONS:
-    subscription_id = f'{topic_id}-subscription'
-    if subscription_id in existing_subscriptions:
-      click.echo(f'     PubSub subscription {subscription_id} already exists')
-      continue
     subscription = SUBSCRIPTIONS[topic_id]
     if subscription is None:
       continue
-    path = subscription['path']
-    token = stage.pubsub_verification_token
-    push_endpoint = f'https://{project_id}.appspot.com/{path}?token={token}'
+    subscription_id = f'{topic_id}-subscription'
+    push_endpoint = SUBSCRIPTION_PUSH_ENDPOINT.format(
+        project_id=project_id,
+        path=subscription['path'],
+        token=stage.pubsub_verification_token)
+    if subscription_id in existing_subscriptions:
+      _update_pubsub_subscription_endpoint(
+          subscription_id=subscription_id,
+          push_endpoint=push_endpoint,
+          stage=stage,
+          debug=debug)
+      click.echo(textwrap.indent(f'Token updated for subscription '
+                                 f'{subscription_id}',
+                                 _INDENT_PREFIX))
+      continue
+    service_account = f'{project_id}@appspot.gserviceaccount.com'
     ack_deadline = subscription['ack_deadline_seconds']
     minimum_backoff = subscription['minimum_backoff']
     min_retry_delay = f'{minimum_backoff}s'
-    cmd = (
-        f' {GCLOUD} --project={project_id} pubsub subscriptions create'
-        f' {subscription_id} --topic={topic_id} --topic-project={project_id}'
-        f' --ack-deadline={ack_deadline} --min-retry-delay={min_retry_delay}'
-        f' --expiration-period=never --push-endpoint={push_endpoint}'
-        f' --push-auth-service-account={service_account}'
-    )
+    cmd = (f'{GCLOUD} --project={project_id} pubsub subscriptions create'
+           f' {subscription_id} --topic={topic_id} --topic-project={project_id}'
+           f' --ack-deadline={ack_deadline} --min-retry-delay={min_retry_delay}'
+           f' --expiration-period=never --push-endpoint={push_endpoint}'
+           f' --push-auth-service-account={service_account}')
     shared.execute_command(
         f'Creating PubSub subscription {subscription_id}', cmd, debug=debug)
 
 
-def grant_pubsub_permissions(stage, debug=False):
-  project_id = stage.project_id_gae
+def _grant_required_permissions(stage, debug=False):
+  project_id = stage.project_id
   project_number = _get_project_number(stage, debug)
-  pubsub_sa = f'service-{project_number}@gcp-sa-pubsub.iam.gserviceaccount.com'
-  cmd = (
-      f' {GCLOUD} projects add-iam-policy-binding {project_id}'
-      f' --member="serviceAccount:{pubsub_sa}"'
-      f' --role="roles/iam.serviceAccountTokenCreator"'
-  )
-  shared.execute_command(
-      "Granting Cloud Pub/Sub the permission to create tokens",
-      cmd, debug=debug)
+  commands = [
+      textwrap.dedent(f"""\
+          {GCLOUD} projects add-iam-policy-binding {project_id} \\
+              --member="serviceAccount:{project_number}@cloudbuild.gserviceaccount.com" \\
+              --role="roles/storage.objectViewer"
+          """),
+      textwrap.dedent(f"""\
+          {GCLOUD} projects add-iam-policy-binding {project_id} \\
+              --role="roles/compute.networkUser" \\
+              --member="serviceAccount:service-{project_number}@gcp-sa-vpcaccess.iam.gserviceaccount.com"
+          """),
+      textwrap.dedent(f"""\
+          {GCLOUD} projects add-iam-policy-binding {project_id} \\
+              --role="roles/iam.serviceAccountTokenCreator" \\
+              --member="serviceAccount:service-{project_number}@gcp-sa-pubsub.iam.gserviceaccount.com"
+          """),
+      # TODO(Slony): implement an ad hoc service account for CRMint
+      # App Engine app should be run on behalf of a separate
+      # service account, and users will explicitly grant permissions to
+      # this service account according to their use cases.
+      textwrap.dedent(f"""\
+          {GCLOUD} projects add-iam-policy-binding {project_id} \\
+              --member="serviceAccount:{project_id}@appspot.gserviceaccount.com" \\
+              --role="roles/editor"
+          """),
+  ]
+  for idx, cmd in enumerate(commands):
+    shared.execute_command(
+        f'Grant required permissions ({idx + 1}/{len(commands)})',
+        cmd,
+        debug=debug)
 
 
 def _check_if_scheduler_job_exists(stage, debug=False):
-  project_id = stage.project_id_gae
+  project_id = stage.project_id
   cmd = (
       f' {GCLOUD} scheduler jobs list --project={project_id} 2>/dev/null'
       f' | grep -q crmint-cron'
@@ -273,142 +385,227 @@ def _check_if_scheduler_job_exists(stage, debug=False):
 
 def create_scheduler_job(stage, debug=False):
   if _check_if_scheduler_job_exists(stage, debug=debug):
-    click.echo('     Cloud Scheduler job already exists.')
+    click.echo(
+        textwrap.indent('Cloud Scheduler job already exists.', _INDENT_PREFIX))
     return
-  project_id = stage.project_id_gae
-  cmd = (
-      f' {GCLOUD} scheduler jobs create pubsub crmint-cron'
-      f" --project={project_id} --schedule='* * * * *'"
-      f' --topic=crmint-start-pipeline'
-      f' --message-body=\'{{"pipeline_ids": "scheduled"}}\''
-      f' --attributes="start_time=0" --description="CRMint\'s cron job"'
-  )
+  project_id = stage.project_id
+  cmd = (f'{GCLOUD} scheduler jobs create pubsub crmint-cron'
+         f' --project={project_id} --schedule="* * * * *"'
+         f' --topic=crmint-start-pipeline'
+         f' --message-body=\'{{"pipeline_ids": "scheduled"}}\''
+         f' --attributes="start_time=0" --description="CRMint\'s cron job"')
   shared.execute_command('Create Cloud Scheduler job', cmd, debug=debug)
 
 
 def activate_services(stage, debug=False):
-  project_id = stage.project_id_gae
-  cmd = (
-      f' {GCLOUD} services enable --project={project_id}'
-      f' analytics.googleapis.com'
-      f' analyticsreporting.googleapis.com'
-      f' bigquery-json.googleapis.com'
-      f' cloudapis.googleapis.com'
-      f' logging.googleapis.com'
-      f' pubsub.googleapis.com'
-      f' storage-api.googleapis.com'
-      f' storage-component.googleapis.com'
-      f' sqladmin.googleapis.com'
-      f' cloudscheduler.googleapis.com'
-  )
+  project_id = stage.project_id
+  cmd = (f'{GCLOUD} services enable --project={project_id}'
+         f' analytics.googleapis.com'
+         f' analyticsreporting.googleapis.com'
+         f' appengine.googleapis.com'
+         f' bigquery-json.googleapis.com'
+         f' cloudapis.googleapis.com'
+         f' logging.googleapis.com'
+         f' pubsub.googleapis.com'
+         f' storage-api.googleapis.com'
+         f' storage-component.googleapis.com'
+         f' sqladmin.googleapis.com'
+         f' cloudscheduler.googleapis.com'
+         f' servicenetworking.googleapis.com'
+         f' cloudbuild.googleapis.com'
+         f' compute.googleapis.com'
+         f' vpcaccess.googleapis.com')
   shared.execute_command('Activate Cloud services', cmd, debug=debug)
 
 
 def download_config_files(stage, debug=False):
-  stage_file_path = shared.get_stage_file(stage.stage_name)
-  cmd = f'cloudshell download-files "{stage_file_path}"'
+  cmd = f'cloudshell download-files "{stage.stage_path}"'
   shared.execute_command('Download configuration file', cmd, debug=debug)
 
 
 ####################### DEPLOY #######################
 
 
-def install_required_packages(_, debug=False):
+def _install_required_packages(_, debug=False):
   cmds = [
       'mkdir -p ~/.cloudshell',
       '> ~/.cloudshell/no-apt-get-warning',
       'sudo apt-get install -y rsync libmysqlclient-dev python3-venv',
   ]
   total = len(cmds)
-  for i, cmd in enumerate(cmds):
+  for idx, cmd in enumerate(cmds):
     shared.execute_command(
-        f'Install required packages ({i + 1}/{total})', cmd, debug=debug)
+        f'Install required packages ({idx + 1}/{total})', cmd, debug=debug)
 
 
-def display_workdir(stage, debug=False):
-  click.echo("     Working directory: %s" % stage.workdir)
+def _display_workdir(stage, debug=False):
+  del debug  # Unused parameter.
+  click.echo(
+      textwrap.indent(f'Working directory: {stage.workdir}', _INDENT_PREFIX))
 
 
-def display_appengine_url(stage, debug=False):
+def display_appengine_url(stage: shared.StageContext, debug: bool = False):
   cmd = f'{GCLOUD} app browse --no-launch-browser'
-  shared.execute_command('CRMint UI', cmd, force_std_out=True, debug=debug)
+  _, out, _ = shared.execute_command(
+      'CRMint UI', cmd, debug_uses_std_out=False, debug=debug)
+  click.echo(textwrap.indent(out, _INDENT_PREFIX))
 
 
-def copy_src_to_workdir(stage, debug=False):
-  workdir = stage.workdir
-  app_title = stage.app_title
-  notification_sender_email = stage.notification_sender_email
-  enabled_stages = 'true' if stage.enabled_stages else 'false'
-  copy_src_cmd = (
-      f' rsync -r --delete'
-      f' --exclude=.git'
-      f' --exclude=.idea'
-      f" --exclude='*.pyc'"
-      f' --exclude=frontend/node_modules'
-      f' --exclude=backend/data/*.json'
-      f' --exclude=tests'
-      f' . {workdir}'
-  )
-  copy_insight_config_cmd = (
-      f' cp backend/data/insight.json {workdir}/backend/data/insight.json')
-  # copy_db_conf = "echo \'SQLALCHEMY_DATABASE_URI=\"{cloud_db_uri}\"\' > {workdir}/backends/instance/config.py".format(
-  #     workdir=stage.workdir,
-  #     cloud_db_uri=stage.cloud_db_uri)
-  copy_app_data = '\n'.join([
-      f'cat > {workdir}/backend/data/app.json <<EOL',
-      '{',
-      f'  "notification_sender_email": "{notification_sender_email}",',
-      f'  "app_title": "{app_title}"',
-      '}',
-      'EOL',
-  ])
-  # We dont't use prod environment for the frontend to speed up deploy.
-  copy_prod_env = '\n'.join([
-      f'cat > {workdir}/frontend/src/environments/environment.ts <<EOL',
-      'export const environment = {',
-      '  production: true,',
-      f'  app_title: "{app_title}",',
-      f'  enabled_stages: {enabled_stages}',
-      '}',
-      'EOL',
-  ])
+def _copy_src_to_workdir(stage, debug=False):
+  enabled_stages_js_encoded = 'true' if stage.enabled_stages else 'false'
+
+  def _copy_sources() -> Tuple[int, str, str]:
+    exclude_patterns = (
+        '.git*',
+        '*.pyc',
+        'node_modules',
+        'app.json',
+        'tests',
+        '*_tests.py',
+    )
+    shared.copy_tree(constants.PROJECT_DIR,
+                     stage.workdir,
+                     ignore=shutil.ignore_patterns(*exclude_patterns))
+    return 0, 'Copied sources', ''
+
+  def _copy_insight_config() -> Tuple[int, str, str]:
+    insight_filepath = pathlib.Path(
+        constants.PROJECT_DIR, 'backend/data/insight.json')
+    if not insight_filepath.exists():
+      return 0, 'No insight.json', ''
+    else:
+      shutil.copy(
+          insight_filepath,
+          pathlib.Path(stage.workdir, 'backend/data/insight.json'))
+      return 0, 'Copied insight.json', ''
+
+  def _update_app_data() -> Tuple[int, str, str]:
+    app_data_filepath = pathlib.Path(stage.workdir, 'backend/data/app.json')
+    with open(app_data_filepath, 'w+') as f:
+      content = {
+          'notification_sender_email': stage.notification_sender_email,
+          'app_title': stage.gae_app_title,
+      }
+      json.dump(content, f, indent=2)
+    return 0, 'Updated app.json', ''
+
+  def _update_prod_env() -> Tuple[int, str, str]:
+    filepath = pathlib.Path(
+        stage.workdir, 'frontend/src/environments/environment.ts')
+    with open(filepath, 'w') as f:
+      content = textwrap.dedent(f"""\
+          export const environment = {{
+            production: true,
+            app_title: "{stage.gae_app_title}",
+            enabled_stages: {enabled_stages_js_encoded}
+          }}""")
+      f.write(content)
+    return 0, 'Updated environment.ts', ''
+
   cmds = [
-      copy_src_cmd,
-      copy_insight_config_cmd,
-      copy_app_data,
-      copy_prod_env,
+      _copy_sources,
+      _copy_insight_config,
+      _update_app_data,
+      _update_prod_env,
   ]
   total = len(cmds)
-  for i, cmd in enumerate(cmds):
+  for idx, cmd in enumerate(cmds):
     shared.execute_command(
-        f'Copy source code to working directory ({i + 1}/{total})',
-        cmd, cwd=constants.PROJECT_DIR, debug=debug)
+        f'Copy source code to working directory ({idx + 1}/{total})',
+        cmd,
+        cwd=constants.PROJECT_DIR,
+        debug=debug)
+
+
+def _inject_vpc_connector_config(workdir: str,
+                                 connector_config: dict) -> None:
+  """Inserts connector config intto GAE YAML configs."""
+  config_filepath = os.path.join(workdir, 'frontend_app.yaml')
+  try:
+    with open(config_filepath, 'r') as yaml_read:
+      config = yaml.safe_load(yaml_read)
+      config.update(connector_config)
+    with open(config_filepath, 'w') as yaml_write:
+      yaml.safe_dump(config, yaml_write)
+  except yaml.YAMLError as err:
+    click.echo(
+        click.style(
+            f'Unable to insert VPC connector config to App Engine '
+            f'{config_filepath} with error: {err}',
+            fg='red'))
+    raise
+
+
+def _run_frontend_deployment(project_id: shared.ProjectId,
+                             cmd_workdir: str,
+                             capture_outputs: bool = False,
+                             debug: bool = False) -> Tuple[int, str, str]:
+  return shared.execute_command(
+      'Deploy frontend service',
+      textwrap.dedent(f"""\
+          {GCLOUD} --project={project_id} app deploy frontend_app.yaml \\
+              --version=v1
+          """),
+      cwd=cmd_workdir,
+      capture_outputs=capture_outputs,
+      debug=debug)
 
 
 def deploy_frontend(stage, debug=False):
+  """Deploys frontend app."""
   # NB: Limit the node process memory usage to avoid overloading
   #     the Cloud Shell VM memory which makes it unresponsive.
-  project_id = stage.project_id_gae
+  project_id = stage.project_id
+  gae_project = stage.gae_project
+  region = stage.gae_region
+  connector = stage.connector
   max_old_space_size = "$((`free -m | egrep ^Mem: | awk '{print $4}'` / 4 * 3))"
+  cmd_workdir = pathlib.Path(stage.workdir, 'frontend').as_posix()
+
+  if stage.use_vpc:
+    # Connector object with required configurations
+    vpc_name = f'projects/{gae_project}/locations/{region}/connectors/{connector}'
+    connector_config = {
+        'vpc_access_connector': {'name': vpc_name},
+    }
+    _inject_vpc_connector_config(cmd_workdir, connector_config)
+
+  # Prepares the deployment.
   cmds = [
-      ' npm install -g npm@latest',
-      (f' NODE_OPTIONS="--max-old-space-size={max_old_space_size}"'
-       ' NG_CLI_ANALYTICS=ci npm install --legacy-peer-deps'),
-      (f' node --max-old-space-size={max_old_space_size}'
-       ' ./node_modules/@angular/cli/bin/ng build'),
-      (f' {GCLOUD} --project={project_id} app deploy'
-       ' frontend_app.yaml --version=v1'),
+      'npm install -g npm@latest',
+      textwrap.dedent(f"""\
+          NODE_OPTIONS="--max-old-space-size={max_old_space_size}" \\
+          NG_CLI_ANALYTICS=ci \\
+          npm install --legacy-peer-deps
+          """),
+      textwrap.dedent(f"""\
+          node --max-old-space-size={max_old_space_size} \\
+              ./node_modules/@angular/cli/bin/ng build
+          """),
   ]
-  cmd_workdir = os.path.join(stage.workdir, 'frontend')
   total = len(cmds)
-  for i, cmd in enumerate(cmds):
+  for idx, cmd in enumerate(cmds):
     shared.execute_command(
-        f'Deploy frontend service ({i + 1}/{total})',
-        cmd, cwd=cmd_workdir, debug=debug)
+        f'Prepare frontend deployment ({idx + 1}/{total})',
+        cmd,
+        cwd=cmd_workdir,
+        debug=debug)
+
+  # HACK: Retry once the frontend deployment if a P4SA error is encountered.
+  #       https://stackoverflow.com/q/66528149/1886070
+  retry_error_predicate = lambda x: x and 'unable to retrieve p4sa' in x.lower()
+  status, _, err = _run_frontend_deployment(
+      project_id, cmd_workdir, capture_outputs=True)
+  if status != 0 and retry_error_predicate(err):
+    click.echo(
+        textwrap.indent('Detected retriable error. Retrying deployment.',
+                        _INDENT_PREFIX))
+    _run_frontend_deployment(project_id, cmd_workdir, capture_outputs=False)
 
 
 def deploy_controller(stage, debug=False):
-  project_id = stage.project_id_gae
+  """Deploys controller app."""
+  project_id = stage.project_id
   cloud_db_uri = stage.cloud_db_uri
   pubsub_verification_token = stage.pubsub_verification_token
   cmds = [
@@ -422,19 +619,22 @@ def deploy_controller(stage, debug=False):
           f'  DATABASE_URI: {cloud_db_uri}',
           'EOL',
       ]),
-      (f' {GCLOUD} app deploy controller_app_with_env_vars.yaml'
+      (f'{GCLOUD} app deploy controller_app_with_env_vars.yaml'
        f' --version=v1 --project={project_id}'),
   ]
   cmd_workdir = os.path.join(stage.workdir, 'backend')
   total = len(cmds)
-  for i, cmd in enumerate(cmds):
+  for idx, cmd in enumerate(cmds):
     shared.execute_command(
-        f'Deploy controller service ({i + 1}/{total})',
-        cmd, cwd=cmd_workdir, debug=debug)
+        f'Deploy controller service ({idx + 1}/{total})',
+        cmd,
+        cwd=cmd_workdir,
+        debug=debug)
 
 
 def deploy_jobs(stage, debug=False):
-  project_id = stage.project_id_gae
+  """Deploys jobs app."""
+  project_id = stage.project_id
   pubsub_verification_token = stage.pubsub_verification_token
   cmds = [
       'cp .gcloudignore-jobs .gcloudignore',
@@ -446,7 +646,7 @@ def deploy_jobs(stage, debug=False):
           f'  PUBSUB_VERIFICATION_TOKEN: {pubsub_verification_token}',
           'EOL',
       ]),
-      (f' {GCLOUD} app deploy jobs_app_with_env_vars.yaml'
+      (f'{GCLOUD} app deploy jobs_app_with_env_vars.yaml'
        f' --version=v1 --project={project_id}'),
   ]
   cmd_workdir = os.path.join(stage.workdir, 'backend')
@@ -458,15 +658,16 @@ def deploy_jobs(stage, debug=False):
 
 
 def deploy_dispatch_rules(stage, debug=False):
-  project_id = stage.project_id_gae
-  cmd = f' {GCLOUD} --project={project_id} app deploy dispatch.yaml'
+  project_id = stage.project_id
+  cmd = f'{GCLOUD} --project={project_id} app deploy dispatch.yaml'
   cmd_workdir = os.path.join(stage.workdir, 'frontend')
   shared.execute_command(
       'Deploy dispatch rules',
       cmd, cwd=cmd_workdir, debug=debug)
 
 
-def download_cloud_sql_proxy(_, debug=False):
+def _download_cloud_sql_proxy(stage, debug=False):
+  del stage  # Unused parameter.
   cloud_sql_proxy_path = '/usr/bin/cloud_sql_proxy'
   if os.path.isfile(cloud_sql_proxy_path):
     os.environ['CLOUD_SQL_PROXY'] = cloud_sql_proxy_path
@@ -481,8 +682,8 @@ def download_cloud_sql_proxy(_, debug=False):
     os.environ['CLOUD_SQL_PROXY'] = cloud_sql_proxy_path
 
 
-def start_cloud_sql_proxy(stage, debug=False):
-  project_id = stage.project_id_gae
+def _start_cloud_sql_proxy(stage, debug=False):
+  project_id = stage.project_id
   cloudsql_dir = stage.cloudsql_dir
   db_instance_conn_name = stage.db_instance_conn_name
   cmds = [
@@ -506,12 +707,12 @@ def start_cloud_sql_proxy(stage, debug=False):
         debug=debug)
 
 
-def stop_cloud_sql_proxy(_, debug=False):
+def _stop_cloud_sql_proxy(_, debug=False):
   cmd = "kill -9 $(ps | grep cloud_sql_proxy | awk '{print $1}')"
   shared.execute_command('Stop CloudSQL proxy', cmd, cwd='.', debug=debug)
 
 
-def install_python_packages(stage, debug=False):
+def _install_python_packages(stage, debug=False):
   cmds = [
       (' [ ! -d ".venv_controller" ] &&'
        ' python3 -m venv .venv_controller &&'
@@ -526,7 +727,9 @@ def install_python_packages(stage, debug=False):
   for i, cmd in enumerate(cmds):
     shared.execute_command(
         f'Install required Python packages ({i + 1}/{total})',
-        cmd, cwd=cmd_workdir, debug=debug)
+        cmd,
+        cwd=cmd_workdir,
+        debug=debug)
 
 
 def run_db_migrations(stage, debug=False):
@@ -545,31 +748,55 @@ def run_db_migrations(stage, debug=False):
 ####################### RESET #######################
 
 
-def run_reset_pipelines(stage, debug=False):
-  _run_flask_command(stage, "Reset statuses of jobs and pipelines",
-      flask_command_name="reset-pipelines", debug=debug)
+def _run_flask_command(*args, **kwargs):
+  raise NotImplementedError
+
+
+def _run_reset_pipelines(stage, debug=False):
+  _run_flask_command(
+      stage,
+      'Reset statuses of jobs and pipelines',
+      flask_command_name='reset-pipelines',
+      debug=debug)
 
 
 ####################### SUB-COMMANDS #################
 
 
 @cli.command('setup')
-@click.option('--stage_name', type=str, default=None)
+@click.option('--stage_path', type=str, default=None)
 @click.option('--debug/--no-debug', default=False)
-def setup(stage_name, debug):
+@click.option('--use_vpc', is_flag=True, default=False,
+              help='(beta) deploys a VPC network')
+def setup(stage_path: Union[None, str], debug: bool, use_vpc: bool) -> None:
   """Setup the GCP environment for deploying CRMint."""
   click.echo(click.style('>>>> Setup', fg='magenta', bold=True))
 
-  stage_name, stage = fetch_stage_or_default(stage_name, debug=debug)
-  if stage is None:
+  if stage_path is not None:
+    stage_path = pathlib.Path(stage_path)
+
+  try:
+    stage_path, stage = fetch_stage_or_default(stage_path, debug=debug)
+  except CannotFetchStageError:
     sys.exit(1)
 
   # Enriches stage with other variables.
-  stage = shared.before_hook(stage, stage_name)
+  stage = shared.before_hook(stage)
+
+  # Beta flags
+  stage.use_vpc = use_vpc
 
   # Runs setup steps.
   components = [
       activate_services,
+  ]
+  if stage.use_vpc:
+    components.extend([
+        vpc_helpers.create_vpc,
+        vpc_helpers.create_subnet,
+        vpc_helpers.create_vpc_connector
+    ])
+  components.extend([
       create_appengine,
       activate_services,
       create_cloudsql_instance_if_needed,
@@ -577,36 +804,49 @@ def setup(stage_name, debug):
       create_cloudsql_database_if_needed,
       create_pubsub_topics,
       create_pubsub_subscriptions,
-      grant_pubsub_permissions,
+      _grant_required_permissions,
       create_scheduler_job,
       download_config_files,
-  ]
+  ])
   for component in components:
     component(stage, debug=debug)
   click.echo(click.style('Done.', fg='magenta', bold=True))
 
-# pylint: disable=too-many-arguments
+
 @cli.command('deploy')
-@click.option('--stage_name', type=str, default=None)
+@click.option('--stage_path', type=str, default=None)
 @click.option('--debug/--no-debug', default=False)
 @click.option('--frontend', is_flag=True, default=False)
 @click.option('--controller', is_flag=True, default=False)
 @click.option('--jobs', is_flag=True, default=False)
 @click.option('--dispatch_rules', is_flag=True, default=False)
 @click.option('--db_migrations', is_flag=True, default=False)
-def deploy(stage_name, debug, frontend, controller, jobs, dispatch_rules,
-    db_migrations):
+@click.option('--use_vpc', is_flag=True, default=False,
+    help='(beta) deploys a VPC network')
+def deploy(stage_path: Union[None, str],
+           debug: bool,
+           frontend: bool,
+           controller: bool,
+           jobs: bool,
+           dispatch_rules: bool,
+           db_migrations: bool,
+           use_vpc: bool) -> None:
   """Deploy CRMint on GCP."""
   click.echo(click.style('>>>> Deploy', fg='magenta', bold=True))
 
-  stage_name, stage = fetch_stage_or_default(stage_name, debug=debug)
-  if stage is None:
-    click.echo(click.style(
-      'Fix that issue by running: $ crmint cloud setup', fg='green'))
+  if stage_path is not None:
+    stage_path = pathlib.Path(stage_path)
+
+  try:
+    stage_path, stage = fetch_stage_or_default(stage_path, debug=debug)
+  except CannotFetchStageError:
     sys.exit(1)
 
   # Enriches stage with other variables.
-  stage = shared.before_hook(stage, stage_name)
+  stage = shared.before_hook(stage)
+
+  # Beta flags
+  stage.use_vpc = use_vpc
 
   # If no specific components were specified for deploy, then deploy all.
   if not (frontend or controller or jobs or dispatch_rules or db_migrations):
@@ -618,9 +858,9 @@ def deploy(stage_name, debug, frontend, controller, jobs, dispatch_rules,
 
   # Runs deploy steps.
   components = [
-      install_required_packages,
-      display_workdir,
-      copy_src_to_workdir,
+      _install_required_packages,
+      _display_workdir,
+      _copy_src_to_workdir,
   ]
   if frontend:
     components.append(deploy_frontend)
@@ -632,47 +872,48 @@ def deploy(stage_name, debug, frontend, controller, jobs, dispatch_rules,
     components.append(deploy_dispatch_rules)
   if db_migrations:
     components.extend([
-        download_cloud_sql_proxy,
-        start_cloud_sql_proxy,
-        install_python_packages,
+        _download_cloud_sql_proxy,
+        _start_cloud_sql_proxy,
+        _install_python_packages,
         run_db_migrations,
-        stop_cloud_sql_proxy,
+        _stop_cloud_sql_proxy,
     ])
 
   # Displays the frontend url to improve the user experience.
   components.append(display_appengine_url)
   for component in components:
     component(stage, debug=debug)
-  click.echo(click.style("Done.", fg='magenta', bold=True))
-# pylint: enable=too-many-arguments
+  click.echo(click.style('Done.', fg='magenta', bold=True))
 
 
 @cli.command('reset')
-@click.option('--stage_name', type=str, default=None)
+@click.option('--stage_path', type=str, default=None)
 @click.option('--debug/--no-debug', default=False)
-def reset(stage_name, debug):
+def reset(stage_path: Union[None, str], debug: bool):
   """Reset pipeline statuses."""
-  click.echo(click.style(">>>> Reset pipelines", fg='magenta', bold=True))
+  click.echo(click.style('>>>> Reset pipelines', fg='magenta', bold=True))
 
-  stage_name, stage = fetch_stage_or_default(stage_name, debug=debug)
-  if stage is None:
-    click.echo(click.style('Fix that issue by running: `$ crmint cloud setup`', fg='green'))
+  if stage_path is not None:
+    stage_path = pathlib.Path(stage_path)
+
+  try:
+    stage_path, stage = fetch_stage_or_default(stage_path, debug=debug)
+  except CannotFetchStageError:
     sys.exit(1)
 
   # Enriches stage with other variables.
-  stage = shared.before_hook(stage, stage_name)
+  stage = shared.before_hook(stage)
 
   # Runs setup stages.
   components = [
-      install_required_packages,
-      display_workdir,
-      copy_src_to_workdir,
-      install_backends_dependencies,
-      download_cloud_sql_proxy,
-      start_cloud_sql_proxy,
-      prepare_flask_envars,
-      run_reset_pipelines,
-      stop_cloud_sql_proxy,
+      _install_required_packages,
+      _display_workdir,
+      _copy_src_to_workdir,
+      _download_cloud_sql_proxy,
+      _start_cloud_sql_proxy,
+      _install_python_packages,
+      _run_reset_pipelines,
+      _stop_cloud_sql_proxy,
   ]
   for component in components:
     component(stage, debug=debug)

@@ -12,19 +12,23 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import importlib
 import json
 import os
 import sys
 
-PLUGIN_FOLDER = os.path.join(os.path.dirname(__file__), 'commands')
+import click
+
 PROJECT_DIR = os.path.dirname(os.path.dirname(__file__))
-CLI_DIR = os.path.dirname(__file__)
+CLI_DIR = os.path.join(PROJECT_DIR, 'cli')
+PLUGIN_FOLDER = os.path.join(CLI_DIR, 'commands')
 sys.path.insert(0, PROJECT_DIR)
 sys.path.insert(0, CLI_DIR)
 
-import click
+from backend.common import insight  # pylint: disable=g-import-not-at-top
 from cli.utils import shared
-from backend.common import insight
+
+SEPARATOR = '='*74
 
 
 def _set_insight_opt_out(config, value):
@@ -34,6 +38,7 @@ def _set_insight_opt_out(config, value):
 
 
 def print_version(ctx, param, value):
+  del param  # Unused parameter.
   if not value or ctx.resilient_parsing:
     return
   click.echo(insight.get_crmint_version())
@@ -41,24 +46,21 @@ def print_version(ctx, param, value):
 
 
 class CRMintCLI(click.MultiCommand):
-  """App multi command CLI"""
+  """App multi commands CLI."""
 
   def _ask_permission(self):
-    pkg_name = "CRMint"
-    msg = click.style(
-        "==========================================================================",
-        fg="black")
+    pkg_name = 'CRMint'
+    msg = click.style(SEPARATOR, fg='black')
     msg += click.style(
-        "\nWe're constantly looking for ways to make ",
+        '\nWe\'re constantly looking for ways to make ',
         fg='yellow')
-    msg += click.style(pkg_name, fg="red", bold=True)
+    msg += click.style(pkg_name, fg='red', bold=True)
     msg += click.style(
-        " better! \nMay we anonymously report usage statistics to improve the tool over time? \n"
-        "More info: https://github.com/google/crmint & https://google.github.io/crmint",
+        ' better! \nMay we anonymously report usage statistics to improve the'
+        'tool over time? \nMore info: https://github.com/google/crmint & '
+        'https://google.github.io/crmint',
         fg='yellow')
-    msg += click.style(
-        "\n==========================================================================",
-        fg='black')
+    msg += click.style(f'\n{SEPARATOR}', fg='black')
     if click.confirm(msg, default=True):
       return True
     return False
@@ -66,18 +68,17 @@ class CRMintCLI(click.MultiCommand):
   def list_commands(self, ctx):
     rv = []
     for filename in os.listdir(PLUGIN_FOLDER):
-      if not filename.startswith("_") and filename.endswith(".py"):
+      if not filename.startswith('_') and filename.endswith('.py'):
         rv.append(filename[:-3])
     rv.sort()
     return rv
 
   def get_command(self, ctx, name):
-    ns = {}
-    full_name = os.path.join(PLUGIN_FOLDER, "%s%s" % (name, ".py"))
-    with open(full_name) as f:
-      code = compile(f.read(), full_name, 'exec')
-      eval(code, ns, ns)
-    return ns.get('cli', None)
+    command_path = os.path.join(PLUGIN_FOLDER, f'{name}.py')
+    spec = importlib.util.spec_from_file_location('loaded_cmd', command_path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return getattr(module, 'cli', None)
 
   def resolve_command(self, ctx, args):
     self.insight = insight.GAProvider()
@@ -96,11 +97,17 @@ class CRMintCLI(click.MultiCommand):
     return super(CRMintCLI, self).resolve_command(ctx, args)
 
 
-@click.command(cls=CRMintCLI, help='Manage your CRMint instances on GCP or locally.')
-@click.option('--version', is_flag=True, callback=print_version,
-    expose_value=False, is_eager=True, help='Print out CRMint version.')
-def cli():
-    pass
+@click.command(
+    cls=CRMintCLI, help='Manage your CRMint instances on GCP or locally.')
+@click.option(
+    '--version',
+    is_flag=True,
+    callback=print_version,
+    expose_value=False,
+    is_eager=True,
+    help='Print out CRMint version.')
+def cli() -> None:
+  """Root command."""
 
 
 def entry_point():

@@ -21,7 +21,7 @@ automatic_scaling:
   target_throughput_utilization: 0.9
   max_concurrent_requests: 20
 
-runtime: python38
+runtime: python39
 entrypoint: gunicorn -b :$PORT -w 2 -k gthread --threads 4 controller_app:app
 
 handlers:

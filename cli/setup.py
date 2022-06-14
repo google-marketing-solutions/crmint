@@ -13,23 +13,22 @@
 # limitations under the License.
 
 import os
-from setuptools import setup, find_packages
-
+from setuptools import find_packages
+from setuptools import setup
 
 PROJECT_DIR = os.path.join(os.path.dirname(__file__), '../')
 version_filepath = os.path.join(PROJECT_DIR, 'backend/VERSION')
 version = open(version_filepath, 'r').read().strip()
 
-
 setup(
-    name="crmint",
+    name='crmint',
     version=version,
     packages=find_packages(),
     include_package_data=True,
     install_requires=[
-        "Click==7.1.2",
-        #  "Flask==1.1.2",
-        "requests==2.24.0",
+        'Click==7.1.2',
+        'pyyaml==6.0',
+        'requests==2.24.0',
     ],
     entry_points="""
         [console_scripts]
