@@ -12,6 +12,7 @@ from click import testing
 from cli.commands import stages
 from cli.utils import constants
 from cli.utils import shared
+from cli.utils import test_helpers
 
 DATA_DIR = os.path.join(os.path.dirname(__file__), '../testdata')
 
@@ -24,14 +25,11 @@ class StagesTest(absltest.TestCase):
 
   def setUp(self):
     super().setUp()
-    mock_result = mock.create_autospec(
-        subprocess.CompletedProcess, instance=True)
-    mock_result.returncode = 0
-    mock_result.stdout = b'output'
-    mock_result.stderr = b''
+    side_effect_run = test_helpers.mock_subprocess_result_side_effect(
+        stdout=b'output', stderr=b'')
     self.enter_context(
         mock.patch.object(
-            subprocess, 'run', autospec=True, return_value=mock_result))
+            subprocess, 'run', autospec=True, side_effect=side_effect_run))
     # Overrides the default stage directory with a custom temporary directory.
     tmp_stage_dir = self.create_tempdir('stage_dir')
     self.enter_context(
