@@ -62,9 +62,8 @@ class CannotFetchStageError(Exception):
 
 def fetch_stage_or_default(
     stage_path: Union[None, pathlib.Path],
-    debug: bool = False
-) -> Tuple[pathlib.Path, shared.StageContext]:
-  """Returns the loaded stage (path, context).
+    debug: bool = False) -> shared.StageContext:
+  """Returns the loaded stage context.
 
   Args:
     stage_path: Stage path to load. If None a default stage path is used.
@@ -93,7 +92,7 @@ def fetch_stage_or_default(
     click.secho('Fix this by running: $ crmint stages migrate', fg='green')
     raise CannotFetchStageError('Stage file needs migration')
 
-  return stage_path, stage
+  return stage
 
 
 @click.group()
@@ -102,6 +101,49 @@ def cli():
 
 
 ####################### SETUP #######################
+
+
+def check_billing_configured(stage: shared.StageContext,
+                             debug: bool = False) -> bool:
+  """Returns True if billing is configured for the given project.
+
+  Args:
+    stage: Stage context.
+    debug: Enables the debug mode on system calls.
+  """
+  project_id = stage.project_id
+  cmd = textwrap.dedent(f"""\
+      {GCLOUD} beta billing projects describe {project_id} \\
+          --format="value(billingAccountName)"
+      """)
+  _, out, _ = shared.execute_command(
+      'Retrieve billing account name',
+      cmd,
+      debug=debug,
+      debug_uses_std_out=False)
+  # If not configured, Google Cloud documentation states that it will be empty.
+  return bool(out.strip())
+
+
+def check_billing_enabled(stage: shared.StageContext,
+                          debug: bool = False) -> bool:
+  """Returns True if billing is enabled for the given project.
+
+  Args:
+    stage: Stage context.
+    debug: Enables the debug mode on system calls.
+  """
+  project_id = stage.project_id
+  cmd = textwrap.dedent(f"""\
+      {GCLOUD} beta billing projects describe {project_id} \\
+          --format="value(billingEnabled)"
+      """)
+  _, out, _ = shared.execute_command(
+      'Check that billing is enabled',
+      cmd,
+      debug=debug,
+      debug_uses_std_out=False)
+  return out.strip().lower() == 'true'
 
 
 def _check_if_appengine_instance_exists(stage, debug=False):
@@ -776,7 +818,7 @@ def setup(stage_path: Union[None, str], debug: bool, use_vpc: bool) -> None:
     stage_path = pathlib.Path(stage_path)
 
   try:
-    stage_path, stage = fetch_stage_or_default(stage_path, debug=debug)
+    stage = fetch_stage_or_default(stage_path, debug=debug)
   except CannotFetchStageError:
     sys.exit(1)
 
@@ -785,6 +827,19 @@ def setup(stage_path: Union[None, str], debug: bool, use_vpc: bool) -> None:
 
   # Beta flags
   stage.use_vpc = use_vpc
+
+  if not check_billing_configured(stage, debug=debug):
+    click.secho(textwrap.indent(textwrap.dedent("""\
+        Please configure your billing account before deploying CRMint:
+        https://cloud.google.com/billing/docs/how-to/modify-project#change_the_billing_account_for_a_project
+        """), _INDENT_PREFIX), fg='red', bold=True)
+    sys.exit(1)
+  if not check_billing_enabled(stage, debug=debug):
+    click.secho(textwrap.indent(textwrap.dedent("""\
+        Please enable billing before deploying CRMint:
+        https://cloud.google.com/billing/docs/how-to/modify-project#enable_billing_for_a_project
+        """), _INDENT_PREFIX), fg='red', bold=True)
+    sys.exit(1)
 
   # Runs setup steps.
   components = [
@@ -838,7 +893,7 @@ def deploy(stage_path: Union[None, str],
     stage_path = pathlib.Path(stage_path)
 
   try:
-    stage_path, stage = fetch_stage_or_default(stage_path, debug=debug)
+    stage = fetch_stage_or_default(stage_path, debug=debug)
   except CannotFetchStageError:
     sys.exit(1)
 
@@ -897,7 +952,7 @@ def reset(stage_path: Union[None, str], debug: bool):
     stage_path = pathlib.Path(stage_path)
 
   try:
-    stage_path, stage = fetch_stage_or_default(stage_path, debug=debug)
+    stage = fetch_stage_or_default(stage_path, debug=debug)
   except CannotFetchStageError:
     sys.exit(1)
 

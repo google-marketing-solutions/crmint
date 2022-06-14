@@ -24,14 +24,22 @@ class BundleTest(absltest.TestCase):
 
   def setUp(self):
     super().setUp()
-    mock_result = mock.create_autospec(
-        subprocess.CompletedProcess, instance=True)
-    mock_result.returncode = 0
-    mock_result.stdout = b'output'
-    mock_result.stderr = b''
+
+    def _system_call(cmd, **unused_kwargs):
+      mock_result = mock.create_autospec(
+          subprocess.CompletedProcess, instance=True)
+      mock_result.returncode = 0
+      mock_result.stdout = b'output'
+      mock_result.stderr = b''
+      if 'billingAccountName' in cmd:
+        mock_result.stdout = b'billingAccountName/XXX-YYY'
+      elif 'billingEnabled' in cmd:
+        mock_result.stdout = b'True'
+      return mock_result
+
     self.enter_context(
         mock.patch.object(
-            subprocess, 'run', autospec=True, return_value=mock_result))
+            subprocess, 'run', autospec=True, side_effect=_system_call))
     # Overrides the default stage directory with a custom temporary directory.
     tmp_stage_dir = self.create_tempdir('stage_dir')
     self.enter_context(
