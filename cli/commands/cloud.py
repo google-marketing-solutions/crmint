@@ -827,7 +827,7 @@ def _install_python_packages(stage, debug=False):
         debug=debug)
 
 
-def run_db_migrations(stage, debug=False):
+def _run_db_migrations(stage, debug=False):
   local_db_uri = stage.local_db_uri
   env_vars = f'DATABASE_URI="{local_db_uri}" FLASK_APP=controller_app.py'
   cmd = (
@@ -840,19 +840,16 @@ def run_db_migrations(stage, debug=False):
       'Applying database migrations', cmd, cwd=cmd_workdir, debug=debug)
 
 
-####################### RESET #######################
-
-
-def _run_flask_command(*args, **kwargs):
-  raise NotImplementedError
-
-
 def _run_reset_pipelines(stage, debug=False):
-  _run_flask_command(
-      stage,
-      'Reset statuses of jobs and pipelines',
-      flask_command_name='reset-pipelines',
-      debug=debug)
+  local_db_uri = stage.local_db_uri
+  env_vars = f'DATABASE_URI="{local_db_uri}" FLASK_APP=controller_app.py'
+  cmd = (
+      ' . .venv_controller/bin/activate &&'
+      f' {env_vars} python -m flask reset-pipelines'
+  )
+  cmd_workdir = os.path.join(stage.workdir, 'backend')
+  shared.execute_command(
+      'Reset statuses of jobs and pipelines', cmd, cwd=cmd_workdir, debug=debug)
 
 
 ####################### SUB-COMMANDS #################
@@ -1010,7 +1007,7 @@ def deploy(stage_path: Union[None, str],
         _download_cloud_sql_proxy,
         _start_cloud_sql_proxy,
         _install_python_packages,
-        run_db_migrations,
+        _run_db_migrations,
         _stop_cloud_sql_proxy,
     ])
 
