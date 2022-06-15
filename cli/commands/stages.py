@@ -156,7 +156,7 @@ def migrate(stage_path: Union[None, str], debug: bool) -> None:
   if stage_version == constants.LATEST_STAGE_VERSION:
     click.echo(click.style(
         f'Already latest version detected: {stage_path}', fg='green'))
-    sys.exit(0)
+    return
 
   try:
     old_context = _parse_stage_file(stage_path)

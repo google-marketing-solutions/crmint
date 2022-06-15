@@ -60,5 +60,18 @@ class BundleTest(absltest.TestCase):
     self.assertIn('>>>> Setup', result.output)
     self.assertIn('>>>> Deploy', result.output)
 
+  def test_can_run_install_latest_stage_version(self):
+    shutil.copyfile(_datafile('dummy_stage_v3.py'),
+                    pathlib.Path(constants.STAGE_DIR, 'old_dummy_stage.py'))
+    runner = testing.CliRunner()
+    result = runner.invoke(bundle.install, catch_exceptions=False)
+    self.assertEqual(result.exit_code, 0, msg=result.output)
+    self.assertIn('>>>> Create stage', result.output)
+    self.assertIn('>>>> Migrate stage', result.output)
+    self.assertIn('Already latest version detected', result.output)
+    self.assertIn('>>>> Checklist', result.output)
+    self.assertIn('>>>> Setup', result.output)
+    self.assertIn('>>>> Deploy', result.output)
+
 if __name__ == '__main__':
   absltest.main()
