@@ -51,7 +51,7 @@ class Task:
 
   @classmethod
   def from_request(cls, request):
-    """Creates a task using data form an inciming Flask HTTP request."""
+    """Creates a task using data form an incoming Flask HTTP request."""
     data = message.extract_data(request)
     return cls(
         data['task_name'],

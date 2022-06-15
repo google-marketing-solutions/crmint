@@ -379,11 +379,15 @@ def get_project_number(stage: shared.StageContext, debug: bool = False) -> str:
 
 def _update_pubsub_subscription_endpoint(*, subscription_id: str,
                                          push_endpoint: str,
+                                         service_account: str,
                                          stage: shared.StageContext,
                                          debug: bool) -> None:
-  cmd = (f'{GCLOUD} --project={stage.project_id} pubsub subscriptions '
-         f'update {subscription_id} '
-         f'--push-endpoint={push_endpoint}')
+  cmd = textwrap.dedent(f"""\
+        {GCLOUD} --project={stage.project_id} pubsub subscriptions \\
+            modify-push-config {subscription_id} \\
+            --push-endpoint={push_endpoint} \\
+            --push-auth-service-account={service_account}
+        """)
   shared.execute_command('Updating subscription token', cmd, debug=debug)
 
 
@@ -391,6 +395,7 @@ def create_pubsub_subscriptions(stage, debug=False):
   existing_subscriptions = _get_existing_pubsub_entities(
       stage, 'subscriptions', debug)
   project_id = stage.project_id
+  service_account = f'{project_id}@appspot.gserviceaccount.com'
   for topic_id in SUBSCRIPTIONS:
     subscription = SUBSCRIPTIONS[topic_id]
     if subscription is None:
@@ -404,13 +409,13 @@ def create_pubsub_subscriptions(stage, debug=False):
       _update_pubsub_subscription_endpoint(
           subscription_id=subscription_id,
           push_endpoint=push_endpoint,
+          service_account=service_account,
           stage=stage,
           debug=debug)
       click.echo(textwrap.indent(f'Token updated for subscription '
                                  f'{subscription_id}',
                                  _INDENT_PREFIX))
       continue
-    service_account = f'{project_id}@appspot.gserviceaccount.com'
     ack_deadline = subscription['ack_deadline_seconds']
     minimum_backoff = subscription['minimum_backoff']
     min_retry_delay = f'{minimum_backoff}s'
@@ -437,6 +442,8 @@ def _grant_required_permissions(stage, debug=False):
               --role="roles/compute.networkUser" \\
               --member="serviceAccount:service-{project_number}@gcp-sa-vpcaccess.iam.gserviceaccount.com"
           """),
+      # Needed for projects created on or before April 8, 2021.
+      # Grant the Google-managed service account the `iam.serviceAccountTokenCreator` role.
       textwrap.dedent(f"""\
           {GCLOUD} projects add-iam-policy-binding {project_id} \\
               --role="roles/iam.serviceAccountTokenCreator" \\

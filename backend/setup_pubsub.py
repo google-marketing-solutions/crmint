@@ -22,17 +22,17 @@ def setup_pubsub():  # pylint: disable=too-many-locals
   # TODO(dulacp): share this setting with `cli.cloud.SUBSCRIPTIONS` to be DRY
   crmint_subscriptions = {
       'crmint-start-task': {
-        'push_endpoint': 'http://jobs:8081/push/start-task',
+          'push_endpoint': 'http://jobs:8081/push/start-task',
           'ack_deadline_seconds': 600,
           'minimum_backoff': 60,  # seconds
       },
       'crmint-task-finished': {
-        'push_endpoint': 'http://controller:8080/push/task-finished',
+          'push_endpoint': 'http://controller:8080/push/task-finished',
           'ack_deadline_seconds': 60,
           'minimum_backoff': 10,  # seconds
       },
       'crmint-start-pipeline': {
-        'push_endpoint': 'http://controller:8080/push/start-pipeline',
+          'push_endpoint': 'http://controller:8080/push/start-pipeline',
           'ack_deadline_seconds': 60,
           'minimum_backoff': 10,  # seconds
       },
@@ -52,7 +52,7 @@ def setup_pubsub():  # pylint: disable=too-many-locals
       subscription = crmint_subscriptions[topic_id]
       if subscription is not None:
         subscriptions_iterator = publisher.list_topic_subscriptions(
-            request={"topic": topic_path})
+            request={'topic': topic_path})
         subscription_paths = list(subscriptions_iterator)
         subscription_id = f'{topic_id}-subscription'
         subscription_path = subscriber.subscription_path(
