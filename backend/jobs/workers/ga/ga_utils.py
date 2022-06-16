@@ -4,7 +4,7 @@ import dataclasses
 import enum
 import functools
 import re
-from typing import Callable, Mapping, NewType, Optional, TypeVar, Union
+from typing import Callable, Mapping, NewType, Optional, Type, TypeVar, Union
 
 from google.api_core import retry
 from googleapiclient import discovery
@@ -25,8 +25,9 @@ def _null_progress_callback(unused_msg: str) -> None:
 def get_client(
     version: str = 'v4',
     http: Optional[Union[httplib2.Http, api_httplib.HttpMock]] = None,
-    request_builder: Optional[Union[api_httplib.HttpRequest,
-                                    api_httplib.RequestMockBuilder]] = None
+    request_builder: Union[
+        Type[api_httplib.HttpRequest],
+        api_httplib.RequestMockBuilder] = api_httplib.HttpRequest
 ) -> discovery.Resource:
   """Configures a client for the Google Analytics API and caches its result.
 
