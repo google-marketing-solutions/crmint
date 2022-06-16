@@ -14,12 +14,14 @@
 
 
 from traceback import format_exc
+
 from flask import Flask, json, request
+
 from common import auth_filter
 from common.message import BadRequestError, TooEarlyError
 from common.task import Task
 from common.result import Result
-from jobs import workers
+from jobs.workers import finder
 from jobs.workers.worker import WorkerException
 
 
@@ -29,12 +31,13 @@ auth_filter.add(app)
 
 @app.route('/api/workers', methods=['GET'])
 def workers_list():
-  return json.jsonify(workers.EXPOSED), {'Access-Control-Allow-Origin': '*'}
+  return (json.jsonify(list(workers.WORKERS_MAPPING.keys())),
+          {'Access-Control-Allow-Origin': '*'})
 
 
 @app.route('/api/workers/<worker_class>/params', methods=['GET'])
 def worker_parameters(worker_class):
-  klass = workers.find(worker_class)
+  klass = finder.get_worker_class(worker_class)
   keys = ['name', 'type', 'required', 'default', 'label']
   return (json.jsonify([dict(zip(keys, param)) for param in klass.PARAMS]),
           {'Access-Control-Allow-Origin': '*'})
@@ -47,7 +50,7 @@ def start_task():
   except (BadRequestError, TooEarlyError) as e:
     return e.message, e.code
 
-  worker_class = workers.find(task.worker_class)
+  worker_class = finder.get_worker_class(task.worker_class)
   worker_params = task.worker_params.copy()
   for setting in worker_class.GLOBAL_SETTINGS:
     worker_params[setting] = task.general_settings[setting]
