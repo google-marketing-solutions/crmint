@@ -47,7 +47,11 @@ class GADataImporter(worker.Worker):
         account_id=ga_utils.extract_accountid(self._params['property_id']),
         property_id=self._params['property_id'],
         dataset_id=self._params['dataset_id'])
-    if self._params['max_uploads']:
+    if self._params['max_uploads'] == 1:
+      deleted_ids = ga_utils.delete_oldest_uploads(
+          client, dataimport_ref, max_to_keep=None)
+      self.log_info(f'Deleted all existing uploads for ids: {deleted_ids}')
+    elif self._params['max_uploads']:
       deleted_ids = ga_utils.delete_oldest_uploads(
           client, dataimport_ref, max_to_keep=self._params['max_uploads'] - 1)
       self.log_info(f'Deleted oldest upload(s) for ids: {deleted_ids}')
