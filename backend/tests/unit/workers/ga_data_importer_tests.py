@@ -170,6 +170,81 @@ class GADataImporterTest(absltest.TestCase):
         patched_logger.mock_calls
     )
 
+  def test_deleted_all_uploads_and_upload_dataimport(self):
+    """Validates the logged messages sent for the end user."""
+    # Response with two uploads, will generate 1 deleted id later.
+    upload_list_response = {
+        'kind': 'analytics#uploads',
+        'totalResults': 1,
+        'startIndex': 1,
+        'itemsPerPage': 1000,
+        'items': [
+            {
+                'id': 'qmcaotljicrpdwafcwiukh',
+                'kind': 'analytics#upload',
+                'accountId': '127959147',
+                'customDataSourceId': 'elD5IH29Toqgc1vzzHFUrw',
+                'status': 'PENDING',
+                'uploadTime': '2022-05-24T10:00:54.822Z',
+                'errors': [],
+            },
+            {
+                'id': '5qan4As6S7WgAaQDTK25bg',
+                'kind': 'analytics#upload',
+                'accountId': '127959147',
+                'customDataSourceId': 'elD5IH29Toqgc1vzzHFUrw',
+                'status': 'PENDING',
+                'uploadTime': '2022-05-23T10:00:54.822Z',
+                'errors': [],
+            },
+        ],
+    }
+    self._setup_ga_client_with_responses([
+        # 1. Call to analytics.management.uploads.list
+        ({'status': '200'}, json.dumps(upload_list_response)),
+
+        # 2. Call to analytics.management.uploads.deleteUploadData
+        ({'status': '200'}, b'{}'),
+
+        # 3. Call to analytics.management.uploads.uploadData
+        # Location response, since it's a resumable upload
+        ({'status': '200',
+          'location': 'http://upload.example.com/1'}, b'{}'),
+        # Upload in one chunk (since our file is less than 1MB)
+        ({'status': '200'}, b'{}'),
+    ])
+    worker_inst = ga_data_importer.GADataImporter(
+        {
+            'csv_uri': 'gs://mybucket/foo/bar.csv',
+            'property_id': 'UA-123456-7',
+            'dataset_id': 'sLj2CuBTDFy6CedBJwahFt',
+            'max_uploads': 1,
+        },
+        pipeline_id=1,
+        job_id=1,
+        logger_project='PROJECT',
+        logger_credentials=_make_credentials())
+    patched_logger = self.enter_context(
+        mock.patch.object(worker_inst, 'log_info', autospec=True))
+    worker_inst.execute()
+    self.assertEmpty(self.http_seq._iterable,
+                     msg='The sequence of HttpMock should be empty, indicating '
+                         'that we handled all the chunks as expected.')
+    self.assertSequenceEqual(
+        [
+            mock.call(mock.ANY),
+            mock.call('Deleted all existing uploads for ids: '
+                      '[\'5qan4As6S7WgAaQDTK25bg\', '
+                      '\'qmcaotljicrpdwafcwiukh\']'),
+            mock.call('Downloaded file from Cloud Storage to App Engine'),
+            mock.call('Uploaded 100%'),
+            mock.call('Successfully uploaded data import to Google Analytics'),
+            mock.call('Cleaned up the downloaded file'),
+            mock.call('Finished successfully'),
+        ],
+        patched_logger.mock_calls
+    )
+
 
 if __name__ == '__main__':
   absltest.main()
