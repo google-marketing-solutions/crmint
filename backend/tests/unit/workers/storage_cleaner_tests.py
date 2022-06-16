@@ -19,12 +19,9 @@ def _make_credentials():
 
 class StorageCleanerTests(parameterized.TestCase):
 
-  def setUp(self):
-    super().setUp()
+  def _setup_blobs(self, fixed_last_update: datetime.datetime) -> None:
     mock_client = mock.create_autospec(
         storage.Client, instance=True, spec_set=True)
-
-    fixed_last_update = datetime.datetime(2022, 5, 1, 0, 0, 0)
     self.enter_context(
         mock.patch.object(
             storage.Blob,
@@ -54,6 +51,34 @@ class StorageCleanerTests(parameterized.TestCase):
     self.client = mock_client
 
   @parameterized.named_parameters(
+      ('Naive update date', datetime.datetime(2022, 5, 1)),
+      ('Aware update date',
+       datetime.datetime(2022, 5, 1, tzinfo=datetime.timezone.utc)),
+  )
+  @freezegun.freeze_time('2022-05-15T00:00:00')
+  def test_datetime_substraction(self, fixed_last_update):
+    """Test no matter what the API is returning."""
+    self._setup_blobs(fixed_last_update)
+    worker_inst = storage_cleaner.StorageCleaner(
+        {
+            'file_uris': ['gs://bucket1/foo/file*.csv'],
+            'expiration_days': 10,
+        },
+        pipeline_id=1,
+        job_id=1,
+        logger_project='PROJECT',
+        logger_credentials=_make_credentials())
+    self.enter_context(
+        mock.patch.object(
+            storage, 'Client', autospec=True, return_value=self.client))
+    self.enter_context(
+        mock.patch.object(worker_inst, 'log_info', autospec=True))
+    try:
+      worker_inst.execute()
+    except TypeError as e:
+      self.fail(f'Failed with a type error: {e}')
+
+  @parameterized.named_parameters(
       {'testcase_name': 'No match',
        'uri_patterns': ['gs://bucket1/nomatch/file*.csv'],
        'expiration_days': 10,
@@ -74,6 +99,8 @@ class StorageCleanerTests(parameterized.TestCase):
                           uri_patterns,
                           expiration_days,
                           expected_logged_messages):
+    self._setup_blobs(
+        datetime.datetime(2022, 5, 1, tzinfo=datetime.timezone.utc))
     worker_inst = storage_cleaner.StorageCleaner(
         {
             'file_uris': uri_patterns,
