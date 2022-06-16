@@ -56,15 +56,17 @@ def start_task():
   try:
     workers_to_enqueue = worker.execute()
   except WorkerException as e:
-    worker.log_error('Execution failed: %s: %s', e.__class__.__name__, e)
+    class_name = e.__class__.__name__
+    worker.log_error(f'Execution failed: {class_name}: {e}')
     result = Result(task.name, task.job_id, False)
     result.report()
   except Exception as e:  # pylint: disable=broad-except
-    worker.log_error('Unexpected error %s', format_exc())
+    formatted_exception = format_exc()
+    worker.log_error(f'Unexpected error {formatted_exception}')
     if task.attempts < worker.MAX_ATTEMPTS:
       task.reenqueue()
     else:
-      worker.log_error('Giving up after %i attempt(s)', task.attempts)
+      worker.log_error(f'Giving up after {task.attempts} attempt(s)')
       result = Result(task.name, task.job_id, False)
       result.report()
   else:

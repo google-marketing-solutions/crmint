@@ -35,11 +35,14 @@ class StorageCleaner(worker.Worker):
 
   def _execute(self):
     max_delta = datetime.timedelta(days=self._params['expiration_days'])
-    now_dt = datetime.datetime.utcnow()
+    now_dt = datetime.datetime.now(tz=datetime.timezone.utc)
     client = storage.Client()
     blobs = storage_utils.get_matching_blobs(client, self._params['file_uris'])
     for blob in blobs:
       # NB: `blob.updated` contains the datetime of last updates.
-      if (now_dt - blob.updated) > max_delta:
+      last_update_dt = blob.updated
+      if not last_update_dt.tzinfo:
+        last_update_dt = last_update_dt.replace(tzinfo=datetime.timezone.utc)
+      if (now_dt - last_update_dt) > max_delta:
         blob.delete()
         self.log_info(f'Deleted file at gs://{blob.bucket.name}/{blob.name}')
