@@ -12,7 +12,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+"""Base class for all our models.
+
+The mixin classes are inspired by SQLAlchemy-Mixins, which itself was heavily
+inspired by Django ORM and Eloquent ORM.
+
+Source: https://github.com/absent1706/sqlalchemy-mixins
+License: MIT
+"""
+
 from sqlalchemy import Column, DateTime, func
+from sqlalchemy import inspect
+from sqlalchemy import orm
 
 
 class TimestampsMixin(object):
@@ -23,3 +34,207 @@ class TimestampsMixin(object):
       onupdate=func.now(),
       default=func.now()
   )
+
+
+class classproperty:  # pylint: disable=invalid-name
+  """Minimalistic class property implementation.
+
+  Decorator that converts a method with a single cls argument into a property
+  that can be accessed directly from the class.
+  """
+
+  def __init__(self, method=None):
+    self.fget = method
+
+  def __get__(self, instance, cls=None):
+    return self.fget(cls)
+
+  def getter(self, method):
+    self.fget = method
+    return self
+
+
+class InspectionMixin:
+  """Introspection helpers."""
+
+  @classproperty
+  def columns(cls):  # pylint: disable=no-self-argument
+    return inspect(cls).columns.keys()
+
+  @classproperty
+  def relations(cls):  # pylint: disable=no-self-argument
+    """Returns a list of relationship names or the given model."""
+    return [c.key for c in cls.__mapper__.iterate_properties
+            if isinstance(c, orm.RelationshipProperty)]
+
+  @classproperty
+  def settable_relations(cls):  # pylint: disable=no-self-argument
+    """Returns a `list` of relationship names or the given model."""
+    return [r for r in cls.relations if not getattr(cls, r).property.viewonly]
+
+
+class SessionMixin:
+  """Session helpers."""
+  _session = None
+
+  @classmethod
+  def set_session(cls, session):
+    """Binds the model to a given session."""
+    cls._session = session
+
+  @classproperty
+  def session(cls):  # pylint: disable=no-self-argument
+    if cls._session is not None:
+      return cls._session
+    else:
+      raise ValueError("Cant get session. "
+                       "Please, call BaseModel.set_session()")
+
+  @classproperty
+  def query(cls):  # pylint: disable=no-self-argument
+    return cls.session.query(cls)
+
+
+class ActiveRecordMixin(InspectionMixin, SessionMixin):
+  """Mixin combining Django-like helpers."""
+
+  @classproperty
+  def settable_attributes(cls):  # pylint: disable=no-self-argument
+    return cls.columns + cls.settable_relations
+
+  def fill(self, **kwargs):
+    for name in kwargs:
+      if name in self.settable_attributes:
+        setattr(self, name, kwargs[name])
+      else:
+        raise KeyError("Attribute '{}' doesn't exist".format(name))
+
+    return self
+
+  def save(self):
+    """Saves the updated model to the current entity db."""
+    self.session.add(self)
+    self.session.flush()
+    return self
+
+  @classmethod
+  def create(cls, **kwargs):
+    """Creates a new record and insert it into the database.
+
+    Args:
+      **kwargs: Attributes to create a new record with.
+
+    Returns:
+      The new Model.
+    """
+    return cls().fill(**kwargs).save()
+
+  def update(self, **kwargs):
+    """Persists changes to the database."""
+    return self.fill(**kwargs).save()
+
+  def delete(self):
+    """Removes the model from the current entity session and mark for deletion.
+    """
+    self.session.delete(self)
+    self.session.flush()
+
+  @classmethod
+  def destroy(cls, *ids):
+    """Deletes the records with the given ids.
+
+    Args:
+      *ids: Primary key ids of records.
+    """
+    for pk in ids:
+      obj = cls.find(pk)
+      if obj:
+        obj.delete()
+    cls.session.flush()
+
+  @classmethod
+  def all(cls):
+    return cls.query.all()
+
+  @classmethod
+  def first(cls):
+    return cls.query.first()
+
+  @classmethod
+  def find(cls, id_):
+    """Returns the record fetched for the given id.
+
+    Args:
+      id_: The primary key.
+    """
+    return cls.query.get(id_)
+
+
+class ReprMixin:
+  """Replicates the Django-like __repr__ behavior."""
+
+  __repr_attrs__ = []
+  __repr_max_length__ = 15
+
+  @property
+  def _id_str(self):
+    ids = inspect(self).identity
+    if ids:
+      return "-".join([str(x) for x in ids]) if len(ids) > 1 else str(ids[0])
+    else:
+      return "None"
+
+  @property
+  def _repr_attrs_str(self):
+    max_length = self.__repr_max_length__
+
+    values = []
+    single = len(self.__repr_attrs__) == 1
+    for key in self.__repr_attrs__:
+      if not hasattr(self, key):
+        raise KeyError("{} has incorrect attribute '{}' in "
+                       "__repr__attrs__".format(self.__class__, key))
+      value = getattr(self, key)
+      wrap_in_quote = isinstance(value, str)
+
+      value = str(value)
+      if len(value) > max_length:
+        value = value[:max_length] + "..."
+
+      if wrap_in_quote:
+        value = "'{}'".format(value)
+      values.append(value if single else f"{key}:{value}")
+
+    return " ".join(values)
+
+  def __repr__(self):
+    # get id like '#123'
+    id_str = ("#" + self._id_str) if self._id_str else ""
+    # join class name, id and repr_attrs
+    class_name = self.__class__.__name__
+    repr_attrs = " " + self._repr_attrs_str if self._repr_attrs_str else ""
+    return f"<{class_name} {id_str}{repr_attrs}>"
+
+
+class SmartQueryMixin:
+  """Replicates the Django-like filtering helpers."""
+
+  @classmethod
+  def where(cls, **filters):
+    """Returns filtered entities matching the given filters.
+
+    Example 1:
+      Product.where(subject_id=1, grade_from_id=2).all()
+    Example 2:
+      filters = {'subject_id': 1, 'grade_from_id': 2}
+      Product.where(**filters).all()
+
+    Args:
+      **filters: List of filtering conditions.
+    """
+    conditions = [getattr(cls, key) == filters[key] for key in filters]
+    return cls.query.filter(*conditions)
+
+
+class AllFeaturesMixin(ActiveRecordMixin, SmartQueryMixin, ReprMixin):
+  __repr__ = ReprMixin.__repr__

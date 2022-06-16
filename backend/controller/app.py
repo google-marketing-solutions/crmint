@@ -15,18 +15,24 @@
 """The app module, containing the app factory function."""
 
 from flask import Flask
-from controller import pipeline, job, views, stage, result, starter
-from controller.config import ProdConfig
-from controller.database import init_engine
-from controller.extensions import set_global_api_blueprint, db, cors, migrate
+
+from controller import config
+from controller import database
+from controller import extensions
+from controller import job
+from controller import pipeline
+from controller import result
+from controller import stage
+from controller import starter
+from controller import views
 
 
-def create_app(api_blueprint, config_object=ProdConfig):
+def create_app(api_blueprint, config_object=config.ProdConfig):
   """An application factory."""
   app = Flask(__name__.split('.')[1], instance_relative_config=True)
   app.config.from_object(config_object)
   # NB: set the global api blueprint before registering all the blueprints
-  set_global_api_blueprint(api_blueprint)
+  extensions.set_global_api_blueprint(api_blueprint)
   register_extensions(app)
   register_api_blueprints(api_blueprint)
   register_blueprints(app)
@@ -35,10 +41,10 @@ def create_app(api_blueprint, config_object=ProdConfig):
 
 def register_extensions(app):
   """Register Flask extensions."""
-  cors.init_app(app)
-  db.init_app(app)
-  init_engine(app.config['SQLALCHEMY_DATABASE_URI'])
-  migrate.init_app(app, db)
+  extensions.cors.init_app(app)
+  extensions.db.init_app(app)
+  database.init_engine(app.config['SQLALCHEMY_DATABASE_URI'])
+  extensions.migrate.init_app(app, extensions.db)
 
 
 def register_api_blueprints(api_blueprint):

@@ -12,8 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import json
 import os
-from flask import json
+
 import google.auth
 
 
@@ -23,6 +24,6 @@ APP_DATA_FILE = os.path.join(
 )
 with open(APP_DATA_FILE) as blog_file:
   APP_DATA = json.load(blog_file)
+
 project_id = os.getenv('GOOGLE_CLOUD_PROJECT')
-credentials, _ = google.auth.default()
 APP_DATA['sa_email'] = f'{project_id}@appspot.gserviceaccount.com'

@@ -17,22 +17,21 @@ import numbers
 import re
 import uuid
 
-from simpleeval import simple_eval
-from simpleeval import InvalidExpression
-from sqlalchemy import Column
-from sqlalchemy import Integer
-from sqlalchemy import String
-from sqlalchemy import DateTime
-from sqlalchemy import Text
+import jinja2
 from sqlalchemy import Boolean
+from sqlalchemy import Column
+from sqlalchemy import DateTime
 from sqlalchemy import ForeignKey
-from sqlalchemy.orm import relationship
-from sqlalchemy.orm import load_only
+from sqlalchemy import Integer
+from sqlalchemy import orm
+from sqlalchemy import String
+from sqlalchemy import Text
+
 from common import crmint_logging
-from common.task import Task
+from common import task
 from controller import inline
-from controller.database import BaseModel
-from controller.mailers import NotificationMailer
+from controller import database
+from controller import mailers
 
 
 def _str_to_number(x: str) -> numbers.Number:
@@ -53,7 +52,7 @@ def _str_to_number(x: str) -> numbers.Number:
     return float(x)
 
 
-class Pipeline(BaseModel):
+class Pipeline(database.BaseModel):
   """Pipeline ORM class."""
   __tablename__ = 'pipelines'
   id = Column(Integer, primary_key=True, autoincrement=True)
@@ -61,12 +60,12 @@ class Pipeline(BaseModel):
   emails_for_notifications = Column(String(255))
   status = Column(String(50), nullable=False, default='idle')
   status_changed_at = Column(DateTime)
-  jobs = relationship('Job', backref='pipeline',
-                      lazy='dynamic')
+  jobs = orm.relationship(
+      'Job', backref='pipeline', lazy='dynamic')
   run_on_schedule = Column(Boolean, nullable=False, default=False)
-  schedules = relationship('Schedule', lazy='dynamic',
-                           back_populates='pipeline')
-  params = relationship('Param', lazy='dynamic', order_by='asc(Param.name)')
+  schedules = orm.relationship(
+      'Schedule', lazy='dynamic', back_populates='pipeline')
+  params = orm.relationship('Param', lazy='dynamic', order_by='asc(Param.name)')
 
   class STATUS:  # pylint: disable=too-few-public-methods
     """Pipeline statuses."""
@@ -146,7 +145,7 @@ class Pipeline(BaseModel):
           param.populate_runtime_value(pipeline_context)
       inline.close_session()
       return True
-    except (InvalidExpression, TypeError, ValueError, SyntaxError) as e:
+    except (jinja2.exceptions.TemplateError, TypeError, ValueError) as e:
       inline.close_session()
       job_id = 'N/A'
       worker_class = 'N/A'
@@ -223,7 +222,7 @@ class Pipeline(BaseModel):
                     Job.id == StartCondition.preceding_job_id)) \
         .filter(Job.pipeline_id == self.id) \
         .filter(StartCondition.preceding_job_id.is_(None)) \
-        .options(load_only('status')) \
+        .options(orm.load_only('status')) \
         .all()
     status = Pipeline.STATUS.SUCCEEDED
     for job in leaf_jobs:
@@ -232,7 +231,7 @@ class Pipeline(BaseModel):
         status = Pipeline.STATUS.FAILED
         break
     self.set_status(status)
-    NotificationMailer().finished_pipeline(self)
+    mailers.NotificationMailer().finished_pipeline(self)
     return True
 
   def import_data(self, data):
@@ -274,7 +273,7 @@ class Pipeline(BaseModel):
     self.delete()
 
 
-class Job(BaseModel):
+class Job(database.BaseModel):
   __tablename__ = 'jobs'
   id = Column(Integer, primary_key=True, autoincrement=True)
   name = Column(String(255))
@@ -282,23 +281,23 @@ class Job(BaseModel):
   status_changed_at = Column(DateTime)
   worker_class = Column(String(255))
   pipeline_id = Column(Integer, ForeignKey('pipelines.id'))
-  params = relationship('Param', backref='job', lazy='dynamic')
-  start_conditions = relationship(
+  params = orm.relationship('Param', backref='job', lazy='dynamic')
+  start_conditions = orm.relationship(
       'StartCondition',
       primaryjoin='Job.id==StartCondition.job_id',
       back_populates='job')
-  affected_conditions = relationship(
+  affected_conditions = orm.relationship(
       'StartCondition',
       primaryjoin='Job.id==StartCondition.preceding_job_id',
       back_populates='preceding_job')
-  dependent_jobs = relationship(
+  dependent_jobs = orm.relationship(
       'Job',
       secondary='start_conditions',
       primaryjoin='Job.id==StartCondition.preceding_job_id',
       secondaryjoin='StartCondition.job_id==Job.id',
       back_populates='affecting_jobs',
       overlaps='affected_conditions,start_conditions')
-  affecting_jobs = relationship(
+  affecting_jobs = orm.relationship(
       'Job',
       secondary='start_conditions',
       primaryjoin='Job.id==StartCondition.job_id',
@@ -469,8 +468,13 @@ class Job(BaseModel):
       return False
     name = str(uuid.uuid4())
     general_settings = {gs.name: gs.value for gs in GeneralSetting.all()}
-    task = Task(name, self.pipeline_id, self.id,
-                worker_class, worker_params, general_settings)
+    task = task.Task(
+        name,
+        self.pipeline_id,
+        self.id,
+        worker_class,
+        worker_params,
+        general_settings)
     task.enqueue(delay)
     # Keep track of running tasks.
     self._add_task_with_name(name)
@@ -506,7 +510,7 @@ class Job(BaseModel):
     return False
 
 
-class Param(BaseModel):
+class Param(database.BaseModel):
   __tablename__ = 'params'
   id = Column(Integer, primary_key=True, autoincrement=True)
   name = Column(String(255), nullable=False)
@@ -519,20 +523,15 @@ class Param(BaseModel):
   value = Column(Text())
   runtime_value = Column(Text())
 
-  _INLINER_REGEX = re.compile(r'{%.+?%}')
-
   def populate_runtime_value(self, context=None):
     if context is None:
-      names = {}
-    else:
-      names = context.copy()
-    names.update({'True': True, 'False': False})
-    value = self.value
-    inliners = self._INLINER_REGEX.findall(value)
-    for inliner in inliners:
-      result = simple_eval(inliner[2:-2], functions=inline.functions,
-                           names=names)
-      value = value.replace(inliner, str(result))
+      context = {}
+    # Leverages jinja2 templating system to render inline functions.
+    template = self.value
+    # Supports former syntax which used `{% ... %}` instead of `{{ ... }}`,
+    # by substituting only patterns of uppercase variable names.
+    template = re.sub(r'{% ([A-Z0-9]+) %}', r'{{ \1 }}', template)
+    value = jinja2.Template(template).render(**inline.functions, **context)
     if self.job_id is not None:
       self.update(runtime_value=value)
     return value
@@ -600,19 +599,23 @@ class Param(BaseModel):
     Param.destroy(*ids_for_removing)
 
 
-class StartCondition(BaseModel):
+class StartCondition(database.BaseModel):
   __tablename__ = 'start_conditions'
   id = Column(Integer, primary_key=True, autoincrement=True)
   job_id = Column(Integer, ForeignKey('jobs.id'))
   preceding_job_id = Column(Integer, ForeignKey('jobs.id'))
   condition = Column(String(255))
 
-  job = relationship('Job', foreign_keys=[job_id],
-                     back_populates='start_conditions',
-                     overlaps='affecting_jobs,dependent_jobs')
-  preceding_job = relationship('Job', foreign_keys=[preceding_job_id],
-                     back_populates='affected_conditions',
-                     overlaps='affecting_jobs,dependent_jobs')
+  job = orm.relationship(
+      'Job',
+      foreign_keys=[job_id],
+      back_populates='start_conditions',
+      overlaps='affecting_jobs,dependent_jobs')
+  preceding_job = orm.relationship(
+      'Job',
+      foreign_keys=[preceding_job_id],
+      back_populates='affected_conditions',
+      overlaps='affecting_jobs,dependent_jobs')
 
   class CONDITION:  # pylint: disable=too-few-public-methods
     SUCCESS = 'success'
@@ -640,24 +643,24 @@ class StartCondition(BaseModel):
     }
 
 
-class Schedule(BaseModel):  # pylint: disable=too-few-public-methods
+class Schedule(database.BaseModel):  # pylint: disable=too-few-public-methods
   __tablename__ = 'schedules'
   id = Column(Integer, primary_key=True, autoincrement=True)
   pipeline_id = Column(Integer, ForeignKey('pipelines.id'))
   cron = Column(String(255))
 
-  pipeline = relationship('Pipeline', foreign_keys=[pipeline_id],
-                          back_populates='schedules')
+  pipeline = orm.relationship(
+      'Pipeline', foreign_keys=[pipeline_id], back_populates='schedules')
 
 
-class GeneralSetting(BaseModel):  # pylint: disable=too-few-public-methods
+class GeneralSetting(database.BaseModel):  # pylint: disable=too-few-public-methods
   __tablename__ = 'general_settings'
   id = Column(Integer, primary_key=True, autoincrement=True)
   name = Column(String(255))
   value = Column(Text())
 
 
-class Stage(BaseModel):  # pylint: disable=too-few-public-methods
+class Stage(database.BaseModel):  # pylint: disable=too-few-public-methods
   __tablename__ = 'stages'
   id = Column(Integer, primary_key=True, autoincrement=True)
   sid = Column(String(255))
@@ -667,7 +670,7 @@ class Stage(BaseModel):  # pylint: disable=too-few-public-methods
       self.__setattr__(key, value)
 
 
-class TaskEnqueued(BaseModel):  # pylint: disable=too-few-public-methods
+class TaskEnqueued(database.BaseModel):  # pylint: disable=too-few-public-methods
   __tablename__ = 'enqueued_tasks'
   id = Column(Integer, primary_key=True, autoincrement=True)
   task_namespace = Column(String(60), index=True)

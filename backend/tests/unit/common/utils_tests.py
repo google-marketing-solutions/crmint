@@ -3,7 +3,7 @@
 from absl.testing import absltest
 from absl.testing import parameterized
 
-from google3.third_party.professional_services.solutions.crmint.backend.common import utils
+from common import utils
 
 
 class CommonUtilsTest(parameterized.TestCase):

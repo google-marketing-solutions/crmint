@@ -16,10 +16,11 @@
 
 from flask import Blueprint
 from flask_restful import Resource, fields, marshal_with, reqparse
+
 from controller import ads_auth_code
-from controller.app_data import APP_DATA
-from controller.extensions import api
-from controller.models import Param, GeneralSetting
+from controller import app_data
+from controller import extensions
+from controller import models
 
 # from google.appengine.api import urlfetch
 
@@ -66,16 +67,16 @@ class Configuration(Resource):
   @marshal_with(configuration_fields)
   def get(self):
     # urlfetch.set_default_fetch_deadline(300)
-    params = Param.where(pipeline_id=None, job_id=None).order_by(Param.name)
-    settings = GeneralSetting.query.order_by(GeneralSetting.name)
+    params = models.Param.where(pipeline_id=None, job_id=None).order_by(models.Param.name)
+    settings = models.GeneralSetting.query.order_by(models.GeneralSetting.name)
 
     # Get client id and secret from input fields stored in database
-    client_id = GeneralSetting.where(name='client_id').first().value
+    client_id = models.GeneralSetting.where(name='client_id').first().value
     # Url to redirect
     url = ads_auth_code.get_url(client_id)
 
     return {
-        'sa_email': APP_DATA['sa_email'],
+        'sa_email': app_data.APP_DATA['sa_email'],
         'variables': params,
         'settings': settings,
         # Added url to config
@@ -88,9 +89,9 @@ class GlobalVariable(Resource):
   @marshal_with(global_variables_fields)
   def put(self):
     args = parser.parse_args()
-    Param.update_list(args.get('variables'))
+    models.Param.update_list(args.get('variables'))
     return {
-        'variables': Param.where(pipeline_id=None, job_id=None).all()
+        'variables': models.Param.where(pipeline_id=None, job_id=None).all()
     }
 
 
@@ -100,8 +101,9 @@ class GeneralSettingsRoute(Resource):
   def put(self):
     args = settings_parser.parse_args()
     # Get client id and secret from input fields stored in database
-    client_id = GeneralSetting.where(name='client_id').first().value
-    client_secret = GeneralSetting.where(name='client_secret').first().value
+    client_id = models.GeneralSetting.where(name='client_id').first().value
+    client_secret = models.GeneralSetting.where(
+        name='client_secret').first().value
 
     # Gets value from the google_ads_authentication_code field
     ads_code = [d['value'] for d in args['settings']
@@ -113,7 +115,7 @@ class GeneralSettingsRoute(Resource):
 
     settings = []
     for arg in args['settings']:
-      setting = GeneralSetting.where(name=arg['name']).first()
+      setting = models.GeneralSetting.where(name=arg['name']).first()
       if setting:
         if setting.name == 'google_ads_refresh_token' and token:
           setting.update(value=token)
@@ -124,6 +126,6 @@ class GeneralSettingsRoute(Resource):
       settings.append(setting)
     return settings
 
-api.add_resource(Configuration, '/configuration')
-api.add_resource(GlobalVariable, '/global_variables')
-api.add_resource(GeneralSettingsRoute, '/general_settings')
+extensions.api.add_resource(Configuration, '/configuration')
+extensions.api.add_resource(GlobalVariable, '/global_variables')
+extensions.api.add_resource(GeneralSettingsRoute, '/general_settings')

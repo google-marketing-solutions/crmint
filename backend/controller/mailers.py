@@ -12,17 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Mailers"""
+"""Mailer implementation."""
 
-# from google.appengine.api import mail
-
-from controller.app_data import APP_DATA
+from controller import app_data
 
 
 class AppMailer(object):
   def recipients(self, other_recipients):
-    from controller.models import GeneralSetting
-    gsetting = GeneralSetting.where(name='emails_for_notifications').first()
+    from controller import models
+    gsetting = models.GeneralSetting.where(name='emails_for_notifications').first()
     if gsetting is None or gsetting.value is None:
       recipients = other_recipients
     else:
@@ -32,14 +30,15 @@ class AppMailer(object):
 
 class NotificationMailer(AppMailer):
   SENDER = "CRMintApp %s Notification <%s>" % (
-      APP_DATA['app_title'],
-      APP_DATA['notification_sender_email']
+      app_data.APP_DATA['app_title'],
+      app_data.APP_DATA['notification_sender_email']
   )
 
   def finished_pipeline(self, pipeline):
     recipients = self.recipients(pipeline.recipients)
     if recipients:
       subject = "Pipeline %s %s." % (pipeline.name, pipeline.status)
+      # TODO(dulacp): log a warning for now.
       # mail.send_mail(sender=self.SENDER,
       #                to=recipients,
       #                subject=subject,

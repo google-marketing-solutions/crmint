@@ -14,21 +14,21 @@
 
 import unittest
 
-from freezegun import freeze_time
+import freezegun
 
-from core import inline
+from controller import inline
 
 
 class TestFunctions(unittest.TestCase):
 
-  @freeze_time("2018-04-01T00:00:00")
+  @freezegun.freeze_time("2018-04-01T00:00:00")
   def test_inline_function_today(self):
     func = inline.functions['today']
     self.assertEqual(
         func('%Y-%m-%dT%H:%M:%S%z'),
         '2018-04-01T00:00:00')
 
-  @freeze_time("2018-04-01T13:15:00")
+  @freezegun.freeze_time("2018-04-01T13:15:00")
   def test_inline_function_days_ago(self):
     func = inline.functions['days_ago']
     days_ago = 3
@@ -36,7 +36,7 @@ class TestFunctions(unittest.TestCase):
         func(days_ago, '%Y-%m-%dT%H:%M:%S%z'),
         '2018-03-29T13:15:00')
 
-  @freeze_time("2018-04-01T13:15:00")
+  @freezegun.freeze_time("2018-04-01T13:15:00")
   def test_inline_function_hours_ago(self):
     func = inline.functions['hours_ago']
     hours_ago = 5
@@ -44,7 +44,7 @@ class TestFunctions(unittest.TestCase):
         func(hours_ago, '%Y-%m-%dT%H:%M:%S%z'),
         '2018-04-01T08:15:00')
 
-  @freeze_time("2018-04-01T00:00:00")
+  @freezegun.freeze_time("2018-04-01T00:00:00")
   def test_inline_function_days_since(self):
     func = inline.functions['days_since']
     self.assertEqual(func('2018-03-29', '%Y-%m-%d'), 3)
