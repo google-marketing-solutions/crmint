@@ -30,7 +30,7 @@ To add a global variable:
 
 ### Using variables
 
-To use your variable simply enclose the variable name in any parameter in your pipeline with `{{ "{%"}}` and `%}`
+To use your variable simply enclose the variable name in any parameter in your pipeline with `{{` and `}}`
 
 For example, if you have many pipelines, all working with BigQuery, you can set a global variable for the project as follows
 
@@ -39,29 +39,29 @@ For example, if you have many pipelines, all working with BigQuery, you can set 
 
 In your `BQToMeasurementProtocol` worker, you can then set **Project ID** to:
 
-    {{ "{% PROJECT_ID " }}%}
+    {{ PROJECT_ID }}
 
 On execution, the value *my-project-123456* from the global variable is substituted into the worker Project ID.
 
 A more complex example might be setting the comment parameter for a `Commenter` worker:
 
-    Finished execution using project {{ "{% PROJECT_ID " }}%}
+    Finished execution using project {{ PROJECT_ID }}
 
 This would lead to a log message: *Finished execution using project my-project-123456*
 
 ### Evaluation
 
-Not only do the `{{ "{%" }}%}` tags enable variables to be substituted into parameters, as shown above, but they also allow evaluation, for example, setting a parameter **Number of Days** to:
+Not only do the `{{}}` tags enable variables to be substituted into parameters, as shown above, but they also allow evaluation, for example, setting a parameter **Number of Days** to:
 
-    {{ "{% 4 * 7 " }}%}
+    {{ 4 * 7 }}
 
 Would use a value of `28`.
 
-    {{ "{% NUM_WEEKS * 7 " }}%}
+    {{ NUM_WEEKS * 7 }}
 
 Would use the value of variable `NUM_WEEKS` - *assuming it has been defined* - multiplied by 7.
 
-The full detail of what can be achieved using expressions can be seen in the [Simple Eval reference](https://github.com/danthedeckie/simpleeval).
+The full detail of what can be achieved using expressions can be seen in the [Jinja2 Expressions syntax guide](https://jinja.palletsprojects.com/en/3.1.x/templates/#expressions).
 
 ### Built-in functions
 
@@ -73,13 +73,13 @@ To make evaluation more useful when working with time-based and analytical data,
 | ------------------------------------- + -------------------------------------------- + ---------------------------------------------------------------|
 |**Built-in function**                  | **Purpose**                                  | **Details**
 | :------------------------------------ + :------------------------------------------- + :--------------------------------------------------------------
-|**today(format)**                      | Returns today’s date in the specified format | `format` - The desired format, in python date formatting syntax.<br/><br/>Example:<br/><br/>`{{ "{%"}} today("%Y-%m-%d") %}`  *=> 2018-10-16*
+|**today(format)**                      | Returns today’s date in the specified format | `format` - The desired format, in python date formatting syntax.<br/><br/>Example:<br/><br/>`{{ today("%Y-%m-%d") }}`  *=> 2018-10-16*
 | ------------------------------------- + -------------------------------------------- + ---------------------------------------------------------------
-|**days_ago(n_days, format)**           | Returns the formatted date for n days ago    | `n_days` - The number of days ago, where yesterday is 1<br/>`format` - The desired format, in [python date formatting syntax](http://strftime.org/).<br/><br/>Example:<br/><br/>`{{ "{%"}} days_ago(1, "%Y-%m-%d") %}` *=> 2018-10-15*
+|**days_ago(n_days, format)**           | Returns the formatted date for n days ago    | `n_days` - The number of days ago, where yesterday is 1<br/>`format` - The desired format, in [python date formatting syntax](http://strftime.org/).<br/><br/>Example:<br/><br/>`{{ days_ago(1, "%Y-%m-%d") }}` *=> 2018-10-15*
 | ------------------------------------- + -------------------------------------------- + ---------------------------------------------------------------
-|**hours_ago(n_hours, format)**         | Returns the formatted date for n hours ago   | `n_hours` - The number of hours ago<br/>`format` - The desired format, in [python date formatting syntax](http://strftime.org/).<br/><br/>Example:<br/><br/>`{{ "{%"}} hours_ago(1, "%Y-%m-%d %H:%M:%S") %}` *=> 2018-10-16 11:00:00*
+|**hours_ago(n_hours, format)**         | Returns the formatted date for n hours ago   | `n_hours` - The number of hours ago<br/>`format` - The desired format, in [python date formatting syntax](http://strftime.org/).<br/><br/>Example:<br/><br/>`{{ hours_ago(1, "%Y-%m-%d %H:%M:%S") }}` *=> 2018-10-16 11:00:00*
 | ------------------------------------- + -------------------------------------------- + ---------------------------------------------------------------
-|**days_since(date, format)**           | Returns the number of days since given date  | `date` - A string date<br/>`format` - The format of the date, in [python date formatting syntax](http://strftime.org/).<br/><br/>Example:<br/><br/>`{{ "{%"}} days_since("2018-10-14", "%Y-%m-%d") %}` *=> 2*
+|**days_since(date, format)**           | Returns the number of days since given date  | `date` - A string date<br/>`format` - The format of the date, in [python date formatting syntax](http://strftime.org/).<br/><br/>Example:<br/><br/>`{{ days_since("2018-10-14", "%Y-%m-%d") }}` *=> 2*
 | ------------------------------------- + -------------------------------------------- + ---------------------------------------------------------------
 |**randint(x)**                         | Returns a random int below x                 |
 | ------------------------------------- + -------------------------------------------- + ---------------------------------------------------------------

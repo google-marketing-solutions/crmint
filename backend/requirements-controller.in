@@ -1,7 +1,6 @@
 -r common/requirements.in
-simpleeval
+jinja2
 Flask-SQLAlchemy
-sqlalchemy_mixins
 Flask-RESTful
 oauthlib
 Flask-Cors

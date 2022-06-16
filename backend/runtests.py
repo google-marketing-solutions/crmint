@@ -19,7 +19,7 @@ can use google.appengine.* APIs and the Google App Engine testbed.
 
 Example invocation:
 
-  $ python runtests.py ~/google-cloud-sdk
+  $ python runtests.py --test-pattern models_tests.py
 
 """
 
@@ -54,7 +54,7 @@ if __name__ == '__main__':
   parser.add_argument(
       '--test-path',
       help='The path to look for tests, defaults to the current directory.',
-      default=os.path.join(os.getcwd(), 'tests/unit/workers'))
+      default=os.path.join(os.getcwd(), 'tests'))
   parser.add_argument(
       '--test-pattern',
       help='The file pattern for test modules, defaults to *_tests.py.',

@@ -154,8 +154,6 @@ requests==2.27.1
     #   google-cloud-bigquery
 rsa==4.8
     # via google-auth
-simpleeval==0.9.12
-    # via -r requirements-controller.in
 six==1.16.0
     # via
     #   flask-cors
@@ -169,8 +167,6 @@ sqlalchemy==1.4.31
     #   alembic
     #   flask-sqlalchemy
     #   sqlalchemy-mixins
-sqlalchemy-mixins==1.5
-    # via -r requirements-controller.in
 typing-extensions==4.1.1
     # via
     #   libcst

@@ -12,28 +12,27 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from sqlalchemy import create_engine
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import scoped_session, sessionmaker
-from sqlalchemy_mixins import AllFeaturesMixin, ReprMixin
+"""Database helper methods."""
 
-from controller.mixins import TimestampsMixin
+from sqlalchemy import create_engine
+from sqlalchemy import orm
+
+from controller import mixins
 
 engine = None
-Base = declarative_base()
+Base = orm.declarative_base()
 
 
-class BaseModel(Base, AllFeaturesMixin, TimestampsMixin):
-  """Base class for models"""
+class BaseModel(Base, mixins.AllFeaturesMixin, mixins.TimestampsMixin):
+  """Base class for models."""
   __abstract__ = True
-  __repr__ = ReprMixin.__repr__
 
 
 def init_engine(uri, **kwargs):
-  """Initialization db engine"""
+  """Initialization db engine."""
   global engine
   engine = create_engine(uri, **kwargs)
-  session = scoped_session(sessionmaker(bind=engine, autocommit=True))
+  session = orm.scoped_session(orm.sessionmaker(bind=engine, autocommit=True))
   BaseModel.set_session(session)
   return engine
 
@@ -45,12 +44,12 @@ def init_db():
       they will be registered properly on the metadata.  Otherwise
       you will have to import them first before calling init_db().
   """
-  from controller import models  # NOQA
+  from controller import models  # pylint: disable=unused-import
   Base.metadata.create_all(bind=engine)
 
 
 def load_fixtures(logger_func=None):
-  """Load initial data into the database
+  """Load initial data into the database.
 
   :param: Logger function to display the loading state
   """
@@ -69,9 +68,9 @@ def load_fixtures(logger_func=None):
         logger_func('Added setting %s' % setting)
 
 def reset_jobs_and_pipelines_statuses_to_idle():
-  from controller.models import Pipeline, TaskEnqueued
-  TaskEnqueued.query.delete()
-  for pipeline in Pipeline.all():
+  from controller import models
+  models.TaskEnqueued.query.delete()
+  for pipeline in models.Pipeline.all():
     for job in pipeline.jobs:
       job.update(status='idle')
     pipeline.update(status='idle')
