@@ -931,7 +931,6 @@ def setup(stage_path: Union[None, str], debug: bool, use_vpc: bool) -> None:
     ])
   components.extend([
       create_appengine,
-      activate_services,
       create_cloudsql_instance_if_needed,
       create_cloudsql_user_if_needed,
       create_cloudsql_database_if_needed,
