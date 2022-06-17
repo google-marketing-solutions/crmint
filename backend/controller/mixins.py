@@ -24,6 +24,9 @@ License: MIT
 from sqlalchemy import Column, DateTime, func
 from sqlalchemy import inspect
 from sqlalchemy import orm
+from sqlalchemy import sql
+
+OPERATOR_SPLITTER = '__'
 
 
 class TimestampsMixin(object):
@@ -219,20 +222,51 @@ class ReprMixin:
 class SmartQueryMixin:
   """Replicates the Django-like filtering helpers."""
 
+  # Supported operators using the Django-like syntax "<attr_name>__<op_name>".
+  _operators = {
+      "in": sql.operators.in_op,
+  }
+
+  @classproperty
+  def filterable_attributes(cls):  # pylint: disable=no-self-argument
+    return cls.relations + cls.columns
+
   @classmethod
   def where(cls, **filters):
     """Returns filtered entities matching the given filters.
 
     Example 1:
-      Product.where(subject_id=1, grade_from_id=2).all()
+      Product.where(subject_id__in=[1, 2], grade_from_id=2).all()
     Example 2:
-      filters = {'subject_id': 1, 'grade_from_id': 2}
+      filters = {'subject_id__in': [1, 2], 'grade_from_id': 2}
       Product.where(**filters).all()
 
     Args:
       **filters: List of filtering conditions.
+
+    Raises:
+      KeyError: if the operator is not supported or if the attribute is
+        not filterable.
     """
-    conditions = [getattr(cls, key) == filters[key] for key in filters]
+    conditions = []
+    valid_attributes = cls.filterable_attributes
+    for attr, value in filters.items():
+      if OPERATOR_SPLITTER in attr:
+        attr_name, op_name = attr.rsplit(OPERATOR_SPLITTER, 1)
+        if op_name not in cls._operators:
+          raise KeyError(f"Expression `{attr}` has incorrect "
+                         f"operator `{op_name}`")
+        op = cls._operators[op_name]
+      else:
+        # Assumes equality operator for other cases.
+        attr_name, op = attr, sql.operators.eq
+
+      if attr_name not in valid_attributes:
+        raise KeyError(f"Expression `{attr}` "
+                       f"has incorrect attribute `{attr_name}`")
+
+      column = getattr(cls, attr_name)
+      conditions.append(op(column, value))
     return cls.query.filter(*conditions)
 
 

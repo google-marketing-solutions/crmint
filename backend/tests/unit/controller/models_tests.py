@@ -1,8 +1,10 @@
 """Tests for controller.models."""
 
+import textwrap
+
 from absl.testing import absltest
 import freezegun
-import textwrap
+import jinja2
 
 from controller import database
 from controller import models
@@ -189,6 +191,14 @@ class TestParamRuntimeValues(ModelTestCase):
     param.populate_runtime_value(context={'foo': 'bar'})
     self.assertEqual(param.runtime_value, 'bar')
 
+  def test_job_param_runtime_value_failed_on_unknown_variable(self):
+    pipeline = models.Pipeline.create(name='pipeline1')
+    job = models.Job.create(name='job1', pipeline_id=pipeline.id)
+    param = models.Param.create(job_id=job.id, name='p1',
+                                type='string', value='{{ foo }}')
+    with self.assertRaises(jinja2.TemplateError):
+      param.populate_runtime_value(context={'bar': 'abc'})
+
   @freezegun.freeze_time('2022-05-15T00:00:00')
   def test_job_param_runtime_value_can_render_inline_function_today(self):
     pipeline = models.Pipeline.create(name='pipeline1')
@@ -320,6 +330,10 @@ class TestPipeline(ModelTestCase):
   def test_is_blocked_if_run_on_schedule(self):
     pipeline = models.Pipeline.create(run_on_schedule=True)
     self.assertTrue(pipeline.is_blocked())
+
+  def test_fails_get_ready_if_running(self):
+    pipeline = models.Pipeline.create(status=models.Pipeline.STATUS.RUNNING)
+    self.assertFalse(pipeline.get_ready())
 
   def test_is_blocked_if_running(self):
     pipeline = models.Pipeline.create(status=models.Pipeline.STATUS.RUNNING)
