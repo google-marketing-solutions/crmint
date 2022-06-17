@@ -15,6 +15,7 @@
 from datetime import datetime
 import numbers
 import re
+from typing import Union
 import uuid
 
 import jinja2
@@ -29,8 +30,8 @@ from sqlalchemy import Text
 
 from common import crmint_logging
 from common import task
-from controller import inline
 from controller import database
+from controller import inline
 from controller import mailers
 
 
@@ -157,49 +158,47 @@ class Pipeline(database.BaseModel):
         message = 'Invalid pipeline variable "%s": %s' % (param.label, e)
       else:
         message = 'Invalid global variable "%s": %s' % (param.label, e)
-      crmint_logging.get_logger().log_struct({
-          'labels': {
-              'pipeline_id': self.id,
-              'job_id': job_id,
-              'worker_class': worker_class,
-          },
-          'log_level': 'ERROR',
-          'message': message,
-      })
+      crmint_logging.log_message(
+          message,
+          log_level='ERROR',
+          pipeline_id=self.id,
+          job_id=job_id,
+          worker_class=worker_class)
       return False
 
   def set_status(self, status):
     self.update(status=status, status_changed_at=datetime.now())
 
-  def get_ready(self):
-    if not self.populate_params_runtime_values():
+  def get_ready(self) -> bool:
+    """Returns True if the pipeline is ready to be started."""
+    if self.status not in Pipeline.STATUS.INACTIVE_STATUSES:
       return False
+    # Checks if there is at least one job to run.
+    if not self.jobs.all():
+      return False
+    # Checks if one job was already started.
     for job in self.jobs.all():
       if not job.get_ready():
         return False
-    self.set_status(Pipeline.STATUS.RUNNING)
+    # Checks that parameters can be rendered to runtime values.
+    if not self.populate_params_runtime_values():
+      return False
     return True
 
   def start(self):
-    if self.status not in Pipeline.STATUS.INACTIVE_STATUSES:
-      return False
-    jobs = self.jobs.all()
-    if len(jobs) < 1:
-      return False
-    for job in jobs:
-      if job.status not in Job.STATUS.INACTIVE_STATUSES:
-        return False
     if not self.get_ready():
       return False
-    for job in jobs:
+    self.set_status(Pipeline.STATUS.RUNNING)
+    for job in self.jobs.all():
       job.start()
     return True
 
   def stop(self):
     if self.status != Pipeline.STATUS.RUNNING:
       return False
-    for job in self.jobs:
+    for job in self.jobs.all():
       job.stop()
+    self.set_status(Pipeline.STATUS.IDLE)
     return True
 
   def start_single_job(self, job):
@@ -213,26 +212,44 @@ class Pipeline(database.BaseModel):
     job.start_as_single()
     return True
 
-  def leaf_job_finished(self):
-    for job in self.jobs:
+  def has_finished(self) -> bool:
+    """Returns True if a pipeline is in a finished state.
+
+    A pipeline is considered finished when all jobs are in an inactive status.
+    """
+    for job in self.jobs.all():
       if job.status not in Job.STATUS.INACTIVE_STATUSES:
         return False
-    leaf_jobs = Job.query \
-        .outerjoin((StartCondition,
-                    Job.id == StartCondition.preceding_job_id)) \
-        .filter(Job.pipeline_id == self.id) \
-        .filter(StartCondition.preceding_job_id.is_(None)) \
-        .options(orm.load_only('status')) \
-        .all()
-    status = Pipeline.STATUS.SUCCEEDED
-    for job in leaf_jobs:
-      # IDLE means the job has not run at all or it has been cancelled
-      if job.status == Job.STATUS.FAILED:
-        status = Pipeline.STATUS.FAILED
-        break
-    self.set_status(status)
-    mailers.NotificationMailer().finished_pipeline(self)
     return True
+
+  def has_failed(self) -> bool:
+    """Returns True if a pipeline is in a failed state.
+
+    A pipeline is considered failed if one of these two conditions is met:
+      1. an isolated job failed
+      2. or one starting condition is not fulfilled
+    """
+    for job in self.jobs.all():
+      # 1. Checks if an isolated job has failed.
+      if not job.dependent_jobs and not job.affecting_jobs:
+        if job.status == Job.STATUS.FAILED:
+          return True
+      # 2. Checks if a starting condition has been invalidated.
+      for start_condition in job.start_conditions:
+        if job.start_condition_invalidated(start_condition):
+          return True
+    return False
+
+  # TODO(dulacp): rename this method to `job_finished`
+  def leaf_job_finished(self) -> None:
+    """Determines if the pipeline should be considered finished or failed."""
+    pipeline_failed = self.has_failed()
+    pipeline_finished = self.has_finished()
+    if pipeline_failed or pipeline_finished:
+      status = Pipeline.STATUS.FAILED if pipeline_failed else Pipeline.STATUS.SUCCEEDED
+      self.stop()
+      self.set_status(status)
+      mailers.NotificationMailer().finished_pipeline(self)
 
   def import_data(self, data):
     self.assign_params(data['params'])
@@ -241,7 +258,7 @@ class Pipeline(database.BaseModel):
     jobs = []
     if data['jobs']:
       for job_data in data['jobs']:
-        job = Job()
+        job = Job.create()
         job.pipeline_id = self.id
         job.assign_attributes(job_data)
         job.save()
@@ -271,6 +288,68 @@ class Pipeline(database.BaseModel):
     if param_ids:
       Param.destroy(*param_ids)
     self.delete()
+
+
+class TaskEnqueued(database.BaseModel):
+  __tablename__ = 'enqueued_tasks'
+  id = Column(Integer, primary_key=True, autoincrement=True)
+  task_namespace = Column(String(60), index=True)
+  task_name = Column(String(100), index=True, unique=True)
+
+  @classmethod
+  def count_in_namespace(cls, task_namespace: str) -> int:
+    """Returns the number of tasks still running in the given namespace."""
+    count_query = cls.where(task_namespace=task_namespace)
+    return count_query.count()
+
+  @property
+  def name(self):
+    """TODO(dulacp): remove this helper, used to avoid too much refactoring."""
+    return self.task_name
+
+
+class StartCondition(database.BaseModel):
+  __tablename__ = 'start_conditions'
+  id = Column(Integer, primary_key=True, autoincrement=True)
+  job_id = Column(Integer, ForeignKey('jobs.id'))
+  preceding_job_id = Column(Integer, ForeignKey('jobs.id'))
+  condition = Column(String(255))
+
+  job = orm.relationship(
+      'Job',
+      foreign_keys=[job_id],
+      back_populates='start_conditions',
+      overlaps='affecting_jobs,dependent_jobs')
+  preceding_job = orm.relationship(
+      'Job',
+      foreign_keys=[preceding_job_id],
+      back_populates='affected_conditions',
+      overlaps='affecting_jobs,dependent_jobs')
+
+  class CONDITION:  # pylint: disable=too-few-public-methods
+    SUCCESS = 'success'
+    FAIL = 'fail'
+    WHATEVER = 'whatever'
+
+  def __init__(self, job_id=None, preceding_job_id=None, condition=None):
+    self.job_id = job_id
+    self.preceding_job_id = preceding_job_id
+    self.condition = condition
+
+  @property
+  def preceding_job_name(self):
+    return self.preceding_job.name
+
+  @property
+  def value(self):
+    return ','.join([str(self.preceding_job_id), self.condition])
+
+  @classmethod
+  def parse_value(cls, value):
+    return {
+        'id': int(value['preceding_job_id']),
+        'condition': value['condition']
+    }
 
 
 class Job(database.BaseModel):
@@ -400,13 +479,21 @@ class Job(database.BaseModel):
   def set_status(self, status):
     self.update(status=status, status_changed_at=datetime.now())
 
-  def get_ready(self):
+  def get_ready(self) -> bool:
+    """Returns True if the job is ready to be started."""
     if self.status not in Job.STATUS.INACTIVE_STATUSES:
       return False
     self.set_status(Job.STATUS.WAITING)
     return True
 
-  def _start_condition_is_fulfilled(self, start_condition):
+  def start_condition_invalidated(self,
+                                  start_condition: StartCondition) -> bool:
+    if start_condition.preceding_job.status not in Job.STATUS.INACTIVE_STATUSES:
+      # Still running
+      return False
+    return not self._start_condition_is_fulfilled(start_condition)
+
+  def _start_condition_is_fulfilled(self, start_condition) -> bool:
     preceding_job_status = start_condition.preceding_job.status
     if start_condition.condition == StartCondition.CONDITION.SUCCESS:
       if preceding_job_status != Job.STATUS.SUCCEEDED:
@@ -416,28 +503,29 @@ class Job(database.BaseModel):
         return False
     return True
 
-  def _start_dependent_jobs(self):
+  def _start_dependent_jobs(self) -> list[TaskEnqueued]:
+    enqueued_tasks = []
     for job in self.dependent_jobs:
-      job.start()
+      started_task = job.start()
+      if started_task:
+        enqueued_tasks.append(started_task)
+    return enqueued_tasks
 
-  def start(self):
-    preceding_jobs_done = True
+  def start(self) -> Union[TaskEnqueued, None]:
     for start_condition in self.start_conditions:
-      if start_condition.preceding_job.status in Job.STATUS.INACTIVE_STATUSES:
-        if not self._start_condition_is_fulfilled(start_condition):
-          self.set_status(Job.STATUS.IDLE)
-          if self.dependent_jobs:
-            self._start_dependent_jobs()
-          else:
-            self.pipeline.leaf_job_finished()
-          return False
-      else:
-        preceding_jobs_done = False
-    return self.start_as_single() if preceding_jobs_done else False
+      if start_condition.preceding_job.status not in Job.STATUS.INACTIVE_STATUSES:
+        # Starting condition still running.
+        return None
+      if not self._start_condition_is_fulfilled(start_condition):
+        # Cannot start this job, pipeline has failed.
+        self.pipeline.leaf_job_finished()
+        return None
+    return self.start_as_single()
 
-  def start_as_single(self):
+  def start_as_single(self) -> Union[TaskEnqueued, None]:
     if self.status != Job.STATUS.WAITING:
-      return False
+      # Either `job.get_ready()` wasn't called or it failed.
+      return None
     self.set_status(Job.STATUS.RUNNING)
     worker_params = {p.name: p.worker_value for p in self.params}
     return self.enqueue(self.worker_class, worker_params)
@@ -445,60 +533,80 @@ class Job(database.BaseModel):
   def _get_task_namespace(self):
     return f'pipeline={self.pipeline_id}_job={self.id}'
 
-  def _add_task_with_name(self, task_name):
-    task_namespace = self._get_task_namespace()
-    TaskEnqueued.create(task_namespace=task_namespace, task_name=task_name)
-    return True
+  def _add_task_with_name(self, task_name) -> TaskEnqueued:
+    """Keeps track of running tasks."""
+    namespace = self._get_task_namespace()
+    return TaskEnqueued.create(task_namespace=namespace, task_name=task_name)
 
   def _delete_task_with_name(self, task_name):
-    """
-    Returns: Number of remaining tasks in the DB.
-    """
+    """Returns the number of remaining tasks in the DB after deletion."""
     task_namespace = self._get_task_namespace()
     TaskEnqueued.where(task_namespace=task_namespace,
                        task_name=task_name).delete()
     return self._enqueued_task_count()
 
+  def _get_all_tasks(self):
+    task_namespace = self._get_task_namespace()
+    return TaskEnqueued.where(task_namespace=task_namespace).all()
+
   def _enqueued_task_count(self):
     task_namespace = self._get_task_namespace()
     return TaskEnqueued.count_in_namespace(task_namespace)
 
-  def enqueue(self, worker_class, worker_params, delay=0):
+  def enqueue(self,
+              worker_class: str,
+              worker_params: dict[str, ...],
+              delay: int = 0) -> Union[TaskEnqueued, None]:
     if self.status != Job.STATUS.RUNNING:
-      return False
+      return None
     name = str(uuid.uuid4())
     general_settings = {gs.name: gs.value for gs in GeneralSetting.all()}
-    task = task.Task(
+    task_inst = task.Task(
         name,
         self.pipeline_id,
         self.id,
         worker_class,
         worker_params,
         general_settings)
-    task.enqueue(delay)
-    # Keep track of running tasks.
-    self._add_task_with_name(name)
-    self.save()
-    return True
+    task_inst.enqueue(delay)
+    return self._add_task_with_name(name)
 
-  def _task_finished(self, task_name, new_job_status):
+  def _task_finished(self,
+                     task_name: str,
+                     new_job_status: str) -> list[TaskEnqueued]:
+    """Records the task finishing state.
+
+    If a job has spinned multiple tasks, we will only consider the status of
+    the last task to complete.
+
+    Args:
+      task_name: Name of the task in our database.
+      new_job_status: Status of the finished task.
+
+    Returns:
+      List of dependent tasks enqueued.
+    """
     was_last_task = self._delete_task_with_name(task_name) == 0
     # Updates the job database status if there is no more running tasks.
-    # NB: `was_last_task` acts as a concurrent lock, only one task can
-    #     validate this condition.
+    # This is essential because one job could spin multiple tasks.
+    # NOTE: `was_last_task` acts as a kind of concurrent lock, only one task can
+    #       validate this condition.
+    # NOTE: if a job has spinned multiple tasks, we will only consider the
+    #       status of the last task to complete.
     if was_last_task:
       self.set_status(new_job_status)
-      # We can safely start children jobs, because of our concurrent lock.
+      # We can safely start children jobs, because of our above concurrent lock.
       if self.dependent_jobs:
-        self._start_dependent_jobs()
+        return self._start_dependent_jobs()
       else:
         self.pipeline.leaf_job_finished()
+    return []
 
-  def task_succeeded(self, task_name):
-    self._task_finished(task_name, Job.STATUS.SUCCEEDED)
+  def task_succeeded(self, task_name: str) -> list[TaskEnqueued]:
+    return self._task_finished(task_name, Job.STATUS.SUCCEEDED)
 
-  def task_failed(self, task_name):
-    self._task_finished(task_name, Job.STATUS.FAILED)
+  def task_failed(self, task_name: str) -> list[TaskEnqueued]:
+    return self._task_finished(task_name, Job.STATUS.FAILED)
 
   def stop(self):
     if self.status == Job.STATUS.WAITING:
@@ -506,6 +614,9 @@ class Job(database.BaseModel):
       return True
     if self.status == Job.STATUS.RUNNING:
       self.set_status(Job.STATUS.STOPPING)
+      tasks = self._get_all_tasks()
+      for task_to_stop in tasks:
+        self._task_finished(task_to_stop.name, Job.STATUS.STOPPING)
       return True
     return False
 
@@ -527,11 +638,12 @@ class Param(database.BaseModel):
     if context is None:
       context = {}
     # Leverages jinja2 templating system to render inline functions.
-    template = self.value
+    content = self.value
     # Supports former syntax which used `{% ... %}` instead of `{{ ... }}`,
     # by substituting only patterns of uppercase variable names.
-    template = re.sub(r'{% ([A-Z0-9]+) %}', r'{{ \1 }}', template)
-    value = jinja2.Template(template).render(**inline.functions, **context)
+    content = re.sub(r'{% ([A-Z0-9]+) %}', r'{{ \1 }}', content)
+    template = jinja2.Template(content, undefined=jinja2.StrictUndefined)
+    value = template.render(**inline.functions, **context)
     if self.job_id is not None:
       self.update(runtime_value=value)
     return value
@@ -573,9 +685,9 @@ class Param(database.BaseModel):
       else:
         # Creating
         param = Param()
-        if obj and obj.__class__.__name__ == 'Pipeline':
+        if obj and isinstance(obj, Pipeline):
           param.pipeline_id = obj.id
-        elif obj and obj.__class__.__name__ == 'Job':
+        elif obj and isinstance(obj, Job):
           param.job_id = obj.id
       param.name = arg_param['name']
       try:
@@ -586,7 +698,7 @@ class Param(database.BaseModel):
       if arg_param['type'] == 'boolean':
         param.value = arg_param['value']
       else:
-        param.value = str(arg_param['value']).encode('utf-8')
+        param.value = str(arg_param['value'])
       param.save()
       arg_param_ids.append(param.id)
     # Removing
@@ -597,50 +709,6 @@ class Param(database.BaseModel):
       if param.id not in arg_param_ids:
         ids_for_removing.append(param.id)
     Param.destroy(*ids_for_removing)
-
-
-class StartCondition(database.BaseModel):
-  __tablename__ = 'start_conditions'
-  id = Column(Integer, primary_key=True, autoincrement=True)
-  job_id = Column(Integer, ForeignKey('jobs.id'))
-  preceding_job_id = Column(Integer, ForeignKey('jobs.id'))
-  condition = Column(String(255))
-
-  job = orm.relationship(
-      'Job',
-      foreign_keys=[job_id],
-      back_populates='start_conditions',
-      overlaps='affecting_jobs,dependent_jobs')
-  preceding_job = orm.relationship(
-      'Job',
-      foreign_keys=[preceding_job_id],
-      back_populates='affected_conditions',
-      overlaps='affecting_jobs,dependent_jobs')
-
-  class CONDITION:  # pylint: disable=too-few-public-methods
-    SUCCESS = 'success'
-    FAIL = 'fail'
-    WHATEVER = 'whatever'
-
-  def __init__(self, job_id=None, preceding_job_id=None, condition=None):
-    self.job_id = job_id
-    self.preceding_job_id = preceding_job_id
-    self.condition = condition
-
-  @property
-  def preceding_job_name(self):
-    return self.preceding_job.name
-
-  @property
-  def value(self):
-    return ','.join([str(self.preceding_job_id), self.condition])
-
-  @classmethod
-  def parse_value(cls, value):
-    return {
-        'id': int(value['preceding_job_id']),
-        'condition': value['condition']
-    }
 
 
 class Schedule(database.BaseModel):  # pylint: disable=too-few-public-methods
@@ -668,15 +736,3 @@ class Stage(database.BaseModel):  # pylint: disable=too-few-public-methods
   def assign_attributes(self, attributes):
     for key, value in attributes.items():
       self.__setattr__(key, value)
-
-
-class TaskEnqueued(database.BaseModel):  # pylint: disable=too-few-public-methods
-  __tablename__ = 'enqueued_tasks'
-  id = Column(Integer, primary_key=True, autoincrement=True)
-  task_namespace = Column(String(60), index=True)
-  task_name = Column(String(100), index=True, unique=True)
-
-  @classmethod
-  def count_in_namespace(cls, task_namespace):
-    count_query = cls.where(task_namespace=task_namespace)
-    return count_query.count()

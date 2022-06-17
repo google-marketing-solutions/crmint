@@ -71,20 +71,20 @@ class Worker:
       except KeyError:
         self._params[p[0]] = p[3]
     self._workers_to_enqueue = []
-    self.logger = crmint_logging.get_logger(
-        project=logger_project, credentials=logger_credentials)
+    # TODO(dulacp): remove these parameters, mock `crmint_logging.log_message`
+    self._logger_project = logger_project
+    self._logger_credentials = logger_credentials
 
   @Retry()
   def _log(self, level: str, message: str) -> None:
-    self.logger.log_struct({
-        'labels': {
-            'pipeline_id': self._pipeline_id,
-            'job_id': self._job_id,
-            'worker_class': self.__class__.__name__,
-        },
-        'log_level': level,
-        'message': message,
-    })
+    crmint_logging.log_message(
+        message,
+        log_level=level,
+        pipeline_id=self._pipeline_id,
+        job_id=self._job_id,
+        worker_class=self.__class__.__name__,
+        logger_project=self._logger_project,
+        logger_credentials=self._logger_credentials)
 
   def log_info(self, message: str) -> None:
     """Logs a message at the INFO level.
