@@ -795,7 +795,7 @@ def _start_cloud_sql_proxy(stage, debug=False):
   total = len(cmds)
   for i, (cmd, force_std_out) in enumerate(cmds):
     shared.execute_command(
-        f'Start CloudSQL proxy ({i}/{total})',
+        f'Start CloudSQL proxy ({i + 1}/{total})',
         cmd,
         cwd='.',
         force_std_out=force_std_out,
@@ -824,6 +824,7 @@ def _install_python_packages(stage, debug=False):
         f'Install required Python packages ({i + 1}/{total})',
         cmd,
         cwd=cmd_workdir,
+        report_empty_err=False,
         debug=debug)
 
 
