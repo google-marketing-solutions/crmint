@@ -117,7 +117,7 @@ class BQToMeasurementProtocolProcessorGA4(bq_worker.BQWorker):
         'api_secret': self._params['api_secret'],
     })
     response = requests.post(f'{domain}?{querystring}',
-                             data=payload,
+                             data=json.dumps(payload),
                              headers={'content-type': 'application/json'})
     if self._params['debug']:
       for msg in response.json()['validationMessages']:

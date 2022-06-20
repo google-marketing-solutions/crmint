@@ -1,5 +1,6 @@
 """Tests for bq_to_measurement_protocol_ga4."""
 
+import json
 import textwrap
 from typing import Any, Dict, Iterable, Sequence
 from unittest import mock
@@ -214,7 +215,7 @@ class TestBQToMeasurementProtocolProcessor(absltest.TestCase):
     worker_inst._execute()
     self._patched_post.assert_called_once_with(
         'https://www.google-analytics.com/debug/mp/collect?measurement_id=GA-XXXXXX-Y&api_secret=xyz',
-        data={
+        data=json.dumps({
             'client_id': '35009a79-1a05-49d7-b876-2b884d0f825b',
             'timestamp_micros': '1234000000',
             'nonPersonalizedAds': False,
@@ -225,7 +226,7 @@ class TestBQToMeasurementProtocolProcessor(absltest.TestCase):
                     'model_type': 'LTV v1',
                 }
             }]
-        },
+        }),
         headers={'content-type': 'application/json'})
     self.assertIn('There is a formatting error', patched_warn.call_args[0][0])
 
@@ -292,7 +293,7 @@ class TestBQToMeasurementProtocolProcessor(absltest.TestCase):
     self.assertEqual(self._patched_post.call_count, 2)
     self._patched_post.assert_called_with(
         'https://www.google-analytics.com/mp/collect?measurement_id=GA-XXXXXX-Y&api_secret=xyz',
-        data={
+        data=json.dumps({
             'client_id': '35009a79-1a05-49d7-b876-2b884d0f825b',
             'timestamp_micros': '1970-01-01 00:20:34+00:00',
             'nonPersonalizedAds': False,
@@ -303,7 +304,7 @@ class TestBQToMeasurementProtocolProcessor(absltest.TestCase):
                     'model_type': 'LTV v1',
                 }
             }]
-        },
+        }),
         headers={'content-type': 'application/json'})
 
   def test_log_exception_if_http_fails(self):
