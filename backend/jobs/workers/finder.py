@@ -64,6 +64,11 @@ WORKERS_MAPPING = {
         storage_to_bq_importer.StorageToBQImporter,
 }
 
+_PRIVATE_WORKERS_MAPPING = {
+  'BQToMeasurementProtocolProcessorGA4':
+        bq_to_measurement_protocol_ga4.BQToMeasurementProtocolProcessorGA4,
+}
+
 
 def get_worker_class(class_name: str) -> Type[ConcreteWorker]:
   """Returns a worker class.
@@ -77,4 +82,7 @@ def get_worker_class(class_name: str) -> Type[ConcreteWorker]:
   for name in WORKERS_MAPPING:
     if class_name.lower() == name.lower():
       return WORKERS_MAPPING[name]
+  for name in _PRIVATE_WORKERS_MAPPING:
+    if class_name.lower() == name.lower():
+      return _PRIVATE_WORKERS_MAPPING[name]
   raise ModuleNotFoundError
