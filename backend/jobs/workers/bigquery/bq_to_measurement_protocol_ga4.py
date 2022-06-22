@@ -163,4 +163,3 @@ class BQToMeasurementProtocolProcessorGA4(bq_worker.BQWorker):
     # processed by another processing instance.
     first_page = next(row_iterator.pages)
     self._stream_rows(first_page)
-    self.log_info('Finished successfully')

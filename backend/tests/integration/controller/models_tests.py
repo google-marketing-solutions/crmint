@@ -746,7 +746,8 @@ class TestJobStartingMultipleTasks(ModelTestCase):
       job1_remaining_tasks = job1._task_finished(task1.name, job1_status)
       self.assertEqual(job1_remaining_tasks, 0)
       self.assertEqual(job2._enqueued_task_count(), 1)
-      task2 = job2._get_all_tasks()[0]
+      job2_ns = job2._get_task_namespace()
+      task2 = models.TaskEnqueued.where(task_namespace=job2_ns).all()[0]
       self.assertEqual(job1.status, job1_status)
       self.assertEqual(job2.status, models.Job.STATUS.RUNNING)
       self.assertEqual(pipeline.status, models.Pipeline.STATUS.RUNNING)

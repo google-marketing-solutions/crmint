@@ -601,16 +601,6 @@ class Job(extensions.db.Model):
     return TaskEnqueued.where(task_namespace=task_namespace,
                               task_name=task_name).all()
 
-  def _delete_task_with_name(self, task_name):
-    """Deletes enqueued tasks attached to a given task name."""
-    task_namespace = self._get_task_namespace()
-    TaskEnqueued.where(task_namespace=task_namespace,
-                       task_name=task_name).delete()
-
-  def _get_all_tasks(self):
-    task_namespace = self._get_task_namespace()
-    return TaskEnqueued.where(task_namespace=task_namespace).all()
-
   def _enqueued_task_count(self):
     task_namespace = self._get_task_namespace()
     return TaskEnqueued.count_in_namespace(task_namespace)
@@ -631,6 +621,12 @@ class Job(extensions.db.Model):
         worker_params,
         general_settings)
     task_inst.enqueue(delay)
+    crmint_logging.log_message(
+        f'Enqueued task for (worker_class, name): ({worker_class}, {name})',
+        log_level='DEBUG',
+        worker_class=self.worker_class,
+        pipeline_id=self.pipeline_id,
+        job_id=self.id)
     return self._add_task_with_name(name)
 
   def _task_finished(self,
@@ -648,6 +644,12 @@ class Job(extensions.db.Model):
     Returns:
       Number of tasks still running for this given job.
     """
+    crmint_logging.log_message(
+        f'Finished task for name: {task_name}',
+        log_level='DEBUG',
+        worker_class=self.worker_class,
+        pipeline_id=self.pipeline_id,
+        job_id=self.id)
     # Ignores tasks that are not registered which should be considered an error.
     found_tasks = self._get_tasks_with_name(task_name)
     if not found_tasks:
@@ -659,7 +661,9 @@ class Job(extensions.db.Model):
           job_id=self.id)
       return self._enqueued_task_count()
 
-    self._delete_task_with_name(task_name)
+    # Deletes matched tasks
+    for task_inst in found_tasks:
+      task_inst.delete()
     num_running_tasks = self._enqueued_task_count()
     crmint_logging.log_message(
         f'Running tasks: {num_running_tasks}',
