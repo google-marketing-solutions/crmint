@@ -140,7 +140,7 @@ def check_if_user_is_owner(user_email: str,
       cmd,
       debug=debug,
       debug_uses_std_out=False)
-  return out.strip() == 'roles/owner'
+  return bool(re.search(r'roles/owner', out.strip()))
 
 
 def check_billing_configured(stage: shared.StageContext,
