@@ -12,10 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from datetime import datetime
+"""Models definitions."""
+
+import datetime
+import enum
 import numbers
 import re
-from typing import Union
+from typing import Optional, Union
 import uuid
 
 import jinja2
@@ -30,7 +33,7 @@ from sqlalchemy import Text
 
 from common import crmint_logging
 from common import task
-from controller import database
+from controller import extensions
 from controller import inline
 from controller import mailers
 
@@ -53,9 +56,21 @@ def _str_to_number(x: str) -> numbers.Number:
     return float(x)
 
 
-class Pipeline(database.BaseModel):
-  """Pipeline ORM class."""
+@enum.unique
+class PipelineReadyStatus(enum.Enum):
+  """Statuses for pipeline readiness."""
+  READY = enum.auto()
+  ALREADY_RUNNING = enum.auto()
+  FAILED_RENDERING_PARAMETERS = enum.auto()
+  NO_JOB = enum.auto()
+  JOBS_NOT_READY = enum.auto()
+
+
+class Pipeline(extensions.db.Model):
+  """Model definining a pipeline."""
   __tablename__ = 'pipelines'
+  __repr_attrs__ = ['name']
+
   id = Column(Integer, primary_key=True, autoincrement=True)
   name = Column(String(255))
   emails_for_notifications = Column(String(255))
@@ -167,50 +182,87 @@ class Pipeline(database.BaseModel):
       return False
 
   def set_status(self, status):
-    self.update(status=status, status_changed_at=datetime.now())
+    self.update(status=status, status_changed_at=datetime.datetime.utcnow())
 
-  def get_ready(self) -> bool:
-    """Returns True if the pipeline is ready to be started."""
+  def get_ready(self,
+                jobs: Optional[list['Job']] = None) -> PipelineReadyStatus:
+    """Returns the status of the pipeline if it's ready or not to be started.
+
+    Args:
+      jobs: List of job to run `get_ready` on too. If None, all pipeline's jobs
+        will be fetched.
+    """
     if self.status not in Pipeline.STATUS.INACTIVE_STATUSES:
-      return False
-    # Checks if there is at least one job to run.
-    if not self.jobs.all():
-      return False
-    # Checks if one job was already started.
-    for job in self.jobs.all():
-      if not job.get_ready():
-        return False
+      return PipelineReadyStatus.ALREADY_RUNNING
     # Checks that parameters can be rendered to runtime values.
     if not self.populate_params_runtime_values():
-      return False
-    return True
+      return PipelineReadyStatus.FAILED_RENDERING_PARAMETERS
+    # Checks if there is at least one job to run.
+    if not jobs:
+      jobs = self.jobs.all()
+    if not jobs:
+      return PipelineReadyStatus.NO_JOB
+    # Checks if one job was already started.
+    for job in jobs:
+      if not job.get_ready():
+        return PipelineReadyStatus.JOBS_NOT_READY
+    return PipelineReadyStatus.READY
 
-  def start(self):
-    if not self.get_ready():
-      return False
+  def _start(self) -> None:
+    # Updates statuses of pipeline and jobs, before starting any task.
     self.set_status(Pipeline.STATUS.RUNNING)
+    for job in self.jobs.all():
+      job.set_status(Job.STATUS.WAITING)
+    # Starts jobs now that all statuses are up-to-date.
     for job in self.jobs.all():
       job.start()
-    return True
 
-  def stop(self):
+  def start(self) -> bool:
+    """Returns True if all jobs have been started."""
+    ready_status = self.get_ready()
+    if ready_status == PipelineReadyStatus.READY:
+      self._start()
+      return True
+
+    # Invites the user to look at logs by setting all jobs as failed,
+    # since a not ready signal could be at the pipeline level, and we don't
+    # have a UI signal for a pipeline level failure.
+    notify_failure_for_statuses = [
+        PipelineReadyStatus.FAILED_RENDERING_PARAMETERS,
+        PipelineReadyStatus.JOBS_NOT_READY
+    ]
+    if ready_status in notify_failure_for_statuses:
+      self.set_status(Pipeline.STATUS.FAILED)
+      for job in self.jobs.all():
+        job.set_status(Job.STATUS.FAILED)
+    return False
+
+  def stop(self) -> bool:
+    """Returns True if all jobs have been requested to stop."""
     if self.status != Pipeline.STATUS.RUNNING:
       return False
+    self.set_status(Pipeline.STATUS.STOPPING)
     for job in self.jobs.all():
       job.stop()
-    self.set_status(Pipeline.STATUS.IDLE)
     return True
 
-  def start_single_job(self, job):
-    if self.status not in Pipeline.STATUS.INACTIVE_STATUSES:
-      return False
-    if not self.populate_params_runtime_values():
-      return False
-    if not job.get_ready():
-      return False
+  def _start_as_single(self, job: 'Job') -> None:
+    # Updates statuses of pipeline and jobs, before starting any task.
     self.set_status(Pipeline.STATUS.RUNNING)
+    job.set_status(Job.STATUS.WAITING)
+    # Starts jobs now that all statuses are up-to-date.
     job.start_as_single()
-    return True
+
+  def start_single_job(self, job: 'Job') -> bool:
+    """Returns True if the job has been started."""
+    if self.get_ready([job]) == PipelineReadyStatus.READY:
+      self._start_as_single(job)
+      return True
+
+    # Invites the user to look at logs by setting the job as failed.
+    self.set_status(Pipeline.STATUS.FAILED)
+    job.set_status(Job.STATUS.FAILED)
+    return False
 
   def has_finished(self) -> bool:
     """Returns True if a pipeline is in a finished state.
@@ -243,12 +295,12 @@ class Pipeline(database.BaseModel):
   # TODO(dulacp): rename this method to `job_finished`
   def leaf_job_finished(self) -> None:
     """Determines if the pipeline should be considered finished or failed."""
-    pipeline_failed = self.has_failed()
-    pipeline_finished = self.has_finished()
-    if pipeline_failed or pipeline_finished:
-      status = Pipeline.STATUS.FAILED if pipeline_failed else Pipeline.STATUS.SUCCEEDED
+    if self.has_failed():
       self.stop()
-      self.set_status(status)
+      self.set_status(Pipeline.STATUS.FAILED)
+      mailers.NotificationMailer().finished_pipeline(self)
+    elif self.has_finished():
+      self.set_status(Pipeline.STATUS.SUCCEEDED)
       mailers.NotificationMailer().finished_pipeline(self)
 
   def import_data(self, data):
@@ -290,8 +342,11 @@ class Pipeline(database.BaseModel):
     self.delete()
 
 
-class TaskEnqueued(database.BaseModel):
+class TaskEnqueued(extensions.db.Model):
+  """Model for tracking enqueued tasks that we wait for completion."""
   __tablename__ = 'enqueued_tasks'
+  __repr_attrs__ = ['task_namespace', 'task_name']
+
   id = Column(Integer, primary_key=True, autoincrement=True)
   task_namespace = Column(String(60), index=True)
   task_name = Column(String(100), index=True, unique=True)
@@ -308,8 +363,11 @@ class TaskEnqueued(database.BaseModel):
     return self.task_name
 
 
-class StartCondition(database.BaseModel):
+class StartCondition(extensions.db.Model):
+  """Model for a starting condition between two jobs."""
   __tablename__ = 'start_conditions'
+  __repr_attrs__ = ['job_id', 'preceding_job_id', 'condition']
+
   id = Column(Integer, primary_key=True, autoincrement=True)
   job_id = Column(Integer, ForeignKey('jobs.id'))
   preceding_job_id = Column(Integer, ForeignKey('jobs.id'))
@@ -318,13 +376,11 @@ class StartCondition(database.BaseModel):
   job = orm.relationship(
       'Job',
       foreign_keys=[job_id],
-      back_populates='start_conditions',
-      overlaps='affecting_jobs,dependent_jobs')
+      back_populates='start_conditions')
   preceding_job = orm.relationship(
       'Job',
       foreign_keys=[preceding_job_id],
-      back_populates='affected_conditions',
-      overlaps='affecting_jobs,dependent_jobs')
+      back_populates='affected_conditions')
 
   class CONDITION:  # pylint: disable=too-few-public-methods
     SUCCESS = 'success'
@@ -352,8 +408,11 @@ class StartCondition(database.BaseModel):
     }
 
 
-class Job(database.BaseModel):
+class Job(extensions.db.Model):
+  """Model for a job."""
   __tablename__ = 'jobs'
+  __repr_attrs__ = ['name']
+
   id = Column(Integer, primary_key=True, autoincrement=True)
   name = Column(String(255))
   status = Column(String(50), nullable=False, default='idle')
@@ -374,15 +433,13 @@ class Job(database.BaseModel):
       secondary='start_conditions',
       primaryjoin='Job.id==StartCondition.preceding_job_id',
       secondaryjoin='StartCondition.job_id==Job.id',
-      back_populates='affecting_jobs',
-      overlaps='affected_conditions,start_conditions')
+      back_populates='affecting_jobs')
   affecting_jobs = orm.relationship(
       'Job',
       secondary='start_conditions',
       primaryjoin='Job.id==StartCondition.job_id',
       secondaryjoin='StartCondition.preceding_job_id==Job.id',
-      back_populates='dependent_jobs',
-      overlaps='affected_conditions,start_conditions')
+      back_populates='dependent_jobs')
 
   class STATUS:  # pylint: disable=too-few-public-methods
     IDLE = 'idle'
@@ -477,13 +534,12 @@ class Job(database.BaseModel):
     ).delete(synchronize_session=False)
 
   def set_status(self, status):
-    self.update(status=status, status_changed_at=datetime.now())
+    self.update(status=status, status_changed_at=datetime.datetime.utcnow())
 
   def get_ready(self) -> bool:
     """Returns True if the job is ready to be started."""
     if self.status not in Job.STATUS.INACTIVE_STATUSES:
       return False
-    self.set_status(Job.STATUS.WAITING)
     return True
 
   def start_condition_invalidated(self,
@@ -524,8 +580,9 @@ class Job(database.BaseModel):
 
   def start_as_single(self) -> Union[TaskEnqueued, None]:
     if self.status != Job.STATUS.WAITING:
-      # Either `job.get_ready()` wasn't called or it failed.
-      return None
+      # We raise an error as this case should never happen.
+      raise RuntimeError('Job.start_as_single was called outside of '
+                         'Pipeline.start or Pipeline.start_as_single')
     self.set_status(Job.STATUS.RUNNING)
     worker_params = {p.name: p.worker_value for p in self.params}
     return self.enqueue(self.worker_class, worker_params)
@@ -538,12 +595,17 @@ class Job(database.BaseModel):
     namespace = self._get_task_namespace()
     return TaskEnqueued.create(task_namespace=namespace, task_name=task_name)
 
+  def _get_tasks_with_name(self, task_name: str) -> list[TaskEnqueued]:
+    """Returns list of tasks attached to a given name."""
+    task_namespace = self._get_task_namespace()
+    return TaskEnqueued.where(task_namespace=task_namespace,
+                              task_name=task_name).all()
+
   def _delete_task_with_name(self, task_name):
-    """Returns the number of remaining tasks in the DB after deletion."""
+    """Deletes enqueued tasks attached to a given task name."""
     task_namespace = self._get_task_namespace()
     TaskEnqueued.where(task_namespace=task_namespace,
                        task_name=task_name).delete()
-    return self._enqueued_task_count()
 
   def _get_all_tasks(self):
     task_namespace = self._get_task_namespace()
@@ -573,7 +635,7 @@ class Job(database.BaseModel):
 
   def _task_finished(self,
                      task_name: str,
-                     new_job_status: str) -> list[TaskEnqueued]:
+                     new_job_status: str) -> int:
     """Records the task finishing state.
 
     If a job has spinned multiple tasks, we will only consider the status of
@@ -584,45 +646,96 @@ class Job(database.BaseModel):
       new_job_status: Status of the finished task.
 
     Returns:
-      List of dependent tasks enqueued.
+      Number of tasks still running for this given job.
     """
-    was_last_task = self._delete_task_with_name(task_name) == 0
+    # Ignores tasks that are not registered which should be considered an error.
+    found_tasks = self._get_tasks_with_name(task_name)
+    if not found_tasks:
+      crmint_logging.log_message(
+          f'Unregistered task for name: {task_name}',
+          log_level='WARNING',
+          worker_class=self.worker_class,
+          pipeline_id=self.pipeline_id,
+          job_id=self.id)
+      return self._enqueued_task_count()
+
+    self._delete_task_with_name(task_name)
+    num_running_tasks = self._enqueued_task_count()
+    crmint_logging.log_message(
+        f'Running tasks: {num_running_tasks}',
+        log_level='INFO',
+        worker_class=self.worker_class,
+        pipeline_id=self.pipeline_id,
+        job_id=self.id)
+
+    # NOTE: `was_last_task_lock` acts as a kind of concurrent lock, only one
+    #       task can validate this condition.
+    was_last_task_lock = num_running_tasks == 0
+    if not was_last_task_lock:
+      return num_running_tasks
+
     # Updates the job database status if there is no more running tasks.
     # This is essential because one job could spin multiple tasks.
-    # NOTE: `was_last_task` acts as a kind of concurrent lock, only one task can
-    #       validate this condition.
     # NOTE: if a job has spinned multiple tasks, we will only consider the
     #       status of the last task to complete.
-    if was_last_task:
-      self.set_status(new_job_status)
-      # We can safely start children jobs, because of our above concurrent lock.
-      if self.dependent_jobs:
-        return self._start_dependent_jobs()
-      else:
-        self.pipeline.leaf_job_finished()
-    return []
+    stopping_signal = self.status == Job.STATUS.STOPPING
+    self.set_status(new_job_status)
 
-  def task_succeeded(self, task_name: str) -> list[TaskEnqueued]:
+    # Once the job status has been updated, we can check if the pipeline has
+    # already been marked failed to avoid notifying multiple times users.
+    if self.pipeline.status == Pipeline.STATUS.FAILED:
+      return 0
+
+    # We can safely start children jobs, because of our above concurrent lock.
+    # NOTE: Only if stopping has not been triggered.
+    if self.dependent_jobs and not stopping_signal:
+      self._start_dependent_jobs()
+      return 0
+
+    self.pipeline.leaf_job_finished()
+    return 0
+
+  def task_succeeded(self, task_name: str) -> int:
     return self._task_finished(task_name, Job.STATUS.SUCCEEDED)
 
-  def task_failed(self, task_name: str) -> list[TaskEnqueued]:
+  def task_failed(self, task_name: str) -> int:
     return self._task_finished(task_name, Job.STATUS.FAILED)
 
   def stop(self):
+    """Returns True if the job is being stopped, False if it's inactive."""
     if self.status == Job.STATUS.WAITING:
       self.set_status(Job.STATUS.IDLE)
-      return True
+      return False
     if self.status == Job.STATUS.RUNNING:
+      # Sets the status as stopping, waiting for the task to complete.
       self.set_status(Job.STATUS.STOPPING)
-      tasks = self._get_all_tasks()
-      for task_to_stop in tasks:
-        self._task_finished(task_to_stop.name, Job.STATUS.STOPPING)
       return True
     return False
 
 
-class Param(database.BaseModel):
+def _update_legacy_syntaxes(template: str) -> str:
+  """Returns an updated template, using correct jinj2 engine syntax.
+
+  Legacy syntaxes are:
+    1. `{% VAR_NAME %}`, we only detect it when using uppercase with underscore.
+    2. `%(var_name)`, we detect all cases, since it cannot clash with jinja2
+      template syntax.
+
+  Args:
+    template: Content of the template to upgrade.
+  """
+  # 1. `{% VAR_NAME %}`
+  template = re.sub(r'{% ([A-Z0-9_]+) %}', r'{{ \1 }}', template)
+  # 2. `%(var_name)`
+  template = re.sub(r'%\(([^)]+)\)', r'{{ \1 }}', template)
+  return template
+
+
+class Param(extensions.db.Model):
+  """Model encapsulating a parameter value."""
   __tablename__ = 'params'
+  __repr_attrs__ = ['pipeline_id', 'job_id', 'name', 'type']
+
   id = Column(Integer, primary_key=True, autoincrement=True)
   name = Column(String(255), nullable=False)
   type = Column(String(50), nullable=False)
@@ -638,11 +751,8 @@ class Param(database.BaseModel):
     if context is None:
       context = {}
     # Leverages jinja2 templating system to render inline functions.
-    content = self.value
-    # Supports former syntax which used `{% ... %}` instead of `{{ ... }}`,
-    # by substituting only patterns of uppercase variable names.
-    content = re.sub(r'{% ([A-Z0-9]+) %}', r'{{ \1 }}', content)
-    template = jinja2.Template(content, undefined=jinja2.StrictUndefined)
+    updated_value = _update_legacy_syntaxes(self.value)
+    template = jinja2.Template(updated_value, undefined=jinja2.StrictUndefined)
     value = template.render(**inline.functions, **context)
     if self.job_id is not None:
       self.update(runtime_value=value)
@@ -711,8 +821,11 @@ class Param(database.BaseModel):
     Param.destroy(*ids_for_removing)
 
 
-class Schedule(database.BaseModel):  # pylint: disable=too-few-public-methods
+class Schedule(extensions.db.Model):
+  """Model for pipeline' schedule."""
   __tablename__ = 'schedules'
+  __repr_attrs__ = ['pipeline_id']
+
   id = Column(Integer, primary_key=True, autoincrement=True)
   pipeline_id = Column(Integer, ForeignKey('pipelines.id'))
   cron = Column(String(255))
@@ -721,15 +834,21 @@ class Schedule(database.BaseModel):  # pylint: disable=too-few-public-methods
       'Pipeline', foreign_keys=[pipeline_id], back_populates='schedules')
 
 
-class GeneralSetting(database.BaseModel):  # pylint: disable=too-few-public-methods
+class GeneralSetting(extensions.db.Model):
+  """Model to store a general setting."""
   __tablename__ = 'general_settings'
+  __repr_attrs__ = ['name']
+
   id = Column(Integer, primary_key=True, autoincrement=True)
   name = Column(String(255))
   value = Column(Text())
 
 
-class Stage(database.BaseModel):  # pylint: disable=too-few-public-methods
+# TODO(dulacp): deprecate the Stage model.
+class Stage(extensions.db.Model):
+  """Model for a stage."""
   __tablename__ = 'stages'
+
   id = Column(Integer, primary_key=True, autoincrement=True)
   sid = Column(String(255))
 

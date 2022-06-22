@@ -21,12 +21,14 @@ Source: https://github.com/absent1706/sqlalchemy-mixins
 License: MIT
 """
 
-from sqlalchemy import Column, DateTime, func
+from sqlalchemy import Column
+from sqlalchemy import DateTime
+from sqlalchemy import func
 from sqlalchemy import inspect
 from sqlalchemy import orm
 from sqlalchemy import sql
 
-OPERATOR_SPLITTER = '__'
+_OPERATOR_SPLITTER = "__"
 
 
 class TimestampsMixin(object):
@@ -91,11 +93,7 @@ class SessionMixin:
       return cls._session
     else:
       raise ValueError("Cant get session. "
-                       "Please, call BaseModel.set_session()")
-
-  @classproperty
-  def query(cls):  # pylint: disable=no-self-argument
-    return cls.session.query(cls)
+                       "Please, call db.Model.set_session()")
 
 
 class ActiveRecordMixin(InspectionMixin, SessionMixin):
@@ -117,7 +115,7 @@ class ActiveRecordMixin(InspectionMixin, SessionMixin):
   def save(self):
     """Saves the updated model to the current entity db."""
     self.session.add(self)
-    self.session.flush()
+    self.session.commit()
     return self
 
   @classmethod
@@ -140,7 +138,7 @@ class ActiveRecordMixin(InspectionMixin, SessionMixin):
     """Removes the model from the current entity session and mark for deletion.
     """
     self.session.delete(self)
-    self.session.flush()
+    self.session.commit()
 
   @classmethod
   def destroy(cls, *ids):
@@ -189,6 +187,7 @@ class ReprMixin:
 
   @property
   def _repr_attrs_str(self):
+    """Formats attributes for printing a representation of this object."""
     max_length = self.__repr_max_length__
 
     values = []
@@ -251,8 +250,8 @@ class SmartQueryMixin:
     conditions = []
     valid_attributes = cls.filterable_attributes
     for attr, value in filters.items():
-      if OPERATOR_SPLITTER in attr:
-        attr_name, op_name = attr.rsplit(OPERATOR_SPLITTER, 1)
+      if _OPERATOR_SPLITTER in attr:
+        attr_name, op_name = attr.rsplit(_OPERATOR_SPLITTER, 1)
         if op_name not in cls._operators:
           raise KeyError(f"Expression `{attr}` has incorrect "
                          f"operator `{op_name}`")

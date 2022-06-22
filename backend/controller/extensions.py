@@ -17,15 +17,31 @@
 Each extension is initialized in the app factory located in app.py.
 """
 
-
+from flask import _app_ctx_stack
 from flask_cors import CORS
 from flask_migrate import Migrate
 from flask_restful import Api
+from flask_sqlalchemy import model
 from flask_sqlalchemy import SQLAlchemy
 
+from controller import mixins
 
+
+class BaseModel(model.Model, mixins.AllFeaturesMixin, mixins.TimestampsMixin):
+  """Base class for models."""
+  __abstract__ = True
+
+
+db = SQLAlchemy(
+    model_class=BaseModel,
+    session_options={
+        'autocommit': False,
+        'autoflush': False,
+        'scopefunc': _app_ctx_stack.__ident_func__,
+    }
+)
+db.Model.set_session(db.session)  # Binds the scoped session to our models.
 cors = CORS()
-db = SQLAlchemy()
 migrate = Migrate()
 api = Api()  # Default blueprint.
 

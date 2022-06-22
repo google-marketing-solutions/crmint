@@ -3,10 +3,12 @@
 import textwrap
 
 from absl.testing import absltest
+import flask
 import freezegun
 import jinja2
 
 from controller import database
+from controller import extensions
 from controller import models
 
 
@@ -14,16 +16,22 @@ class ModelTestCase(absltest.TestCase):
 
   def setUp(self):
     super().setUp()
-    self._engine = database.init_engine('sqlite:///:memory:')
-    # Load tables schema & seed data
-    database.init_db()
+    # Pushes an application context manually.
+    test_app = flask.Flask(__name__)
+    extensions.db.init_app(test_app)
+    self.ctx = test_app.app_context()
+    self.ctx.push()
+    # Creates tables & loads seed data
+    extensions.db.create_all()
     database.load_fixtures()
 
   def tearDown(self):
     super().tearDown()
-    # Ensure next test is in a clean state
-    database.BaseModel.session.remove()
-    database.BaseModel.metadata.drop_all(bind=self._engine)
+    # Ensures next test is in a clean state
+    extensions.db.session.remove()
+    extensions.db.drop_all()
+    # Drop the app context
+    self.ctx.pop()
 
 
 class TestParamSupportsTypeBase(ModelTestCase):
@@ -179,9 +187,17 @@ class TestParamRuntimeValues(ModelTestCase):
     pipeline = models.Pipeline.create(name='pipeline1')
     job = models.Job.create(name='job1', pipeline_id=pipeline.id)
     param = models.Param.create(job_id=job.id, name='p1',
-                                type='string', value='{% FOO %}')
-    param.populate_runtime_value(context={'FOO': 'BAR'})
+                                type='string', value='{% VAR_FOO %}')
+    param.populate_runtime_value(context={'VAR_FOO': 'BAR'})
     self.assertEqual(param.runtime_value, 'BAR')
+
+  def test_job_param_runtime_value_can_render_legacy_variable_syntax(self):
+    pipeline = models.Pipeline.create(name='pipeline1')
+    job = models.Job.create(name='job1', pipeline_id=pipeline.id)
+    param = models.Param.create(job_id=job.id, name='p1',
+                                type='string', value='foo %(var_foo).')
+    param.populate_runtime_value(context={'var_foo': 'bar'})
+    self.assertEqual(param.runtime_value, 'foo bar.')
 
   def test_job_param_runtime_value_can_render_new_jinja2_variable_syntax(self):
     pipeline = models.Pipeline.create(name='pipeline1')
@@ -333,7 +349,8 @@ class TestPipeline(ModelTestCase):
 
   def test_fails_get_ready_if_running(self):
     pipeline = models.Pipeline.create(status=models.Pipeline.STATUS.RUNNING)
-    self.assertFalse(pipeline.get_ready())
+    self.assertEqual(pipeline.get_ready(),
+                     models.PipelineReadyStatus.ALREADY_RUNNING)
 
   def test_is_blocked_if_running(self):
     pipeline = models.Pipeline.create(status=models.Pipeline.STATUS.RUNNING)
@@ -361,6 +378,21 @@ class TestPipeline(ModelTestCase):
     success = pipeline.populate_params_runtime_values()
     self.assertEqual(success, True)
     self.assertEqual(p5.runtime_value, 'foo baz goo zaz')
+
+
+class TestTaskEnqueued(ModelTestCase):
+
+  def test_count_is_zero(self):
+    self.assertEqual(models.TaskEnqueued.count_in_namespace('xyz'), 0)
+
+  def test_count_is_zero_in_another_namespace(self):
+    models.TaskEnqueued.create(task_namespace='abc')
+    self.assertEqual(models.TaskEnqueued.count_in_namespace('xyz'), 0)
+
+  def test_count_is_not_zero_in_another_namespace(self):
+    models.TaskEnqueued.create(task_namespace='xyz')
+    models.TaskEnqueued.create(task_namespace='abc')
+    self.assertEqual(models.TaskEnqueued.count_in_namespace('xyz'), 1)
 
 
 if __name__ == '__main__':

@@ -14,13 +14,20 @@
 
 """Mailer implementation."""
 
+import textwrap
+
+from common import crmint_logging
 from controller import app_data
 
 
-class AppMailer(object):
+class BaseNotifier(object):
+  """Base class for notifier implementations."""
+  __abstract__ = True
+
   def recipients(self, other_recipients):
-    from controller import models
-    gsetting = models.GeneralSetting.where(name='emails_for_notifications').first()
+    from controller import models  # pylint: disable=g-import-not-at-top
+    gsetting = models.GeneralSetting.where(
+        name='emails_for_notifications').first()
     if gsetting is None or gsetting.value is None:
       recipients = other_recipients
     else:
@@ -28,8 +35,10 @@ class AppMailer(object):
     return recipients
 
 
-class NotificationMailer(AppMailer):
-  SENDER = "CRMintApp %s Notification <%s>" % (
+class NotificationMailer(BaseNotifier):
+  """Mails the notification to the end user."""
+
+  SENDER = 'CRMintApp %s Notification <%s>' % (
       app_data.APP_DATA['app_title'],
       app_data.APP_DATA['notification_sender_email']
   )
@@ -37,8 +46,16 @@ class NotificationMailer(AppMailer):
   def finished_pipeline(self, pipeline):
     recipients = self.recipients(pipeline.recipients)
     if recipients:
-      subject = "Pipeline %s %s." % (pipeline.name, pipeline.status)
-      # TODO(dulacp): log a warning for now.
+      subject = f'Pipeline {pipeline.name} {pipeline.status}'
+      message = textwrap.dedent(f"""\
+          (Mailing System not implemented)
+          Subject: {subject}
+          """)
+      crmint_logging.log_message(message,
+                                 log_level='WARNING',
+                                 worker_class='N/A',
+                                 pipeline_id=pipeline.id,
+                                 job_id=0)
       # mail.send_mail(sender=self.SENDER,
       #                to=recipients,
       #                subject=subject,

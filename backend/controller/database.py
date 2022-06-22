@@ -14,46 +14,17 @@
 
 """Database helper methods."""
 
-from sqlalchemy import create_engine
-from sqlalchemy import orm
+from typing import Callable, Optional
 
-from controller import mixins
-
-engine = None
-Base = orm.declarative_base()
+from controller import models
 
 
-class BaseModel(Base, mixins.AllFeaturesMixin, mixins.TimestampsMixin):
-  """Base class for models."""
-  __abstract__ = True
+def load_fixtures(logger_func: Optional[Callable[[str], None]] = None) -> None:
+  """Loads initial data into the database.
 
-
-def init_engine(uri, **kwargs):
-  """Initialization db engine."""
-  global engine
-  engine = create_engine(uri, **kwargs)
-  session = orm.scoped_session(orm.sessionmaker(bind=engine, autocommit=True))
-  BaseModel.set_session(session)
-  return engine
-
-
-def init_db():
-  """Create model tables.
-
-  NB: Import all modules here that might define models so that
-      they will be registered properly on the metadata.  Otherwise
-      you will have to import them first before calling init_db().
+  Args:
+    logger_func: Logger function to display the loading state.
   """
-  from controller import models  # pylint: disable=unused-import
-  Base.metadata.create_all(bind=engine)
-
-
-def load_fixtures(logger_func=None):
-  """Load initial data into the database.
-
-  :param: Logger function to display the loading state
-  """
-  from controller import models
   general_settings = [
       'client_id', 'client_secret', 'emails_for_notifications',
       'google_ads_authentication_code', 'google_ads_refresh_token',
@@ -67,8 +38,8 @@ def load_fixtures(logger_func=None):
       if logger_func:
         logger_func('Added setting %s' % setting)
 
-def reset_jobs_and_pipelines_statuses_to_idle():
-  from controller import models
+
+def reset_jobs_and_pipelines_statuses_to_idle() -> None:
   models.TaskEnqueued.query.delete()
   for pipeline in models.Pipeline.all():
     for job in pipeline.jobs:
