@@ -26,14 +26,12 @@ from controller import starter
 from controller import views
 
 
-def create_app(api_blueprint, config_object=config.ProdConfig):
+def create_app(config_object=config.ProdConfig):
   """An application factory."""
   app = Flask(__name__.split('.')[1], instance_relative_config=True)
   app.config.from_object(config_object)
-  # NB: set the global api blueprint before registering all the blueprints
-  extensions.set_global_api_blueprint(api_blueprint)
   register_extensions(app)
-  register_api_blueprints(api_blueprint)
+  register_api_blueprints(extensions.api)
   register_blueprints(app)
   return app
 

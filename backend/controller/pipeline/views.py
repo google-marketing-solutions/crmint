@@ -13,30 +13,32 @@
 # limitations under the License.
 
 """Pipeline section."""
+
 import datetime
+import json
 import os
+import textwrap
 import time
 import uuid
 
-from google.cloud.logging import DESCENDING
-
-import werkzeug
-from flask import Blueprint, json
+import flask
 from flask_restful import abort
 from flask_restful import fields
 from flask_restful import marshal_with
-from flask_restful import Resource
 from flask_restful import reqparse
+from flask_restful import Resource
+from google.cloud.logging import DESCENDING
+import jinja2
+import werkzeug
 
-from common import crmint_logging, insight
-from controller.models import Job, Pipeline
-from controller.extensions import api
-
+from common import crmint_logging
+from common import insight
+from controller import models
+from controller import extensions
 
 _PROJECT_ID = os.getenv('GOOGLE_CLOUD_PROJECT')
 
-
-blueprint = Blueprint('pipeline', __name__)
+blueprint = flask.Blueprint('pipeline', __name__)
 
 parser = reqparse.RequestParser()
 parser.add_argument('name')
@@ -77,17 +79,17 @@ def abort_if_pipeline_doesnt_exist(pipeline, pipeline_id):
 
 
 class PipelineSingle(Resource):
-  """Shows a single pipeline item and lets you delete a pipeline item"""
+  """Shows a single pipeline item and lets you delete a pipeline item."""
 
   @marshal_with(pipeline_fields)
   def get(self, pipeline_id):
-    pipeline = Pipeline.find(pipeline_id)
+    pipeline = models.Pipeline.find(pipeline_id)
     abort_if_pipeline_doesnt_exist(pipeline, pipeline_id)
     return pipeline
 
   @marshal_with(pipeline_fields)
   def delete(self, pipeline_id):
-    pipeline = Pipeline.find(pipeline_id)
+    pipeline = models.Pipeline.find(pipeline_id)
 
     abort_if_pipeline_doesnt_exist(pipeline, pipeline_id)
     if pipeline.is_blocked():
@@ -100,7 +102,7 @@ class PipelineSingle(Resource):
 
   @marshal_with(pipeline_fields)
   def put(self, pipeline_id):
-    pipeline = Pipeline.find(pipeline_id)
+    pipeline = models.Pipeline.find(pipeline_id)
     abort_if_pipeline_doesnt_exist(pipeline, pipeline_id)
 
     if pipeline.is_blocked():
@@ -117,19 +119,19 @@ class PipelineSingle(Resource):
 
 
 class PipelineList(Resource):
-  """Shows a list of all pipelines, and lets you POST to add new pipelines"""
+  """Shows a list of all pipelines, and lets you POST to add new pipelines."""
 
   @marshal_with(pipeline_fields)
   def get(self):
     tracker = insight.GAProvider()
     tracker.track_event(category='pipelines', action='list')
-    pipelines = Pipeline.all()
+    pipelines = models.Pipeline.all()
     return pipelines
 
   @marshal_with(pipeline_fields)
   def post(self):
     args = parser.parse_args()
-    pipeline = Pipeline(name=args['name'])
+    pipeline = models.Pipeline(name=args['name'])
     pipeline.assign_attributes(args)
     pipeline.save()
     pipeline.save_relations(args)
@@ -139,10 +141,11 @@ class PipelineList(Resource):
 
 
 class PipelineStart(Resource):
-  """Class for run pipeline"""
+  """Class for run pipeline."""
+
   @marshal_with(pipeline_fields)
   def post(self, pipeline_id):
-    pipeline = Pipeline.find(pipeline_id)
+    pipeline = models.Pipeline.find(pipeline_id)
     pipeline.start()
     tracker = insight.GAProvider()
     tracker.track_event(category='pipelines', action='manual_run')
@@ -150,11 +153,11 @@ class PipelineStart(Resource):
 
 
 class PipelineStop(Resource):
-  """Class for stopping of pipeline"""
+  """Class for stopping of pipeline."""
 
   @marshal_with(pipeline_fields)
   def post(self, pipeline_id):
-    pipeline = Pipeline.find(pipeline_id)
+    pipeline = models.Pipeline.find(pipeline_id)
     pipeline.stop()
     tracker = insight.GAProvider()
     tracker.track_event(category='pipelines', action='manual_stop')
@@ -162,15 +165,13 @@ class PipelineStop(Resource):
 
 
 class PipelineExport(Resource):
-  """Class for exporting of pipeline in yaml format"""
+  """Class for exporting of pipeline in yaml format."""
 
   def get(self, pipeline_id):
     tracker = insight.GAProvider()
     tracker.track_event(category='pipelines', action='export')
-
-    pipeline = Pipeline.find(pipeline_id)
-
-    jobs = self.__get_jobs__(pipeline)
+    pipeline = models.Pipeline.find(pipeline_id)
+    jobs = self._get_jobs(pipeline)
 
     pipeline_params = []
     for param in pipeline.params:
@@ -196,15 +197,15 @@ class PipelineExport(Resource):
     ts = time.time()
     pipeline_date = datetime.datetime.fromtimestamp(ts)
     pipeline_date_formatted = pipeline_date.strftime('%Y%m%d%H%M%S')
-    filename = pipeline.name.lower() + "-" + pipeline_date_formatted + ".json"
+    filename = pipeline.name.lower() + '-' + pipeline_date_formatted + '.json'
     return data, 200, {
         'Access-Control-Expose-Headers': 'Filename',
-        'Content-Disposition': "attachment; filename=" + filename,
+        'Content-Disposition': f'attachment; filename={filename}',
         'Filename': filename,
         'Content-type': 'text/json'
     }
 
-  def __get_jobs__(self, pipeline):
+  def _get_jobs(self, pipeline):
     job_mapping = {}
     for job in pipeline.jobs:
       job_mapping[job.id] = uuid.uuid4().hex
@@ -246,7 +247,7 @@ import_parser.add_argument(
 
 
 class PipelineImport(Resource):
-  """Class for importing of pipeline in yaml format"""
+  """Class for importing of pipeline in yaml format."""
 
   @marshal_with(pipeline_fields)
   def post(self):
@@ -259,7 +260,7 @@ class PipelineImport(Resource):
     data = {}
     if file_:
       data = json.loads(file_.read())
-      pipeline = Pipeline(name=data['name'])
+      pipeline = models.Pipeline(name=data['name'])
       pipeline.save()
       pipeline.import_data(data)
       return pipeline, 201
@@ -268,10 +269,11 @@ class PipelineImport(Resource):
 
 
 class PipelineRunOnSchedule(Resource):
+  """Class for starting a pipeline on a given schedule."""
 
   @marshal_with(pipeline_fields)
   def patch(self, pipeline_id):
-    pipeline = Pipeline.find(pipeline_id)
+    pipeline = models.Pipeline.find(pipeline_id)
     args = parser.parse_args()
     schedule_pipeline = (args['run_on_schedule'] == 'True')
     pipeline.update(run_on_schedule=schedule_pipeline)
@@ -304,62 +306,69 @@ logs_fields = {
 
 
 class PipelineLogs(Resource):
+  """Class for retrieving execution logs."""
 
   def get(self, pipeline_id):
     args = log_parser.parse_args()
     entries = []
-
-    filter_ = f'jsonPayload.labels.pipeline_id="{pipeline_id}"'
-    if args.get('worker_class'):
-      filter_ += ' AND jsonPayload.labels.worker_class="%s"' \
-          % args.get('worker_class')
-    if args.get('job_id'):
-      filter_ += ' AND jsonPayload.labels.job_id="%s"' % args.get('job_id')
-    if args.get('log_level'):
-      filter_ += ' AND jsonPayload.log_level="%s"' % args.get('log_level')
-    if args.get('query'):
-      filter_ += ' AND jsonPayload.message:"%s"' % args.get('query')
-    if args.get('fromdate'):
-      filter_ += ' AND timestamp>="%s"' % args.get('fromdate')
-    if args.get('todate'):
-      filter_ += ' AND timestamp<="%s"' % args.get('todate')
-    if args.get('next_page_token'):
-      filter_ += ' AND timestamp<"%s"' % args.get('next_page_token')
+    template_env = jinja2.Environment(loader=jinja2.BaseLoader)
+    filter_template = template_env.from_string(textwrap.dedent("""\
+        jsonPayload.labels.pipeline_id="{{ pipeline_id }}"
+        {%- if worker_class %} AND jsonPayload.labels.worker_class="{{ worker_class }}"{% endif %}
+        {%- if job_id %} AND jsonPayload.labels.job_id="{{ job_id }}"{% endif %}
+        {%- if log_level %} AND jsonPayload.log_level="{{ log_level }}"{% endif %}
+        {%- if query %} AND jsonPayload.message:"{{ query }}"{% endif %}
+        {%- if fromdate %} AND timestamp>="{{ fromdate }}"{% endif %}
+        {%- if todate %} AND timestamp<="{{ todate }}"{% endif %}
+        {%- if next_page_token %} AND timestamp<"{{ next_page_token }}"{% endif %}
+        """))
+    filter_ = filter_template.render(
+        pipeline_id=pipeline_id,
+        worker_class=args.get('worker_class'),
+        job_id=args.get('job_id'),
+        log_level=args.get('log_level'),
+        query=args.get('query'),
+        fromdate=args.get('fromdate'),
+        todate=args.get('todate'),
+        next_page_token=args.get('next_page_token'))
     list_entries = crmint_logging.get_logger().client.list_entries(
         filter_=filter_,
         order_by=DESCENDING)
     for entry in list_entries:
-      if isinstance(entry.payload, dict) \
-         and entry.payload.get('labels') \
-         and entry.payload.get('labels').get('job_id'):
+      if not isinstance(entry.payload, dict):
+        continue
 
-        job = Job.find(entry.payload.get('labels').get('job_id'))
-        if job:
-          log = {
-              'timestamp': entry.timestamp.isoformat().replace('+00:00', 'Z'),
-              'payload': entry.payload,
-              'job_name': job.name,
-              'log_level': entry.payload.get('log_level', 'INFO')
-          }
-        else:
-          log = {
-              'timestamp': entry.timestamp.isoformat().replace('+00:00', 'Z'),
-              'payload': entry.payload,
-              'job_name': 'N/A',
-              'log_level': entry.payload.get('log_level', 'INFO')
-          }
-        entries.append(log)
+      job_id = entry.payload.get('labels', {}).get('job_id')
+      if not job_id:
+        continue
+
+      job = models.Job.find(job_id)
+      if job:
+        log = {
+            'timestamp': entry.timestamp.isoformat().replace('+00:00', 'Z'),
+            'payload': entry.payload,
+            'job_name': job.name,
+            'log_level': entry.payload.get('log_level', 'INFO'),
+        }
+      else:
+        log = {
+            'timestamp': entry.timestamp.isoformat().replace('+00:00', 'Z'),
+            'payload': entry.payload,
+            'job_name': 'N/A',
+            'log_level': entry.payload.get('log_level', 'INFO'),
+        }
+      entries.append(log)
     return {'entries': entries}
 
 
-api.add_resource(PipelineList, '/pipelines')
-api.add_resource(PipelineSingle, '/pipelines/<pipeline_id>')
-api.add_resource(PipelineStart, '/pipelines/<pipeline_id>/start')
-api.add_resource(PipelineStop, '/pipelines/<pipeline_id>/stop')
-api.add_resource(PipelineExport, '/pipelines/<pipeline_id>/export')
-api.add_resource(PipelineImport, '/pipelines/import')
-api.add_resource(
+extensions.api.add_resource(PipelineList, '/pipelines')
+extensions.api.add_resource(PipelineSingle, '/pipelines/<pipeline_id>')
+extensions.api.add_resource(PipelineStart, '/pipelines/<pipeline_id>/start')
+extensions.api.add_resource(PipelineStop, '/pipelines/<pipeline_id>/stop')
+extensions.api.add_resource(PipelineExport, '/pipelines/<pipeline_id>/export')
+extensions.api.add_resource(PipelineImport, '/pipelines/import')
+extensions.api.add_resource(
     PipelineRunOnSchedule,
     '/pipelines/<pipeline_id>/run_on_schedule'
 )
-api.add_resource(PipelineLogs, '/pipelines/<pipeline_id>/logs')
+extensions.api.add_resource(PipelineLogs, '/pipelines/<pipeline_id>/logs')

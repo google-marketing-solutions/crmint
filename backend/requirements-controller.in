@@ -7,4 +7,3 @@ Flask-Cors
 Flask-Migrate
 mysql-connector-python
 google-cloud-bigquery
-croniter

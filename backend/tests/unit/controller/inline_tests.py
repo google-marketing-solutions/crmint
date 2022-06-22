@@ -12,14 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import unittest
-
+from absl.testing import absltest
 import freezegun
 
 from controller import inline
 
 
-class TestFunctions(unittest.TestCase):
+class TestFunctions(absltest.TestCase):
 
   @freezegun.freeze_time("2018-04-01T00:00:00")
   def test_inline_function_today(self):
@@ -48,3 +47,7 @@ class TestFunctions(unittest.TestCase):
   def test_inline_function_days_since(self):
     func = inline.functions['days_since']
     self.assertEqual(func('2018-03-29', '%Y-%m-%d'), 3)
+
+
+if __name__ == '__main__':
+  absltest.main()

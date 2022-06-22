@@ -14,34 +14,30 @@
 
 """Task results handler."""
 
-import time
-from croniter import croniter
-from flask import Blueprint, request
-from flask_restful import Resource
-from common import insight
-from common.message import BadRequestError, extract_data
-from controller.models import Pipeline
-from controller.extensions import api
+import datetime
 
+from flask import Blueprint
+from flask import request
+from flask_restful import Resource
+
+from common import insight
+from common import message
+from controller import cron_utils
+from controller import extensions
+from controller import models
 
 blueprint = Blueprint('starter', __name__)
 
 
-class StarterResource(Resource):  # pylint: disable=too-few-public-methods
+class StarterResource(Resource):
   """Processes PubSub POST requests from crmint-start-pipeline topic."""
-
-  def _its_time(self, cron_format):
-    """Returns True if current time matches cron time spec."""
-    now = int(time.time())
-    itr = croniter(cron_format, now - 60)
-    nxt = itr.get_next()
-    return now / 60 * 60 == nxt
 
   def _start_scheduled_pipelines(self):
     """Finds and tries starting the pipelines scheduled to be executed now."""
-    for pipeline in Pipeline.where(run_on_schedule=True).all():
+    now_dt = datetime.datetime.utcnow()
+    for pipeline in models.Pipeline.where(run_on_schedule=True).all():
       for schedule in pipeline.schedules:
-        if self._its_time(schedule.cron):
+        if cron_utils.cron_match(schedule.cron, now_dt):
           pipeline.start()
           tracker = insight.GAProvider()
           tracker.track_event(category='pipelines', action='scheduled_run')
@@ -50,7 +46,7 @@ class StarterResource(Resource):  # pylint: disable=too-few-public-methods
   def _start_pipelines(self, pipeline_ids):
     """Tries finding and starting pipelines with IDs specified."""
     for pipeline_id in pipeline_ids:
-      pipeline = Pipeline.find(pipeline_id)
+      pipeline = models.Pipeline.find(pipeline_id)
       if pipeline is not None:
         pipeline.start()
         tracker = insight.GAProvider()
@@ -58,20 +54,20 @@ class StarterResource(Resource):  # pylint: disable=too-few-public-methods
 
   def post(self):
     try:
-      data = extract_data(request)
+      data = message.extract_data(request)
       try:
         pipeline_ids = data['pipeline_ids']
       except KeyError as e:
-        raise BadRequestError() from e
+        raise message.BadRequestError() from e
       if pipeline_ids == 'scheduled':
         self._start_scheduled_pipelines()
       elif isinstance(pipeline_ids, list):
         self._start_pipelines(pipeline_ids)
       else:
-        raise BadRequestError()
-    except BadRequestError as e:
+        raise message.BadRequestError()
+    except message.BadRequestError as e:
       return e.message, e.code
     return 'OK', 200
 
 
-api.add_resource(StarterResource, '/push/start-pipeline')
+extensions.api.add_resource(StarterResource, '/push/start-pipeline')

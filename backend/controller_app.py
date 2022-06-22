@@ -18,10 +18,10 @@ from flask import helpers
 
 import flask_tasks
 from common import auth_filter
-from controller import app, config, extensions
+from controller import app, config
 
 CONFIG = config.DevConfig if helpers.get_debug_flag() else config.ProdConfig
-app = app.create_app(extensions.api, config_object=CONFIG)
+app = app.create_app(config_object=CONFIG)
 flask_tasks.add(app)
 auth_filter.add(app)
 

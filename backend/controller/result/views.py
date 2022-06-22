@@ -14,15 +14,15 @@
 
 """Task results handler."""
 
-from flask import Blueprint, request
+import flask
 from flask_restful import Resource
-from common.message import BadRequestError
-from common.result import Result
-from controller.models import Job
-from controller.extensions import api
 
+from common import message
+from common import result
+from controller import extensions
+from controller import models
 
-blueprint = Blueprint('result', __name__)
+blueprint = flask.Blueprint('result', __name__)
 
 
 class ResultResource(Resource):
@@ -30,18 +30,18 @@ class ResultResource(Resource):
 
   def post(self):
     try:
-      result = Result.from_request(request)
-    except BadRequestError as e:
+      res = result.Result.from_request(flask.request)
+    except message.BadRequestError as e:
       return e.message, e.code
-    if result.success:
-      job = Job.find(result.job_id)
-      for worker_enqueue_agrs in result.workers_to_enqueue:
+    if res.success:
+      job = models.Job.find(res.job_id)
+      for worker_enqueue_agrs in res.workers_to_enqueue:
         job.enqueue(*worker_enqueue_agrs)
-      job.task_succeeded(result.task_name)
+      job.task_succeeded(res.task_name)
     else:
-      job = Job.find(result.job_id)
-      job.task_failed(result.task_name)
+      job = models.Job.find(res.job_id)
+      job.task_failed(res.task_name)
     return 'OK', 200
 
 
-api.add_resource(ResultResource, '/push/task-finished')
+extensions.api.add_resource(ResultResource, '/push/task-finished')

@@ -18,10 +18,11 @@ from flask import Blueprint
 from flask_restful import abort
 from flask_restful import fields
 from flask_restful import marshal_with
-from flask_restful import Resource
 from flask_restful import reqparse
-from controller.models import Stage
-from controller.extensions import api
+from flask_restful import Resource
+
+from controller import extensions
+from controller import models
 
 blueprint = Blueprint('stage', __name__)
 
@@ -40,16 +41,17 @@ def abort_if_stage_doesnt_exist(stage, stage_id):
 
 
 class StageSingle(Resource):
-  """Shows a single stage item and lets you delete a stage item"""
+  """Shows a single stage item and lets you delete a stage item."""
+
   @marshal_with(stage_fields)
   def get(self, stage_id):
-    stage = Stage.find(stage_id)
+    stage = models.Stage.find(stage_id)
     abort_if_stage_doesnt_exist(stage, stage_id)
     return stage
 
   @marshal_with(stage_fields)
   def delete(self, stage_id):
-    stage = Stage.find(stage_id)
+    stage = models.Stage.find(stage_id)
 
     abort_if_stage_doesnt_exist(stage, stage_id)
 
@@ -58,7 +60,7 @@ class StageSingle(Resource):
 
   @marshal_with(stage_fields)
   def put(self, stage_id):
-    stage = Stage.find(stage_id)
+    stage = models.Stage.find(stage_id)
     abort_if_stage_doesnt_exist(stage, stage_id)
 
     args = parser.parse_args()
@@ -69,21 +71,22 @@ class StageSingle(Resource):
 
 
 class StageList(Resource):
-  """Shows a list of all stages, and lets you POST to add new stages"""
+  """Shows a list of all stages, and lets you POST to add new stages."""
+
   @marshal_with(stage_fields)
   def get(self):
-    stages = Stage.all()
+    stages = models.Stage.all()
     return stages
 
   @marshal_with(stage_fields)
   def post(self):
     args = parser.parse_args()
     print('args: ' + args.__str__())
-    stage = Stage()
+    stage = models.Stage()
     stage.assign_attributes(args)
     stage.save()
     return stage, 201
 
 
-api.add_resource(StageList, '/stages')
-api.add_resource(StageSingle, '/stages/<stage_id>')
+extensions.api.add_resource(StageList, '/stages')
+extensions.api.add_resource(StageSingle, '/stages/<stage_id>')
