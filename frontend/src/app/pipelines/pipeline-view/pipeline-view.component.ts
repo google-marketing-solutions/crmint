@@ -125,8 +125,10 @@ export class PipelineViewComponent implements OnInit {
   }
 
   stopPipeline() {
-    this.pipelinesService.stopPipeline(this.pipeline.id)
-                         .then(data => this.pipeline = plainToClass(Pipeline, data as Pipeline));
+    this.pipelinesService.stopPipeline(this.pipeline.id).then(data => {
+      this.pipeline = plainToClass(Pipeline, data as Pipeline);
+      this.loadJobs(this.pipeline.id);
+    });
   }
 
   export() {

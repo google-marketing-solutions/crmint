@@ -16,10 +16,12 @@ from unittest import mock
 
 from absl.testing import absltest
 from absl.testing import parameterized
+import flask
 
 from common import crmint_logging
 from common import task
 from controller import database
+from controller import extensions
 from controller import mailers
 from controller import models
 
@@ -28,18 +30,26 @@ class ModelTestCase(parameterized.TestCase):
 
   def setUp(self):
     super().setUp()
-    self._engine = database.init_engine('sqlite:///:memory:')
-    # Load tables schema & seed data
-    database.init_db()
+    # Pushes an application context manually.
+    test_app = flask.Flask(__name__)
+    extensions.db.init_app(test_app)
+    self.ctx = test_app.app_context()
+    self.ctx.push()
+    # Creates tables & loads seed data
+    extensions.db.create_all()
     database.load_fixtures()
     self.patched_task_enqueue = self.enter_context(
         mock.patch.object(task.Task, 'enqueue', autospec=True))
+    self.patched_log_message = self.enter_context(
+        mock.patch.object(crmint_logging, 'log_message', autospec=True))
 
   def tearDown(self):
     super().tearDown()
-    # Ensure next test is in a clean state
-    database.BaseModel.session.remove()
-    database.BaseModel.metadata.drop_all(bind=self._engine)
+    # Ensures next test is in a clean state
+    extensions.db.session.remove()
+    extensions.db.drop_all()
+    # Drop the app context
+    self.ctx.pop()
 
 
 class TestPipelineWithJobs(ModelTestCase):
@@ -79,30 +89,29 @@ class TestPipelineWithJobs(ModelTestCase):
   )
   def test_start_fails_with_different_job_states(self, job1_status):
     pipeline = models.Pipeline.create()
-    job1 = models.Job.create(pipeline_id=pipeline.id, status=job1_status)
+    _ = models.Job.create(pipeline_id=pipeline.id, status=job1_status)
     result = pipeline.start()
     self.assertEqual(result, False)
-    self.assertEqual(pipeline.status, models.Pipeline.STATUS.IDLE)
+    self.assertEqual(pipeline.status, models.Pipeline.STATUS.FAILED)
 
   def test_start_fails_with_pipeline_if_unknown_parameter(self):
-    patched_log_message = self.enter_context(
-        mock.patch.object(crmint_logging, 'log_message', autospec=True))
     pipeline = models.Pipeline.create()
     job1 = models.Job.create(pipeline_id=pipeline.id, worker_class='Foo')
     models.Param.create(
         job_id=job1.id,
         name='field1',
         type='number',
-        value='{% ABC %}')  # initialize with a non-boolean value
+        value='{% VAR_FOO %}')  # initialize with a non-boolean value
     self.assertEqual(pipeline.status, models.Pipeline.STATUS.IDLE)
     pipeline.start()
-    patched_log_message.assert_called_once_with(
-        'Invalid job parameter "None": \'ABC\' is undefined',
+    self.patched_log_message.assert_called_once_with(
+        'Invalid job parameter "None": \'VAR_FOO\' is undefined',
         log_level='ERROR',
         worker_class='Foo',
         pipeline_id=pipeline.id,
         job_id=job1.id)
-    self.assertEqual(pipeline.status, models.Pipeline.STATUS.IDLE)
+    self.assertEqual(job1.status, models.Job.STATUS.FAILED)
+    self.assertEqual(pipeline.status, models.Pipeline.STATUS.FAILED)
 
   def test_stop_fails_if_not_running(self):
     pipeline = models.Pipeline.create(status=models.Pipeline.STATUS.IDLE)
@@ -121,22 +130,62 @@ class TestPipelineWithJobs(ModelTestCase):
     self.assertEqual(pipeline.jobs[0].status, models.Job.STATUS.SUCCEEDED)
     self.assertEqual(pipeline.jobs[1].status, models.Job.STATUS.STOPPING)
     self.assertEqual(pipeline.jobs[2].status, models.Job.STATUS.STOPPING)
-    self.assertEqual(pipeline.status, models.Pipeline.STATUS.IDLE)
+    self.assertEqual(pipeline.status, models.Pipeline.STATUS.STOPPING)
 
-  def test_stop_succeeds_if_all_jobs_succeeded(self):
+  def test_stop_dependent_jobs(self):
+    pipeline = models.Pipeline.create(status=models.Pipeline.STATUS.IDLE)
+    job1 = models.Job.create(
+        pipeline_id=pipeline.id, status=models.Job.STATUS.IDLE)
+    job2 = models.Job.create(
+        pipeline_id=pipeline.id, status=models.Job.STATUS.IDLE)
+    models.StartCondition.create(
+        job_id=job2.id,
+        preceding_job_id=job1.id,
+        condition=models.StartCondition.CONDITION.SUCCESS)
+    pipeline.start()
+    self.assertEqual(pipeline.status, models.Pipeline.STATUS.RUNNING)
+    self.assertEqual(job1.status, models.Job.STATUS.RUNNING)
+    self.assertEqual(job2.status, models.Job.STATUS.WAITING)
+    stopping = pipeline.stop()
+    self.assertTrue(stopping)
+    self.assertEqual(job1.status, models.Job.STATUS.STOPPING)
+    self.assertEqual(job2.status, models.Job.STATUS.IDLE)
+    self.assertEqual(pipeline.status, models.Pipeline.STATUS.STOPPING)
+    task1 = models.TaskEnqueued.all()[0]
+    job1.task_succeeded(task1.name)
+    self.assertEqual(job1._enqueued_task_count(), 0)
+    self.assertEqual(job1.status, models.Job.STATUS.SUCCEEDED)
+    self.assertEqual(job2.status, models.Job.STATUS.IDLE)
+    self.assertEqual(pipeline.status, models.Pipeline.STATUS.SUCCEEDED)
+
+  def test_stopping_one_job_should_not_start_dependent_jobs(self):
     pipeline = models.Pipeline.create(status=models.Pipeline.STATUS.RUNNING)
-    models.Job.create(
-        pipeline_id=pipeline.id, status=models.Job.STATUS.SUCCEEDED)
-    models.Job.create(
-        pipeline_id=pipeline.id, status=models.Job.STATUS.SUCCEEDED)
-    models.Job.create(
-        pipeline_id=pipeline.id, status=models.Job.STATUS.SUCCEEDED)
-    result = pipeline.stop()
-    self.assertTrue(result)
-    self.assertEqual(pipeline.jobs[0].status, models.Job.STATUS.SUCCEEDED)
-    self.assertEqual(pipeline.jobs[1].status, models.Job.STATUS.SUCCEEDED)
-    self.assertEqual(pipeline.jobs[2].status, models.Job.STATUS.SUCCEEDED)
-    self.assertEqual(pipeline.status, models.Pipeline.STATUS.IDLE)
+    job1 = models.Job.create(
+        pipeline_id=pipeline.id, status=models.Job.STATUS.WAITING)
+    job2 = models.Job.create(
+        pipeline_id=pipeline.id, status=models.Job.STATUS.WAITING)
+    models.StartCondition.create(
+        job_id=job2.id,
+        preceding_job_id=job1.id,
+        condition=models.StartCondition.CONDITION.SUCCESS)
+    task1 = job1.start()
+    self.assertIsNotNone(task1)
+    stopping = job1.stop()
+    self.assertTrue(stopping)
+    self.assertEqual(job1.status, models.Job.STATUS.STOPPING)
+    self.assertEqual(job1._enqueued_task_count(), 1)
+    self.assertEqual(job2.status, models.Job.STATUS.WAITING)
+    self.assertEqual(job2._enqueued_task_count(), 0)
+    job1.task_failed(task1.name)
+    self.assertEqual(job1.status, models.Job.STATUS.FAILED)
+    self.assertEqual(job1._enqueued_task_count(), 0)
+
+  def test_inactive_job_unaffected_by_incoming_finished_task(self):
+    pipeline = models.Pipeline.create(status=models.Pipeline.STATUS.IDLE)
+    job1 = models.Job.create(
+        pipeline_id=pipeline.id, status=models.Job.STATUS.IDLE)
+    job1.task_succeeded('untracked_task_name')
+    self.assertEqual(job1.status, models.Job.STATUS.IDLE)
 
   def test_start_single_job_succeeds(self):
     pipeline = models.Pipeline.create(status=models.Pipeline.STATUS.IDLE)
@@ -151,8 +200,9 @@ class TestPipelineWithJobs(ModelTestCase):
     job1 = models.Job.create(pipeline_id=pipeline.id)
     result = pipeline.start_single_job(job1)
     self.assertFalse(result)
-    self.assertEqual(job1.status, models.Job.STATUS.IDLE)
-    self.assertEqual(pipeline.status, models.Pipeline.STATUS.RUNNING)
+    # We set failed, to notify the user in the UI.
+    self.assertEqual(job1.status, models.Job.STATUS.FAILED)
+    self.assertEqual(pipeline.status, models.Pipeline.STATUS.FAILED)
 
   def test_pipeline_failing_without_conditions_should_cancel_all_tasks(self):
     pipeline = models.Pipeline.create(status=models.Pipeline.STATUS.RUNNING)
@@ -174,10 +224,13 @@ class TestPipelineWithJobs(ModelTestCase):
       job2.task_failed(task2.name)
       self.assertEqual(job2.status, models.Job.STATUS.FAILED)
       self.assertEqual(job2._enqueued_task_count(), 0)
+      self.assertEqual(pipeline.status, models.Pipeline.STATUS.FAILED)
       # It should trigger the end of the pipeline by itself
       self.assertEqual(job1.status, models.Job.STATUS.STOPPING)
+      self.assertEqual(job1._enqueued_task_count(), 1)
+      job1.task_succeeded(task1.name)
+      self.assertEqual(job1.status, models.Job.STATUS.SUCCEEDED)
       self.assertEqual(job1._enqueued_task_count(), 0)
-      self.assertEqual(pipeline.status, models.Pipeline.STATUS.FAILED)
 
 
 class TestPipelineFinishingStatus(ModelTestCase):
@@ -253,9 +306,11 @@ class TestPipelineFinishingStatus(ModelTestCase):
         mock.patch.object(
             mailers.NotificationMailer, 'finished_pipeline', autospec=True))
     pipeline = models.Pipeline.create(status=models.Pipeline.STATUS.RUNNING)
-    models.Job.create(
-        pipeline_id=pipeline.id, status=job_status)
-    pipeline.leaf_job_finished()
+    job1 = models.Job.create(
+        pipeline_id=pipeline.id, status=models.Job.STATUS.WAITING)
+    task1 = job1.start()
+    job1._task_finished(task1.name, job_status)
+    self.assertNotEqual(pipeline.status, models.Pipeline.STATUS.RUNNING)
     patched_mailer.assert_called_once_with(mock.ANY, pipeline)
 
 
@@ -327,12 +382,26 @@ class TestPipelineImport(ModelTestCase):
 class TestJobStartedStatus(ModelTestCase):
 
   def test_succeeds_status_running(self):
-    pipeline = models.Pipeline.create()
-    job = models.Job.create(pipeline_id=pipeline.id)
-    self.assertTrue(pipeline.get_ready())
-    self.assertEqual(job.status, models.Job.STATUS.WAITING)
-    self.assertTrue(job.start())
+    pipeline = models.Pipeline.create(status=models.Pipeline.STATUS.RUNNING)
+    job = models.Job.create(
+        pipeline_id=pipeline.id, status=models.Job.STATUS.WAITING)
+    started = job.start()
+    self.assertTrue(started)
     self.assertEqual(job.status, models.Job.STATUS.RUNNING)
+
+  def test_fails_if_running(self):
+    pipeline = models.Pipeline.create(status=models.Pipeline.STATUS.RUNNING)
+    job = models.Job.create(
+        pipeline_id=pipeline.id, status=models.Job.STATUS.RUNNING)
+    with self.assertRaises(RuntimeError):
+      job.start()
+
+  def test_single_fails_if_running(self):
+    pipeline = models.Pipeline.create(status=models.Pipeline.STATUS.RUNNING)
+    job = models.Job.create(
+        pipeline_id=pipeline.id, status=models.Job.STATUS.RUNNING)
+    with self.assertRaises(RuntimeError):
+      job.start_as_single()
 
 
 class TestJobDestroy(ModelTestCase):
@@ -417,7 +486,7 @@ class TestJobStartConditions(ModelTestCase):
         },
     ]
     job3.assign_start_conditions(arg_start_conditions)
-    self.assertEqual(len(job3.start_conditions), 2)
+    self.assertLen(job3.start_conditions, 2)
 
   def test_update_start_conditions_succeeds(self):
     pipeline = models.Pipeline.create()
@@ -447,16 +516,6 @@ class TestJobStartConditions(ModelTestCase):
                      models.StartCondition.CONDITION.SUCCESS)
     self.assertEqual(job3.start_conditions[1].condition,
                      models.StartCondition.CONDITION.SUCCESS)
-
-  def test_fails_if_running(self):
-    pipeline = models.Pipeline.create(status=models.Pipeline.STATUS.RUNNING)
-    job = models.Job.create(
-        pipeline_id=pipeline.id, status=models.Job.STATUS.WAITING)
-    task1 = job.start()
-    self.assertIsNotNone(task1)
-    self.assertEqual(job.status, models.Job.STATUS.RUNNING)
-    task2 = job.start()
-    self.assertIsNone(task2)
 
   def test_succeeds_if_waiting_without_start_conditions(self):
     pipeline = models.Pipeline.create(status=models.Pipeline.STATUS.RUNNING)
@@ -548,7 +607,7 @@ class TestJobStopConditions(ModelTestCase):
     job1 = models.Job.create(
         pipeline_id=pipeline.id, status=models.Job.STATUS.WAITING)
     result = job1.stop()
-    self.assertTrue(result)
+    self.assertFalse(result)
     self.assertEqual(job1.status, models.Job.STATUS.IDLE)
 
   def test_stop_succeeds_with_running(self):
@@ -559,6 +618,8 @@ class TestJobStopConditions(ModelTestCase):
     self.assertIsNotNone(task1)
     self.assertTrue(job1.stop())
     self.assertEqual(job1.status, models.Job.STATUS.STOPPING)
+    job1.task_succeeded(task1.name)
+    self.assertEqual(job1.status, models.Job.STATUS.SUCCEEDED)
 
   def test_stop_succeeds_with_outdated_tasks(self):
     pipeline = models.Pipeline.create(status=models.Pipeline.STATUS.RUNNING)
@@ -567,11 +628,10 @@ class TestJobStopConditions(ModelTestCase):
     task1 = job1.start()
     self.assertIsNotNone(task1)
     self.assertLen(models.TaskEnqueued.all(), 1)
-    # Removes all tasks to simulate a failure in communication.
+    # Removes all tasks to simulate a duplicated pub/sub message for example.
     models.TaskEnqueued.query.delete()
     self.assertTrue(job1.stop())
     self.assertEqual(job1.status, models.Job.STATUS.STOPPING)
-    self.assertEmpty(models.TaskEnqueued.all())
 
 
 class TestJobStartWithDependentJobs(ModelTestCase):
@@ -682,9 +742,11 @@ class TestJobStartingMultipleTasks(ModelTestCase):
         preceding_job_id=job1.id,
         condition=models.StartCondition.CONDITION.WHATEVER)
     task1 = job1.start()
-    with self.subTest('Job 1 failed'):
-      enqueued_tasks = job1._task_finished(task1.name, job1_status)
-      task2 = enqueued_tasks[0]
+    with self.subTest('Job 1 finished'):
+      job1_remaining_tasks = job1._task_finished(task1.name, job1_status)
+      self.assertEqual(job1_remaining_tasks, 0)
+      self.assertEqual(job2._enqueued_task_count(), 1)
+      task2 = job2._get_all_tasks()[0]
       self.assertEqual(job1.status, job1_status)
       self.assertEqual(job2.status, models.Job.STATUS.RUNNING)
       self.assertEqual(pipeline.status, models.Pipeline.STATUS.RUNNING)

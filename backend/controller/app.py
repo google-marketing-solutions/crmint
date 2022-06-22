@@ -17,7 +17,6 @@
 from flask import Flask
 
 from controller import config
-from controller import database
 from controller import extensions
 from controller import job
 from controller import pipeline
@@ -43,7 +42,6 @@ def register_extensions(app):
   """Register Flask extensions."""
   extensions.cors.init_app(app)
   extensions.db.init_app(app)
-  database.init_engine(app.config['SQLALCHEMY_DATABASE_URI'])
   extensions.migrate.init_app(app, extensions.db)
 
 

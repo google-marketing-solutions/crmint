@@ -137,6 +137,7 @@ class BQToMeasurementProtocolProcessorGA4(bq_worker.BQWorker):
           'please update to the Template Strings syntax: '
           'https://docs.python.org/3/library/string.html#template-strings.')
 
+    # TODO(dulacp): Migrate to jinja2 templates, will help for batches
     # TODO(dulacp): Implement batches to optimize the overall upload duration.
     num_rows = page.num_items
     template = string.Template(self._params['template'])
