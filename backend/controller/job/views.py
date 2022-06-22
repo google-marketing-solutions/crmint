@@ -13,12 +13,17 @@
 # limitations under the License.
 
 """Job section."""
+
 from flask import Blueprint
-from flask_restful import Resource, reqparse, marshal_with, fields, abort
+from flask_restful import abort
+from flask_restful import fields
+from flask_restful import marshal_with
+from flask_restful import reqparse
+from flask_restful import Resource
 
 from common import insight
-from controller.models import Job, Pipeline
-from controller.extensions import api
+from controller import extensions
+from controller import models
 
 blueprint = Blueprint('job', __name__)
 
@@ -61,16 +66,17 @@ def abort_if_job_doesnt_exist(job, job_id):
 
 
 class JobSingle(Resource):
-  """Shows a single job item and lets you delete a job item"""
+  """Shows a single job item and lets you delete a job item."""
+
   @marshal_with(job_fields)
   def get(self, job_id):
-    job = Job.find(job_id)
+    job = models.Job.find(job_id)
     abort_if_job_doesnt_exist(job, job_id)
     return job
 
   @marshal_with(job_fields)
   def delete(self, job_id):
-    job = Job.find(job_id)
+    job = models.Job.find(job_id)
     abort_if_job_doesnt_exist(job, job_id)
 
     if job.pipeline.is_blocked():
@@ -85,7 +91,7 @@ class JobSingle(Resource):
 
   @marshal_with(job_fields)
   def put(self, job_id):
-    job = Job.find(job_id)
+    job = models.Job.find(job_id)
     abort_if_job_doesnt_exist(job, job_id)
 
     if job.pipeline.is_blocked():
@@ -102,46 +108,52 @@ class JobSingle(Resource):
 
 
 class JobList(Resource):
-  """Shows a list of all jobs, and lets you POST to add new jobs"""
+  """Shows a list of all jobs, and lets you POST to add new jobs."""
+
   @marshal_with(job_fields)
   def get(self):
     args = parser.parse_args()
-    pipeline = Pipeline.find(args['pipeline_id'])
+    pipeline = models.Pipeline.find(args['pipeline_id'])
     jobs = pipeline.jobs.all()
     return jobs
 
   @marshal_with(job_fields)
   def post(self):
     args = parser.parse_args()
-    pipeline = Pipeline.find(args['pipeline_id'])
+    pipeline = models.Pipeline.find(args['pipeline_id'])
 
     if pipeline.is_blocked():
       return {
           'message': 'Creating new jobs for active pipeline is unavailable'
       }, 422
 
-    job = Job(args['name'], args['worker_class'], args['pipeline_id'])
+    job = models.Job(args['name'], args['worker_class'], args['pipeline_id'])
     job.assign_attributes(args)
     job.save()
     job.save_relations(args)
     tracker = insight.GAProvider()
-    tracker.track_event(category='jobs', action='create',
+    tracker.track_event(
+        category='jobs',
+        action='create',
         label=args['worker_class'])
     return job, 201
 
 
 class JobStart(Resource):
-  """Class for running of job"""
+  """Class for running of job."""
+
   @marshal_with(job_fields)
   def post(self, job_id):
-    job = Job.find(job_id)
+    job = models.Job.find(job_id)
     job.pipeline.start_single_job(job)
     tracker = insight.GAProvider()
-    tracker.track_event(category='jobs', action='manual_run',
+    tracker.track_event(
+        category='jobs',
+        action='manual_run',
         label=job.worker_class)
     return job
 
 
-api.add_resource(JobList, '/jobs')
-api.add_resource(JobSingle, '/jobs/<job_id>')
-api.add_resource(JobStart, '/jobs/<job_id>/start')
+extensions.api.add_resource(JobList, '/jobs')
+extensions.api.add_resource(JobSingle, '/jobs/<job_id>')
+extensions.api.add_resource(JobStart, '/jobs/<job_id>/start')
