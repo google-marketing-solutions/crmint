@@ -98,6 +98,8 @@ class CloudChecklistTest(parameterized.TestCase):
   @parameterized.named_parameters(
       ('User not project owner', 'roles/editor', 1),
       ('User is project owner', 'roles/owner', 0),
+      ('User is project owner has other role', 'roles/owner\nroles/viewer', 0),
+      ('User has other role is project owner', 'roles/viewer\nroles/owner', 0),
   )
   def test_user_not_project_owner(self, user_role, exit_code):
     side_effect_run = test_helpers.mock_subprocess_result_side_effect(
