@@ -23,9 +23,11 @@ from jobs.workers.bigquery import bq_query_launcher
 from jobs.workers.bigquery import bq_script_executor
 from jobs.workers.bigquery import bq_to_measurement_protocol_ga4
 from jobs.workers.bigquery import bq_to_storage_exporter
+from jobs.workers.bigquery import bq_waiter
 from jobs.workers.bigquery import storage_to_bq_importer
 from jobs.workers.ga import ga_audiences_updater
 from jobs.workers.ga import ga_data_importer
+from jobs.workers.ga import ga_waiter
 from jobs.workers.storage import storage_cleaner
 
 ConcreteWorker = TypeVar('ConcreteWorker', bound=worker.Worker)
@@ -67,6 +69,8 @@ WORKERS_MAPPING = {
 _PRIVATE_WORKERS_MAPPING = {
   'BQToMeasurementProtocolProcessorGA4':
         bq_to_measurement_protocol_ga4.BQToMeasurementProtocolProcessorGA4,
+  'BQWaiter': bq_waiter.BQWaiter,
+  'GADataImportUploadWaiter': ga_waiter.GADataImportUploadWaiter,
 }
 
 
