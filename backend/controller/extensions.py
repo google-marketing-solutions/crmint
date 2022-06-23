@@ -20,7 +20,6 @@ Each extension is initialized in the app factory located in app.py.
 from flask import _app_ctx_stack
 from flask_cors import CORS
 from flask_migrate import Migrate
-from flask_restful import Api
 from flask_sqlalchemy import model
 from flask_sqlalchemy import SQLAlchemy
 
@@ -43,9 +42,3 @@ db = SQLAlchemy(
 db.Model.set_session(db.session)  # Binds the scoped session to our models.
 cors = CORS()
 migrate = Migrate()
-api = Api()  # Default blueprint.
-
-
-def set_global_api_blueprint(api_blueprint):
-  global api  # pylint: disable=global-statement
-  api = api_blueprint

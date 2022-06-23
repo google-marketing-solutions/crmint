@@ -18,15 +18,16 @@ import datetime
 
 from flask import Blueprint
 from flask import request
+from flask_restful import Api
 from flask_restful import Resource
 
 from common import insight
 from common import message
 from controller import cron_utils
-from controller import extensions
 from controller import models
 
 blueprint = Blueprint('starter', __name__)
+api = Api(blueprint)
 
 
 class StarterResource(Resource):
@@ -70,4 +71,4 @@ class StarterResource(Resource):
     return 'OK', 200
 
 
-extensions.api.add_resource(StarterResource, '/push/start-pipeline')
+api.add_resource(StarterResource, '/push/start-pipeline')

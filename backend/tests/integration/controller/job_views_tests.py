@@ -12,25 +12,36 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from google.appengine.ext import testbed
+from absl.testing import absltest
 
-from core import models
-
-import os
-import sys
-sys.path.insert(0, os.getcwd())
+from controller import models
 from tests import utils
 
-class TestJobList(utils.IBackendBaseTest):
 
-  def setUp(self):
-    super(TestJobList, self).setUp()
-    self.testbed = testbed.Testbed()
-    self.testbed.activate()
-    # Activate which service we want to stub
-    self.testbed.init_app_identity_stub()
+class TestJobViews(utils.ControllerAppTest):
 
   def test_list_with_success(self):
     pipeline = models.Pipeline.create()
     response = self.client.get('/api/jobs?pipeline_id=%d' % pipeline.id)
     self.assertEqual(response.status_code, 200)
+
+  def test_missing_job(self):
+    response = self.client.get('/api/jobs/1')
+    self.assertEqual(response.status_code, 404)
+
+  def test_retrieve_job(self):
+    pipeline = models.Pipeline.create()
+    models.Job.create(pipeline_id=pipeline.id)
+    response = self.client.get('/api/jobs/1')
+    self.assertEqual(response.status_code, 200)
+
+  def test_start_single_job(self):
+    pipeline = models.Pipeline.create()
+    job1 = models.Job.create(pipeline_id=pipeline.id)
+    response = self.client.post('/api/jobs/1/start')
+    self.assertEqual(response.status_code, 200)
+    self.assertEqual(job1.status, models.Job.STATUS.RUNNING)
+
+
+if __name__ == '__main__':
+  absltest.main()

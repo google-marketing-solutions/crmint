@@ -16,15 +16,16 @@
 
 from flask import Blueprint
 from flask_restful import abort
+from flask_restful import Api
 from flask_restful import fields
 from flask_restful import marshal_with
 from flask_restful import reqparse
 from flask_restful import Resource
 
-from controller import extensions
 from controller import models
 
 blueprint = Blueprint('stage', __name__)
+api = Api(blueprint)
 
 parser = reqparse.RequestParser()
 parser.add_argument('sid')
@@ -40,6 +41,7 @@ def abort_if_stage_doesnt_exist(stage, stage_id):
     abort(404, message="Stage {} doesn't exist".format(stage_id))
 
 
+# TODO(dulacp): Removes these endpoints that are not used anymore.
 class StageSingle(Resource):
   """Shows a single stage item and lets you delete a stage item."""
 
@@ -88,5 +90,5 @@ class StageList(Resource):
     return stage, 201
 
 
-extensions.api.add_resource(StageList, '/stages')
-extensions.api.add_resource(StageSingle, '/stages/<stage_id>')
+api.add_resource(StageList, '/stages')
+api.add_resource(StageSingle, '/stages/<stage_id>')

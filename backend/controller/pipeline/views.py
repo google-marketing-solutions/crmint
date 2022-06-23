@@ -23,6 +23,7 @@ import uuid
 
 import flask
 from flask_restful import abort
+from flask_restful import Api
 from flask_restful import fields
 from flask_restful import marshal_with
 from flask_restful import reqparse
@@ -34,11 +35,11 @@ import werkzeug
 from common import crmint_logging
 from common import insight
 from controller import models
-from controller import extensions
 
 _PROJECT_ID = os.getenv('GOOGLE_CLOUD_PROJECT')
 
 blueprint = flask.Blueprint('pipeline', __name__)
+api = Api(blueprint)
 
 parser = reqparse.RequestParser()
 parser.add_argument('name')
@@ -361,14 +362,14 @@ class PipelineLogs(Resource):
     return {'entries': entries}
 
 
-extensions.api.add_resource(PipelineList, '/pipelines')
-extensions.api.add_resource(PipelineSingle, '/pipelines/<pipeline_id>')
-extensions.api.add_resource(PipelineStart, '/pipelines/<pipeline_id>/start')
-extensions.api.add_resource(PipelineStop, '/pipelines/<pipeline_id>/stop')
-extensions.api.add_resource(PipelineExport, '/pipelines/<pipeline_id>/export')
-extensions.api.add_resource(PipelineImport, '/pipelines/import')
-extensions.api.add_resource(
+api.add_resource(PipelineList, '/pipelines')
+api.add_resource(PipelineSingle, '/pipelines/<pipeline_id>')
+api.add_resource(PipelineStart, '/pipelines/<pipeline_id>/start')
+api.add_resource(PipelineStop, '/pipelines/<pipeline_id>/stop')
+api.add_resource(PipelineExport, '/pipelines/<pipeline_id>/export')
+api.add_resource(PipelineImport, '/pipelines/import')
+api.add_resource(
     PipelineRunOnSchedule,
     '/pipelines/<pipeline_id>/run_on_schedule'
 )
-extensions.api.add_resource(PipelineLogs, '/pipelines/<pipeline_id>/logs')
+api.add_resource(PipelineLogs, '/pipelines/<pipeline_id>/logs')
