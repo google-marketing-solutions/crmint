@@ -15,14 +15,15 @@
 """Task results handler."""
 
 import flask
+from flask_restful import Api
 from flask_restful import Resource
 
 from common import message
 from common import result
-from controller import extensions
 from controller import models
 
 blueprint = flask.Blueprint('result', __name__)
+api = Api(blueprint)
 
 
 class ResultResource(Resource):
@@ -44,4 +45,4 @@ class ResultResource(Resource):
     return 'OK', 200
 
 
-extensions.api.add_resource(ResultResource, '/push/task-finished')
+api.add_resource(ResultResource, '/push/task-finished')

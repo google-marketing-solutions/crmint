@@ -12,10 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+"""Helpers for communicating with Pub/Sub."""
 
 import base64
-from datetime import datetime
-from datetime import timedelta
+import datetime
 import json
 import os
 
@@ -58,7 +58,8 @@ class _Publisher:  # pylint: disable=too-few-public-methods
       cls._client = pubsub_v1.PublisherClient()
     topic_path = f'projects/{cls._PROJECT}/topics/{topic}'
     binary_data = json.dumps(data).encode('utf-8')
-    start_time = int((datetime.utcnow() + timedelta(seconds=delay)).timestamp())
+    delay_delta = datetime.timedelta(seconds=delay)
+    start_time = int((datetime.datetime.utcnow() + delay_delta).timestamp())
     cls._client.publish(topic_path, binary_data, start_time=str(start_time))
 
 
@@ -76,9 +77,9 @@ def extract_data(request):  # pylint: disable=unused-argument
   except (TypeError, KeyError) as e:
     raise BadRequestError() from e
   try:
-    start_time = datetime.fromtimestamp(
+    start_time = datetime.datetime.fromtimestamp(
         int(message['attributes']['start_time']))
-    if datetime.utcnow() < start_time:
+    if datetime.datetime.utcnow() < start_time:
       raise TooEarlyError(start_time)
   except KeyError as e:
     raise BadRequestError() from e

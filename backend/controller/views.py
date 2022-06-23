@@ -15,16 +15,20 @@
 """General section."""
 
 from flask import Blueprint
-from flask_restful import Resource, fields, marshal_with, reqparse
+from flask_restful import Api
+from flask_restful import fields
+from flask_restful import marshal_with
+from flask_restful import reqparse
+from flask_restful import Resource
 
 from controller import ads_auth_code
 from controller import app_data
-from controller import extensions
 from controller import models
 
 # from google.appengine.api import urlfetch
 
 blueprint = Blueprint('general', __name__)
+api = Api(blueprint)
 
 parser = reqparse.RequestParser()
 parser.add_argument('variables', type=list, location='json')
@@ -63,11 +67,13 @@ global_variables_fields = {
 
 
 class Configuration(Resource):
+  """Fetches configuration parameters."""
 
   @marshal_with(configuration_fields)
   def get(self):
     # urlfetch.set_default_fetch_deadline(300)
-    params = models.Param.where(pipeline_id=None, job_id=None).order_by(models.Param.name)
+    query = models.Param.where(pipeline_id=None, job_id=None)
+    params = query.order_by(models.Param.name)
     settings = models.GeneralSetting.query.order_by(models.GeneralSetting.name)
 
     # Get client id and secret from input fields stored in database
@@ -85,6 +91,7 @@ class Configuration(Resource):
 
 
 class GlobalVariable(Resource):
+  """Updates a global parameter."""
 
   @marshal_with(global_variables_fields)
   def put(self):
@@ -96,6 +103,7 @@ class GlobalVariable(Resource):
 
 
 class GeneralSettingsRoute(Resource):
+  """Updates general settings, among them Google Ads authentication."""
 
   @marshal_with(settings_fields)
   def put(self):
@@ -126,6 +134,7 @@ class GeneralSettingsRoute(Resource):
       settings.append(setting)
     return settings
 
-extensions.api.add_resource(Configuration, '/configuration')
-extensions.api.add_resource(GlobalVariable, '/global_variables')
-extensions.api.add_resource(GeneralSettingsRoute, '/general_settings')
+
+api.add_resource(Configuration, '/configuration')
+api.add_resource(GlobalVariable, '/global_variables')
+api.add_resource(GeneralSettingsRoute, '/general_settings')

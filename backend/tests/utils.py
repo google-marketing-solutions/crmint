@@ -12,75 +12,65 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import mock
-import unittest
+"""Testing utils."""
 
-from flask_restful import Api
-from flask_testing import TestCase
+from unittest import mock
 
-from core import database
-from core import extensions
-from ibackend.app import create_app as ibackend_create_app
-from jbackend.app import create_app as jbackend_create_app
+from absl.testing import parameterized
+
+from common import crmint_logging
+from common import insight
+from common import task
+from controller import app
+from controller import database
+from controller import extensions
 
 
-class ModelTestCase(unittest.TestCase):
-
-  SQLALCHEMY_DATABASE_URI = \
-      'mysql+mysqldb://crmint:crmint@localhost:3306/crmintapp_test'
+class TestConfig(object):
+  """Test configuration."""
   SQLALCHEMY_TRACK_MODIFICATIONS = False
-
-  def setUp(self):
-    self._engine = database.init_engine(self.SQLALCHEMY_DATABASE_URI)
-    # Load tables schema & seed data
-    database.init_db()
-    database.load_fixtures()
-
-  def tearDown(self):
-    # Ensure next test is in a clean state
-    database.BaseModel.session.remove()
-    database.BaseModel.metadata.drop_all(bind=self._engine)
+  SQLALCHEMY_DATABASE_URI = 'sqlite:///:memory:'
 
 
-class BaseTestCase(TestCase):
+class AppTestCase(parameterized.TestCase):
+  """Base class for app testing."""
 
-  ENV = 'dev'
-  DEBUG = True
-  SQLALCHEMY_DATABASE_URI = \
-      'mysql+mysqldb://crmint:crmint@localhost:3306/crmintapp_test'
-  SQLALCHEMY_TRACK_MODIFICATIONS = False
+  ctx = None
+  client = None
 
   def create_app(self):
     raise NotImplementedError
 
   def setUp(self):
-    # Load tables schema & seed data
-    database.init_db()
+    super().setUp()
+    test_app = self.create_app()
+    # Pushes an application context manually.
+    self.ctx = test_app.app_context()
+    self.ctx.push()
+    # Creates tables & loads seed data
+    extensions.db.create_all()
     database.load_fixtures()
+    self.client = test_app.test_client()
+    self.patched_task_enqueue = self.enter_context(
+        mock.patch.object(task.Task, 'enqueue', autospec=True))
+    self.patched_log_message = self.enter_context(
+        mock.patch.object(crmint_logging, 'log_message', autospec=True))
+    self.patched_task_enqueue = self.enter_context(
+        mock.patch.object(insight.GAProvider, 'track_event', autospec=True))
 
   def tearDown(self):
-    # Ensure next test is in a clean state
+    super().tearDown()
+    # Ensures next test is in a clean state
     extensions.db.session.remove()
     extensions.db.drop_all()
+    # Drop the app context
+    self.ctx.pop()
 
 
-class IBackendBaseTest(BaseTestCase):
+class ControllerAppTest(AppTestCase):
 
-  @mock.patch('google.cloud.logging.Client')
-  def create_app(self, patched_client):
-    api_blueprint = Api()
-    app = ibackend_create_app(api_blueprint, config_object=self)
-    app.config['TESTING'] = True
-    app.config['PRESERVE_CONTEXT_ON_EXCEPTION'] = False
-    return app
-
-
-class JBackendBaseTest(BaseTestCase):
-
-  @mock.patch('google.cloud.logging.Client')
-  def create_app(self, patched_client):
-    api_blueprint = Api()
-    app = jbackend_create_app(api_blueprint, config_object=self)
-    app.config['TESTING'] = True
-    app.config['PRESERVE_CONTEXT_ON_EXCEPTION'] = False
-    return app
+  def create_app(self):
+    test_app = app.create_app(config_object=TestConfig)
+    test_app.config['TESTING'] = True
+    test_app.config['PRESERVE_CONTEXT_ON_EXCEPTION'] = False
+    return test_app

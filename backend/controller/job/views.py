@@ -16,16 +16,17 @@
 
 from flask import Blueprint
 from flask_restful import abort
+from flask_restful import Api
 from flask_restful import fields
 from flask_restful import marshal_with
 from flask_restful import reqparse
 from flask_restful import Resource
 
 from common import insight
-from controller import extensions
 from controller import models
 
 blueprint = Blueprint('job', __name__)
+api = Api(blueprint)
 
 parser = reqparse.RequestParser()
 parser.add_argument('name')
@@ -154,6 +155,6 @@ class JobStart(Resource):
     return job
 
 
-extensions.api.add_resource(JobList, '/jobs')
-extensions.api.add_resource(JobSingle, '/jobs/<job_id>')
-extensions.api.add_resource(JobStart, '/jobs/<job_id>/start')
+api.add_resource(JobList, '/jobs')
+api.add_resource(JobSingle, '/jobs/<job_id>')
+api.add_resource(JobStart, '/jobs/<job_id>/start')

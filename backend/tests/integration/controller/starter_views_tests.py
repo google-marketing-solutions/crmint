@@ -14,61 +14,16 @@
 
 import base64
 import json
-from unittest import mock
 
 from absl.testing import absltest
 from absl.testing import parameterized
-import flask_restful
 import freezegun
 
-from common import crmint_logging
-from common import insight
-from common import task
-from controller import app
-from controller import database
-from controller import extensions
 from controller import models
+from tests import utils
 
 
-class TestConfig(object):
-  """Test configuration."""
-  SQLALCHEMY_TRACK_MODIFICATIONS = False
-  SQLALCHEMY_DATABASE_URI = 'sqlite:///:memory:'
-
-
-# TODO(dulacp): remove these from the global scope by resetting API resources.
-test_app = app.create_app(config_object=TestConfig)
-extensions.db.init_app(test_app)
-
-
-class AppTestCase(parameterized.TestCase):
-
-  def setUp(self):
-    super().setUp()
-    # Pushes an application context manually.
-    self.ctx = test_app.app_context()
-    self.ctx.push()
-    # Creates tables & loads seed data
-    extensions.db.create_all()
-    database.load_fixtures()
-    self.client = test_app.test_client()
-    self.patched_task_enqueue = self.enter_context(
-        mock.patch.object(task.Task, 'enqueue', autospec=True))
-    self.patched_log_message = self.enter_context(
-        mock.patch.object(crmint_logging, 'log_message', autospec=True))
-    self.patched_task_enqueue = self.enter_context(
-        mock.patch.object(insight.GAProvider, 'track_event', autospec=True))
-
-  def tearDown(self):
-    super().tearDown()
-    # Ensures next test is in a clean state
-    extensions.db.session.remove()
-    extensions.db.drop_all()
-    # Drop the app context
-    self.ctx.pop()
-
-
-class TestStarterViews(AppTestCase):
+class TestStarterViews(utils.ControllerAppTest):
 
   @freezegun.freeze_time('2015-06-18T16:07:19')
   def test_can_start_single_pipeline(self):

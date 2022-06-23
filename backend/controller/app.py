@@ -31,7 +31,6 @@ def create_app(config_object=config.ProdConfig):
   app = Flask(__name__.split('.')[1], instance_relative_config=True)
   app.config.from_object(config_object)
   register_extensions(app)
-  register_api_blueprints(extensions.api)
   register_blueprints(app)
   return app
 
@@ -41,14 +40,6 @@ def register_extensions(app):
   extensions.cors.init_app(app)
   extensions.db.init_app(app)
   extensions.migrate.init_app(app, extensions.db)
-
-
-def register_api_blueprints(api_blueprint):
-  api_blueprint.init_app(pipeline.views.blueprint)
-  api_blueprint.init_app(job.views.blueprint)
-  api_blueprint.init_app(stage.views.blueprint)
-  api_blueprint.init_app(result.views.blueprint)
-  api_blueprint.init_app(starter.views.blueprint)
 
 
 def register_blueprints(app):
