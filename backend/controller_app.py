@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Create an IBackend instance."""
+"""Create a controller instance."""
 
 import signal
 import sys
