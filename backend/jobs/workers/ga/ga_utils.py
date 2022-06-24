@@ -90,23 +90,6 @@ def get_dataimport_upload_status(
   return UploadStatus.PENDING
 
 
-def extract_accountid(property_id: str) -> str:
-  """Returns the account id part from a Google Analytics property id.
-
-  Args:
-    property_id: String containing the property id. Valid formats are
-      "GA-XXXXXX-Y" or "UA-XXXXXX-Y".
-
-  Raises:
-    ValueError: if the given property id has an invalid format.
-  """
-  match = re.fullmatch(r'(?:UA|GA)-(\d+)-\d+', property_id)
-  if not match:
-    raise ValueError(f'Invalid Property ID. Expected format should be either '
-                     f'"UA-XXXXXX-Y" or "GA-XXXXXX-Y", but got "{property_id}"')
-  return match.group(1)
-
-
 def delete_oldest_uploads(client: discovery.Resource,
                           dataimport_ref: DataImportReference,
                           max_to_keep: Optional[int] = None) -> list[str]:
