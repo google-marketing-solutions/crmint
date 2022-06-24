@@ -37,6 +37,9 @@ db = SQLAlchemy(
         'autocommit': False,
         'autoflush': False,
         'scopefunc': _app_ctx_stack.__ident_func__,
+    },
+    engine_options={
+        'pool_pre_ping': True,
     }
 )
 db.Model.set_session(db.session)  # Binds the scoped session to our models.
