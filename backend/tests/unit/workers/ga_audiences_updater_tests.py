@@ -77,6 +77,7 @@ class GAAudiencesUpdaterTests(absltest.TestCase):
             ga_utils, 'get_client', autospec=True, return_value=ga_client))
     worker_inst = ga_audiences_updater.GAAudiencesUpdater(
         {
+            'account_id': '123456',
             'property_id': 'UA-123456-7',
             'bq_project_id': 'PROJECT',
             'bq_dataset_id': 'DATASET',
