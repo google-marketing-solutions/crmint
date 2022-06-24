@@ -236,7 +236,6 @@ def create_cloudsql_instance_if_needed(stage, debug=False):
   network_project = stage.network_project
   network = stage.network
   database_ha_type = stage.database_ha_type
-  subnet_cidr = stage.subnet_cidr
   if stage.use_vpc:
     cmd = textwrap.dedent(f"""\
         {GCLOUD} beta sql instances create {db_instance_name} \\
@@ -247,7 +246,6 @@ def create_cloudsql_instance_if_needed(stage, debug=False):
             --storage-auto-increase \\
             --network=projects/{network_project}/global/networks/{network} \\
             --availability-type={database_ha_type} \\
-            --authorized-networks={subnet_cidr} \\
             --no-assign-ip
         """)
     shared.execute_command(
@@ -340,7 +338,7 @@ def _get_existing_pubsub_entities(stage, entity_name, debug=False) -> list[str]:
       cmd,
       debug_uses_std_out=False,
       debug=debug)
-  return re.findall(rf'{entity_name}/(.*)', out.strip())
+  return re.findall(rf'{entity_name}/(\S+)', out.strip())
 
 
 def create_pubsub_topics(stage, debug=False):
@@ -371,6 +369,27 @@ def get_project_number(stage: shared.StageContext, debug: bool = False) -> str:
       """)
   _, out, _ = shared.execute_command(
       'Getting project number',
+      cmd,
+      debug_uses_std_out=False,
+      debug=debug)
+  return out.strip()
+
+
+def get_cloud_sql_ip(stage: shared.StageContext,
+                     debug: bool = False) -> str:
+  """Returns IP address of the Cloud SQL instance.
+
+  Args:
+    stage: Stage context.
+    debug: Enables the debug mode on system calls.
+  """
+  instance_name = stage.database_instance_name
+  cmd = textwrap.dedent(f"""\
+      {GCLOUD} sql instances describe {instance_name} \\
+          --format="value(ipAddresses.ipAddress)"
+      """)
+  _, out, _ = shared.execute_command(
+      'Getting IP address of the Cloud SQL instance',
       cmd,
       debug_uses_std_out=False,
       debug=debug)
@@ -459,6 +478,12 @@ def _grant_required_permissions(stage, debug=False):
               --role="roles/editor"
           """),
   ]
+  if stage.use_vpc:
+    commands.append(textwrap.dedent(f"""\
+        {GCLOUD} projects add-iam-policy-binding {project_id} \\
+            --member="serviceAccount:{project_number}@cloudbuild.gserviceaccount.com" \\
+            --role="roles/cloudsql.client"
+    """))
   for idx, cmd in enumerate(commands):
     shared.execute_command(
         f'Grant required permissions ({idx + 1}/{len(commands)})',
@@ -613,9 +638,20 @@ def _copy_src_to_workdir(stage, debug=False):
 
 
 def _inject_vpc_connector_config(workdir: str,
-                                 connector_config: dict) -> None:
-  """Inserts connector config intto GAE YAML configs."""
-  config_filepath = os.path.join(workdir, 'frontend_app.yaml')
+                                 config_file: str,
+                                 stage: shared.StageContext) -> None:
+  """Inserts connector config into GAE YAML configs."""
+  gae_project = stage.gae_project
+  region = stage.gae_region
+  connector = stage.connector
+  vpc_name = (f'projects/{gae_project}'
+              f'/locations/{region}'
+              f'/connectors/{connector}')
+  # Connector object with required configurations
+  connector_config = {
+      'vpc_access_connector': {'name': vpc_name},
+  }
+  config_filepath = os.path.join(workdir, config_file)
   try:
     with open(config_filepath, 'r') as yaml_read:
       config = yaml.safe_load(yaml_read)
@@ -651,19 +687,11 @@ def deploy_frontend(stage, debug=False):
   # NB: Limit the node process memory usage to avoid overloading
   #     the Cloud Shell VM memory which makes it unresponsive.
   project_id = stage.project_id
-  gae_project = stage.gae_project
-  region = stage.gae_region
-  connector = stage.connector
   max_old_space_size = "$((`free -m | egrep ^Mem: | awk '{print $4}'` / 4 * 3))"
   cmd_workdir = pathlib.Path(stage.workdir, 'frontend').as_posix()
 
   if stage.use_vpc:
-    # Connector object with required configurations
-    vpc_name = f'projects/{gae_project}/locations/{region}/connectors/{connector}'
-    connector_config = {
-        'vpc_access_connector': {'name': vpc_name},
-    }
-    _inject_vpc_connector_config(cmd_workdir, connector_config)
+    _inject_vpc_connector_config(cmd_workdir, 'frontend_app.yaml', stage)
 
   # Prepares the deployment.
   cmds = [
@@ -701,8 +729,20 @@ def deploy_frontend(stage, debug=False):
 def deploy_controller(stage, debug=False):
   """Deploys controller app."""
   project_id = stage.project_id
-  cloud_db_uri = stage.cloud_db_uri
   pubsub_verification_token = stage.pubsub_verification_token
+  cmd_workdir = os.path.join(stage.workdir, 'backend')
+
+  if stage.use_vpc:
+    host = get_cloud_sql_ip(stage, debug)
+    cloud_db_uri = 'mysql+mysqlconnector://{}:{}@{}:3306/{}'.format(
+        stage.database_username,
+        stage.database_password,
+        host,
+        stage.database_name)
+    _inject_vpc_connector_config(cmd_workdir, 'controller_app.yaml', stage)
+  else:
+    cloud_db_uri = stage.cloud_db_uri
+
   cmds = [
       'cp .gcloudignore-controller .gcloudignore',
       'cp requirements-controller.txt requirements.txt',
@@ -715,9 +755,8 @@ def deploy_controller(stage, debug=False):
           'EOL',
       ]),
       (f'{GCLOUD} app deploy controller_app_with_env_vars.yaml'
-       f' --version=v1 --project={project_id}'),
+       f' --version=v1 --project={project_id}')
   ]
-  cmd_workdir = os.path.join(stage.workdir, 'backend')
   total = len(cmds)
   for idx, cmd in enumerate(cmds):
     shared.execute_command(
@@ -841,6 +880,54 @@ def _run_db_migrations(stage, debug=False):
       'Applying database migrations', cmd, cwd=cmd_workdir, debug=debug)
 
 
+def _create_build_worker_pool(stage, debug=False):
+  region = stage.project_region
+  network_project = stage.network_project
+  network = stage.network
+  cmd = textwrap.dedent(f"""\
+      {GCLOUD} builds worker-pools create crmint-build-workers-{region} \\
+          --region={region} \\
+          --peered-network=projects/{network_project}/global/networks/{network}
+      """)
+  shared.execute_command(
+      'Creating a Cloud Build worker pool', cmd, debug=debug)
+
+
+def _delete_build_worker_pool(stage, debug=False):
+  region = stage.project_region
+  cmd = textwrap.dedent(f"""\
+      {GCLOUD} builds worker-pools delete crmint-build-workers-{region} \\
+          --region={region}
+      """)
+  shared.execute_command(
+      'Deleting the Cloud Build worker pool', cmd, debug=debug)
+
+
+def _run_db_migrations_using_build(stage, debug=False):
+  project_id = stage.project_id
+  region = stage.project_region
+  cloud_db_uri = stage.cloud_db_uri
+  sql_instance_name = stage.database_instance_name
+  sql_region = stage.database_region
+  commands = [
+      'cp requirements-controller.txt requirements.txt',
+      'cp .gcloudignore-migrations .gcloudignore',
+      textwrap.dedent(f"""\
+          {GCLOUD} builds submit --config cloudmigrate.yaml \\
+              --region={region} \\
+              --worker-pool=projects/{project_id}/locations/{region}/workerPools/crmint-build-workers-{region} \\
+              --substitutions="_CLOUD_DB_URI={cloud_db_uri},_SQL_INSTANCE_NAME={sql_instance_name},_SQL_REGION={sql_region}"
+      """),
+  ]
+  cmd_workdir = os.path.join(stage.workdir, 'backend')
+  for idx, cmd in enumerate(commands):
+    shared.execute_command(
+        f'Applying database migrations ({idx + 1}/{len(commands)})',
+        cmd,
+        cwd=cmd_workdir,
+        debug=debug)
+
+
 def _run_reset_pipelines(stage, debug=False):
   local_db_uri = stage.local_db_uri
   env_vars = f'DATABASE_URI="{local_db_uri}" FLASK_APP=controller_app.py'
@@ -913,11 +1000,11 @@ def setup(stage_path: Union[None, str], debug: bool, use_vpc: bool) -> None:
   except CannotFetchStageError:
     sys.exit(1)
 
-  # Enriches stage with other variables.
-  stage = shared.before_hook(stage)
-
   # Beta flags
   stage.use_vpc = use_vpc
+
+  # Enriches stage with other variables.
+  stage = shared.before_hook(stage)
 
   # Runs setup steps.
   components = [
@@ -927,7 +1014,7 @@ def setup(stage_path: Union[None, str], debug: bool, use_vpc: bool) -> None:
     components.extend([
         vpc_helpers.create_vpc,
         vpc_helpers.create_subnet,
-        vpc_helpers.create_vpc_connector
+        vpc_helpers.create_vpc_connector,
     ])
   components.extend([
       create_appengine,
@@ -974,11 +1061,11 @@ def deploy(stage_path: Union[None, str],
   except CannotFetchStageError:
     sys.exit(1)
 
-  # Enriches stage with other variables.
-  stage = shared.before_hook(stage)
-
   # Beta flags
   stage.use_vpc = use_vpc
+
+  # Enriches stage with other variables.
+  stage = shared.before_hook(stage)
 
   # If no specific components were specified for deploy, then deploy all.
   if not (frontend or controller or jobs or dispatch_rules or db_migrations):
@@ -997,13 +1084,20 @@ def deploy(stage_path: Union[None, str],
   if frontend:
     components.append(deploy_frontend)
   if db_migrations:
-    components.extend([
-        _download_cloud_sql_proxy,
-        _start_cloud_sql_proxy,
-        _install_python_packages,
-        _run_db_migrations,
-        _stop_cloud_sql_proxy,
-    ])
+    if stage.use_vpc:
+      components.extend([
+          _create_build_worker_pool,
+          _run_db_migrations_using_build,
+          _delete_build_worker_pool,
+      ])
+    else:
+      components.extend([
+          _download_cloud_sql_proxy,
+          _start_cloud_sql_proxy,
+          _install_python_packages,
+          _run_db_migrations,
+          _stop_cloud_sql_proxy,
+      ])
   if controller:
     components.append(deploy_controller)
   if jobs:
