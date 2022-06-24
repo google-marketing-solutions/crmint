@@ -1,0 +1,8 @@
+.venv
+*.swp
+__pycache__
+*.pyc
+
+# System Files
+.DS_Store
+Thumbs.db

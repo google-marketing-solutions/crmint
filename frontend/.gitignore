@@ -9,6 +9,7 @@
 
 # dependencies
 /node_modules
+package-lock.json
 
 # profiling files
 chrome-profiler-events*.json
@@ -44,10 +45,3 @@ testem.log
 # e2e
 /e2e/*.js
 /e2e/*.map
-
-# vim
-*.swp
-
-# System Files
-.DS_Store
-Thumbs.db
