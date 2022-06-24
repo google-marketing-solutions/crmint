@@ -101,18 +101,6 @@ class GoogleAnalyticsUtilsTest(parameterized.TestCase):
     self.assertEqual(upload_status, ga_utils.UploadStatus.COMPLETED)
 
   @parameterized.named_parameters(
-      ('Supports Universal Property ID format', 'UA-123456-7', '123456'),
-      ('Supports GA4 Property ID format', 'GA-987654-32', '987654'),
-  )
-  def test_extract_accountid(self, property_id, expected_account_id):
-    self.assertEqual(ga_utils.extract_accountid(property_id),
-                     expected_account_id)
-
-  def test_extract_accountid_raises_error_with_unsupported_format(self):
-    with self.assertRaisesRegex(ValueError, 'Invalid Property ID'):
-      ga_utils.extract_accountid('XY-123456-7')
-
-  @parameterized.named_parameters(
       ('Deleted All', None, ['5qan4As6S7WgAa', 'qmcaotljicrpdw']),
       ('Keep most recent upload', 1, ['5qan4As6S7WgAa']),
       ('Keep 2 most recent uploads', 2, []),
