@@ -30,6 +30,7 @@ services:
     command: >
       gcloud auth application-default login
           --project=$GOOGLE_CLOUD_PROJECT
+          --no-launch-browser
 
   db:
     image: mysql:8.0
