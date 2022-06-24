@@ -262,7 +262,7 @@ class GoogleAnalyticsUtilsTest(parameterized.TestCase):
     ])
     client = discovery.build_from_document(
         service=ga_api_discovery_content, http=http_seq)
-    audiences_map = ga_utils.fetch_audiences(client, 'UA-123456-2')
+    audiences_map = ga_utils.fetch_audiences(client, '123456', 'UA-123456-2')
     self.assertEmpty(http_seq._iterable,
                      msg='The sequence of HttpMock should be empty, indicating '
                          'that we handled all the chunks as expected.')
@@ -305,7 +305,8 @@ class GoogleAnalyticsUtilsTest(parameterized.TestCase):
             data=ga_utils.AudiencePatch({'name': 'def', 'a': 1})),
     ]
     logger = mock.Mock()
-    ga_utils.run_audience_operations(client, 'UA-123456-2', operations, logger)
+    ga_utils.run_audience_operations(
+        client, '123456', 'UA-123456-2', operations, logger)
     self.assertSequenceEqual(
         [
             mock.call('Updating existing audience for id: 456'),
@@ -323,7 +324,8 @@ class GoogleAnalyticsUtilsTest(parameterized.TestCase):
     client = ga_utils.get_client(http=self.http_v3)
     operations = [AudienceOperationDelete()]
     with self.assertRaisesRegex(ValueError, 'Unsupported operation'):
-      ga_utils.run_audience_operations(client, 'UA-123456-2', operations)
+      ga_utils.run_audience_operations(
+          client, '123456', 'UA-123456-2', operations)
 
 
 if __name__ == '__main__':

@@ -207,16 +207,18 @@ class AudienceOperationUpdate(AudienceOperationBase):
 
 
 def fetch_audiences(ga_client: discovery.Resource,
+                    account_id: str,
                     property_id: str) -> Mapping[str, Audience]:
   """Returns a mapping of remarketing audiences from Google Analytics API.
 
   Args:
     ga_client: Google Analytics API client.
+    account_id: Identifier for the Google Analytics Account ID.
     property_id: Identifier for the Google Analytics Property to retrieve
       audiences from.
   """
   request = ga_client.management().remarketingAudience().list(
-      accountId=extract_accountid(property_id),
+      accountId=account_id,
       webPropertyId=property_id,
       start_index=None,
       max_results=_MAX_RESULTS_PER_CALL)
@@ -252,6 +254,7 @@ def get_audience_operations(
 
 def run_audience_operations(
     ga_client: discovery.Resource,
+    account_id: str,
     property_id: str,
     operations: list[AudienceOperation],
     progress_callback: Optional[Callable[[str], None]] = None
@@ -260,6 +263,7 @@ def run_audience_operations(
 
   Args:
     ga_client: Google Analytics API client.
+    account_id: Identifier for the Google Analytics Account ID.
     property_id: Identifier for the Google Analytics Property to update
       remarketing audiences from.
     operations: List of operations on audiences, either insert or update.
@@ -272,13 +276,13 @@ def run_audience_operations(
   for op in operations:
     if isinstance(op, AudienceOperationInsert):
       request = ga_client.management().remarketingAudience().insert(
-          accountId=extract_accountid(property_id),
+          accountId=account_id,
           webPropertyId=property_id,
           body=op.data)
       progress_callback('Inserting new audience')
     elif isinstance(op, AudienceOperationUpdate):
       request = ga_client.management().remarketingAudience().patch(
-          accountId=extract_accountid(property_id),
+          accountId=account_id,
           webPropertyId=property_id,
           remarketingAudienceId=op.id,
           body=op.data)

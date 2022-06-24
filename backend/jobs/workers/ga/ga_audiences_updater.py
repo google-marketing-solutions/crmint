@@ -31,6 +31,8 @@ class GAAudiencesUpdater(bq_worker.BQWorker):
   """
 
   PARAMS = [
+      ('account_id', 'string', True, '',
+       'GA Account ID (e.g. 12345)'),
       ('property_id', 'string', True, '',
        'GA Property Tracking ID (e.g. UA-12345-3)'),
       ('bq_project_id', 'string', False, '', 'BQ Project ID'),
@@ -68,13 +70,15 @@ class GAAudiencesUpdater(bq_worker.BQWorker):
     patches = self.get_audience_patches(bq_client, table_ref)
     self.log_info(f'Retrieved #{len(patches)} audience configs from BigQuery')
     ga_client = ga_utils.get_client('v3')
-    audiences = ga_utils.fetch_audiences(ga_client, self._params['property_id'])
+    audiences = ga_utils.fetch_audiences(
+        ga_client, self._params['account_id'], self._params['property_id'])
     self.log_info(f'Fetched #{len(audiences)} audiences from the GA Property')
     operations = ga_utils.get_audience_operations(patches, audiences)
     self.log_info(f'Executing #{len(operations)} operations to update the '
                   f'state of GA with the audience configs from your BigQuery')
     ga_utils.run_audience_operations(
         ga_client,
+        self._params['account_id'],
         self._params['property_id'],
         operations,
         progress_callback=self.log_info)
