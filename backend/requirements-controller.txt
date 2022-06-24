@@ -93,7 +93,9 @@ idna==3.3
 itsdangerous==2.1.0
     # via flask
 jinja2==3.0.3
-    # via flask
+    # via
+    #   -r requirements-controller.in
+    #   flask
 libcst==0.4.1
     # via google-cloud-pubsub
 mako==1.1.6
@@ -138,8 +140,7 @@ pyasn1-modules==0.2.8
 pyparsing==3.0.7
     # via packaging
 python-dateutil==2.8.2
-    # via
-    #   google-cloud-bigquery
+    # via google-cloud-bigquery
 pytz==2021.3
     # via flask-restful
 pyyaml==6.0
@@ -158,12 +159,10 @@ six==1.16.0
     #   google-auth
     #   grpcio
     #   python-dateutil
-    #   sqlalchemy-mixins
 sqlalchemy==1.4.31
     # via
     #   alembic
     #   flask-sqlalchemy
-    #   sqlalchemy-mixins
 typing-extensions==4.1.1
     # via
     #   libcst
