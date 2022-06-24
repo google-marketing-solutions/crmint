@@ -101,9 +101,7 @@ STAGE_FILE_TEMPLATE = textwrap.dedent("""\
 
     # Network configuration
     network = "{ctx.network}"
-    subnet = "{ctx.subnet}"
     subnet_region = "{ctx.subnet_region}"
-    subnet_cidr = "{ctx.subnet_cidr}"
     connector = "{ctx.connector}"
     connector_subnet = "{ctx.connector_subnet}"
     connector_cidr = "{ctx.connector_cidr}"
