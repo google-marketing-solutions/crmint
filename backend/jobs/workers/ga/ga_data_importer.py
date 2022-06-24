@@ -30,6 +30,8 @@ class GADataImporter(worker.Worker):
   PARAMS = [
       ('csv_uri', 'string', True, '',
        'CSV data file URI (e.g. gs://bucket/data.csv)'),
+      ('account_id', 'string', True, '',
+       'GA Account ID (e.g. 12345)'),
       ('property_id', 'string', True, '',
        'GA Property Tracking ID (e.g. UA-12345-3)'),
       ('dataset_id', 'string', True, '',
@@ -44,7 +46,7 @@ class GADataImporter(worker.Worker):
   def _execute(self) -> None:
     client = ga_utils.get_client('v3')
     dataimport_ref = ga_utils.DataImportReference(
-        account_id=ga_utils.extract_accountid(self._params['property_id']),
+        account_id=self._params['account_id'],
         property_id=self._params['property_id'],
         dataset_id=self._params['dataset_id'])
     if self._params['max_uploads'] == 1:

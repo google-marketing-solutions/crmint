@@ -69,6 +69,7 @@ class GADataImporterTest(absltest.TestCase):
     worker_inst = ga_data_importer.GADataImporter(
         {
             'csv_uri': 'gs://mybucket/foo/bar.csv',
+            'account_id': '123456',
             'property_id': 'UA-123456-7',
             'dataset_id': 'sLj2CuBTDFy6CedBJwahFt',
             'max_uploads': None,
@@ -142,6 +143,7 @@ class GADataImporterTest(absltest.TestCase):
     worker_inst = ga_data_importer.GADataImporter(
         {
             'csv_uri': 'gs://mybucket/foo/bar.csv',
+            'account_id': '123456',
             'property_id': 'UA-123456-7',
             'dataset_id': 'sLj2CuBTDFy6CedBJwahFt',
             'max_uploads': 2,
@@ -216,6 +218,7 @@ class GADataImporterTest(absltest.TestCase):
     worker_inst = ga_data_importer.GADataImporter(
         {
             'csv_uri': 'gs://mybucket/foo/bar.csv',
+            'account_id': '123456',
             'property_id': 'UA-123456-7',
             'dataset_id': 'sLj2CuBTDFy6CedBJwahFt',
             'max_uploads': 1,
