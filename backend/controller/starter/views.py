@@ -21,6 +21,7 @@ from flask import request
 from flask_restful import Api
 from flask_restful import Resource
 
+from common import crmint_logging
 from common import insight
 from common import message
 from controller import cron_utils
@@ -38,7 +39,15 @@ class StarterResource(Resource):
     now_dt = datetime.datetime.utcnow()
     for pipeline in models.Pipeline.where(run_on_schedule=True).all():
       for schedule in pipeline.schedules:
-        if cron_utils.cron_match(schedule.cron, now_dt):
+        cron_match_result = cron_utils.cron_match(schedule.cron, now_dt)
+        crmint_logging.log_message(
+            f'Matching (cron, now_dt, result): '
+            f'({schedule.cron}, {now_dt}, {cron_match_result})',
+            log_level='DEBUG',
+            worker_class='N/A',
+            pipeline_id=pipeline.id,
+            job_id=0)
+        if cron_match_result:
           pipeline.start()
           tracker = insight.GAProvider()
           tracker.track_event(category='pipelines', action='scheduled_run')
