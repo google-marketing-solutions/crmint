@@ -274,16 +274,23 @@ class Pipeline(extensions.db.Model):
         return False
     return True
 
+  def has_stopped(self) -> bool:
+    """Returns True if a pipeline was stopped and has jobs in idle status."""
+    for job in self.jobs.all():
+      if job.status in Job.STATUS.IDLE:
+        return True
+    return False
+
   def has_failed(self) -> bool:
     """Returns True if a pipeline is in a failed state.
 
-    A pipeline is considered failed if one of these two conditions is met:
-      1. an isolated job failed
-      2. or one starting condition is not fulfilled
+    A pipeline is considered failed if one of these conditions is met:
+      1. a leaf job failed (isolated or not)
+      2. a starting condition is not fulfilled
     """
     for job in self.jobs.all():
-      # 1. Checks if an isolated job has failed.
-      if not job.dependent_jobs and not job.affecting_jobs:
+      # 1. Checks if a leaf job has failed.
+      if not job.dependent_jobs:
         if job.status == Job.STATUS.FAILED:
           return True
       # 2. Checks if a starting condition has been invalidated.
@@ -299,6 +306,8 @@ class Pipeline(extensions.db.Model):
       self.stop()
       self.set_status(Pipeline.STATUS.FAILED)
       mailers.NotificationMailer().finished_pipeline(self)
+    elif self.has_stopped():
+      self.set_status(Pipeline.STATUS.IDLE)
     elif self.has_finished():
       self.set_status(Pipeline.STATUS.SUCCEEDED)
       mailers.NotificationMailer().finished_pipeline(self)
@@ -544,8 +553,9 @@ class Job(extensions.db.Model):
 
   def start_condition_invalidated(self,
                                   start_condition: StartCondition) -> bool:
-    if start_condition.preceding_job.status not in Job.STATUS.INACTIVE_STATUSES:
-      # Still running
+    predecing_job_status = start_condition.preceding_job.status
+    if predecing_job_status not in [Job.STATUS.FAILED, Job.STATUS.SUCCEEDED]:
+      # Still running or idle
       return False
     return not self._start_condition_is_fulfilled(start_condition)
 
