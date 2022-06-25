@@ -156,7 +156,7 @@ class TestPipelineWithJobs(ModelTestCase):
     self.assertEqual(job1._enqueued_task_count(), 0)
     self.assertEqual(job1.status, models.Job.STATUS.SUCCEEDED)
     self.assertEqual(job2.status, models.Job.STATUS.IDLE)
-    self.assertEqual(pipeline.status, models.Pipeline.STATUS.SUCCEEDED)
+    self.assertEqual(pipeline.status, models.Pipeline.STATUS.IDLE)
 
   def test_stopping_one_job_should_not_start_dependent_jobs(self):
     pipeline = models.Pipeline.create(status=models.Pipeline.STATUS.RUNNING)
@@ -236,24 +236,25 @@ class TestPipelineWithJobs(ModelTestCase):
 class TestPipelineFinishingStatus(ModelTestCase):
 
   @parameterized.named_parameters(
-      ('Pipeline is finished if all jobs succeeded',
+      ('Pipeline is finished if isolated job succeeded',
        models.Job.STATUS.SUCCEEDED,
        models.Pipeline.STATUS.SUCCEEDED),
-      ('Pipeline not finished if one job remains',
-       models.Job.STATUS.RUNNING,
-       models.Pipeline.STATUS.RUNNING),
-      ('Pipeline is finished if last job failed',
+      ('Pipeline failed if isolated job failed',
        models.Job.STATUS.FAILED,
-       models.Pipeline.STATUS.FAILED)
+       models.Pipeline.STATUS.FAILED),
   )
-  def test_pipeline_state_after_isolated_job_finished(self,
-                                                      job2_status,
-                                                      pipeline_status):
+  def test_pipeline_state_with_isolated_job(self, job_status, pipeline_status):
     pipeline = models.Pipeline.create(status=models.Pipeline.STATUS.RUNNING)
-    models.Job.create(
+    job1 = models.Job.create(
         pipeline_id=pipeline.id, status=models.Job.STATUS.SUCCEEDED)
-    models.Job.create(
-        pipeline_id=pipeline.id, status=job2_status)
+    job2 = models.Job.create(
+        pipeline_id=pipeline.id, status=models.Job.STATUS.SUCCEEDED)
+    models.StartCondition.create(
+        job_id=job2.id,
+        preceding_job_id=job1.id,
+        condition=models.StartCondition.CONDITION.SUCCESS)
+    unused_isolated_job = models.Job.create(
+        pipeline_id=pipeline.id, status=job_status)
     pipeline.leaf_job_finished()
     self.assertEqual(pipeline.status, pipeline_status)
 
@@ -268,11 +269,26 @@ class TestPipelineFinishingStatus(ModelTestCase):
        models.StartCondition.CONDITION.WHATEVER,
        models.Job.STATUS.WAITING,
        models.Pipeline.STATUS.RUNNING),
-      ('Pipeline is finished if last job failed',
+      ('Pipeline failed if one job failed',
        models.Job.STATUS.FAILED,
        models.StartCondition.CONDITION.SUCCESS,
        models.Job.STATUS.WAITING,
-       models.Pipeline.STATUS.FAILED)
+       models.Pipeline.STATUS.FAILED),
+      ('Pipeline not finished if last job remains running',
+       models.Job.STATUS.SUCCEEDED,
+       models.StartCondition.CONDITION.WHATEVER,
+       models.Job.STATUS.RUNNING,
+       models.Pipeline.STATUS.RUNNING),
+      ('Pipeline failed if a leaf job failed',
+       models.Job.STATUS.SUCCEEDED,
+       models.StartCondition.CONDITION.SUCCESS,
+       models.Job.STATUS.FAILED,
+       models.Pipeline.STATUS.FAILED),
+      ('Pipeline is finished if stopped after first job',
+       models.Job.STATUS.IDLE,
+       models.StartCondition.CONDITION.SUCCESS,
+       models.Job.STATUS.IDLE,
+       models.Pipeline.STATUS.IDLE),
   )
   def test_pipeline_state_with_starting_condition(self,
                                                   job2_status,
@@ -286,11 +302,11 @@ class TestPipelineFinishingStatus(ModelTestCase):
         pipeline_id=pipeline.id, status=job2_status)
     job3 = models.Job.create(
         pipeline_id=pipeline.id, status=job3_status)
-    models.StartCondition.create(
+    cond1 = models.StartCondition.create(
         job_id=job2.id,
         preceding_job_id=job1.id,
         condition=models.StartCondition.CONDITION.SUCCESS)
-    models.StartCondition.create(
+    cond2 = models.StartCondition.create(
         job_id=job3.id,
         preceding_job_id=job2.id,
         condition=job3_starting_condition)
