@@ -996,12 +996,6 @@ def deploy(stage_path: Union[None, str],
   ]
   if frontend:
     components.append(deploy_frontend)
-  if controller:
-    components.append(deploy_controller)
-  if jobs:
-    components.append(deploy_jobs)
-  if dispatch_rules:
-    components.append(deploy_dispatch_rules)
   if db_migrations:
     components.extend([
         _download_cloud_sql_proxy,
@@ -1010,6 +1004,12 @@ def deploy(stage_path: Union[None, str],
         _run_db_migrations,
         _stop_cloud_sql_proxy,
     ])
+  if controller:
+    components.append(deploy_controller)
+  if jobs:
+    components.append(deploy_jobs)
+  if dispatch_rules:
+    components.append(deploy_dispatch_rules)
 
   # Displays the frontend url to improve the user experience.
   components.append(display_appengine_url)
