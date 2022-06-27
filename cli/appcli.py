@@ -68,7 +68,12 @@ class CRMintCLI(click.MultiCommand):
   def list_commands(self, ctx):
     rv = []
     for filename in os.listdir(PLUGIN_FOLDER):
-      if not filename.startswith('_') and filename.endswith('.py'):
+      matching_conditions = [
+          not filename.startswith('_'),
+          not filename.endswith('_tests.py'),
+          filename.endswith('.py'),
+      ]
+      if all(matching_conditions):
         rv.append(filename[:-3])
     rv.sort()
     return rv
