@@ -19,18 +19,20 @@ RUN_COMMAND=$2
 CURRENT_DIR=$(pwd)
 
 COMMAND=""
-case "${RUN_COMMAND}" in
-  --bundle)
-    COMMAND="crmint bundle install"
-    ;;
-  *)
-    echo "Unknown command: ${RUN_COMMAND}" >&2
-    exit 2
-    ;;
-esac
-if [[ ! -z "$COMMAND" ]]; then
-  echo "Will run the following command after installing the CRMint command line"
-  echo " ${COMMAND}"
+if [[ ! -z "$RUN_COMMAND" ]]; then
+  case "${RUN_COMMAND}" in
+    --bundle)
+      COMMAND="crmint bundle install"
+      ;;
+    *)
+      echo "Unknown command: ${RUN_COMMAND}" >&2
+      exit 2
+      ;;
+  esac
+  if [[ ! -z "$COMMAND" ]]; then
+    echo "Will run the following command after installing the CRMint command line"
+    echo " ${COMMAND}"
+  fi
 fi
 
 # Downloads the source code.
@@ -54,7 +56,7 @@ pip install --quiet --upgrade pip
 pip install --quiet -e cli/
 
 # Adds the wrapper function to the user `.bashrc` file.
-echo "\\nAdding a bash function to your $HOME/.bashrc file."
+echo -e "\\nAdding a bash function to your $HOME/.bashrc file."
 cat <<EOF >>$HOME/.bashrc
 
 # CRMint wrapper function.
@@ -73,10 +75,12 @@ EOF
 # Restores initial directory.
 cd "$CURRENT_DIR"
 
-echo "Reloading the shell"
-exec bash
-
 # Runs the command line if configured for.
 if [[ ! -z "$COMMAND" ]]; then
+  hash -r
   eval $COMMAND
+else
+  echo -e "\nSuccessfully installed the CRMint command-line."
+  echo "You can use it now by typing: crmint --help"
+  exec bash
 fi
