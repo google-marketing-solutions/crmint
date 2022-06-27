@@ -15,23 +15,7 @@
 # limitations under the License.
 
 TARGET_BRANCH=$1
-RUN_COMMAND=$2
 CURRENT_DIR=$(pwd)
-
-COMMAND=""
-case "${RUN_COMMAND}" in
-  --bundle)
-    COMMAND="crmint bundle install"
-    ;;
-  *)
-    echo "Unknown command: ${RUN_COMMAND}" >&2
-    exit 2
-    ;;
-esac
-if [[ ! -z "$COMMAND" ]]; then
-  echo "Will run the following command after installing the CRMint command line"
-  echo " ${COMMAND}"
-fi
 
 # Downloads the source code.
 if [ ! -d $HOME/crmint ]; then
@@ -75,8 +59,3 @@ cd "$CURRENT_DIR"
 
 echo "Reloading the shell"
 exec bash
-
-# Runs the command line if configured for.
-if [[ ! -z "$COMMAND" ]]; then
-  eval $COMMAND
-fi
