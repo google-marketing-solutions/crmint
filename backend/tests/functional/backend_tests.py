@@ -12,50 +12,47 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import os
-import sys
-sys.path.insert(0, os.getcwd())
+from controller import models
 from tests import utils
 
 
-class TestBaseBackendEndToEnd(utils.BaseTestCase):
-
-  def _setup_config(self):
-    # Setup the config var for MySQL
-    # NB: the config.py file is not tracked by the repository, so it's
-    #     okay to override its content
-    from appengine_config import PROJECT_DIR
-    config_path = os.path.join(PROJECT_DIR, 'instance/config.py')
-    with open(config_path, 'wb') as f:
-      f.write('SQLALCHEMY_DATABASE_URI="mysql+mysqldb://'
-              'crmint:crmint@localhost:3306/crmintapp_test"')
-
-
-class TestIBackend(TestBaseBackendEndToEnd):
+class TestControllerApp(utils.ControllerAppTest):
 
   def create_app(self):
-    self._setup_config()
-    from run_ibackend import app
+    from controller_app import app  # pylint: disable=g-import-not-at-top
     app.config['TESTING'] = True
     app.config['PRESERVE_CONTEXT_ON_EXCEPTION'] = False
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     return app
 
-  def test_root_accessible(self):
+  def test_empty_root_accessible(self):
+    self.assertEmpty(models.Pipeline.all())
+    response = self.client.get('/api/pipelines')
+    self.assertEqual(response.status_code, 200)
+
+  def test_list_root_accessible(self):
+    models.Pipeline.create(name='Pipeline Foo')
+    self.assertLen(models.Pipeline.all(), 1)
+    response = self.client.get('/api/pipelines')
+    self.assertEqual(response.status_code, 200)
+
+  def test_list_muliple_pipelines(self):
+    models.Pipeline.create(name='Pipeline Foo')
+    models.Pipeline.create(name='Pipeline Bar')
+    self.assertLen(models.Pipeline.all(), 2)
     response = self.client.get('/api/pipelines')
     self.assertEqual(response.status_code, 200)
 
 
-class TestJBackend(TestBaseBackendEndToEnd):
+class TestJobsApp(utils.AppTestCase):
 
   def create_app(self):
-    self._setup_config()
-    from run_jbackend import app
+    from jobs_app import app  # pylint: disable=g-import-not-at-top
     app.config['TESTING'] = True
     app.config['PRESERVE_CONTEXT_ON_EXCEPTION'] = False
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     return app
 
   def test_root_accessible(self):
-    response = self.client.get('/hello')
+    response = self.client.get('/api/workers')
     self.assertEqual(response.status_code, 200)

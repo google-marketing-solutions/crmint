@@ -16,6 +16,11 @@
 
 from typing import Callable, Optional
 
+import flask
+from sqlalchemy import orm
+
+from common import crmint_logging
+from controller import extensions
 from controller import models
 
 
@@ -45,3 +50,16 @@ def reset_jobs_and_pipelines_statuses_to_idle() -> None:
     for job in pipeline.jobs:
       job.update(status='idle')
     pipeline.update(status='idle')
+
+
+def shutdown(app: flask.Flask) -> None:
+  """Cleans database state."""
+  # Find all Sessions in memory and close them.
+  orm.close_all_sessions()
+  crmint_logging.log_global_message(
+      'All sessions closed.', log_level='WARNING')
+  # Each connection was released on execution, so just formally
+  # dispose of the db connection if it's been instantiated
+  extensions.db.get_engine(app).dispose()
+  crmint_logging.log_global_message(
+      'Database connection disposed.', log_level='WARNING')

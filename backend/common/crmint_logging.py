@@ -38,6 +38,17 @@ def get_logger(
   return client.logger('crmint-logger')
 
 
+def log_global_message(message: str, *, log_level: str) -> None:
+  """Logs a text message with the given severity level.
+
+  Args:
+    message: Message to be logged.
+    log_level: Level of logging (e.g. 'INFO', 'ERROR').
+  """
+  logger = get_logger()
+  logger.log_text(message, severity=log_level)
+
+
 def log_message(
     message: str,
     *,
