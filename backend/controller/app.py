@@ -14,9 +14,9 @@
 
 """The app module, containing the app factory function."""
 
+import os
 from flask import Flask
 
-from controller import config
 from controller import extensions
 from controller import job
 from controller import pipeline
@@ -26,10 +26,12 @@ from controller import starter
 from controller import views
 
 
-def create_app(config_object=config.ProdConfig):
+def create_app():
   """An application factory."""
   app = Flask(__name__.split('.')[1], instance_relative_config=True)
-  app.config.from_object(config_object)
+  app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv(
+      'DATABASE_URI',
+      'mysql+mysqlconnector://crmint:crmint@db:3306/crmint_development')
   register_extensions(app)
   register_blueprints(app)
   return app

@@ -14,9 +14,11 @@
 
 """Testing utils."""
 
+import os
 from unittest import mock
 
 from absl.testing import parameterized
+import requests
 
 from common import crmint_logging
 from common import insight
@@ -24,12 +26,6 @@ from common import task
 from controller import app
 from controller import database
 from controller import extensions
-
-
-class TestConfig(object):
-  """Test configuration."""
-  SQLALCHEMY_TRACK_MODIFICATIONS = False
-  SQLALCHEMY_DATABASE_URI = 'sqlite:///:memory:'
 
 
 class AppTestCase(parameterized.TestCase):
@@ -41,15 +37,13 @@ class AppTestCase(parameterized.TestCase):
   def create_app(self):
     raise NotImplementedError
 
+  @mock.patch.dict(os.environ, {'DATABASE_URI': 'sqlite:///:memory:'})
   def setUp(self):
     super().setUp()
     test_app = self.create_app()
     # Pushes an application context manually.
     self.ctx = test_app.app_context()
     self.ctx.push()
-    # Creates tables & loads seed data
-    extensions.db.create_all()
-    database.load_fixtures()
     self.client = test_app.test_client()
     self.patched_task_enqueue = self.enter_context(
         mock.patch.object(task.Task, 'enqueue', autospec=True))
@@ -57,20 +51,37 @@ class AppTestCase(parameterized.TestCase):
         mock.patch.object(crmint_logging, 'log_message', autospec=True))
     self.patched_task_enqueue = self.enter_context(
         mock.patch.object(insight.GAProvider, 'track_event', autospec=True))
+    # Mocks the auth request to the favicon.
+    mock_auth_response = mock.create_autospec(requests.Response)
+    mock_auth_response.status_code = 200
+    self.patched_requests_head = self.enter_context(
+        mock.patch.object(
+            requests, 'head', autospec=True, return_value=mock_auth_response))
 
   def tearDown(self):
     super().tearDown()
-    # Ensures next test is in a clean state
-    extensions.db.session.remove()
-    extensions.db.drop_all()
     # Drop the app context
     self.ctx.pop()
 
 
 class ControllerAppTest(AppTestCase):
+  """Controller app test class."""
 
   def create_app(self):
-    test_app = app.create_app(config_object=TestConfig)
+    test_app = app.create_app()
     test_app.config['TESTING'] = True
     test_app.config['PRESERVE_CONTEXT_ON_EXCEPTION'] = False
     return test_app
+
+  @mock.patch.dict(os.environ, {'DATABASE_URI': 'sqlite:///:memory:'})
+  def setUp(self):
+    super().setUp()
+    # Creates tables & loads seed data
+    extensions.db.create_all()
+    database.load_fixtures()
+
+  def tearDown(self):
+    # Ensures next test is in a clean state
+    extensions.db.session.remove()
+    extensions.db.drop_all()
+    super().tearDown()

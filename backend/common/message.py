@@ -16,10 +16,18 @@
 
 import base64
 import datetime
+import functools
 import json
 import os
+from typing import Any
 
+import flask
 from google.cloud import pubsub_v1
+
+from common import crmint_logging
+
+_PROJECT = os.getenv('GOOGLE_CLOUD_PROJECT')
+_PUBSUB_TIMEOUT = 10  # Unit in seconds.
 
 
 class _Error(Exception):
@@ -46,31 +54,41 @@ class BadRequestError(_Error):
     super().__init__('There is no valid PubSub message in the request', 400)
 
 
-class _Publisher:  # pylint: disable=too-few-public-methods
-  """Singleton for publishing PubSub messages using a persistent client."""
-
-  _PROJECT = os.getenv('GOOGLE_CLOUD_PROJECT')
-  _client = None
-
-  @classmethod
-  def publish(cls, topic, data, delay):
-    if cls._client is None:
-      cls._client = pubsub_v1.PublisherClient()
-    topic_path = f'projects/{cls._PROJECT}/topics/{topic}'
-    binary_data = json.dumps(data).encode('utf-8')
-    delay_delta = datetime.timedelta(seconds=delay)
-    start_time = int((datetime.datetime.utcnow() + delay_delta).timestamp())
-    cls._client.publish(topic_path, binary_data, start_time=str(start_time))
+@functools.cache
+def _get_publisher_client() -> pubsub_v1.PublisherClient:
+  return pubsub_v1.PublisherClient()
 
 
-def send(data, topic, delay=0):
-  """Sends data in a message to a PubSub topic to be processed with a delay."""
-  _Publisher.publish(topic, data, delay)
+def send(data: dict[str, Any], topic: str, delay: int = 0) -> None:
+  """Sends data in a message to a PubSub topic to be processed with a delay.
+
+  Args:
+    data: Data structure to encode as the message.
+    topic: Name of the topic to publish messages to.
+    delay: Number of seconds to delay the delivery of the message.
+      Defaults to zero.
+
+  Raises:
+    pubsub_v1.exceptions.TimeoutError: if the message to Pub/Sub times out.
+    Exception: for undefined exceptions in the underlying pubsub call execution.
+  """
+  topic_path = f'projects/{_PROJECT}/topics/{topic}'
+  binary_data = json.dumps(data).encode('utf-8')
+  delay_delta = datetime.timedelta(seconds=delay)
+  start_time = int((datetime.datetime.utcnow() + delay_delta).timestamp())
+  client = _get_publisher_client()
+  future = client.publish(topic_path,
+                          binary_data,
+                          start_time=str(start_time))
+  future.result(timeout=_PUBSUB_TIMEOUT)
 
 
-def extract_data(request):  # pylint: disable=unused-argument
-  """Gets a PubSub message data from an incoming Flask request."""
-  # envelope = json.loads(request.data.decode('utf-8'))
+def extract_data(request: flask.Request) -> dict[str, Any]:
+  """Returns a PubSub message data from an incoming Flask request.
+
+  Args:
+    request: Incoming Flask request.
+  """
   envelope = request.get_json()
   try:
     message = envelope['message']
@@ -92,3 +110,11 @@ def extract_data(request):  # pylint: disable=unused-argument
       json.decoder.JSONDecodeError) as e:
     raise BadRequestError() from e
   return data
+
+
+def shutdown() -> None:
+  """Cleans Pub/Sub client state."""
+  # Stop accepting new messages and commit outstanding ones (if possible).
+  _get_publisher_client().stop()
+  crmint_logging.log_global_message(
+      'PubSub client stopped.', log_level='WARNING')

@@ -12,10 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import json
 
 import click
-import json
-from controller import models, database
+
+from controller import database
+from controller import models
 
 
 def add(app):

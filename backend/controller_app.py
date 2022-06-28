@@ -14,16 +14,48 @@
 
 """Create an IBackend instance."""
 
-from flask import helpers
+import signal
+import sys
+import types
 
 import flask_tasks
 from common import auth_filter
-from controller import app, config
+from common import crmint_logging
+from common import message
+from controller import app as app_factory
+from controller import database
 
-CONFIG = config.DevConfig if helpers.get_debug_flag() else config.ProdConfig
-app = app.create_app(config_object=CONFIG)
+app = app_factory.create_app()
 flask_tasks.add(app)
 auth_filter.add(app)
 
+
+def shutdown_handler(sig: int, frame: types.FrameType) -> None:
+  """Gracefully shuts down the instance.
+
+  Within the 3 seconds window, try to do as much as possible:
+    1. Commit all pending Pub/Sub messages (as much as possible).
+    2. Drop all connections to the database.
+
+  You can read more about this practice:
+  https://cloud.google.com/blog/topics/developers-practitioners/graceful-shutdowns-cloud-run-deep-dive.
+
+  Args:
+    sig: Signal intercepted.
+    frame: Frame object such as `tb.tb_frame` if `tb` is a traceback object.
+  """
+  del sig, frame  # Unused argument
+  crmint_logging.log_global_message(
+      'Signal received, safely shutting down.',
+      log_level='WARNING')
+  message.shutdown()
+  database.shutdown(app)
+  sys.exit(0)
+
+
 if __name__ == '__main__':
+  signal.signal(signal.SIGINT, shutdown_handler)  # Handles Ctrl-C locally.
   app.run(host='0.0.0.0', port=8080, debug=True)
+else:
+  # Handles App Engine instance termination.
+  signal.signal(signal.SIGTERM, shutdown_handler)

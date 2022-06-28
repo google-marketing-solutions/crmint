@@ -12,18 +12,22 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import signal
+import sys
+import traceback
+import types
 
-from traceback import format_exc
-
-from flask import Flask, json, request
+from flask import json
+from flask.app import Flask
+from flask.globals import request
 
 from common import auth_filter
-from common.message import BadRequestError, TooEarlyError
-from common.task import Task
-from common.result import Result
+from common import crmint_logging
+from common import message
+from common import result
+from common import task
 from jobs.workers import finder
-from jobs.workers.worker import WorkerException
-
+from jobs.workers import worker
 
 app = Flask(__name__)
 auth_filter.add(app)
@@ -45,38 +49,79 @@ def worker_parameters(worker_class):
 
 @app.route('/push/start-task', methods=['POST'])
 def start_task():
+  """Receives a task from Pub/Sub and executes it."""
   try:
-    task = Task.from_request(request)
-  except (BadRequestError, TooEarlyError) as e:
+    task_inst = task.Task.from_request(request)
+  except (message.BadRequestError, message.TooEarlyError) as e:
     return e.message, e.code
 
-  worker_class = finder.get_worker_class(task.worker_class)
-  worker_params = task.worker_params.copy()
+  crmint_logging.log_message(
+      f'Starting task for name: {task_inst.name}',
+      log_level='DEBUG',
+      worker_class=task_inst.worker_class,
+      pipeline_id=task_inst.pipeline_id,
+      job_id=task_inst.job_id)
+
+  worker_class = finder.get_worker_class(task_inst.worker_class)
+  worker_params = task_inst.worker_params.copy()
   for setting in worker_class.GLOBAL_SETTINGS:
-    worker_params[setting] = task.general_settings[setting]
-  worker = worker_class(worker_params, task.pipeline_id, task.job_id)
+    worker_params[setting] = task_inst.general_settings[setting]
+  worker_inst = worker_class(
+      worker_params, task_inst.pipeline_id, task_inst.job_id)
 
   try:
-    workers_to_enqueue = worker.execute()
-  except WorkerException as e:
+    workers_to_enqueue = worker_inst.execute()
+    crmint_logging.log_message(
+        f'Executed task for name: {task_inst.name}',
+        log_level='DEBUG',
+        worker_class=task_inst.worker_class,
+        pipeline_id=task_inst.pipeline_id,
+        job_id=task_inst.job_id)
+  except worker.WorkerException as e:
     class_name = e.__class__.__name__
-    worker.log_error(f'Execution failed: {class_name}: {e}')
-    result = Result(task.name, task.job_id, False)
-    result.report()
+    worker_inst.log_error(f'Execution failed: {class_name}: {e}')
+    result_inst = result.Result(task_inst.name, task_inst.job_id, False)
+    result_inst.report()
   except Exception as e:  # pylint: disable=broad-except
-    formatted_exception = format_exc()
-    worker.log_error(f'Unexpected error {formatted_exception}')
-    if task.attempts < worker.MAX_ATTEMPTS:
-      task.reenqueue()
+    formatted_exception = traceback.format_exc()
+    worker_inst.log_error(f'Unexpected error {formatted_exception}')
+    if task_inst.attempts < worker_inst.MAX_ATTEMPTS:
+      task_inst.reenqueue()
     else:
-      worker.log_error(f'Giving up after {task.attempts} attempt(s)')
-      result = Result(task.name, task.job_id, False)
-      result.report()
+      worker_inst.log_error(f'Giving up after {task_inst.attempts} attempt(s)')
+      result_inst = result.Result(task_inst.name, task_inst.job_id, False)
+      result_inst.report()
   else:
-    result = Result(task.name, task.job_id, True, workers_to_enqueue)
-    result.report()
+    result_inst = result.Result(
+        task_inst.name, task_inst.job_id, True, workers_to_enqueue)
+    result_inst.report()
   return 'OK', 200
 
 
+def shutdown_handler(sig: int, frame: types.FrameType) -> None:
+  """Gracefully shuts down the instance.
+
+  Within the 3 seconds window, try to do as much as possible:
+    1. Commit all pending Pub/Sub messages (as much as possible).
+
+  You can read more about this practice:
+  https://cloud.google.com/blog/topics/developers-practitioners/graceful-shutdowns-cloud-run-deep-dive.
+
+  Args:
+    sig: Signal intercepted.
+    frame: Frame object such as `tb.tb_frame` if `tb` is a traceback object.
+  """
+  del sig, frame  # Unused argument
+  crmint_logging.log_global_message(
+      'Signal received, safely shutting down.',
+      log_level='WARNING')
+  message.shutdown()
+  sys.exit(0)
+
+
 if __name__ == '__main__':
+  signal.signal(signal.SIGINT, shutdown_handler)  # Handles Ctrl-C locally.
   app.run(host='0.0.0.0', port=8081, debug=True)
+else:
+  # Handles App Engine instance termination.
+  signal.signal(signal.SIGTERM, shutdown_handler)
