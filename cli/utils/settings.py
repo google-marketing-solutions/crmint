@@ -38,7 +38,8 @@ DATABASE_TIER = os.environ.get('DATABASE_TIER', 'db-g1-small')
 DATABASE_PROJECT = os.environ.get('DATABASE_PROJECT', None)
 DATABASE_REGION = os.environ.get('DATABASE_REGION', REGION)
 
-# Networking conf
+# VPC conf for Cloud SQL with private IP address only.
+USE_VPC = os.environ.get('USE_VPC', 'False')
 NETWORK = os.environ.get('NETWORK', 'crmint-vpc')
 NETWORK_PROJECT = os.environ.get('NETWORK_PROJECT', None)
 SUBNET_REGION = os.environ.get('SUBNET_REGION', REGION)
