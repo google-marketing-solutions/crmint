@@ -12,7 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-runtime: python38
+instance_class: F1
+automatic_scaling:
+  max_instances: 1
+
+runtime: python39
 
 handlers:
 - url: /favicon\.ico
