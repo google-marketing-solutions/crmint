@@ -7,20 +7,7 @@ on:
 jobs:
   run-tests:
     runs-on: ubuntu-18.04
-    services:
-      mysql:
-        image: mysql:5.7
-        env:
-          MYSQL_ROOT_PASSWORD: 'root'
-        ports:
-          - '8888:3306'
-        options: --health-cmd="mysqladmin ping" --health-interval=10s --health-timeout=5s --health-retries=3
     steps:
-      # Starting the mysql service
-      - run: sudo /etc/init.d/mysql start
-      # Create a user with access to the test database
-      - run: mysql -u root -proot --execute="CREATE DATABASE IF NOT EXISTS crmintapp_test;"
-      - run: mysql -u root -proot --execute="GRANT ALL PRIVILEGES ON crmintapp_test.* TO 'crmint'@'localhost' IDENTIFIED BY 'crmint'";
       # Checkout repository code
       - uses: actions/checkout@v2
       # Configure python
@@ -33,9 +20,6 @@ jobs:
       - run: gcloud -q components update
       - run: gcloud -q components install app-engine-python
       # Setup the CRMint test environment
-      - run: echo "CREATE DATABASE IF NOT EXISTS crmintapp CHARACTER SET utf8;" | mysql -h 127.0.0.1 -u root -proot
-      - run: echo "GRANT ALL PRIVILEGES ON crmintapp.* TO 'crmintapp'@'localhost' IDENTIFIED BY 'crmintapp';" | mysql -h 127.0.0.1 -u root -proot
-      - run: echo "FLUSH PRIVILEGES;" | mysql -h 127.0.0.1 -u root -proot
       - run: pip install -r backend/requirements-controller.txt
       - run: pip install -r backend/requirements-jobs.txt
       - run: pip install -r backend/tests/requirements.txt
