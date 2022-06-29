@@ -326,7 +326,8 @@ class CloudSetupTest(CloudBaseTest):
       cloud._grant_required_permissions(stage)
 
     runner = testing.CliRunner()
-    result = runner.invoke(_custom_command, standalone_mode=False)
+    result = runner.invoke(
+        _custom_command, standalone_mode=False, catch_exceptions=False)
     # Our command wrapper should not fail, exit_code should be 0 and report the
     # error on the standard output.
     self.assertEqual(result.exit_code, 0, msg=result.output)
