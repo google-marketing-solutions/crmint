@@ -295,6 +295,7 @@ def default_stage_context(project_id: ProjectId) -> StageContext:
       database_backup_enabled=settings.DATABASE_BACKUP_ENABLED,
       database_ha_type=settings.DATABASE_HA_TYPE,
       database_project=settings.DATABASE_PROJECT or project_id,
+      use_vpc=settings.USE_VPC,
       network=settings.NETWORK,
       subnet_region=region,
       connector=settings.CONNECTOR,
