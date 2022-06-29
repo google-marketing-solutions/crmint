@@ -37,6 +37,7 @@ from common import insight
 from controller import models
 
 _PROJECT_ID = os.getenv('GOOGLE_CLOUD_PROJECT')
+_LOGS_PAGE_SIZE = 20
 
 blueprint = flask.Blueprint('pipeline', __name__)
 api = Api(blueprint)
@@ -321,7 +322,6 @@ class PipelineLogs(Resource):
         {%- if query %} AND jsonPayload.message:"{{ query }}"{% endif %}
         {%- if fromdate %} AND timestamp>="{{ fromdate }}"{% endif %}
         {%- if todate %} AND timestamp<="{{ todate }}"{% endif %}
-        {%- if next_page_token %} AND timestamp<"{{ next_page_token }}"{% endif %}
         """))
     filter_ = filter_template.render(
         pipeline_id=pipeline_id,
@@ -330,11 +330,13 @@ class PipelineLogs(Resource):
         log_level=args.get('log_level'),
         query=args.get('query'),
         fromdate=args.get('fromdate'),
-        todate=args.get('todate'),
-        next_page_token=args.get('next_page_token'))
+        todate=args.get('todate'))
+    next_page_token = args.get('next_page_token')
     list_entries = crmint_logging.get_logger().client.list_entries(
         filter_=filter_,
-        order_by=DESCENDING)
+        order_by=DESCENDING,
+        page_size=_LOGS_PAGE_SIZE,
+        page_token=next_page_token)
     for entry in list_entries:
       if not isinstance(entry.payload, dict):
         continue
