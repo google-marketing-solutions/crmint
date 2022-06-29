@@ -254,8 +254,6 @@ class CloudSetupTest(CloudBaseTest):
             ---> Check if VPC Peering exists ✓
             ---> Updating the private connection ✓
             ---> Check if VPC Subnet already exists ✓
-                 VPC App Subnet already exists.
-            ---> Check if VPC Subnet already exists ✓
                  VPC Connector Subnet already exists.
             ---> Check if VPC Connector already exists ✓
                  VPC Connector already exists.
