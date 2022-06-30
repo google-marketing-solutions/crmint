@@ -25,6 +25,10 @@ automatic_scaling:
 runtime: python39
 entrypoint: gunicorn -b :$PORT -w 3 controller_app:app
 
+# Enables legacy bundle services.
+# See: https://cloud.google.com/appengine/docs/standard/python3/services/access#installing
+app_engine_apis: true
+
 handlers:
 - url: /.*
   script: auto

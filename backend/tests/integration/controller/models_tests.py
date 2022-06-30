@@ -16,40 +16,22 @@ from unittest import mock
 
 from absl.testing import absltest
 from absl.testing import parameterized
-import flask
 
 from common import crmint_logging
 from common import task
-from controller import database
-from controller import extensions
 from controller import mailers
 from controller import models
+from tests import utils
 
 
-class ModelTestCase(parameterized.TestCase):
+class ModelTestCase(utils.ModelTestCase):
 
   def setUp(self):
     super().setUp()
-    # Pushes an application context manually.
-    test_app = flask.Flask(__name__)
-    extensions.db.init_app(test_app)
-    self.ctx = test_app.app_context()
-    self.ctx.push()
-    # Creates tables & loads seed data
-    extensions.db.create_all()
-    database.load_fixtures()
     self.patched_task_enqueue = self.enter_context(
         mock.patch.object(task.Task, 'enqueue', autospec=True))
     self.patched_log_message = self.enter_context(
         mock.patch.object(crmint_logging, 'log_message', autospec=True))
-
-  def tearDown(self):
-    super().tearDown()
-    # Ensures next test is in a clean state
-    extensions.db.session.remove()
-    extensions.db.drop_all()
-    # Drop the app context
-    self.ctx.pop()
 
 
 class TestPipelineWithJobs(ModelTestCase):
