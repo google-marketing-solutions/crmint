@@ -174,6 +174,7 @@ def before_hook(stage: StageContext) -> StageContext:
       stage.database_instance_name)
 
   stage.cloudsql_dir = '/tmp/cloudsql'
+
   stage.cloud_db_uri = 'mysql+mysqlconnector://{}:{}@/{}?unix_socket=/cloudsql/{}'.format(
       stage.database_username,
       stage.database_password,
@@ -268,7 +269,7 @@ def get_regions(project_id: ProjectId) -> Tuple[str, str]:
     while i < 0 or i >= len(regions):
       i = click.prompt(
           'Enter an index of the region to deploy CRMint in', type=int) - 1
-    region = regions[i]
+    region = regions[i].strip()
   sql_region = region if region[-1].isdigit() else f'{region}1'
   return region, sql_region
 
@@ -294,12 +295,11 @@ def default_stage_context(project_id: ProjectId) -> StageContext:
       database_backup_enabled=settings.DATABASE_BACKUP_ENABLED,
       database_ha_type=settings.DATABASE_HA_TYPE,
       database_project=settings.DATABASE_PROJECT or project_id,
+      use_vpc=settings.USE_VPC,
       network=settings.NETWORK,
-      subnet=settings.SUBNET,
-      subnet_region=settings.SUBNET_REGION,
-      subnet_cidr=settings.SUBNET_CIDR,
+      subnet_region=region,
       connector=settings.CONNECTOR,
-      connector_subnet=settings.CONNECTOR_SUBNET,
+      connector_subnet='crmint-{}-connector-subnet'.format(region),
       connector_cidr=settings.CONNECTOR_CIDR,
       connector_min_instances=settings.CONNECTOR_MIN_INSTANCES,
       connector_max_instances=settings.CONNECTOR_MAX_INSTANCES,

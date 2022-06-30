@@ -58,7 +58,7 @@ def create_vpc(stage: shared.StageContext, debug: bool = False) -> None:
            f' --global'
            f' --purpose=VPC_PEERING'
            f' --addresses=192.168.0.0'
-           f' --prefix-length=24'
+           f' --prefix-length=16'
            f' --network={network}')
     shared.execute_command('Allocating an IP address range', cmd, debug=debug)
 
@@ -79,22 +79,6 @@ def create_vpc(stage: shared.StageContext, debug: bool = False) -> None:
            f' --project={network_project}')
     shared.execute_command(
         'Creating the private connection', cmd, debug=debug)
-
-
-def _check_if_subnet_exists(stage, debug=False):
-  """Checks that a subnet exist in the GCP project."""
-  subnet = stage.subnet
-  subnet_region = stage.subnet_region
-  network_project = stage.network_project
-  cmd = (f'{GCLOUD} compute networks subnets describe {subnet}'
-         f' --verbosity critical --project={network_project}'
-         f' --region={subnet_region}')
-  status, _, _ = shared.execute_command(
-      'Check if VPC Subnet already exists',
-      cmd,
-      report_empty_err=False,
-      debug=debug)
-  return status == 0
 
 
 def _check_if_connector_subnet_exists(stage, debug=False):
@@ -122,22 +106,9 @@ def create_subnet(stage: shared.StageContext, debug: bool = False) -> None:
   """
   network = stage.network
   network_project = stage.network_project
-  subnet = stage.subnet
-  subnet_cidr = stage.subnet_cidr
   subnet_region = stage.subnet_region
   connector_subnet = stage.connector_subnet
   connector_cidr = stage.connector_cidr
-
-  if _check_if_subnet_exists(stage, debug=debug):
-    click.echo('     VPC App Subnet already exists.')
-  else:
-    cmd_subnet = (f'{GCLOUD} compute networks subnets create {subnet}'
-                  f' --network={network}'
-                  f' --range={subnet_cidr}'
-                  f' --region={subnet_region}'
-                  f' --project={network_project}')
-
-    shared.execute_command('Create the VPC App Subnet', cmd_subnet, debug=debug)
 
   if _check_if_connector_subnet_exists(stage, debug=debug):
     click.echo('     VPC Connector Subnet already exists.')

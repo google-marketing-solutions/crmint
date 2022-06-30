@@ -26,7 +26,6 @@ class VPCHelpersTests(parameterized.TestCase):
   @parameterized.named_parameters(
       ('VPC', vpc_helpers._check_if_vpc_exists),
       ('Peering', vpc_helpers._check_if_peering_exists),
-      ('Subnet', vpc_helpers._check_if_subnet_exists),
       ('Subnet Connector', vpc_helpers._check_if_connector_subnet_exists),
       ('VPC Connector', vpc_helpers._check_if_vpc_connector_exists),
   )
@@ -44,7 +43,6 @@ class VPCHelpersTests(parameterized.TestCase):
   @parameterized.named_parameters(
       ('VPC', vpc_helpers._check_if_vpc_exists),
       ('Peering', vpc_helpers._check_if_peering_exists),
-      ('Subnet', vpc_helpers._check_if_subnet_exists),
       ('Subnet Connector', vpc_helpers._check_if_connector_subnet_exists),
       ('VPC Connector', vpc_helpers._check_if_vpc_connector_exists),
   )
