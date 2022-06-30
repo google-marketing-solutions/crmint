@@ -58,7 +58,7 @@ def cron_match(cron: str, dt: datetime.datetime = None) -> bool:
   """
   if dt is None:
     dt = datetime.datetime.utcnow()
-  minute, hour, dom, month, dow = cron.split(' ')
+  minute, hour, dom, month, dow = cron.strip().split(' ')
   weekday = dt.isoweekday()
   conditions = [
       _parse_arg(minute, dt.minute),
