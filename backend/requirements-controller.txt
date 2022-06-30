@@ -8,6 +8,10 @@ alembic==1.7.6
     # via flask-migrate
 aniso8601==9.0.1
     # via flask-restful
+appengine-python-standard==1.0.0
+    # via -r requirements-controller.in
+attrs==21.4.0
+    # via appengine-python-standard
 cachecontrol==0.12.10
     # via -r common/requirements.in
 cachetools==5.0.0
@@ -35,6 +39,8 @@ flask-sqlalchemy==2.5.1
     # via
     #   -r requirements-controller.in
     #   flask-migrate
+frozendict==2.3.2
+    # via appengine-python-standard
 google-api-core[grpc]==2.5.0
     # via
     #   google-cloud-appengine-logging
@@ -44,6 +50,7 @@ google-api-core[grpc]==2.5.0
     #   google-cloud-pubsub
 google-auth==2.6.0
     # via
+    #   appengine-python-standard
     #   google-api-core
     #   google-cloud-core
 google-cloud-appengine-logging==1.1.0
@@ -104,6 +111,8 @@ markupsafe==2.1.0
     # via
     #   jinja2
     #   mako
+mock==4.0.3
+    # via appengine-python-standard
 msgpack==1.0.3
     # via cachecontrol
 mypy-extensions==0.4.3
@@ -116,6 +125,8 @@ packaging==21.3
     # via
     #   google-cloud-appengine-logging
     #   google-cloud-bigquery
+pillow==9.1.1
+    # via appengine-python-standard
 proto-plus==1.20.3
     # via
     #   google-cloud-appengine-logging
@@ -124,6 +135,7 @@ proto-plus==1.20.3
     #   google-cloud-pubsub
 protobuf==3.19.4
     # via
+    #   appengine-python-standard
     #   google-api-core
     #   google-cloud-audit-log
     #   google-cloud-bigquery
@@ -142,18 +154,26 @@ pyparsing==3.0.7
 python-dateutil==2.8.2
     # via google-cloud-bigquery
 pytz==2021.3
-    # via flask-restful
+    # via
+    #   appengine-python-standard
+    #   flask-restful
 pyyaml==6.0
     # via libcst
 requests==2.27.1
     # via
+    #   appengine-python-standard
     #   cachecontrol
     #   google-api-core
     #   google-cloud-bigquery
 rsa==4.8
     # via google-auth
+ruamel-yaml==0.17.21
+    # via appengine-python-standard
+ruamel-yaml-clib==0.2.6
+    # via ruamel-yaml
 six==1.16.0
     # via
+    #   appengine-python-standard
     #   flask-cors
     #   flask-restful
     #   google-auth
@@ -170,7 +190,9 @@ typing-extensions==4.1.1
 typing-inspect==0.7.1
     # via libcst
 urllib3==1.26.8
-    # via requests
+    # via
+    #   appengine-python-standard
+    #   requests
 werkzeug==2.0.3
     # via flask
 

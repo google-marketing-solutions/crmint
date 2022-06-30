@@ -3,38 +3,14 @@
 import textwrap
 
 from absl.testing import absltest
-import flask
 import freezegun
 import jinja2
 
-from controller import database
-from controller import extensions
 from controller import models
+from tests import utils
 
 
-class ModelTestCase(absltest.TestCase):
-
-  def setUp(self):
-    super().setUp()
-    # Pushes an application context manually.
-    test_app = flask.Flask(__name__)
-    extensions.db.init_app(test_app)
-    self.ctx = test_app.app_context()
-    self.ctx.push()
-    # Creates tables & loads seed data
-    extensions.db.create_all()
-    database.load_fixtures()
-
-  def tearDown(self):
-    super().tearDown()
-    # Ensures next test is in a clean state
-    extensions.db.session.remove()
-    extensions.db.drop_all()
-    # Drop the app context
-    self.ctx.pop()
-
-
-class TestParamSupportsTypeBase(ModelTestCase):
+class TestParamSupportsTypeBase(utils.ModelTestCase):
 
   def _setup_parent_job(self):
     pipeline = models.Pipeline.create(name='pipeline1')
@@ -161,7 +137,7 @@ class TestParamSupportsTypeNumberList(TestParamSupportsTypeBase):
     self.assertEqual(param.worker_value[2], 2.8)
 
 
-class TestParamRuntimeValues(ModelTestCase):
+class TestParamRuntimeValues(utils.ModelTestCase):
 
   def test_global_param_runtime_value_is_populated_with_null(self):
     param = models.Param.create(name='p1', type='number', value='42')
@@ -261,11 +237,12 @@ class TestParamRuntimeValues(ModelTestCase):
             """))
 
 
-class TestPipeline(ModelTestCase):
+class TestPipeline(utils.ModelTestCase):
 
   def test_create_pipeline_succeed(self):
     pipeline = models.Pipeline.create()
     obj = models.Pipeline.find(pipeline.id)
+    self.assertLen(models.Pipeline.all(), 1)
     self.assertEqual(obj.id, pipeline.id)
 
   def test_assign_schedules_update_or_create_or_delete_relation(self):
@@ -280,6 +257,7 @@ class TestPipeline(ModelTestCase):
         {'id': None, 'cron': 'NEW2'},
     ]
 
+    self.assertLen(models.Pipeline.all(), 1)
     self.assertCountEqual(
         pipeline.schedules.all(),
         [sc1, sc2]
@@ -380,7 +358,7 @@ class TestPipeline(ModelTestCase):
     self.assertEqual(p5.runtime_value, 'foo baz goo zaz')
 
 
-class TestTaskEnqueued(ModelTestCase):
+class TestTaskEnqueued(utils.ModelTestCase):
 
   def test_count_is_zero(self):
     self.assertEqual(models.TaskEnqueued.count_in_namespace('xyz'), 0)

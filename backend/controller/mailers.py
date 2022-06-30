@@ -14,9 +14,8 @@
 
 """Mailer implementation."""
 
-import textwrap
+from google.appengine.api import mail
 
-from common import crmint_logging
 from controller import app_data
 
 
@@ -43,20 +42,16 @@ class NotificationMailer(BaseNotifier):
       app_data.APP_DATA['notification_sender_email']
   )
 
-  def finished_pipeline(self, pipeline):
+  def finished_pipeline(self, pipeline: 'models.Pipeline') -> None:
+    """Sends a mail with the pipeline status.
+
+    Args:
+      pipeline: Instance of the pipeline which just finished its execution.
+    """
     recipients = self.recipients(pipeline.recipients)
     if recipients:
       subject = f'Pipeline {pipeline.name} {pipeline.status}'
-      message = textwrap.dedent(f"""\
-          (Mailing System not implemented)
-          Subject: {subject}
-          """)
-      crmint_logging.log_message(message,
-                                 log_level='WARNING',
-                                 worker_class='N/A',
-                                 pipeline_id=pipeline.id,
-                                 job_id=0)
-      # mail.send_mail(sender=self.SENDER,
-      #                to=recipients,
-      #                subject=subject,
-      #                body=subject)
+      mail.send_mail(sender=self.SENDER,
+                     to=recipients,
+                     subject=subject,
+                     body=subject)

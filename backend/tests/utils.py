@@ -18,6 +18,7 @@ import os
 from unittest import mock
 
 from absl.testing import parameterized
+import flask
 import requests
 
 from common import crmint_logging
@@ -26,6 +27,25 @@ from common import task
 from controller import app
 from controller import database
 from controller import extensions
+
+
+class ModelTestCase(parameterized.TestCase):
+  """Base class for model testing."""
+
+  def setUp(self):
+    super().setUp()
+    # Pushes an application context manually.
+    test_app = flask.Flask(__name__)
+    extensions.db.init_app(test_app)
+    self.ctx = test_app.app_context()
+    self.ctx.push()
+    # Creates tables & loads seed data
+    extensions.db.create_all()
+
+  def tearDown(self):
+    super().tearDown()
+    # Drops the app context
+    self.ctx.pop()
 
 
 class AppTestCase(parameterized.TestCase):
@@ -60,7 +80,7 @@ class AppTestCase(parameterized.TestCase):
 
   def tearDown(self):
     super().tearDown()
-    # Drop the app context
+    # Drops the app context
     self.ctx.pop()
 
 
@@ -82,6 +102,5 @@ class ControllerAppTest(AppTestCase):
 
   def tearDown(self):
     # Ensures next test is in a clean state
-    extensions.db.session.remove()
     extensions.db.drop_all()
     super().tearDown()
