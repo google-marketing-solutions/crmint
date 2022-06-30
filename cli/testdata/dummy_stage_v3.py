@@ -55,6 +55,7 @@ gae_region = "GAE_REGION"
 enabled_stages = False
 
 # Network configuration
+use_vpc = False
 network = "NETWORK"
 subnet = "SUBNET"
 subnet_region = "SUBNET_REGION"

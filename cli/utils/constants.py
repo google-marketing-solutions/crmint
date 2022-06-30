@@ -100,7 +100,7 @@ STAGE_FILE_TEMPLATE = textwrap.dedent("""\
     enabled_stages = False
 
     # Network configuration
-    use_vpc = "{ctx.use_vpc}"
+    use_vpc = {ctx.use_vpc}
     network = "{ctx.network}"
     subnet_region = "{ctx.subnet_region}"
     connector = "{ctx.connector}"
