@@ -28,7 +28,7 @@ from flask_restful import fields
 from flask_restful import marshal_with
 from flask_restful import reqparse
 from flask_restful import Resource
-from google.cloud.logging import DESCENDING
+from google.cloud import logging
 import jinja2
 import werkzeug
 
@@ -322,6 +322,7 @@ class PipelineLogs(Resource):
         {%- if query %} AND jsonPayload.message:"{{ query }}"{% endif %}
         {%- if fromdate %} AND timestamp>="{{ fromdate }}"{% endif %}
         {%- if todate %} AND timestamp<="{{ todate }}"{% endif %}
+        {%- if next_page_token %} AND timestamp<"{{ next_page_token }}"{% endif %}
         """))
     filter_ = filter_template.render(
         pipeline_id=pipeline_id,
@@ -330,14 +331,19 @@ class PipelineLogs(Resource):
         log_level=args.get('log_level'),
         query=args.get('query'),
         fromdate=args.get('fromdate'),
-        todate=args.get('todate'))
-    next_page_token = args.get('next_page_token')
-    list_entries = crmint_logging.get_logger().client.list_entries(
+        todate=args.get('todate'),
+        next_page_token=args.get('next_page_token'))
+    # NOTE: `page_size` defines the number of entries to fetch in each API call.
+    #       Although requests are paged internally, logs are returned by the
+    #       generator one at a time.
+    #       `max_results` has to be used if we don't want the generator to
+    #       exhaust our reading quota.
+    list_entries_iter = crmint_logging.get_logger().list_entries(
         filter_=filter_,
-        order_by=DESCENDING,
+        order_by=logging.DESCENDING,
         page_size=_LOGS_PAGE_SIZE,
-        page_token=next_page_token)
-    for entry in list_entries:
+        max_results=_LOGS_PAGE_SIZE)
+    for entry in list_entries_iter:
       if not isinstance(entry.payload, dict):
         continue
 

@@ -14,6 +14,7 @@
 
 """Logging helpers."""
 
+import functools
 from typing import Optional
 
 from google.auth import credentials as auth_credentials
@@ -21,11 +22,12 @@ from google.cloud import logging
 from google.cloud.logging import Logger
 
 
+@functools.cache
 def get_logger(
     *,
     project: Optional[str] = None,
     credentials: Optional[auth_credentials.Credentials] = None) -> Logger:
-  """Helper to create a CRMint logger.
+  """Helper to create and cache a CRMint logger.
 
   Args:
     project: GCP Project ID string or None.
