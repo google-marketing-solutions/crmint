@@ -1,6 +1,8 @@
 /* You can add global styles to this file, and also import other style files */
 
 @import '~@angular/material/theming';
+@import '~codemirror/lib/codemirror';
+@import '~codemirror/theme/material';
 
 // Include the common styles for Angular Material.
 @include mat-core();
@@ -283,7 +285,7 @@ $crmi-form-label-field: 750px;
     label {
       float: left;
     }
-    .ace_editor {
+    .codemirror {
       width: $crmi-form-label-field;
       border: 1px solid #ddd;
       .ace_scrollbar-v {

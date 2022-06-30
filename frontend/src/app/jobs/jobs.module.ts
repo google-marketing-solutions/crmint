@@ -17,7 +17,7 @@ import { NgModule } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { ReactiveFormsModule, FormsModule } from '@angular/forms';
-import { AceEditorModule } from 'ng2-ace-editor';
+import { CodemirrorModule } from '@ctrl/ngx-codemirror';
 
 import { SharedModule } from './../shared/shared.module';
 import { JobsComponent } from './jobs.component';
@@ -32,7 +32,7 @@ import { WorkerParamsComponent } from './job-form/worker-params/worker-params.co
     FormsModule,
     ReactiveFormsModule,
     RouterModule,
-    AceEditorModule
+    CodemirrorModule
   ],
   declarations: [
     JobsComponent,
