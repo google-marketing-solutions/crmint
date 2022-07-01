@@ -26,3 +26,15 @@ jobs:
       # Run the tests
       - run: cd backend && python runtests.py
       - run: cd cli && python runtests.py
+  run-frontend-tests:
+    runs-on: ubuntu-18.04
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 14
+      - name: Clean install and run tests
+        working-directory: ./frontend
+        run: |
+          npm ci
+          npm test -- --no-watch
