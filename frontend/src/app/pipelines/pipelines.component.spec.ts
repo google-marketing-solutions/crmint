@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { async, ComponentFixture, TestBed } from '@angular/core/testing';
+import { ComponentFixture, TestBed, waitForAsync } from '@angular/core/testing';
 import { AppComponent } from './../app.component';
 import { HttpClientModule } from '@angular/common/http';
 import { PipelinesService } from './shared/pipelines.service';
@@ -22,7 +22,7 @@ describe('PipelinesComponent', () => {
   let component: PipelinesComponent;
   let fixture: ComponentFixture<PipelinesComponent>;
 
-  beforeEach(async(() => {
+  beforeEach(waitForAsync(() => {
     TestBed.configureTestingModule({
       imports: [
         HttpClientModule
