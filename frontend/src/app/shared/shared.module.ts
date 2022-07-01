@@ -16,6 +16,7 @@ import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDatepickerModule } from '@angular/material/datepicker';
 import { MatNativeDateModule } from '@angular/material/core';
+import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatIconModule } from '@angular/material/icon';
@@ -26,7 +27,7 @@ import { MatToolbarModule } from '@angular/material/toolbar';
 import { MatTabsModule } from '@angular/material/tabs';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatMenuModule } from '@angular/material/menu';
-import { NgModule } from '@angular/core';
+import { NgModule, CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
 import { CommonModule } from '@angular/common';
 
 import { StatusComponent } from './status/status.component';
@@ -37,6 +38,7 @@ import { StatusComponent } from './status/status.component';
     MatButtonModule,
     MatDatepickerModule,
     MatNativeDateModule,
+    MatFormFieldModule,
     MatInputModule,
     MatProgressSpinnerModule,
     MatIconModule,
@@ -50,13 +52,14 @@ import { StatusComponent } from './status/status.component';
     MatMenuModule
   ],
   declarations: [
-    StatusComponent
+    StatusComponent,
   ],
   exports: [
     StatusComponent,
     MatButtonModule,
     MatDatepickerModule,
     MatNativeDateModule,
+    MatFormFieldModule,
     MatInputModule,
     MatProgressSpinnerModule,
     MatIconModule,
@@ -68,6 +71,7 @@ import { StatusComponent } from './status/status.component';
     MatTabsModule,
     MatCheckboxModule,
     MatMenuModule
-  ]
+  ],
+  schemas: [CUSTOM_ELEMENTS_SCHEMA]
 })
 export class SharedModule { }

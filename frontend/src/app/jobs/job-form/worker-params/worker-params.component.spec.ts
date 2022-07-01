@@ -15,13 +15,14 @@
 /* tslint:disable:no-unused-variable */
 import { async, ComponentFixture, TestBed } from '@angular/core/testing';
 import { HttpClientModule } from '@angular/common/http';
-import { FormsModule, ReactiveFormsModule } from '@angular/forms';
+import { FormBuilder, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { WorkersService } from '../../shared/workers.service';
 import { WorkerParamsComponent } from './worker-params.component';
 
 describe('WorkerParamsComponent', () => {
   let component: WorkerParamsComponent;
   let fixture: ComponentFixture<WorkerParamsComponent>;
+  const formBuilder: FormBuilder = new FormBuilder();
 
   beforeEach(async(() => {
     TestBed.configureTestingModule({
@@ -31,7 +32,9 @@ describe('WorkerParamsComponent', () => {
         ReactiveFormsModule
       ],
       providers: [
-        WorkersService
+        WorkersService,
+        // reference the new instance of formBuilder from above
+        { provide: FormBuilder, useValue: formBuilder }
       ],
       declarations: [ WorkerParamsComponent ]
     })
@@ -41,6 +44,13 @@ describe('WorkerParamsComponent', () => {
   beforeEach(() => {
     fixture = TestBed.createComponent(WorkerParamsComponent);
     component = fixture.componentInstance;
+    // pass in the form dynamically
+    component.jobForm = formBuilder.group({
+      paramsLairs: formBuilder.array([
+        formBuilder.group({name: 'param1', value: 'foo'}),
+        formBuilder.group({name: 'param2', value: 'bar'}),
+      ])
+    });
     fixture.detectChanges();
   });
 
