@@ -13,7 +13,7 @@
 // limitations under the License.
 
 import { Type } from 'class-transformer';
-import * as prettyCron from 'prettycron';
+import * as parser from 'cron-parser';
 import * as moment from 'moment';
 
 import { Schedule } from './schedule';
@@ -64,7 +64,7 @@ export class Pipeline {
       const dates = [];
 
       this.schedules.forEach((schedule) => {
-        dates.push(prettyCron.getNextDate(schedule.cron));
+        dates.push(parser.parseExpression(schedule.cron).next().toDate());
       });
       if (dates.length) {
         const nextDate = new Date(Math.min.apply(null, dates));
