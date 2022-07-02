@@ -13,7 +13,7 @@
 // limitations under the License.
 
 import { Component, OnInit } from '@angular/core';
-import { FormGroup, FormBuilder, Validators, FormArray } from '@angular/forms';
+import { UntypedFormGroup, UntypedFormBuilder, Validators, UntypedFormArray } from '@angular/forms';
 import { Router, ActivatedRoute } from '@angular/router';
 
 import { PipelinesService } from './../shared/pipelines.service';
@@ -28,14 +28,14 @@ import { Param } from 'app/models/param';
 })
 export class PipelineFormComponent implements OnInit {
 
-  pipelineForm: FormGroup;
+  pipelineForm: UntypedFormGroup;
   pipeline: Pipeline = new Pipeline();
   state = 'loading'; // State has one of values: loading, loaded or error
   title = 'New Pipeline';
   error_message = '';
 
   constructor(
-    private _fb: FormBuilder,
+    private _fb: UntypedFormBuilder,
     private pipelinesService: PipelinesService,
     private router: Router,
     private route: ActivatedRoute
@@ -75,12 +75,12 @@ export class PipelineFormComponent implements OnInit {
     this.pipelineForm.setControl('paramsLairs', this._fb.array(param_fgs));
   }
 
-  get schedulesLairs(): FormArray {
-    return this.pipelineForm.get('schedulesLairs') as FormArray;
+  get schedulesLairs(): UntypedFormArray {
+    return this.pipelineForm.get('schedulesLairs') as UntypedFormArray;
   }
 
   removeSchedule(i) {
-    const control = <FormArray>this.pipelineForm.controls['schedulesLairs'];
+    const control = <UntypedFormArray>this.pipelineForm.controls['schedulesLairs'];
     control.removeAt(i);
   }
 
@@ -91,7 +91,7 @@ export class PipelineFormComponent implements OnInit {
   }
 
   addSchedule() {
-    const control = <FormArray>this.pipelineForm.controls['schedulesLairs'];
+    const control = <UntypedFormArray>this.pipelineForm.controls['schedulesLairs'];
     control.push(this.initSchedule());
   }
 

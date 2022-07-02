@@ -15,14 +15,14 @@
 /* tslint:disable:no-unused-variable */
 import { ComponentFixture, TestBed, waitForAsync } from '@angular/core/testing';
 import { HttpClientModule } from '@angular/common/http';
-import { FormBuilder, FormsModule, ReactiveFormsModule } from '@angular/forms';
+import { UntypedFormBuilder, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { WorkersService } from '../../shared/workers.service';
 import { WorkerParamsComponent } from './worker-params.component';
 
 describe('WorkerParamsComponent', () => {
   let component: WorkerParamsComponent;
   let fixture: ComponentFixture<WorkerParamsComponent>;
-  const formBuilder: FormBuilder = new FormBuilder();
+  const formBuilder: UntypedFormBuilder = new UntypedFormBuilder();
 
   beforeEach(waitForAsync(() => {
     TestBed.configureTestingModule({
@@ -34,7 +34,7 @@ describe('WorkerParamsComponent', () => {
       providers: [
         WorkersService,
         // reference the new instance of formBuilder from above
-        { provide: FormBuilder, useValue: formBuilder }
+        { provide: UntypedFormBuilder, useValue: formBuilder }
       ],
       declarations: [ WorkerParamsComponent ]
     })

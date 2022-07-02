@@ -14,13 +14,13 @@
 
 /* tslint:disable:no-unused-variable */
 import { ComponentFixture, TestBed, waitForAsync } from '@angular/core/testing';
-import { FormBuilder, FormsModule, ReactiveFormsModule } from '@angular/forms';
+import { UntypedFormBuilder, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { PipelineParamsComponent } from './pipeline-params.component';
 
 describe('PipelineParamsComponent', () => {
   let component: PipelineParamsComponent;
   let fixture: ComponentFixture<PipelineParamsComponent>;
-  const formBuilder: FormBuilder = new FormBuilder();
+  const formBuilder: UntypedFormBuilder = new UntypedFormBuilder();
 
   beforeEach(waitForAsync(() => {
     TestBed.configureTestingModule({
@@ -31,7 +31,7 @@ describe('PipelineParamsComponent', () => {
       declarations: [ PipelineParamsComponent ],
       providers: [
         // reference the new instance of formBuilder from above
-        { provide: FormBuilder, useValue: formBuilder }
+        { provide: UntypedFormBuilder, useValue: formBuilder }
       ]
     })
     .compileComponents();
