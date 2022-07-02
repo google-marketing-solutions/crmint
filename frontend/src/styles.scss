@@ -1,11 +1,11 @@
 /* You can add global styles to this file, and also import other style files */
+@use '~@angular/material' as mat;
 
-@import '~@angular/material/theming';
 @import '~codemirror/lib/codemirror';
 @import '~codemirror/theme/material';
 
 // Include the common styles for Angular Material.
-@include mat-core();
+@include mat.core();
 
 
 
@@ -27,30 +27,30 @@ $crmi-primary: (
   A400: #f50057,
   A700: #c51162,
   contrast: (
-    50: $black-87-opacity,
-    100: $black-87-opacity,
-    200: $black-87-opacity,
-    300: $black-87-opacity,
-    400: $black-87-opacity,
+    50: rgba(black, 0.87),
+    100: rgba(black, 0.87),
+    200: rgba(black, 0.87),
+    300: rgba(black, 0.87),
+    400: rgba(black, 0.87),
     500: white,
     600: white,
-    700: $white-87-opacity,
-    800: $white-87-opacity,
-    900: $white-87-opacity,
-    A100: $black-87-opacity,
+    700: rgba(white, 0.87),
+    800: rgba(white, 0.87),
+    900: rgba(white, 0.87),
+    A100: rgba(black, 0.87),
     A200: white,
     A400: white,
     A700: white
   )
 );
 
-$crmi-app-primary: mat-palette($crmi-primary, 700);
-$crmi-app-accent: mat-palette($crmi-primary, 500);
-$crmi-app-warn: mat-palette($mat-orange, 800);
-$crmi-app-theme: mat-light-theme($crmi-app-primary, $crmi-app-accent, $crmi-app-warn);
+$crmi-app-primary: mat.define-palette($crmi-primary, 700);
+$crmi-app-accent: mat.define-palette($crmi-primary, 500);
+$crmi-app-warn: mat.define-palette(mat.$orange-palette, 800);
+$crmi-app-theme: mat.define-light-theme($crmi-app-primary, $crmi-app-accent, $crmi-app-warn);
 
 // Include the default theme styles.
-@include angular-material-theme($crmi-app-theme);
+@include mat.all-component-themes($crmi-app-theme);
 
 // SIZES
 $crmi-sidebar-width: 200px;
