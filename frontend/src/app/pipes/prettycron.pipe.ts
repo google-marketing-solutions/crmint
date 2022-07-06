@@ -13,7 +13,7 @@
 // limitations under the License.
 
 import { Pipe, PipeTransform } from '@angular/core';
-import * as prettyCron from 'prettycron';
+import cronstrue from 'cronstrue';
 
 @Pipe({
   name: 'prettycron'
@@ -21,7 +21,7 @@ import * as prettyCron from 'prettycron';
 export class PrettycronPipe implements PipeTransform {
 
   transform(value: any, args?: any): any {
-    return prettyCron.toString(value);
+    return cronstrue.toString(value);
   }
 
 }

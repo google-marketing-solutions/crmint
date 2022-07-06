@@ -45,12 +45,16 @@
               <abbr *ngIf="parameter.value.required" title="required">*</abbr>
               {{parameter.value.label}}
             </label>
-            <ace-editor
-                  formControlName="value"
-                  theme="chrome"
-                  mode="sql"
-                  [options]="sql_editor_options"
-            ></ace-editor>
+            <ngx-codemirror
+              class="codemirror"
+              formControlName="value"
+              [options]="{
+                lineNumbers: true,
+                lineWrapping: true,
+                rulers: [{color: '#e8e8e8', column: 80}],
+                mode: 'sql'
+              }"
+            ></ngx-codemirror>
           </div>
           <div class="clearfix"></div>
         </ng-template>

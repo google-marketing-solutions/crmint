@@ -45,7 +45,7 @@ import { DashboardPipelinesComponent } from 'app/dashboard/dashboard-pipelines/d
     TopBarComponent,
     StagesComponent,
     LabelcasePipe,
-],
+  ],
   imports: [
     BrowserModule,
     FormsModule,

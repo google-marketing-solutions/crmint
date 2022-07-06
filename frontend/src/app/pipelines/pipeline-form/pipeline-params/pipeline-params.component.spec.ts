@@ -14,12 +14,13 @@
 
 /* tslint:disable:no-unused-variable */
 import { async, ComponentFixture, TestBed } from '@angular/core/testing';
-import { FormsModule, ReactiveFormsModule } from '@angular/forms';
+import { FormBuilder, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { PipelineParamsComponent } from './pipeline-params.component';
 
 describe('PipelineParamsComponent', () => {
   let component: PipelineParamsComponent;
   let fixture: ComponentFixture<PipelineParamsComponent>;
+  const formBuilder: FormBuilder = new FormBuilder();
 
   beforeEach(async(() => {
     TestBed.configureTestingModule({
@@ -27,7 +28,11 @@ describe('PipelineParamsComponent', () => {
         FormsModule,
         ReactiveFormsModule
       ],
-      declarations: [ PipelineParamsComponent ]
+      declarations: [ PipelineParamsComponent ],
+      providers: [
+        // reference the new instance of formBuilder from above
+        { provide: FormBuilder, useValue: formBuilder }
+      ]
     })
     .compileComponents();
   }));
@@ -35,6 +40,13 @@ describe('PipelineParamsComponent', () => {
   beforeEach(() => {
     fixture = TestBed.createComponent(PipelineParamsComponent);
     component = fixture.componentInstance;
+    // pass in the form dynamically
+    component.pipelineForm = formBuilder.group({
+      paramsLairs: formBuilder.array([
+        formBuilder.group({name: 'param1', value: 'foo'}),
+        formBuilder.group({name: 'param2', value: 'bar'}),
+      ])
+    });
     fixture.detectChanges();
   });
 

@@ -14,6 +14,7 @@
 
 /* tslint:disable:no-unused-variable */
 import { async, ComponentFixture, TestBed } from '@angular/core/testing';
+import { Router, RouterModule } from '@angular/router';
 
 import { NavBarComponent } from './nav-bar.component';
 
@@ -23,6 +24,7 @@ describe('NavBarComponent', () => {
 
   beforeEach(async(() => {
     TestBed.configureTestingModule({
+      imports: [ RouterModule.forRoot([]) ],
       declarations: [ NavBarComponent ]
     })
     .compileComponents();

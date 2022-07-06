@@ -28,6 +28,7 @@ describe('PipelinesComponent', () => {
         HttpClientModule
       ],
       providers: [
+        AppComponent,
         PipelinesService
       ],
       declarations: [

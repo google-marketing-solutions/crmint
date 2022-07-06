@@ -30,11 +30,7 @@
             "styles": [
               "src/styles.scss"
             ],
-            "scripts": [
-              "node_modules/ace-builds/src-min/ace.js",
-              "node_modules/ace-builds/src-min/theme-chrome.js",
-              "node_modules/ace-builds/src-min/mode-sql.js"
-            ]
+            "scripts": []
           },
           "configurations": {
             "production": {
