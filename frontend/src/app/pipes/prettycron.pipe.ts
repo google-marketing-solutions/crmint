@@ -21,7 +21,12 @@ import cronstrue from 'cronstrue';
 export class PrettycronPipe implements PipeTransform {
 
   transform(value: any, args?: any): any {
-    return cronstrue.toString(value);
+    try {
+      return cronstrue.toString(value);
+    } catch(err) {
+      console.log('Cannot parse cron:', err);
+      return undefined;
+    }
   }
 
 }

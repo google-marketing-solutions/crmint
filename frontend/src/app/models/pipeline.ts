@@ -64,7 +64,13 @@ export class Pipeline {
       const dates = [];
 
       this.schedules.forEach((schedule) => {
-        dates.push(parser.parseExpression(schedule.cron).next().toDate());
+        let interval;
+        try {
+          interval = parser.parseExpression(schedule.cron);
+        } catch (err) {
+          console.log('Failed to parse cron:', err);
+        }
+        dates.push(interval.next().toDate());
       });
       if (dates.length) {
         const nextDate = new Date(Math.min.apply(null, dates));
