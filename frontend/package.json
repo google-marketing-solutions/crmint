@@ -31,7 +31,7 @@
     "cron-parser": "^4.5.0",
     "cronstrue": "^2.11.0",
     "lodash": "^4.17.20",
-    "moment": "^2.24.0",
+    "moment": "^2.29.4",
     "ng-click-outside": "^6.0.0",
     "ngx-clipboard": "~13.0.0",
     "ngx-window-token": "~5.0.0",
