@@ -311,6 +311,37 @@ class TestPipelineFinishingStatus(ModelTestCase):
     self.assertNotEqual(pipeline.status, models.Pipeline.STATUS.RUNNING)
     patched_mailer.assert_called_once_with(mock.ANY, pipeline)
 
+  @parameterized.named_parameters(
+      ('Finished with success',
+       models.Job.STATUS.SUCCEEDED, models.Pipeline.STATUS.IDLE),
+      ('Finished with failure',
+       models.Job.STATUS.FAILED, models.Pipeline.STATUS.FAILED),
+  )
+  def test_pipeline_state_when_starting_single_job(self,
+                                                   job_status,
+                                                   pipeline_status):
+    pipeline = models.Pipeline.create(status=models.Pipeline.STATUS.IDLE)
+    job1 = models.Job.create(
+        pipeline_id=pipeline.id, status=models.Job.STATUS.IDLE)
+    job2 = models.Job.create(
+        pipeline_id=pipeline.id, status=models.Job.STATUS.IDLE)
+    job3 = models.Job.create(
+        pipeline_id=pipeline.id, status=models.Job.STATUS.IDLE)
+    models.StartCondition.create(
+        job_id=job2.id,
+        preceding_job_id=job1.id,
+        condition=models.StartCondition.CONDITION.SUCCESS)
+    models.StartCondition.create(
+        job_id=job3.id,
+        preceding_job_id=job2.id,
+        condition=models.StartCondition.CONDITION.SUCCESS)
+    task1 = pipeline.start_single_job(job2)
+    self.assertEqual(job2.status, models.Job.STATUS.RUNNING)
+    self.assertEqual(pipeline.status, models.Pipeline.STATUS.RUNNING)
+    job2._task_finished(task1.name, job_status)
+    self.assertEqual(job2.status, job_status)
+    self.assertEqual(pipeline.status, pipeline_status)
+
 
 class TestPipelineDestroy(ModelTestCase):
 
@@ -384,15 +415,14 @@ class TestJobStartedStatus(ModelTestCase):
     job = models.Job.create(
         pipeline_id=pipeline.id, status=models.Job.STATUS.WAITING)
     started = job.start()
-    self.assertTrue(started)
+    self.assertIsNotNone(started)
     self.assertEqual(job.status, models.Job.STATUS.RUNNING)
 
   def test_fails_if_running(self):
     pipeline = models.Pipeline.create(status=models.Pipeline.STATUS.RUNNING)
     job = models.Job.create(
         pipeline_id=pipeline.id, status=models.Job.STATUS.RUNNING)
-    with self.assertRaises(RuntimeError):
-      job.start()
+    self.assertIsNone(job.start())
 
   def test_single_fails_if_running(self):
     pipeline = models.Pipeline.create(status=models.Pipeline.STATUS.RUNNING)

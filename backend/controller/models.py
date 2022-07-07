@@ -246,23 +246,22 @@ class Pipeline(extensions.db.Model):
       job.stop()
     return True
 
-  def _start_as_single(self, job: 'Job') -> None:
+  def _start_as_single(self, job: 'Job') -> Union['TaskEnqueued', None]:
     # Updates statuses of pipeline and jobs, before starting any task.
     self.set_status(Pipeline.STATUS.RUNNING)
     job.set_status(Job.STATUS.WAITING)
     # Starts jobs now that all statuses are up-to-date.
-    job.start_as_single()
+    return job.start_as_single()
 
-  def start_single_job(self, job: 'Job') -> bool:
+  def start_single_job(self, job: 'Job') -> Union['TaskEnqueued', None]:
     """Returns True if the job has been started."""
     if self.get_ready([job]) == PipelineReadyStatus.READY:
-      self._start_as_single(job)
-      return True
+      return self._start_as_single(job)
 
     # Invites the user to look at logs by setting the job as failed.
     self.set_status(Pipeline.STATUS.FAILED)
     job.set_status(Job.STATUS.FAILED)
-    return False
+    return
 
   def has_finished(self) -> bool:
     """Returns True if a pipeline is in a finished state.
@@ -578,6 +577,10 @@ class Job(extensions.db.Model):
     return enqueued_tasks
 
   def start(self) -> Union[TaskEnqueued, None]:
+    if self.status not in Job.STATUS.WAITING:
+      # NOTE: Usually means that a single job was started from the UI,
+      #       so other jobs are still in an inactive status.
+      return None
     for start_condition in self.start_conditions:
       if start_condition.preceding_job.status not in Job.STATUS.INACTIVE_STATUSES:
         # Starting condition still running.
@@ -702,7 +705,10 @@ class Job(extensions.db.Model):
 
     # We can safely start children jobs, because of our above concurrent lock.
     # NOTE: Only if stopping has not been triggered.
-    if self.dependent_jobs and not stopping_signal:
+    # NOTE: And only if other jobs are still waiting.
+    waiting_signal = all(
+        job.status == Job.STATUS.WAITING for job in self.dependent_jobs)
+    if self.dependent_jobs and not stopping_signal and waiting_signal:
       self._start_dependent_jobs()
       return 0
 
