@@ -13,7 +13,7 @@
 // limitations under the License.
 
 /* tslint:disable:no-unused-variable */
-import { async, ComponentFixture, TestBed } from '@angular/core/testing';
+import { ComponentFixture, TestBed, waitForAsync } from '@angular/core/testing';
 import { Router, RouterModule } from '@angular/router';
 
 import { NavBarComponent } from './nav-bar.component';
@@ -22,9 +22,9 @@ describe('NavBarComponent', () => {
   let component: NavBarComponent;
   let fixture: ComponentFixture<NavBarComponent>;
 
-  beforeEach(async(() => {
+  beforeEach(waitForAsync(() => {
     TestBed.configureTestingModule({
-      imports: [ RouterModule.forRoot([]) ],
+      imports: [ RouterModule.forRoot([], { relativeLinkResolution: 'legacy' }) ],
       declarations: [ NavBarComponent ]
     })
     .compileComponents();

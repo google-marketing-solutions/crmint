@@ -13,7 +13,7 @@
 // limitations under the License.
 
 /* tslint:disable:no-unused-variable */
-import { async, ComponentFixture, TestBed } from '@angular/core/testing';
+import { ComponentFixture, TestBed, waitForAsync } from '@angular/core/testing';
 
 import { StagesComponent } from './stages.component';
 import { HttpClientModule } from '@angular/common/http';
@@ -23,7 +23,7 @@ describe('StagesComponent', () => {
   let component: StagesComponent;
   let fixture: ComponentFixture<StagesComponent>;
 
-  beforeEach(async(() => {
+  beforeEach(waitForAsync(() => {
     TestBed.configureTestingModule({
       imports: [ HttpClientModule ],
       providers: [ StagesService ],

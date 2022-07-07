@@ -13,7 +13,7 @@
 // limitations under the License.
 
 /* tslint:disable:no-unused-variable */
-import { async, ComponentFixture, TestBed } from '@angular/core/testing';
+import { ComponentFixture, TestBed, waitForAsync } from '@angular/core/testing';
 import { RouterModule } from '@angular/router';
 import { PipelineGraphComponent } from './pipeline-graph.component';
 
@@ -21,9 +21,9 @@ describe('PipelineGraphComponent', () => {
   let component: PipelineGraphComponent;
   let fixture: ComponentFixture<PipelineGraphComponent>;
 
-  beforeEach(async(() => {
+  beforeEach(waitForAsync(() => {
     TestBed.configureTestingModule({
-      imports: [ RouterModule.forRoot([]) ],
+      imports: [ RouterModule.forRoot([], { relativeLinkResolution: 'legacy' }) ],
       declarations: [ PipelineGraphComponent ]
     })
     .compileComponents();
