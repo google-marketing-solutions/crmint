@@ -66,7 +66,7 @@ export class Pipeline {
       this.schedules.forEach((schedule) => {
         let interval;
         try {
-          interval = parser.parseExpression(schedule.cron);
+          interval = parser.parseExpression(schedule.cron, { utc: true });
         } catch (err) {
           console.log('Failed to parse cron:', err);
         }
