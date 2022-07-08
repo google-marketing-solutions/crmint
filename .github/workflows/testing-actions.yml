@@ -5,7 +5,7 @@ on:
       - master
       - dev
 jobs:
-  run-tests:
+  run-cli-tests:
     runs-on: ubuntu-18.04
     steps:
       # Checkout repository code
@@ -14,18 +14,25 @@ jobs:
       - uses: actions/setup-python@v2
         with:
           python-version: '3.x'
-      # Download App Engine SDK
-      - uses: google-github-actions/setup-gcloud@v0
-      # Update the App Engine environment
-      - run: gcloud -q components update
-      - run: gcloud -q components install app-engine-python
+      # Setup the CRMint test environment
+      - run: pip install ./cli[test]
+      # Run the tests
+      - run: cd cli && python runtests.py
+  run-backend-tests:
+    runs-on: ubuntu-18.04
+    steps:
+      # Checkout repository code
+      - uses: actions/checkout@v2
+      # Configure python
+      - uses: actions/setup-python@v2
+        with:
+          python-version: '3.x'
       # Setup the CRMint test environment
       - run: pip install -r backend/requirements-controller.txt
       - run: pip install -r backend/requirements-jobs.txt
       - run: pip install -r backend/tests/requirements.txt
       # Run the tests
       - run: cd backend && python runtests.py
-      - run: cd cli && python runtests.py
   run-frontend-tests:
     runs-on: ubuntu-18.04
     steps:
