@@ -23,9 +23,12 @@ ENV HOST_PORT 8432
 
 RUN apk add --no-cache curl bash python
 
-RUN curl https://sdk.cloud.google.com | bash && \
-        /root/google-cloud-sdk/bin/gcloud config set disable_usage_reporting true && \
-        /root/google-cloud-sdk/bin/gcloud components install -q pubsub-emulator beta
+# Install Google Cloud SDK
+COPY install_google_cloud_sdk.bash install_google_cloud_sdk.bash
+RUN chmod +x install_google_cloud_sdk.bash
+RUN ./install_google_cloud_sdk.bash --disable-prompts
+RUN /root/google-cloud-sdk/bin/gcloud config set disable_usage_reporting true
+RUN /root/google-cloud-sdk/bin/gcloud components install -q pubsub-emulator beta
 
 RUN mkdir -p ${DATA_DIR}
 EXPOSE $HOST_PORT
