@@ -695,6 +695,7 @@ def deploy_frontend(stage, debug=False):
 
   # Prepares the deployment.
   cmds = [
+      'nvm install 16.16.0',  # CloudShell node version is too old for Angular.
       'npm install -g npm@latest',
       textwrap.dedent(f"""\
           NODE_OPTIONS="--max-old-space-size={max_old_space_size}" \\
