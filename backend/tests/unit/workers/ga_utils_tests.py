@@ -315,6 +315,32 @@ class GoogleAnalyticsUtilsTest(parameterized.TestCase):
       ga_utils.run_audience_operations(
           client, '123456', 'UA-123456-2', operations)
 
+  @parameterized.named_parameters(
+      ('web',
+       'G-4703L87M1F', 'measurement_id'),
+      ('android',
+       '1:1007872300143:android:f90da822e4fb9bf81c299a', 'firebase_app_id'),
+      ('ios',
+       '1:1007872300143:ios:94ab6bfcec7c91311c299a', 'firebase_app_id'),
+  )
+  def test_get_url_param_by_id_with_variations(
+      self, measurement_id, expected_url_param):
+    url_param = ga_utils.get_url_param_by_id(measurement_id)
+    self.assertEqual(url_param, expected_url_param)
+
+  @parameterized.named_parameters(
+      ('web_less_than_10_characters', 'G-4703L87M1'),
+      ('web_uses_ua_tracking_id', 'UA-1234567-8'),
+      ('android_not_found', '1:1007872300143:windows:f90da822e4fb9bf81c299a'),
+      ('ios_not_found', '1:1007872300143:blackberry:94ab6bfcec7c91311c299a'),
+  )
+  def test_get_url_param_by_id_raises_error_with_variations(
+      self, measurement_id):
+    """Raises a ValueError on unsupported GA4 measurement IDs."""
+    with self.assertRaisesRegex(
+        ValueError, 'Unsupported Measurement ID/Firebase App ID'):
+      ga_utils.get_url_param_by_id(measurement_id)
+
 
 if __name__ == '__main__':
   absltest.main()

@@ -273,3 +273,23 @@ def run_audience_operations(
     else:
       raise ValueError(f'Unsupported operation type: {op}')
     retry.Retry()(request.execute)()
+
+
+def get_url_param_by_id(measurement_id: str) -> str:
+  """Selects the URL parameter for GA4 measurement protocol based on ID.
+
+  Args:
+    measurement_id: String The GA4 Measurement ID or Firebase App ID.
+
+  Returns:
+    A string indicating the URL parameter to use with Measurement Protocol.
+
+  Raises:
+    ValueError: if the measurement_id type is unsupported.
+  """
+  if re.search('android|ios', measurement_id, re.IGNORECASE):
+    return 'firebase_app_id'
+  elif re.search('G-[A-Z0-9]{10}', measurement_id, re.IGNORECASE):
+    return 'measurement_id'
+  else:
+    raise ValueError(f'Unsupported Measurement ID/Firebase App ID.')

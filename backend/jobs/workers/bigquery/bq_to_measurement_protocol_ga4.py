@@ -29,6 +29,7 @@ import requests
 
 from jobs.workers import worker
 from jobs.workers.bigquery import bq_worker
+from jobs.workers.ga import ga_utils
 
 
 class BQToMeasurementProtocolGA4(bq_worker.BQWorker):
@@ -51,7 +52,8 @@ class BQToMeasurementProtocolGA4(bq_worker.BQWorker):
       ('bq_dataset_id', 'string', True, '', 'BQ Dataset ID'),
       ('bq_table_id', 'string', True, '', 'BQ Table ID'),
       ('bq_dataset_location', 'string', True, '', 'BQ Dataset Location'),
-      ('measurement_id', 'string', True, '', 'Measurement ID'),
+      ('measurement_id', 'string', True, '', ('Measurement ID / '
+                                              'Firebase App ID')),
       ('api_secret', 'string', True, '', 'API Secret'),
       ('template', 'text', True, '', ('GA4 Measurement Protocol '
                                       'JSON template')),
@@ -106,14 +108,14 @@ class BQToMeasurementProtocolProcessorGA4(bq_worker.BQWorker):
   content to the Measurement Protocol API for GA4 Properties.
   """
 
-  def _send_payload(self, payload) -> None:
+  def _send_payload(self, payload, url_param) -> None:
     if self._params['debug']:
       domain = 'https://www.google-analytics.com/debug/mp/collect'
     else:
       domain = 'https://www.google-analytics.com/mp/collect'
 
     querystring = urllib.parse.urlencode({
-        'measurement_id': self._params['measurement_id'],
+        url_param: self._params['measurement_id'],
         'api_secret': self._params['api_secret'],
     })
     response = requests.post(f'{domain}?{querystring}',
@@ -129,7 +131,7 @@ class BQToMeasurementProtocolProcessorGA4(bq_worker.BQWorker):
                                      f'({response.status_code}) and '
                                      f'parameters: {payload}')
 
-  def _stream_rows(self, page: page_iterator.Page) -> None:
+  def _stream_rows(self, page: page_iterator.Page, url_param: str) -> None:
     # Warns users if they are using an unsupported formatting syntax.
     if '%(' in self._params['template']:
       self.log_warn(
@@ -143,7 +145,7 @@ class BQToMeasurementProtocolProcessorGA4(bq_worker.BQWorker):
     template = string.Template(self._params['template'])
     for idx, row in enumerate(page):
       payload = template.substitute(dict(row.items()))
-      self._send_payload(json.loads(payload))
+      self._send_payload(json.loads(payload), url_param)
       if idx % (math.ceil(num_rows / 10)) == 0:
         progress = idx / num_rows
         self.log_info(f'Completed {progress:.2%} of the measurement '
@@ -158,8 +160,9 @@ class BQToMeasurementProtocolProcessorGA4(bq_worker.BQWorker):
         dataset.table(self._params['bq_table_id']),
         page_token=self._params.get('bq_page_token', None),
         page_size=self._params['bq_batch_size'])
+    url_param = ga_utils.get_url_param_by_id(self._params['measurement_id'])
     # We are only interested in the first page results, since our chunk is
     # fully specicifed by (page_token, batch_size). The next page will be
     # processed by another processing instance.
     first_page = next(row_iterator.pages)
-    self._stream_rows(first_page)
+    self._stream_rows(first_page, url_param)
