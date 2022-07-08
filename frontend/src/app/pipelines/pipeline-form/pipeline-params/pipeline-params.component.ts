@@ -13,7 +13,7 @@
 // limitations under the License.
 
 import { Component, OnInit, Input } from '@angular/core';
-import { FormGroup, FormArray, FormBuilder, Validators } from '@angular/forms';
+import { UntypedFormGroup, UntypedFormArray, UntypedFormBuilder, Validators } from '@angular/forms';
 
 @Component({
   selector: 'app-pipeline-params',
@@ -21,20 +21,20 @@ import { FormGroup, FormArray, FormBuilder, Validators } from '@angular/forms';
   styleUrls: ['./pipeline-params.component.sass']
 })
 export class PipelineParamsComponent implements OnInit {
-  @Input() pipelineForm: FormGroup;
+  @Input() pipelineForm: UntypedFormGroup;
   paramTypes = [
     'string'
   ];
 
   constructor(
-    private _fb: FormBuilder
+    private _fb: UntypedFormBuilder
     ) { }
 
   ngOnInit() {
   }
 
-  get paramsLairs(): FormArray {
-    return this.pipelineForm.get('paramsLairs') as FormArray;
+  get paramsLairs(): UntypedFormArray {
+    return this.pipelineForm.get('paramsLairs') as UntypedFormArray;
   };
 
   initParam() {
@@ -46,12 +46,12 @@ export class PipelineParamsComponent implements OnInit {
   }
 
   addParam() {
-    const control = <FormArray>this.pipelineForm.controls['paramsLairs'];
+    const control = <UntypedFormArray>this.pipelineForm.controls['paramsLairs'];
     control.push(this.initParam());
   }
 
   removeParam(i) {
-    const control = <FormArray>this.pipelineForm.controls['paramsLairs'];
+    const control = <UntypedFormArray>this.pipelineForm.controls['paramsLairs'];
     control.removeAt(i);
   }
 }

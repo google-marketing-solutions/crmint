@@ -13,7 +13,7 @@
 // limitations under the License.
 
 import { Component, OnInit } from '@angular/core';
-import { FormGroup, FormArray, FormBuilder, Validators } from '@angular/forms';
+import { UntypedFormGroup, UntypedFormArray, UntypedFormBuilder, Validators } from '@angular/forms';
 
 import { plainToClass } from 'class-transformer';
 
@@ -35,13 +35,13 @@ export class SettingsComponent implements OnInit {
     google_ads_auth_url: '',
   };
 
-  gVarsForm: FormGroup;
-  settingsForm: FormGroup;
+  gVarsForm: UntypedFormGroup;
+  settingsForm: UntypedFormGroup;
   googleAdsAuthURL: string;
 
   constructor(
     private settingsService: SettingsService,
-    private _fb: FormBuilder
+    private _fb: UntypedFormBuilder
   ) { }
 
   ngOnInit() {
@@ -76,8 +76,8 @@ export class SettingsComponent implements OnInit {
     this.settingsForm.setControl('settingsLairs', this._fb.array(setting_fgs));
   }
 
-  get settingsLairs(): FormArray {
-    return this.settingsForm.get('settingsLairs') as FormArray;
+  get settingsLairs(): UntypedFormArray {
+    return this.settingsForm.get('settingsLairs') as UntypedFormArray;
   }
 
   prepareSaveSettings() {
@@ -118,8 +118,8 @@ export class SettingsComponent implements OnInit {
     this.gVarsForm.setControl('variablesLairs', this._fb.array(param_fgs));
   }
 
-  get variablesLairs(): FormArray {
-    return this.gVarsForm.get('variablesLairs') as FormArray;
+  get variablesLairs(): UntypedFormArray {
+    return this.gVarsForm.get('variablesLairs') as UntypedFormArray;
   }
 
   removeGVar(i: number) {
@@ -141,7 +141,7 @@ export class SettingsComponent implements OnInit {
   }
 
   addGVar() {
-    const control = <FormArray>this.gVarsForm.controls['variablesLairs'];
+    const control = <UntypedFormArray>this.gVarsForm.controls['variablesLairs'];
     control.push(this.initGVar());
   }
 

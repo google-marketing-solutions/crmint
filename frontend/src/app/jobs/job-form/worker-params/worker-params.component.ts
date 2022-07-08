@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { FormGroup, FormArray, FormBuilder, Validators } from '@angular/forms';
+import { UntypedFormGroup, UntypedFormArray, UntypedFormBuilder, Validators } from '@angular/forms';
 import { Component, OnInit, Input, SimpleChanges, SimpleChange, HostBinding } from '@angular/core';
 
 import { Param } from 'app/models/param';
@@ -24,7 +24,7 @@ import { WorkersService } from 'app/jobs/shared/workers.service';
   styleUrls: ['./worker-params.component.sass']
 })
 export class WorkerParamsComponent implements OnInit {
-  @Input() jobForm: FormGroup;
+  @Input() jobForm: UntypedFormGroup;
   private cacheWorkerParams: Object = {};
 
   sql_editor_options: any = {
@@ -35,7 +35,7 @@ export class WorkerParamsComponent implements OnInit {
   };
 
   constructor(
-    private _fb: FormBuilder,
+    private _fb: UntypedFormBuilder,
     private workersService: WorkersService
   ) { }
 
@@ -47,8 +47,8 @@ export class WorkerParamsComponent implements OnInit {
     this.workerLoadParams(worker_class);
   }
 
-  get paramsLairs(): FormArray {
-    return this.jobForm.get('paramsLairs') as FormArray;
+  get paramsLairs(): UntypedFormArray {
+    return this.jobForm.get('paramsLairs') as UntypedFormArray;
   };
 
   workerLoadParams(worker_class) {

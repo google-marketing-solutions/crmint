@@ -13,7 +13,7 @@
 // limitations under the License.
 
 import { Component, OnInit, OnChanges } from '@angular/core';
-import { FormGroup, FormBuilder, Validators, FormArray } from '@angular/forms';
+import { UntypedFormGroup, UntypedFormBuilder, Validators, UntypedFormArray } from '@angular/forms';
 import { Router, ActivatedRoute } from '@angular/router';
 
 
@@ -31,7 +31,7 @@ import { Pipeline } from 'app/models/pipeline';
 })
 export class JobFormComponent implements OnInit {
 
-  jobForm: FormGroup;
+  jobForm: UntypedFormGroup;
   job: Job = new Job();
   pipeline: Pipeline;
   worker_classes = [];
@@ -77,7 +77,7 @@ export class JobFormComponent implements OnInit {
   }
 
   constructor(
-    private _fb: FormBuilder,
+    private _fb: UntypedFormBuilder,
     private jobsService: JobsService,
     private workersService: WorkersService,
     private pipelinesService: PipelinesService,
@@ -116,8 +116,8 @@ export class JobFormComponent implements OnInit {
     this.jobForm.setControl('paramsLairs', this._fb.array(param_fgs));
   }
 
-  get startConditionsLairs(): FormArray {
-    return this.jobForm.get('startConditionsLairs') as FormArray;
+  get startConditionsLairs(): UntypedFormArray {
+    return this.jobForm.get('startConditionsLairs') as UntypedFormArray;
   };
 
   ngOnInit() {
@@ -150,12 +150,12 @@ export class JobFormComponent implements OnInit {
   }
 
   addStartCondition() {
-    const control = <FormArray>this.jobForm.controls['startConditionsLairs'];
+    const control = <UntypedFormArray>this.jobForm.controls['startConditionsLairs'];
     control.push(this.initStartCondition());
   }
 
   removeStartCondition(i) {
-    const control = <FormArray>this.jobForm.controls['startConditionsLairs'];
+    const control = <UntypedFormArray>this.jobForm.controls['startConditionsLairs'];
     control.removeAt(i);
   }
 
