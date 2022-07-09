@@ -687,7 +687,6 @@ def deploy_frontend(stage, debug=False):
   # NB: Limit the node process memory usage to avoid overloading
   #     the Cloud Shell VM memory which makes it unresponsive.
   project_id = stage.project_id
-  max_old_space_size = "$((`free -m | egrep ^Mem: | awk '{print $4}'` / 4 * 3))"
   cmd_workdir = pathlib.Path(stage.workdir, 'frontend').as_posix()
 
   if stage.use_vpc:
@@ -695,16 +694,25 @@ def deploy_frontend(stage, debug=False):
 
   # Prepares the deployment.
   cmds = [
-      'nvm install 16.16.0',  # CloudShell node version is too old for Angular.
-      'npm install -g npm@latest',
-      textwrap.dedent(f"""\
-          NODE_OPTIONS="--max-old-space-size={max_old_space_size}" \\
-          NG_CLI_ANALYTICS=ci \\
-          npm install --legacy-peer-deps
+      # CloudShell node version is too old for Angular, let's update it.
+      textwrap.dedent("""\
+          source /usr/local/nvm/nvm.sh \\
+          && nvm install 16.16.0
           """),
-      textwrap.dedent(f"""\
-          node --max-old-space-size={max_old_space_size} \\
-              ./node_modules/@angular/cli/bin/ng build
+      textwrap.dedent("""\
+          source /usr/local/nvm/nvm.sh \\
+          && nvm use 16.16.0 \\
+          && npm install -g npm@latest
+          """),
+      textwrap.dedent("""\
+          source /usr/local/nvm/nvm.sh \\
+          && nvm use 16.16.0 \\
+          && npm install
+          """),
+      textwrap.dedent("""\
+          source /usr/local/nvm/nvm.sh \\
+          && nvm use 16.16.0 \\
+          && npm run build -- -c production
           """),
   ]
   total = len(cmds)
