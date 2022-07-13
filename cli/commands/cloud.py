@@ -611,7 +611,7 @@ def _copy_src_to_workdir(stage, debug=False):
 
   def _update_prod_env() -> Tuple[int, str, str]:
     filepath = pathlib.Path(
-        stage.workdir, 'frontend/src/environments/environment.ts')
+        stage.workdir, 'frontend/src/environments/environment.prod.ts')
     with open(filepath, 'w') as f:
       content = textwrap.dedent(f"""\
           export const environment = {{

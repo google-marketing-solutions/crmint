@@ -410,7 +410,7 @@ class CloudDeployTest(CloudBaseTest):
     result = runner.invoke(cloud.deploy, catch_exceptions=False)
     self.assertEqual(result.exit_code, 0, msg=result.output)
     env_filepath = pathlib.Path(self.tmp_workdir.full_path,
-                                'frontend/src/environments/environment.ts')
+                                'frontend/src/environments/environment.prod.ts')
     with open(env_filepath, 'r') as f:
       content = f.read()
       self.assertIn('GAE_APP_TITLE', content)
