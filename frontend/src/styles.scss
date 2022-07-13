@@ -76,6 +76,9 @@ body {
 
 // Overwrite
 body {
+  app-pipeline-view > .mat-card {
+    overflow: hidden;
+  }
   .mat-card {
     padding: 24px;
   }
@@ -223,6 +226,7 @@ body {
   }
 }
 .crmi-card-tabs {
+  max-width: 110%!important;
   margin: 0 -24px -24px;
 
   .mat-tab-label:focus {

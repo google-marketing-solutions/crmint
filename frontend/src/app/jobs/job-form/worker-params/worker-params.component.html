@@ -34,7 +34,7 @@
               {{parameter.value.label}}
             </label>
             <mat-form-field floatPlaceholder="never">
-              <textarea matInput matTextareaAutosize type="text" [placeholder]="parameter.value.label" formControlName="value"></textarea>
+              <textarea matInput cdkTextareaAutosize type="text" [placeholder]="parameter.value.label" formControlName="value"></textarea>
             </mat-form-field>
           </div>
           <div class="clearfix"></div>
@@ -70,7 +70,7 @@
               {{parameter.value.label}}
             </label>
             <mat-form-field floatPlaceholder="never">
-              <textarea matInput matTextareaAutosize [placeholder]="parameter.value.label" formControlName="value"></textarea>
+              <textarea matInput cdkTextareaAutosize [placeholder]="parameter.value.label" formControlName="value"></textarea>
               <mat-hint>One value on line</mat-hint>
             </mat-form-field>
           </div>
