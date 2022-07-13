@@ -12,7 +12,7 @@ advertisers.**
 | Status | Coverage | Branch | Description |
 | :----- | :--------- | :----- | :---------- |
 | [![testing-cli](https://github.com/google/crmint/actions/workflows/testing-cli.yml/badge.svg?branch=master)](https://github.com/google/crmint/actions/workflows/testing-cli.yml) | - | [master](https://github.com/google/crmint/tree/master) | Testing the reliability of our deployment tool  |
-| [![testing-backend](https://github.com/google/crmint/actions/workflows/testing-backend.yml/badge.svg?branch=master)](https://github.com/google/crmint/actions/workflows/testing-backend.yml) | - | [master](https://github.com/google/crmint/tree/master) | Testing the core of CRMint backend engine |
+| [![testing-backend](https://github.com/google/crmint/actions/workflows/testing-backend.yml/badge.svg?branch=master)](https://github.com/google/crmint/actions/workflows/testing-backend.yml) | [![codecov](https://codecov.io/gh/google/crmint/branch/master/graph/badge.svg)](https://codecov.io/gh/google/crmint) | [master](https://github.com/google/crmint/tree/master) | Testing the core of CRMint backend engine |
 | [![testing-frontend](https://github.com/google/crmint/actions/workflows/testing-frontend.yml/badge.svg?branch=master)](https://github.com/google/crmint/actions/workflows/testing-frontend.yml) | - | [master](https://github.com/google/crmint/tree/master) | Testing our frontend |
 
 > You can have data without information, but you cannot have information
