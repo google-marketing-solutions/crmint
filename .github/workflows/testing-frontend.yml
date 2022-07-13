@@ -1,9 +1,10 @@
 name: testing-frontend
 on:
-  pull_request:
-    branches:
-      - master
-      - dev
+  workflow_dispatch:
+
+  push:
+    paths-ignore:
+      - 'README.md'
 jobs:
   run-frontend-tests:
     runs-on: ubuntu-18.04
