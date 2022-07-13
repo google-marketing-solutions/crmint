@@ -1,0 +1,20 @@
+name: testing-cli
+on:
+  pull_request:
+    branches:
+      - master
+      - dev
+jobs:
+  run-cli-tests:
+    runs-on: ubuntu-18.04
+    steps:
+      # Checkout repository code
+      - uses: actions/checkout@v2
+      # Configure python
+      - uses: actions/setup-python@v2
+        with:
+          python-version: '3.x'
+      # Setup the CRMint test environment
+      - run: pip install ./cli[test]
+      # Run the tests
+      - run: cd cli && python runtests.py

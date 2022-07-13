@@ -1,0 +1,22 @@
+name: testing-backend
+on:
+  pull_request:
+    branches:
+      - master
+      - dev
+jobs:
+  run-backend-tests:
+    runs-on: ubuntu-18.04
+    steps:
+      # Checkout repository code
+      - uses: actions/checkout@v2
+      # Configure python
+      - uses: actions/setup-python@v2
+        with:
+          python-version: '3.x'
+      # Setup the CRMint test environment
+      - run: pip install -r backend/requirements-controller.txt
+      - run: pip install -r backend/requirements-jobs.txt
+      - run: pip install -r backend/tests/requirements.txt
+      # Run the tests
+      - run: cd backend && python runtests.py
