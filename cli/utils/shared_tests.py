@@ -15,6 +15,7 @@ from click import testing
 
 from cli.utils import constants
 from cli.utils import shared
+from cli.utils import test_helpers
 
 
 class SharedTests(absltest.TestCase):
@@ -252,6 +253,7 @@ class SharedTests(absltest.TestCase):
         ├─ az.py
 
     """
+    test_helpers.initialize_flags_with_defaults()
     src_dir = self.create_tempdir('src')
     src_dir.mkdir('include')
     src_dir.mkdir('include/pattern')

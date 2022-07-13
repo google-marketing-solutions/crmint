@@ -5,9 +5,7 @@ source = .
 omit =
     tests/*
     migrations/versions/*
-    lib/*
-    lib_dev/*
-    runtests.py
+    setup_pubsub.py
 
 [report]
 # Regexes for lines to exclude from consideration

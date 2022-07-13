@@ -22,6 +22,8 @@ version = open(version_filepath, 'r').read().strip()
 
 test_deps = [
     'absl-py==1.0.0',
+    'pytest==7.1.2',
+    'pytest-cov==3.0.0',
 ]
 extras = {
     'test': test_deps,

@@ -15,6 +15,15 @@ jobs:
         with:
           python-version: '3.x'
       # Setup the CRMint test environment
-      - run: pip install ./cli[test]
+      - name: Setup CLI
+        run: pip install ./cli[test]
       # Run the tests
-      - run: cd cli && python runtests.py
+      - name: Run the tests
+        working-directory: cli
+        run: pytest --cov=. --cov-report=xml
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          working-directory: cli
+          fail_ci_if_error: true
+          flags: cli
