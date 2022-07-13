@@ -30,6 +30,9 @@ class BundleTest(absltest.TestCase):
     self.enter_context(
         mock.patch.object(
             subprocess, 'run', autospec=True, side_effect=side_effect_run))
+    # `create_tempfile` needs access to --test_tmpdir, however in the OSS world
+    # pytest doesn't run `absltest.main`, so we need to init flags ourselves.
+    test_helpers.initialize_flags_with_defaults()
     # Overrides the default stage directory with a custom temporary directory.
     tmp_stage_dir = self.create_tempdir('stage_dir')
     self.enter_context(

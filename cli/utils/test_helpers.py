@@ -15,8 +15,23 @@
 """Helper methods for testing."""
 
 import subprocess
+import sys
 from typing import Callable
 from unittest import mock
+
+from absl import flags
+
+FLAGS = flags.FLAGS
+
+
+def initialize_flags_with_defaults() -> None:
+  """Ensures that abseil flags are initialized with default values.
+
+  Context: pytest doesn't run the test as a main, so it doesn't parse the flags
+           so if flags are required in tests, this will ensure that flags are
+           parsed and initialized with the default values.
+  """
+  FLAGS([sys.argv[0]])
 
 
 def mock_subprocess_result_side_effect(
