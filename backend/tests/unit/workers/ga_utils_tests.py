@@ -13,6 +13,7 @@ from googleapiclient import discovery
 from googleapiclient import http
 
 from jobs.workers.ga import ga_utils
+from tests import utils
 
 DATA_DIR = os.path.join(os.path.dirname(__file__), '../../data')
 
@@ -175,6 +176,9 @@ class GoogleAnalyticsUtilsTest(parameterized.TestCase):
         account_id='123',
         property_id='UA-456-7',
         dataset_id='elD5IH29Toqgc1vzzHFUrw')
+    # `create_tempfile` needs access to --test_tmpdir, however in the OSS world
+    # pytest doesn't run `absltest.main`, so we need to init flags ourselves.
+    utils.initialize_flags_with_defaults()
     csv_file = self.create_tempfile(
         content=textwrap.dedent("""\
             UserId,Score
@@ -210,6 +214,9 @@ class GoogleAnalyticsUtilsTest(parameterized.TestCase):
         account_id='123',
         property_id='UA-456-7',
         dataset_id='elD5IH29Toqgc1vzzHFUrw')
+    # `create_tempfile` needs access to --test_tmpdir, however in the OSS world
+    # pytest doesn't run `absltest.main`, so we need to init flags ourselves.
+    utils.initialize_flags_with_defaults()
     csv_file = self.create_tempfile(
         content=textwrap.dedent("""\
             UserId,Score

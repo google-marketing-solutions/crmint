@@ -15,8 +15,10 @@
 """Testing utils."""
 
 import os
+import sys
 from unittest import mock
 
+from absl import flags
 from absl.testing import parameterized
 import flask
 import requests
@@ -27,6 +29,18 @@ from common import task
 from controller import app
 from controller import database
 from controller import extensions
+
+FLAGS = flags.FLAGS
+
+
+def initialize_flags_with_defaults() -> None:
+  """Ensures that abseil flags are initialized with default values.
+
+  Context: pytest doesn't run the test as a main, so it doesn't parse the flags
+           so if flags are required in tests, this will ensure that flags are
+           parsed and initialized with the default values.
+  """
+  FLAGS([sys.argv[0]])
 
 
 class ModelTestCase(parameterized.TestCase):

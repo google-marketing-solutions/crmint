@@ -8,6 +8,7 @@ from google.auth import credentials
 from google.cloud import storage
 
 from jobs.workers.storage import storage_utils
+from tests import utils
 
 
 def _make_credentials():
@@ -80,6 +81,9 @@ class StorageUtilsTest(parameterized.TestCase):
     self.enter_context(
         mock.patch.object(
             client, 'download_blob_to_file', side_effect=_write_content))
+    # `create_tempfile` needs access to --test_tmpdir, however in the OSS world
+    # pytest doesn't run `absltest.main`, so we need to init flags ourselves.
+    utils.initialize_flags_with_defaults()
     output_file = self.create_tempfile()
     storage_utils.download_file(
         client,
