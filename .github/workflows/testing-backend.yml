@@ -15,8 +15,14 @@ jobs:
         with:
           python-version: '3.x'
       # Setup the CRMint test environment
-      - run: pip install -r backend/requirements-controller.txt
-      - run: pip install -r backend/requirements-jobs.txt
-      - run: pip install -r backend/tests/requirements.txt
+      - name: Install dependencies
+        run: |
+          pip install -r backend/requirements-controller.txt
+          pip install -r backend/requirements-jobs.txt
+          pip install -r backend/tests/requirements.txt
       # Run the tests
-      - run: cd backend && pytest
+      - run: cd backend && pytest --cov=. --cov-report=xml
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          fail_ci_if_error: true
