@@ -315,7 +315,8 @@ class PipelineLogs(Resource):
     entries = []
     template_env = jinja2.Environment(loader=jinja2.BaseLoader)
     filter_template = template_env.from_string(textwrap.dedent("""\
-        jsonPayload.labels.pipeline_id="{{ pipeline_id }}"
+        -jsonPayload.log_level="DEBUG"
+        AND jsonPayload.labels.pipeline_id="{{ pipeline_id }}"
         {%- if worker_class %} AND jsonPayload.labels.worker_class="{{ worker_class }}"{% endif %}
         {%- if job_id %} AND jsonPayload.labels.job_id="{{ job_id }}"{% endif %}
         {%- if log_level %} AND jsonPayload.log_level="{{ log_level }}"{% endif %}
