@@ -50,6 +50,10 @@ class ModelTestCase(parameterized.TestCase):
     super().setUp()
     # Pushes an application context manually.
     test_app = flask.Flask(__name__)
+    test_app.config['TESTING'] = True
+    test_app.config['PRESERVE_CONTEXT_ON_EXCEPTION'] = False
+    test_app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'
+    test_app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     extensions.db.init_app(test_app)
     self.ctx = test_app.app_context()
     self.ctx.push()
@@ -102,9 +106,12 @@ class ControllerAppTest(AppTestCase):
   """Controller app test class."""
 
   def create_app(self):
-    test_app = app.create_app()
-    test_app.config['TESTING'] = True
-    test_app.config['PRESERVE_CONTEXT_ON_EXCEPTION'] = False
+    test_config = {
+        'TESTING': True,
+        'PRESERVE_CONTEXT_ON_EXCEPTION': False,
+        'SQLALCHEMY_TRACK_MODIFICATIONS': False,
+    }
+    test_app = app.create_app(test_config)
     return test_app
 
   @mock.patch.dict(os.environ, {'DATABASE_URI': 'sqlite:///:memory:'})

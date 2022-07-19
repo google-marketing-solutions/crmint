@@ -15,6 +15,8 @@
 """The app module, containing the app factory function."""
 
 import os
+from typing import Any, Optional
+
 from flask import Flask
 
 from controller import extensions
@@ -26,12 +28,21 @@ from controller import starter
 from controller import views
 
 
-def create_app():
-  """An application factory."""
-  app = Flask(__name__.split('.')[1], instance_relative_config=True)
+def create_app(config: Optional[dict[str, Any]] = None) -> Flask:
+  """An application factory.
+
+  Args:
+    config: Dictionary of config flags to update the app with.
+
+  Returns:
+    The configured Flask application.
+  """
+  app = Flask(__name__)
   app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv(
       'DATABASE_URI',
       'mysql+mysqlconnector://crmint:crmint@db:3306/crmint_development')
+  if config:
+    app.config.update(**config)
   register_extensions(app)
   register_blueprints(app)
   return app
