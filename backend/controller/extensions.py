@@ -17,7 +17,6 @@
 Each extension is initialized in the app factory located in app.py.
 """
 
-from flask import _app_ctx_stack
 from flask_cors import CORS
 from flask_migrate import Migrate
 from flask_sqlalchemy import model
@@ -36,7 +35,6 @@ db = SQLAlchemy(
     session_options={
         'autocommit': False,
         'autoflush': False,
-        'scopefunc': _app_ctx_stack.__ident_func__,
     },
     engine_options={
         'pool_pre_ping': True,
