@@ -441,13 +441,15 @@ class Job(extensions.db.Model):
       secondary='start_conditions',
       primaryjoin='Job.id==StartCondition.preceding_job_id',
       secondaryjoin='StartCondition.job_id==Job.id',
-      back_populates='affecting_jobs')
+      back_populates='affecting_jobs',
+      viewonly=True)
   affecting_jobs = orm.relationship(
       'Job',
       secondary='start_conditions',
       primaryjoin='Job.id==StartCondition.job_id',
       secondaryjoin='StartCondition.preceding_job_id==Job.id',
-      back_populates='dependent_jobs')
+      back_populates='dependent_jobs',
+      viewonly=True)
 
   class STATUS:  # pylint: disable=too-few-public-methods
     IDLE = 'idle'
