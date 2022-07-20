@@ -21,10 +21,10 @@ from common import crmint_logging
 from common import task
 from controller import mailers
 from controller import models
-from tests import utils
+from tests import controller_utils
 
 
-class ModelTestCase(utils.ModelTestCase):
+class ModelTestCase(controller_utils.ModelTestCase):
 
   def setUp(self):
     super().setUp()

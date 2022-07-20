@@ -15,10 +15,10 @@
 from absl.testing import absltest
 
 from controller import models
-from tests import utils
+from tests import controller_utils
 
 
-class TestStageViews(utils.ControllerAppTest):
+class TestStageViews(controller_utils.ControllerAppTest):
 
   def test_list_stages(self):
     response = self.client.get('/api/stages')

@@ -21,10 +21,10 @@ from google.appengine.api import mail
 from common import crmint_logging
 from controller import mailers
 from controller import models
-from tests import utils
+from tests import controller_utils
 
 
-class TestNotificationMailer(utils.ModelTestCase):
+class TestNotificationMailer(controller_utils.ModelTestCase):
 
   def setUp(self):
     super().setUp()

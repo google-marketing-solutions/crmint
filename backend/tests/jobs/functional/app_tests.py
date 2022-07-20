@@ -12,3 +12,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from jobs_app import app
+from tests import utils
+
+
+class TestJobsApp(utils.AppTestCase):
+
+  def create_app(self):
+    app.config['TESTING'] = True
+    app.config['PRESERVE_CONTEXT_ON_EXCEPTION'] = False
+    app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+    return app
+
+  def test_root_accessible(self):
+    response = self.client.get('/api/workers')
+    self.assertEqual(response.status_code, 200)

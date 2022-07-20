@@ -20,10 +20,10 @@ from absl.testing import parameterized
 import freezegun
 
 from controller import models
-from tests import utils
+from tests import controller_utils
 
 
-class TestStarterViews(utils.ControllerAppTest):
+class TestStarterViews(controller_utils.ControllerAppTest):
 
   @freezegun.freeze_time('2015-06-18T16:07:19')
   def test_can_start_single_pipeline(self):

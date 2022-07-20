@@ -21,7 +21,7 @@ from absl.testing import parameterized
 import freezegun
 
 from controller import models
-from tests import utils
+from tests import controller_utils
 
 
 def _create_pubsub_encoded_result_payload(
@@ -50,7 +50,7 @@ def _create_pubsub_encoded_result_payload(
 
 
 @freezegun.freeze_time('2015-06-18T16:07:19')
-class TestResultViews(utils.ControllerAppTest):
+class TestResultViews(controller_utils.ControllerAppTest):
 
   @parameterized.named_parameters(
       {

@@ -18,10 +18,10 @@ from absl.testing import absltest
 
 from controller import ads_auth_code
 from controller import models
-from tests import utils
+from tests import controller_utils
 
 
-class TestViews(utils.ControllerAppTest):
+class TestViews(controller_utils.ControllerAppTest):
 
   def test_retrieve_configuration(self):
     response = self.client.get('/api/configuration')

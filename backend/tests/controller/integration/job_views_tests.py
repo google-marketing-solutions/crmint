@@ -15,10 +15,10 @@
 from absl.testing import absltest
 
 from controller import models
-from tests import utils
+from tests import controller_utils
 
 
-class TestJobViews(utils.ControllerAppTest):
+class TestJobViews(controller_utils.ControllerAppTest):
 
   def test_list_with_success(self):
     pipeline = models.Pipeline.create()

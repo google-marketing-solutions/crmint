@@ -13,16 +13,17 @@
 # limitations under the License.
 
 from controller import models
-from tests import utils
+from controller_app import app
+from tests import controller_utils
 
 
-class TestControllerApp(utils.ControllerAppTest):
+class TestControllerApp(controller_utils.ControllerAppTest):
 
   def create_app(self):
-    from controller_app import app  # pylint: disable=g-import-not-at-top
     app.config['TESTING'] = True
     app.config['PRESERVE_CONTEXT_ON_EXCEPTION'] = False
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'
     return app
 
   def test_empty_root_accessible(self):
@@ -41,18 +42,4 @@ class TestControllerApp(utils.ControllerAppTest):
     models.Pipeline.create(name='Pipeline Bar')
     self.assertLen(models.Pipeline.all(), 2)
     response = self.client.get('/api/pipelines')
-    self.assertEqual(response.status_code, 200)
-
-
-class TestJobsApp(utils.AppTestCase):
-
-  def create_app(self):
-    from jobs_app import app  # pylint: disable=g-import-not-at-top
-    app.config['TESTING'] = True
-    app.config['PRESERVE_CONTEXT_ON_EXCEPTION'] = False
-    app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-    return app
-
-  def test_root_accessible(self):
-    response = self.client.get('/api/workers')
     self.assertEqual(response.status_code, 200)

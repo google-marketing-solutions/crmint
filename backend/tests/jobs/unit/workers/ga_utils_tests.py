@@ -15,7 +15,7 @@ from googleapiclient import http
 from jobs.workers.ga import ga_utils
 from tests import utils
 
-DATA_DIR = os.path.join(os.path.dirname(__file__), '../../data')
+DATA_DIR = os.path.join(os.path.dirname(__file__), '../../../data')
 
 
 def _datafile(filename):

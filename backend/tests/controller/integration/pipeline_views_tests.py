@@ -18,10 +18,10 @@ from absl.testing import absltest
 
 from common import crmint_logging
 from controller import models
-from tests import utils
+from tests import controller_utils
 
 
-class TestPipelineViews(utils.ControllerAppTest):
+class TestPipelineViews(controller_utils.ControllerAppTest):
 
   def test_empty_list(self):
     response = self.client.get('/api/pipelines')

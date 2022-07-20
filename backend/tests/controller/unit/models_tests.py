@@ -7,10 +7,10 @@ import freezegun
 import jinja2
 
 from controller import models
-from tests import utils
+from tests import controller_utils
 
 
-class TestParamSupportsTypeBase(utils.ModelTestCase):
+class TestParamSupportsTypeBase(controller_utils.ModelTestCase):
 
   def _setup_parent_job(self):
     pipeline = models.Pipeline.create(name='pipeline1')
@@ -137,7 +137,7 @@ class TestParamSupportsTypeNumberList(TestParamSupportsTypeBase):
     self.assertEqual(param.worker_value[2], 2.8)
 
 
-class TestParamRuntimeValues(utils.ModelTestCase):
+class TestParamRuntimeValues(controller_utils.ModelTestCase):
 
   def test_global_param_runtime_value_is_populated_with_null(self):
     param = models.Param.create(name='p1', type='number', value='42')
@@ -237,7 +237,7 @@ class TestParamRuntimeValues(utils.ModelTestCase):
             """))
 
 
-class TestPipeline(utils.ModelTestCase):
+class TestPipeline(controller_utils.ModelTestCase):
 
   def test_create_pipeline_succeed(self):
     pipeline = models.Pipeline.create()
@@ -358,7 +358,7 @@ class TestPipeline(utils.ModelTestCase):
     self.assertEqual(p5.runtime_value, 'foo baz goo zaz')
 
 
-class TestTaskEnqueued(utils.ModelTestCase):
+class TestTaskEnqueued(controller_utils.ModelTestCase):
 
   def test_count_is_zero(self):
     self.assertEqual(models.TaskEnqueued.count_in_namespace('xyz'), 0)

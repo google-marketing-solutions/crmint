@@ -13,7 +13,7 @@ from googleapiclient import http
 from jobs.workers.ga import ga_audiences_updater
 from jobs.workers.ga import ga_utils
 
-DATA_DIR = os.path.join(os.path.dirname(__file__), '../../data')
+DATA_DIR = os.path.join(os.path.dirname(__file__), '../../../data')
 
 _SAMPLE_TEMPLATE = textwrap.dedent("""\
     {
