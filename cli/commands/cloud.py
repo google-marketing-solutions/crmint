@@ -550,6 +550,7 @@ def _install_required_packages(_, debug=False):
   cmds = [
       'mkdir -p ~/.cloudshell',
       '> ~/.cloudshell/no-apt-get-warning',
+      'sudo apt-get update',
       'sudo apt-get install -y rsync libmysqlclient-dev python3-venv',
   ]
   total = len(cmds)
