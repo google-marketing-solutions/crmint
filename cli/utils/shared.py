@@ -297,7 +297,7 @@ def default_stage_context(project_id: ProjectId) -> StageContext:
       database_project=settings.DATABASE_PROJECT or project_id,
       use_vpc=settings.USE_VPC,
       network=settings.NETWORK,
-      subnet_region=region,
+      subnet_region=sql_region,
       connector=settings.CONNECTOR,
       connector_subnet='crmint-{}-connector-subnet'.format(region),
       connector_cidr=settings.CONNECTOR_CIDR,
