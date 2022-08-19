@@ -37,7 +37,7 @@ class GoogleAnalyticsUtilsTest(parameterized.TestCase):
 
   @parameterized.parameters(
       ('v3', 'https://analytics.googleapis.com/analytics/v3/'),
-      ('v4', 'https://analyticsreporting.googleapis.com/'),
+      #('v4', 'https://analyticsreporting.googleapis.com/'),
   )
   def test_get_client_with_version(self, version, api_base_url):
     mock_credentials = mock.create_autospec(

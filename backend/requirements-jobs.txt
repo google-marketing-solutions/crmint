@@ -19,12 +19,13 @@ flask==2.1.3
 google-api-core[grpc]==2.8.2
     # via
     #   google-api-python-client
+    #   google-cloud-aiplatform
     #   google-cloud-appengine-logging
     #   google-cloud-bigquery
-    #   google-cloud-bigquery-storage
     #   google-cloud-core
     #   google-cloud-logging
     #   google-cloud-pubsub
+    #   google-cloud-resource-manager
     #   google-cloud-storage
 google-api-python-client==2.54.0
     # via -r requirements-jobs.in
@@ -37,14 +38,16 @@ google-auth==2.9.1
     #   google-cloud-storage
 google-auth-httplib2==0.1.0
     # via google-api-python-client
+google-cloud-aiplatform==1.16.1
+    # via -r requirements-jobs.in
 google-cloud-appengine-logging==1.1.3
     # via google-cloud-logging
 google-cloud-audit-log==0.2.3
     # via google-cloud-logging
-google-cloud-bigquery==3.2.0
-    # via -r requirements-jobs.in
-google-cloud-bigquery-storage==2.14.1
-    # via google-cloud-bigquery
+google-cloud-bigquery==2.34.4
+    # via
+    #   -r requirements-jobs.in
+    #   google-cloud-aiplatform
 google-cloud-core==2.3.2
     # via
     #   google-cloud-bigquery
@@ -54,8 +57,12 @@ google-cloud-logging==3.2.1
     # via -r common/requirements.in
 google-cloud-pubsub==2.13.4
     # via -r common/requirements.in
+google-cloud-resource-manager==1.6.0
+    # via google-cloud-aiplatform
 google-cloud-storage==2.4.0
-    # via -r requirements-jobs.in
+    # via
+    #   -r requirements-jobs.in
+    #   google-cloud-aiplatform
 google-crc32c==1.3.0
     # via google-resumable-media
 google-resumable-media==2.3.3
@@ -72,6 +79,7 @@ grpc-google-iam-v1==0.12.4
     # via
     #   google-cloud-logging
     #   google-cloud-pubsub
+    #   google-cloud-resource-manager
 grpcio==1.47.0
     # via
     #   google-api-core
@@ -102,31 +110,31 @@ markupsafe==2.1.1
     # via jinja2
 msgpack==1.0.4
     # via cachecontrol
-numpy==1.23.1
-    # via pyarrow
 packaging==21.3
-    # via google-cloud-bigquery
+    # via
+    #   google-cloud-aiplatform
+    #   google-cloud-bigquery
 proto-plus==1.20.6
     # via
+    #   google-cloud-aiplatform
     #   google-cloud-appengine-logging
     #   google-cloud-bigquery
-    #   google-cloud-bigquery-storage
     #   google-cloud-logging
     #   google-cloud-pubsub
+    #   google-cloud-resource-manager
 protobuf==3.20.1
     # via
     #   google-api-core
+    #   google-cloud-aiplatform
     #   google-cloud-appengine-logging
     #   google-cloud-audit-log
     #   google-cloud-bigquery
-    #   google-cloud-bigquery-storage
     #   google-cloud-logging
     #   google-cloud-pubsub
+    #   google-cloud-resource-manager
     #   googleapis-common-protos
     #   grpcio-status
     #   proto-plus
-pyarrow==8.0.0
-    # via google-cloud-bigquery
 pyasn1==0.4.8
     # via
     #   pyasn1-modules
