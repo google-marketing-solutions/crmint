@@ -23,12 +23,17 @@ from jobs.workers.bigquery import bq_query_launcher
 from jobs.workers.bigquery import bq_script_executor
 from jobs.workers.bigquery import bq_to_measurement_protocol_ga4
 from jobs.workers.bigquery import bq_to_storage_exporter
+from jobs.workers.bigquery import bq_to_vertexai_dataset
 from jobs.workers.bigquery import bq_waiter
 from jobs.workers.bigquery import storage_to_bq_importer
 from jobs.workers.ga import ga_audiences_updater
 from jobs.workers.ga import ga_data_importer
 from jobs.workers.ga import ga_waiter
 from jobs.workers.storage import storage_cleaner
+from jobs.workers.vertexai import vertexai_batch_predictor_to_bq
+from jobs.workers.vertexai import vertexai_tabular_trainer
+from jobs.workers.vertexai import vertexai_waiter
+from jobs.workers.vertexai import vertexai_worker
 
 ConcreteWorker = TypeVar('ConcreteWorker', bound=worker.Worker)
 
@@ -49,6 +54,8 @@ WORKERS_MAPPING = {
         bq_to_measurement_protocol_ga4.BQToMeasurementProtocolGA4,
     'BQToStorageExporter':
         bq_to_storage_exporter.BQToStorageExporter,
+    'BQToVertexAIDataset':
+        bq_to_vertexai_dataset.BQToVertexAIDataset,
     'Commenter':
         commenter.Commenter,
     'GAAudiencesUpdater':
@@ -64,13 +71,19 @@ WORKERS_MAPPING = {
         storage_cleaner.StorageCleaner,
     'StorageToBQImporter':
         storage_to_bq_importer.StorageToBQImporter,
+    'VertexAIBatchPredictorToBQ':
+        vertexai_batch_predictor_to_bq.VertexAIBatchPredictorToBQ,
+    'VertexAITabularTrainer':
+        vertexai_tabular_trainer.VertexAITabularTrainer,
 }
 
 _PRIVATE_WORKERS_MAPPING = {
-  'BQToMeasurementProtocolProcessorGA4':
+    'BQToMeasurementProtocolProcessorGA4':
         bq_to_measurement_protocol_ga4.BQToMeasurementProtocolProcessorGA4,
-  'BQWaiter': bq_waiter.BQWaiter,
-  'GADataImportUploadWaiter': ga_waiter.GADataImportUploadWaiter,
+    'BQWaiter': bq_waiter.BQWaiter,
+    'GADataImportUploadWaiter': ga_waiter.GADataImportUploadWaiter,
+    'VertexAIWaiter': vertexai_waiter.VertexAIWaiter,
+    'VertexAIWorker': vertexai_worker.VertexAIWorker,
 }
 
 
