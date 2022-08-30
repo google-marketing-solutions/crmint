@@ -9,13 +9,21 @@ from absl.testing import absltest
 from absl.testing import parameterized
 from google import auth
 from google.auth import credentials
+from google.cloud import bigquery
 from googleapiclient import discovery
 from googleapiclient import http
 
+from common import crmint_logging
 from jobs.workers.ga import ga_utils
 from tests import utils
 
 DATA_DIR = os.path.join(os.path.dirname(__file__), '../../../data')
+
+_SAMPLE_TEMPLATE_v3 = textwrap.dedent("""\
+    {
+      "name": "${name}",
+      "linkedViews": ["${linked_view}"]
+    }""")
 
 
 def _datafile(filename):
@@ -32,13 +40,24 @@ class GoogleAnalyticsUtilsTest(parameterized.TestCase):
 
   def setUp(self):
     super().setUp()
-    self.http_v3 = http.HttpMock(_datafile('google_analytics_v3.json'),
-                                 headers={'status': '200'})
+    self.http_v3 = http.HttpMock(
+        _datafile('google_analytics_v3.json'),
+        headers={'status': '200'})
+    self.http_v1alpha = http.HttpMock(
+        _datafile('google_analytics_admin_v1alpha.json'),
+        headers={'status': '200'})
+    self.patched_log_message = self.enter_context(
+        mock.patch.object(crmint_logging, 'log_global_message', autospec=True))
 
   @parameterized.parameters(
-      ('v3', 'https://analytics.googleapis.com/analytics/v3/'),
+      ('analytics', 'v3',
+       'https://analytics.googleapis.com/analytics/v3/'),
+      ('analyticsreporting', 'v4',
+       'https://analyticsreporting.googleapis.com/'),
+      ('analyticsadmin', 'v1alpha',
+       'https://analyticsadmin.googleapis.com/'),
   )
-  def test_get_client_with_version(self, version, api_base_url):
+  def test_get_client_with_version(self, service, version, api_base_url):
     mock_credentials = mock.create_autospec(
         credentials.Credentials, instance=True, spec_set=True)
     self.enter_context(
@@ -48,7 +67,7 @@ class GoogleAnalyticsUtilsTest(parameterized.TestCase):
             autospec=True,
             spec_set=True,
             return_value=(mock_credentials, None)))
-    client = ga_utils.get_client(version)
+    client = ga_utils.get_client(service, version)
     self.assertEqual(client._baseUrl, api_base_url)
 
   def test_get_dataimport_upload_status_pending(self):
@@ -63,7 +82,7 @@ class GoogleAnalyticsUtilsTest(parameterized.TestCase):
     request_builder = http.RequestMockBuilder(
         {'analytics.management.uploads.list': (None, json.dumps(response))})
     client = ga_utils.get_client(
-        http=self.http_v3, request_builder=request_builder)
+        'analytics', 'v3', http=self.http_v3, request_builder=request_builder)
     dataimport = ga_utils.DataImportReference(
         account_id='123',
         property_id='UA-456-7',
@@ -92,7 +111,7 @@ class GoogleAnalyticsUtilsTest(parameterized.TestCase):
     request_builder = http.RequestMockBuilder(
         {'analytics.management.uploads.list': (None, json.dumps(response))})
     client = ga_utils.get_client(
-        http=self.http_v3, request_builder=request_builder)
+        'analytics', 'v3', http=self.http_v3, request_builder=request_builder)
     dataimport = ga_utils.DataImportReference(
         account_id='123',
         property_id='UA-456-7',
@@ -135,7 +154,7 @@ class GoogleAnalyticsUtilsTest(parameterized.TestCase):
     request_builder = http.RequestMockBuilder(
         {'analytics.management.uploads.list': (None, json.dumps(response))})
     client = ga_utils.get_client(
-        http=self.http_v3, request_builder=request_builder)
+        'analytics', 'v3', http=self.http_v3, request_builder=request_builder)
     dataimport = ga_utils.DataImportReference(
         account_id='123',
         property_id='UA-456-7',
@@ -290,7 +309,7 @@ class GoogleAnalyticsUtilsTest(parameterized.TestCase):
             'analytics.management.remarketingAudience.patch': (None, b'{}'),
         })
     client = ga_utils.get_client(
-        http=self.http_v3, request_builder=request_builder)
+        'analytics', 'v3', http=self.http_v3, request_builder=request_builder)
     operations = [
         ga_utils.AudienceOperationUpdate(
             id='456',
@@ -315,11 +334,167 @@ class GoogleAnalyticsUtilsTest(parameterized.TestCase):
     class AudienceOperationDelete(ga_utils.AudienceOperationBase):
       pass
 
-    client = ga_utils.get_client(http=self.http_v3)
+    client = ga_utils.get_client('analytics', 'v3', http=self.http_v3)
     operations = [AudienceOperationDelete()]
     with self.assertRaisesRegex(ValueError, 'Unsupported operation'):
       ga_utils.run_audience_operations(
           client, '123456', 'UA-123456-2', operations)
+
+  def test_fetch_audiences_ga4_with_two_pages_result(self):
+    ga_api_discovery_file = _datafile('google_analytics_admin_v1alpha.json')
+    with open(ga_api_discovery_file, 'rb') as f:
+      ga_api_discovery_content = f.read()
+    http_seq = http.HttpMockSequence([
+        # Page 1
+        ({'status': '200'},
+         _read_datafile(
+             'analyticsadmin.properties.audiences.list.page1.json')),
+        # Page 2
+        ({'status': '200'},
+         _read_datafile(
+             'analyticsadmin.properties.audiences.list.page2.json')),
+    ])
+    client = discovery.build_from_document(
+        service=ga_api_discovery_content, http=http_seq)
+    audiences_map = ga_utils.fetch_audiences_ga4(client, '123456')
+    self.assertEmpty(http_seq._iterable,
+                     msg='The sequence of HttpMock should be empty, indicating '
+                         'that we handled all the chunks as expected.')
+    print(audiences_map.keys())
+    self.assertCountEqual(
+        list(audiences_map.keys()),
+        [
+            'Top download_training_pipeline Users > 500',
+            'All Users',
+            'Purchasers',
+            'New Visitors',
+        ])
+
+  def test_get_audience_operations_ga4(self):
+    patches = [
+        ga_utils.AudiencePatch({
+            'displayName': 'FOO',
+            'description': 'Some description',
+            'membershipDurationDays': 4,
+            'filterClauses': [],
+        }),
+        ga_utils.AudiencePatch({
+            'displayName': 'ABC',
+            'description': 'Some description updated',
+            'membershipDurationDays': 2,
+            'filterClauses': [],
+        }),
+        ga_utils.AudiencePatch({
+            'displayName': 'DEF',
+            'description': 'Some description',
+            'membershipDurationDays': 1,
+            'filterClauses': [],
+        }),
+    ]
+    audiences = {
+        'ABC': ga_utils.Audience({
+            'name': 'abc',
+            'displayName': 'ABC',
+            'description': 'Some description',
+            'membershipDurationDays': 2,
+            'filterClauses': [],
+        }),
+        'DEF': ga_utils.Audience({
+            'name': 'def',
+            'displayName': 'DEF',
+            'description': 'Some description',
+            'membershipDurationDays': 1,
+            'filterClauses': [],
+        }),
+    }
+    self.assertCountEqual(
+        ga_utils.get_audience_operations_ga4(patches, audiences),
+        (
+            ga_utils.AudienceOperationUpdate(
+                id='abc',
+                data=ga_utils.AudiencePatch({
+                    'displayName': 'ABC',
+                    'description': 'Some description updated',
+                })),
+            ga_utils.AudienceOperationInsert(
+                data=ga_utils.AudiencePatch({
+                    'displayName': 'FOO',
+                    'description': 'Some description',
+                    'membershipDurationDays': 4,
+                    'filterClauses': [],
+                })),
+        )
+    )
+
+  def test_get_audience_operations_ga4_logs_warning_immutable(self):
+    """Logs a warning when immutable fields are not matching."""
+    patches = [
+        ga_utils.AudiencePatch({
+            'displayName': 'FOO',
+            'description': 'Some description',
+            'membershipDurationDays': 4,
+            'filterClauses': [],
+        }),
+    ]
+    audiences = {
+        'FOO': ga_utils.Audience({
+            'name': 'foo',
+            'displayName': 'FOO',
+            'description': 'Some description',
+            'membershipDurationDays': 3,
+            'filterClauses': [],
+        }),
+    }
+    _ = ga_utils.get_audience_operations_ga4(patches, audiences)
+    self.patched_log_message.assert_called_once_with(
+        mock.ANY, log_level='WARNING')
+
+  def test_run_audience_operations_ga4(self):
+    request_builder = http.RequestMockBuilder(
+        {
+            'analytics.management.remarketingAudience.insert': (None, b'{}'),
+            'analytics.management.remarketingAudience.patch': (None, b'{}'),
+        })
+    client = ga_utils.get_client(
+        'analyticsadmin',
+        'v1alpha',
+        http=self.http_v1alpha,
+        request_builder=request_builder)
+    operations = [
+        ga_utils.AudienceOperationUpdate(
+            id='properties/123456/audiences/abc',
+            data=ga_utils.AudiencePatch(
+                {
+                    'name': 'properties/123456/audiences/abc',
+                    'displayName': 'ABC',
+                    'a': 1,
+                    'b': 2
+                })),
+        ga_utils.AudienceOperationInsert(
+            data=ga_utils.AudiencePatch({'name': 'def', 'a': 1})),
+    ]
+    logger = mock.Mock()
+    ga_utils.run_audience_operations_ga4(client, '123456', operations, logger)
+    self.assertSequenceEqual(
+        [
+            mock.call('Updating existing audience for name: ABC and '
+                      'resource: properties/123456/audiences/abc'),
+            mock.call('Inserting new audience'),
+        ],
+        logger.mock_calls,
+    )
+
+  def test_run_audience_operations_ga4_raises_error(self):
+    """Raises a ValueError on a new unsupported operation type."""
+
+    class AudienceOperationDelete(ga_utils.AudienceOperationBase):
+      pass
+
+    client = ga_utils.get_client(
+        'analyticsadmin', 'v1alpha', http=self.http_v1alpha)
+    operations = [AudienceOperationDelete()]
+    with self.assertRaisesRegex(ValueError, 'Unsupported operation'):
+      ga_utils.run_audience_operations_ga4(client, '123456', operations)
 
   @parameterized.named_parameters(
       ('web',
@@ -346,6 +521,36 @@ class GoogleAnalyticsUtilsTest(parameterized.TestCase):
     with self.assertRaisesRegex(
         ValueError, 'Unsupported Measurement ID/Firebase App ID'):
       ga_utils.get_url_param_by_id(measurement_id)
+
+  def test_get_audience_patches(self):
+    bq_client = mock.create_autospec(
+        bigquery.Client, instance=True, spec_set=True)
+    bq_client.list_rows.return_value = [
+        {
+            'name': 'foo',
+            'linked_view': 'abc',
+        },
+        {
+            'name': 'bar',
+            'linked_view': 'xyz',
+        },
+    ]
+    table_ref = bigquery.TableReference.from_string(
+        'DATASET.output_table', 'PROJECT')
+    template = _SAMPLE_TEMPLATE_v3
+    patches = ga_utils.get_audience_patches(bq_client, table_ref, template)
+    self.assertSequenceEqual(
+        patches,
+        [
+            ga_utils.Audience({
+                'name': 'foo',
+                'linkedViews': ['abc']
+            }),
+            ga_utils.Audience({
+                'name': 'bar',
+                'linkedViews': ['xyz']
+            }),
+        ])
 
 
 if __name__ == '__main__':

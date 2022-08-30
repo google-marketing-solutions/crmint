@@ -1,0 +1,21 @@
+{
+  "audiences": [
+    {
+      "name": "properties/312213553/audiences/3466121514",
+      "displayName": "New Visitors",
+      "description": "New Visitors",
+      "membershipDurationDays": 540,
+      "adsPersonalizationEnabled": true,
+      "eventTrigger": {}
+    },
+    {
+      "name": "properties/312213553/audiences/3466121515",
+      "displayName": "Purchasers",
+      "description": "Users who have made a purchase",
+      "membershipDurationDays": 540,
+      "adsPersonalizationEnabled": true,
+      "eventTrigger": {}
+    }
+  ],
+  "nextPageToken": "AMJMOLl-CCHNxgL2Y6A5-oP_mQ8SLwD-tEvfzhGa1sZDNbghleOOjVVLcavbY1-lCVGxwZGX13xlEuKJxMobb0VzTy9rTzvuart0Zg8DI9tS4eUlF2gouQLzEroqmy5OeYrVoX0="
+}

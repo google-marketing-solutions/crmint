@@ -44,7 +44,7 @@ class GADataImporter(worker.Worker):
     self.log_info(f'Uploaded {progress:.0%}')
 
   def _execute(self) -> None:
-    client = ga_utils.get_client('v3')
+    client = ga_utils.get_client('analytics', 'v3')
     dataimport_ref = ga_utils.DataImportReference(
         account_id=self._params['account_id'],
         property_id=self._params['property_id'],

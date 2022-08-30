@@ -1,4 +1,4 @@
-# Copyright 2021 Google Inc. All rights reserved.
+# Copyright 2022 Google Inc. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,31 +13,26 @@
 # limitations under the License.
 
 """Worker to update Google Analytics remarketing audiences."""
+
 from google.cloud import bigquery
 
 from jobs.workers.bigquery import bq_worker
 from jobs.workers.ga import ga_utils
 
 
-class GAAudiencesUpdater(bq_worker.BQWorker):
-  """Worker to update GA audiences using values from a BigQuery table.
-
-  For more details on the required GA Audience JSON template format, see:
-  https://developers.google.com/analytics/devguides/config/mgmt/v3/mgmtReference/management/remarketingAudience#resource.
-  """
+class GA4AudiencesUpdater(bq_worker.BQWorker):
+  """Worker to update GA4 audiences using values from a BigQuery table."""
 
   PARAMS = [
-      ('account_id', 'string', True, '',
-       'GA Account ID (e.g. 12345)'),
-      ('property_id', 'string', True, '',
-       'GA Property Tracking ID (e.g. UA-12345-3)'),
+      ('ga_property_id', 'string', True, '',
+       'GA Property Tracking ID (e.g. 12345)'),
       ('bq_project_id', 'string', False, '', 'BQ Project ID'),
       ('bq_dataset_id', 'string', True, '', 'BQ Dataset ID'),
       ('bq_table_id', 'string', True, '', 'BQ Table ID'),
       ('bq_dataset_location', 'string', False, '', 'BQ Dataset Location'),
-      ('template', 'text', True, '', 'GA audience JSON template'),
+      ('template', 'text', True, '',
+       'JSON template to create/update a GA4 audience'),
   ]
-
 
   def _execute(self) -> None:
     bq_client = self._get_client()
@@ -48,16 +43,15 @@ class GAAudiencesUpdater(bq_worker.BQWorker):
     patches = ga_utils.get_audience_patches(
         bq_client, table_ref, self._params['template'])
     self.log_info(f'Retrieved #{len(patches)} audience configs from BigQuery')
-    ga_client = ga_utils.get_client('analytics', 'v3')
-    audiences = ga_utils.fetch_audiences(
-        ga_client, self._params['account_id'], self._params['property_id'])
-    self.log_info(f'Fetched #{len(audiences)} audiences from the GA Property')
-    operations = ga_utils.get_audience_operations(patches, audiences)
+    ga_client = ga_utils.get_client('analyticsadmin', 'v1alpha')
+    audiences = ga_utils.fetch_audiences_ga4(
+        ga_client, self._params['ga_property_id'])
+    self.log_info(f'Fetched #{len(audiences)} audiences from the GA4 Property')
+    operations = ga_utils.get_audience_operations_ga4(patches, audiences)
     self.log_info(f'Executing #{len(operations)} operations to update the '
-                  f'state of GA with the audience configs from your BigQuery')
-    ga_utils.run_audience_operations(
+                  f'state of GA4 with the audience configs from your BigQuery')
+    ga_utils.run_audience_operations_ga4(
         ga_client,
-        self._params['account_id'],
-        self._params['property_id'],
+        self._params['ga_property_id'],
         operations,
         progress_callback=self.log_info)

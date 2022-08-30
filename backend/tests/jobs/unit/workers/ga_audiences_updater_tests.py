@@ -71,6 +71,7 @@ class GAAudiencesUpdaterTests(absltest.TestCase):
         'analytics.management.remarketingAudience.patch': (None, b'{}'),
     })
     ga_client = ga_utils.get_client(
+        'analytics', 'v3',
         http=self.http_v3, request_builder=request_builder)
     self.enter_context(
         mock.patch.object(

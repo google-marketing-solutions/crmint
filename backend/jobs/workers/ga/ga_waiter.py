@@ -36,7 +36,7 @@ class GADataImportUploadWaiter(worker.Worker):
     Raises:
       ValueError: Raised when the upload status is unsupported.
     """
-    client = ga_utils.get_client(version='v3')
+    client = ga_utils.get_client('analytics', 'v3')
     dataimport_ref = ga_utils.DataImportReference(
         account_id=self._params['account_id'],
         property_id=self._params['property_id'],

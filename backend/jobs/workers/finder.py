@@ -27,6 +27,7 @@ from jobs.workers.bigquery import bq_to_vertexai_dataset
 from jobs.workers.bigquery import bq_waiter
 from jobs.workers.bigquery import storage_to_bq_importer
 from jobs.workers.ga import ga_audiences_updater
+from jobs.workers.ga import ga_audiences_updater_ga4
 from jobs.workers.ga import ga_data_importer
 from jobs.workers.ga import ga_waiter
 from jobs.workers.storage import storage_cleaner
@@ -60,6 +61,8 @@ WORKERS_MAPPING = {
         commenter.Commenter,
     'GAAudiencesUpdater':
         ga_audiences_updater.GAAudiencesUpdater,
+    'GA4AudiencesUpdater':
+        ga_audiences_updater_ga4.GA4AudiencesUpdater,
     'GADataImporter':
         ga_data_importer.GADataImporter,
     # 'GAToBQImporter',

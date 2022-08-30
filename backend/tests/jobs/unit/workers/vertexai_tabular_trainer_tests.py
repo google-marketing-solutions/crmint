@@ -35,7 +35,7 @@ def _make_credentials():
 
 
 class VertexAITabularTrainerTest(parameterized.TestCase):
-  
+
   @parameterized.parameters(
       {
           'cfg_vertexai_model_name': 'xxxx',

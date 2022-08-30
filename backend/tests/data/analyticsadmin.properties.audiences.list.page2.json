@@ -1,0 +1,92 @@
+{
+  "audiences": [
+    {
+      "name": "properties/312213553/audiences/3853972216",
+      "displayName": "Top download_training_pipeline Users > 500",
+      "membershipDurationDays": 30,
+      "adsPersonalizationEnabled": true,
+      "eventTrigger": {},
+      "filterClauses": [
+        {
+          "clauseType": "INCLUDE",
+          "simpleFilter": {
+            "scope": "AUDIENCE_FILTER_SCOPE_ACROSS_ALL_SESSIONS",
+            "filterExpression": {
+              "andGroup": {
+                "filterExpressions": [
+                  {
+                    "orGroup": {
+                      "filterExpressions": [
+                        {
+                          "eventFilter": {
+                            "eventName": "download_training_pipeline_iBQML",
+                            "eventParameterFilterExpression": {
+                              "andGroup": {
+                                "filterExpressions": [
+                                  {
+                                    "orGroup": {
+                                      "filterExpressions": [
+                                        {
+                                          "dimensionOrMetricFilter": {
+                                            "fieldName": "value",
+                                            "numericFilter": {
+                                              "operation": "GREATER_THAN",
+                                              "value": {
+                                                "int64Value": "500"
+                                              }
+                                            },
+                                            "atAnyPointInTime": true
+                                          }
+                                        }
+                                      ]
+                                    }
+                                  }
+                                ]
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "properties/312213553/audiences/3951191362",
+      "displayName": "All Users",
+      "membershipDurationDays": 30,
+      "adsPersonalizationEnabled": true,
+      "eventTrigger": {},
+      "filterClauses": [
+        {
+          "clauseType": "INCLUDE",
+          "simpleFilter": {
+            "scope": "AUDIENCE_FILTER_SCOPE_ACROSS_ALL_SESSIONS",
+            "filterExpression": {
+              "andGroup": {
+                "filterExpressions": [
+                  {
+                    "orGroup": {
+                      "filterExpressions": [
+                        {
+                          "eventFilter": {
+                            "eventName": "purchase_propensity_iBQML"
+                          }
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
