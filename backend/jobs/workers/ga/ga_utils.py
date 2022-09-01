@@ -68,6 +68,7 @@ def get_client(
   return discovery.build(
       service,
       version,
+      num_retries=_NUMBER_OF_RETRIES,
       http=http,
       requestBuilder=request_builder,
       static_discovery=static_discovery)
@@ -133,10 +134,11 @@ def delete_oldest_uploads(client: discovery.Resource,
     raise ValueError(f'Invalid value for argument `max_to_keep`. '
                      f'Expected a strictly positive value. '
                      f'Received max_to_keep={max_to_keep}.')
-  response = client.management().uploads().list(
+  request = client.management().uploads().list(
       accountId=dataimport_ref.account_id,
       webPropertyId=dataimport_ref.property_id,
-      customDataSourceId=dataimport_ref.dataset_id).execute()
+      customDataSourceId=dataimport_ref.dataset_id)
+  response = request.execute()
   sorted_uploads = sorted(response['items'], key=lambda x: x['uploadTime'])
   if max_to_keep is not None:
     uploads_to_delete = sorted_uploads[:-max_to_keep]  # pylint: disable=invalid-unary-operand-type
@@ -144,11 +146,12 @@ def delete_oldest_uploads(client: discovery.Resource,
     uploads_to_delete = sorted_uploads
   ids_to_delete = [x['id'] for x in uploads_to_delete]
   if ids_to_delete:
-    client.management().uploads().deleteUploadData(
+    request = client.management().uploads().deleteUploadData(
         accountId=dataimport_ref.account_id,
         webPropertyId=dataimport_ref.property_id,
         customDataSourceId=dataimport_ref.dataset_id,
-        body={'customDataImportUids': ids_to_delete}).execute()
+        body={'customDataImportUids': ids_to_delete})
+    request.execute()
   return ids_to_delete
 
 
