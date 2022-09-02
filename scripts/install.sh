@@ -16,6 +16,7 @@
 
 TARGET_BRANCH=$1
 RUN_COMMAND=$2
+COMMAND_OPTIONS=$3
 CURRENT_DIR=$(pwd)
 
 COMMAND=""
@@ -31,7 +32,7 @@ if [[ ! -z "$RUN_COMMAND" ]]; then
   esac
   if [[ ! -z "$COMMAND" ]]; then
     echo "Will run the following command after installing the CRMint command line"
-    echo " ${COMMAND}"
+    echo " ${COMMAND} ${COMMAND_OPTIONS}"
   fi
 fi
 
@@ -78,7 +79,7 @@ cd "$CURRENT_DIR"
 # Runs the command line if configured for.
 if [[ ! -z "$COMMAND" ]]; then
   hash -r
-  eval $COMMAND
+  eval "${COMMAND} ${COMMAND_OPTIONS}"
 else
   echo -e "\nSuccessfully installed the CRMint command-line."
   echo "You can use it now by typing: crmint --help"

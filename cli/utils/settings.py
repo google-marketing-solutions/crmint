@@ -39,7 +39,7 @@ DATABASE_PROJECT = os.environ.get('DATABASE_PROJECT', None)
 DATABASE_REGION = os.environ.get('DATABASE_REGION', REGION)
 
 # VPC conf for Cloud SQL with private IP address only.
-USE_VPC = os.environ.get('USE_VPC', False)
+USE_VPC = (os.getenv('USE_VPC', 'False') == 'True')
 NETWORK = os.environ.get('NETWORK', 'crmint-vpc')
 NETWORK_PROJECT = os.environ.get('NETWORK_PROJECT', None)
 SUBNET_REGION = os.environ.get('SUBNET_REGION', REGION)

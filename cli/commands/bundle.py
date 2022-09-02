@@ -18,6 +18,7 @@ import click
 
 from cli.commands import cloud
 from cli.commands import stages
+from cli.utils import settings
 
 
 @click.group()
@@ -26,10 +27,14 @@ def cli():
 
 
 @cli.command('install')
+@click.option('--use_vpc', is_flag=True, default=False,
+              help='Deploys a Virtual Private Cloud network')
 @click.option('--debug/--no-debug', default=False)
 @click.pass_context
-def install(ctx: click.Context, debug: bool) -> None:
+def install(ctx: click.Context, use_vpc: bool, debug: bool) -> None:
   """Runs all commands needed to deploy CRMint in one command."""
+  if use_vpc:
+    settings.USE_VPC = True
   ctx.invoke(stages.create, debug=debug)
   ctx.invoke(stages.migrate, debug=debug)
   ctx.invoke(cloud.checklist, debug=debug)

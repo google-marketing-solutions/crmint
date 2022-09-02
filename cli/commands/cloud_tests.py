@@ -207,7 +207,6 @@ class CloudSetupTest(CloudBaseTest):
   @parameterized.named_parameters(
       ('Invoked without options', []),
       ('Invoked with --debug', ['--debug']),
-      ('Invoked with beta --use_vpc', ['--use_vpc']),
   )
   def test_can_run_deploy(self, args):
     runner = testing.CliRunner()
@@ -237,6 +236,8 @@ class CloudSetupTest(CloudBaseTest):
     )
 
   def test_validates_stdout_with_vpc(self):
+    shutil.copyfile(_datafile('dummy_stage_v3_with_vpc.py'),
+                    pathlib.Path(constants.STAGE_DIR, 'dummy_stage_v3.py'))
     self.enter_context(
         mock.patch.object(
             vpc_helpers,
@@ -244,7 +245,7 @@ class CloudSetupTest(CloudBaseTest):
             autospec=True,
             return_value=False))
     runner = testing.CliRunner()
-    result = runner.invoke(cloud.setup, ['--use_vpc'], catch_exceptions=False)
+    result = runner.invoke(cloud.setup, catch_exceptions=False)
     self.assertEqual(result.exit_code, 0, msg=result.output)
     self.assertRegex(
         result.output,
@@ -267,6 +268,8 @@ class CloudSetupTest(CloudBaseTest):
     )
 
   def test_validates_stdout_with_existing_vpc(self):
+    shutil.copyfile(_datafile('dummy_stage_v3_with_vpc.py'),
+                    pathlib.Path(constants.STAGE_DIR, 'dummy_stage_v3.py'))
     self.enter_context(
         mock.patch.object(
             vpc_helpers,
@@ -274,11 +277,13 @@ class CloudSetupTest(CloudBaseTest):
             autospec=True,
             return_value=True))
     runner = testing.CliRunner()
-    result = runner.invoke(cloud.setup, ['--use_vpc'], catch_exceptions=False)
+    result = runner.invoke(cloud.setup, catch_exceptions=False)
     self.assertEqual(result.exit_code, 0, msg=result.output)
     self.assertRegex(result.output, 'VPC already exists.')
 
   def test_validates_stdout_with_no_vpc_peerings(self):
+    shutil.copyfile(_datafile('dummy_stage_v3_with_vpc.py'),
+                    pathlib.Path(constants.STAGE_DIR, 'dummy_stage_v3.py'))
     self.enter_context(
         mock.patch.object(
             vpc_helpers,
@@ -286,11 +291,13 @@ class CloudSetupTest(CloudBaseTest):
             autospec=True,
             return_value=False))
     runner = testing.CliRunner()
-    result = runner.invoke(cloud.setup, ['--use_vpc'], catch_exceptions=False)
+    result = runner.invoke(cloud.setup, catch_exceptions=False)
     self.assertEqual(result.exit_code, 0, msg=result.output)
     self.assertRegex(result.output, '---> Creating the private connection')
 
   def test_validates_stdout_updating_tokens(self):
+    shutil.copyfile(_datafile('dummy_stage_v3_with_vpc.py'),
+                    pathlib.Path(constants.STAGE_DIR, 'dummy_stage_v3.py'))
     self.enter_context(
         mock.patch.object(
             cloud,
@@ -298,7 +305,7 @@ class CloudSetupTest(CloudBaseTest):
             autospec=True,
             return_value=['crmint-start-task-subscription']))
     runner = testing.CliRunner()
-    result = runner.invoke(cloud.setup, ['--use_vpc'], catch_exceptions=False)
+    result = runner.invoke(cloud.setup, catch_exceptions=False)
     self.assertEqual(result.exit_code, 0, msg=result.output)
     self.assertRegex(
         result.output,
@@ -369,7 +376,6 @@ class CloudDeployTest(CloudBaseTest):
   @parameterized.named_parameters(
       ('Invoked without options', []),
       ('Invoked with --debug', ['--debug']),
-      ('Invoked with beta --use_vpc', ['--use_vpc']),
   )
   def test_can_run_deploy(self, args):
     runner = testing.CliRunner()

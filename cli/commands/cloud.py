@@ -997,9 +997,7 @@ def checklist(stage_path: Union[None, str], debug: bool) -> None:
 @cli.command('setup')
 @click.option('--stage_path', type=str, default=None)
 @click.option('--debug/--no-debug', default=False)
-@click.option('--use_vpc', is_flag=True, default=False,
-              help='(beta) deploys a VPC network')
-def setup(stage_path: Union[None, str], debug: bool, use_vpc: bool) -> None:
+def setup(stage_path: Union[None, str], debug: bool) -> None:
   """Setup the GCP environment for deploying CRMint."""
   click.echo(click.style('>>>> Setup', fg='magenta', bold=True))
 
@@ -1010,9 +1008,6 @@ def setup(stage_path: Union[None, str], debug: bool, use_vpc: bool) -> None:
     stage = fetch_stage_or_default(stage_path, debug=debug)
   except CannotFetchStageError:
     sys.exit(1)
-
-  # Beta flags
-  stage.use_vpc = use_vpc
 
   # Enriches stage with other variables.
   stage = shared.before_hook(stage)
@@ -1051,16 +1046,13 @@ def setup(stage_path: Union[None, str], debug: bool, use_vpc: bool) -> None:
 @click.option('--jobs', is_flag=True, default=False)
 @click.option('--dispatch_rules', is_flag=True, default=False)
 @click.option('--db_migrations', is_flag=True, default=False)
-@click.option('--use_vpc', is_flag=True, default=False,
-    help='(beta) deploys a VPC network')
 def deploy(stage_path: Union[None, str],
            debug: bool,
            frontend: bool,
            controller: bool,
            jobs: bool,
            dispatch_rules: bool,
-           db_migrations: bool,
-           use_vpc: bool) -> None:
+           db_migrations: bool) -> None:
   """Deploy CRMint on GCP."""
   click.echo(click.style('>>>> Deploy', fg='magenta', bold=True))
 
@@ -1071,9 +1063,6 @@ def deploy(stage_path: Union[None, str],
     stage = fetch_stage_or_default(stage_path, debug=debug)
   except CannotFetchStageError:
     sys.exit(1)
-
-  # Beta flags
-  stage.use_vpc = use_vpc
 
   # Enriches stage with other variables.
   stage = shared.before_hook(stage)
