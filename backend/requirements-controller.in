@@ -5,6 +5,6 @@ Flask-RESTful
 oauthlib
 Flask-Cors
 Flask-Migrate
-mysql-connector-python
+mysql-connector-python==8.0.28
 google-cloud-bigquery
 appengine-python-standard

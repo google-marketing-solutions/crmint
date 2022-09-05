@@ -118,7 +118,7 @@ mock==4.0.3
     # via appengine-python-standard
 msgpack==1.0.4
     # via cachecontrol
-mysql-connector-python==8.0.30
+mysql-connector-python==8.0.28
     # via -r requirements-controller.in
 numpy==1.23.2
     # via pyarrow
