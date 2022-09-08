@@ -454,19 +454,22 @@ def _grant_required_permissions(stage, debug=False):
       textwrap.dedent(f"""\
           {GCLOUD} projects add-iam-policy-binding {project_id} \\
               --member="serviceAccount:{project_number}@cloudbuild.gserviceaccount.com" \\
-              --role="roles/storage.objectViewer"
+              --role="roles/storage.objectViewer" \\
+              --condition=None
           """),
       textwrap.dedent(f"""\
           {GCLOUD} projects add-iam-policy-binding {project_id} \\
               --role="roles/compute.networkUser" \\
-              --member="serviceAccount:service-{project_number}@gcp-sa-vpcaccess.iam.gserviceaccount.com"
+              --member="serviceAccount:service-{project_number}@gcp-sa-vpcaccess.iam.gserviceaccount.com" \\
+              --condition=None
           """),
       # Needed for projects created on or before April 8, 2021.
       # Grant the Google-managed service account the `iam.serviceAccountTokenCreator` role.
       textwrap.dedent(f"""\
           {GCLOUD} projects add-iam-policy-binding {project_id} \\
               --role="roles/iam.serviceAccountTokenCreator" \\
-              --member="serviceAccount:service-{project_number}@gcp-sa-pubsub.iam.gserviceaccount.com"
+              --member="serviceAccount:service-{project_number}@gcp-sa-pubsub.iam.gserviceaccount.com" \\
+              --condition=None
           """),
       # TODO(Slony): implement an ad hoc service account for CRMint
       # App Engine app should be run on behalf of a separate
@@ -475,7 +478,8 @@ def _grant_required_permissions(stage, debug=False):
       textwrap.dedent(f"""\
           {GCLOUD} projects add-iam-policy-binding {project_id} \\
               --member="serviceAccount:{project_id}@appspot.gserviceaccount.com" \\
-              --role="roles/editor"
+              --role="roles/editor" \\
+              --condition=None
           """),
   ]
   if stage.use_vpc:
