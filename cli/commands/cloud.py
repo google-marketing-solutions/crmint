@@ -526,6 +526,7 @@ def activate_services(stage, debug=False):
   cmd = (f'{GCLOUD} services enable --project={project_id}'
          f' aiplatform.googleapis.com'
          f' analytics.googleapis.com'
+         f' analyticsadmin.googleapis.com'
          f' analyticsreporting.googleapis.com'
          f' appengine.googleapis.com'
          f' bigquery-json.googleapis.com'
