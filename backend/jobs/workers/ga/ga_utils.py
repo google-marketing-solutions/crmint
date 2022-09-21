@@ -2,7 +2,6 @@
 
 import dataclasses
 import enum
-import functools
 import json
 import re
 import string
@@ -42,7 +41,6 @@ def _null_progress_callback(unused_msg: str) -> None:
   """Default progress callback. Used to simplify the tests."""
 
 
-@functools.cache
 def get_client(
     service: str,
     version: str,
