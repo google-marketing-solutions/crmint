@@ -122,7 +122,7 @@ mysql-connector-python==8.0.28
     # via -r requirements-controller.in
 numpy==1.23.2
     # via pyarrow
-oauthlib==3.2.0
+oauthlib==3.2.1
     # via -r requirements-controller.in
 packaging==21.3
     # via google-cloud-bigquery
