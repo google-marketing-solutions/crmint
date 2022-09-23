@@ -124,7 +124,7 @@ proto-plus==1.22.1
     #   google-cloud-logging
     #   google-cloud-pubsub
     #   google-cloud-resource-manager
-protobuf==3.20.1
+protobuf==3.20.2
     # via
     #   google-analytics-admin
     #   google-api-core
@@ -169,9 +169,7 @@ uritemplate==4.1.1
 urllib3==1.26.12
     # via requests
 werkzeug==2.0.3
-    # via
-    #   -r common/requirements.in
-    #   flask
+    # via flask
 
 # The following packages are considered to be unsafe in a requirements file:
 # setuptools

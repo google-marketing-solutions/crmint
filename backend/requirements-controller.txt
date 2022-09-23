@@ -135,7 +135,7 @@ proto-plus==1.22.1
     #   google-cloud-bigquery-storage
     #   google-cloud-logging
     #   google-cloud-pubsub
-protobuf==3.20.1
+protobuf==3.20.2
     # via
     #   appengine-python-standard
     #   google-api-core
@@ -194,9 +194,7 @@ urllib3==1.26.12
     #   appengine-python-standard
     #   requests
 werkzeug==2.0.3
-    # via
-    #   -r common/requirements.in
-    #   flask
+    # via flask
 
 # The following packages are considered to be unsafe in a requirements file:
 # setuptools
