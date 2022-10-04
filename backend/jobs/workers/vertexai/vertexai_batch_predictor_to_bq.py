@@ -61,7 +61,8 @@ class VertexAIBatchPredictorToBQ(vertexai_worker.VertexAIWorker):
     if batch_prediction_name is None:
       batch_prediction_name = f'{project_id}.{dataset_id}.{table_id}'
     if self._params['clean_up']:
-      self._clean_up_batch_predictions(job_client, project_id, vertexai_region)
+      self._clean_up_batch_predictions(job_client, project_id, vertexai_region,
+                                       batch_prediction_name)
     job = model.batch_predict(
         job_display_name=f'{batch_prediction_name}',
         instances_format='bigquery',

@@ -142,10 +142,13 @@ class VertexAIWorker(worker.Worker):
       dataset_client.delete_dataset({'name': dataset_name})
       self.log_info(f'Deleted dataset: {dataset_name}')
 
-  def _clean_up_training_pipelines(self, pipeline_client, project, region):
+  def _clean_up_training_pipelines(self, pipeline_client, project, region,
+                                   display_name):
     parent = f'projects/{project}/locations/{region}'
     training_pipelines = list(
-        pipeline_client.list_training_pipelines(parent=parent))
+        pipeline_client.list_training_pipelines({
+            'parent': parent,
+            'filter': f'display_name="{display_name}"'}))
     configs = map(
         lambda x: (x.create_time, {'state': x.state, 'name': x.name}),
         training_pipelines)
@@ -160,10 +163,13 @@ class VertexAIWorker(worker.Worker):
         pipeline_client.delete_training_pipeline(name=training_pipeline_name)
       self.log_info(f'Deleted training pipeline: {training_pipeline_name}')
 
-  def _clean_up_batch_predictions(self, job_client, project, region):
+  def _clean_up_batch_predictions(self, job_client, project, region,
+                                  display_name):
     parent = f'projects/{project}/locations/{region}'
     batch_predictions = list(
-        job_client.list_batch_prediction_jobs(parent=parent))
+        job_client.list_batch_prediction_jobs({
+            'parent': parent,
+            'filter': f'display_name="{display_name}"'}))
     configs = map(
         lambda x: (x.create_time, {'state': x.state, 'name': x.name}),
         batch_predictions)

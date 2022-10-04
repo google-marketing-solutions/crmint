@@ -422,8 +422,9 @@ class VertexAIWorkerTests(parameterized.TestCase):
 
       # if status is SUCCEEDED ---> DELETE
       mock_pipeline_client.delete_training_pipeline.return_value = None
-      worker_inst._clean_up_training_pipelines(
-          mock_pipeline_client, _TEST_PROJECT, _TEST_LOCATION)
+      worker_inst._clean_up_training_pipelines(mock_pipeline_client,
+                                               _TEST_PROJECT, _TEST_LOCATION,
+                                               _TEST_PIPELINE_RESOURCE_NAME)
       # asserts
       mock_pipeline_client.delete_training_pipeline.assert_called_once()
       mock_log.assert_called_once()
@@ -443,8 +444,9 @@ class VertexAIWorkerTests(parameterized.TestCase):
       # if status is RUNNING ---> CANCEL + DELETE
       mock_pipeline_client.delete_training_pipeline.return_value = None
       mock_pipeline_client.cancel_training_pipeline.return_value = None
-      worker_inst._clean_up_training_pipelines(
-          mock_pipeline_client, _TEST_PROJECT, _TEST_LOCATION)
+      worker_inst._clean_up_training_pipelines(mock_pipeline_client,
+                                               _TEST_PROJECT, _TEST_LOCATION,
+                                               _TEST_PIPELINE_RESOURCE_NAME)
       # asserts
       mock_pipeline_client.cancel_training_pipeline.assert_called_once()
       mock_pipeline_client.delete_training_pipeline.assert_called_once()
@@ -492,8 +494,9 @@ class VertexAIWorkerTests(parameterized.TestCase):
 
       # if status is SUCCEEDED ---> DELETE
       mock_job_client.delete_batch_prediction_job.return_value = None
-      worker_inst._clean_up_batch_predictions(
-          mock_job_client, _TEST_PROJECT, _TEST_LOCATION)
+      worker_inst._clean_up_batch_predictions(mock_job_client, _TEST_PROJECT,
+                                              _TEST_LOCATION,
+                                              _TEST_BATCH_PREDICTION_JOB_NAME)
       # asserts
       mock_job_client.delete_batch_prediction_job.assert_called_once()
       mock_log.assert_called_once()
@@ -503,8 +506,9 @@ class VertexAIWorkerTests(parameterized.TestCase):
       # if status is RUNNING ---> CANCEL + DELETE
       mock_job_client.delete_batch_prediction_job.return_value = None
       mock_job_client.cancel_batch_prediction_job.return_value = None
-      worker_inst._clean_up_batch_predictions(
-          mock_job_client, _TEST_PROJECT, _TEST_LOCATION)
+      worker_inst._clean_up_batch_predictions(mock_job_client, _TEST_PROJECT,
+                                              _TEST_LOCATION,
+                                              _TEST_BATCH_PREDICTION_JOB_NAME)
       # asserts
       mock_job_client.cancel_batch_prediction_job.assert_called_once()
       mock_job_client.delete_batch_prediction_job.assert_called_once()

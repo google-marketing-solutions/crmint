@@ -91,7 +91,7 @@ class VertexAITabularTrainer(vertexai_worker.VertexAIWorker):
                        f'{vertexai_dataset_name}. Try again.')
     if self._params['clean_up']:
       self._clean_up_training_pipelines(
-          pipeline_client, project_id, vertexai_region)
+          pipeline_client, project_id, vertexai_region, vertexai_model_name)
       self._clean_up_models(model_client, vertexai_region, vertexai_model_name)
     job = self._create_automl_tabular_training_job(
         vertexai_model_name, prediction_type)
