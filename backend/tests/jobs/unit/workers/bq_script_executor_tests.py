@@ -23,6 +23,7 @@ class BQScriptExecutorTest(absltest.TestCase):
             'job_id': 'JOBID',
             'script': 'CREATE OR REPLACE TABLE t AS SELECT * FROM mytable',
             'location': 'EU',
+            'dry_run': False,
         },
         pipeline_id=1,
         job_id=1,
@@ -86,6 +87,82 @@ class BQScriptExecutorTest(absltest.TestCase):
       self.assertIsNone(call_job.create_disposition)
       self.assertIsNone(call_job.write_disposition)
       self.assertIsNone(call_job.destination)
+
+  def test_dry_run_query(self):
+    worker_inst = bq_script_executor.BQScriptExecutor(
+        {
+            'job_id': 'JOBID',
+            'script': 'CREATE OR REPLACE TABLE t AS SELECT * FROM mytable',
+            'location': 'EU',
+            'dry_run': True,
+        },
+        pipeline_id=1,
+        job_id=1,
+        logger_project='PROJECT',
+        logger_credentials=_make_credentials())
+
+    # Stubs the BigQuery Job object.
+    # https://cloud.google.com/bigquery/docs/reference/rest/v2/Job
+    api_response = {
+        'kind': 'bigquery#job',
+        'statistics': {
+            'totalBytesProcessed': '16013044',
+            'query': {
+                'totalBytesProcessed': '16013044',
+                'totalBytesBilled': '0',
+                'cacheHit': False,
+                'totalBytesProcessedAccuracy': 'PRECISE',
+                'mlStatistics': {
+                    'modelType': 'LOGISTIC_REGRESSION',
+                    'trainingType': 'HPARAM_TUNING'
+                }
+            }
+        },
+        'status': {'state': 'DONE'},
+        'configuration': {
+            'query': {
+                'query': 'CREATE OR REPLACE TABLE t AS SELECT * FROM mytable',
+                'priority': 'INTERACTIVE',
+                'useQueryCache': False,
+                'useLegacySql': False
+            },
+            'dryRun': True,
+            'jobType': 'QUERY'
+        }
+    }
+    bq_client = bigquery.Client(
+        project='PROJECT', credentials=_make_credentials())
+    bq_query_job_config = bigquery.QueryJobConfig(
+        dry_run=True, use_query_cache=False)
+    self.enter_context(
+        mock.patch.object(
+            worker_inst,
+            '_get_client',
+            autospec=True,
+            return_value=bq_client))
+    self.enter_context(
+        mock.patch.object(
+            worker_inst,
+            '_get_dry_run_job_config',
+            autospec=True,
+            return_value=bq_query_job_config))
+    self.enter_context(
+        mock.patch.object(
+            bq_client,
+            '_call_api',
+            autospec=True,
+            return_value=api_response))
+    patched_logger = self.enter_context(
+        mock.patch.object(worker_inst, 'log_info', autospec=True))
+    worker_inst.execute()
+    self.assertSequenceEqual(
+        [
+            mock.call(mock.ANY),
+            mock.call('This query will process 16013044 bytes.'),
+            mock.call('Finished successfully'),
+        ],
+        patched_logger.mock_calls
+    )
 
 
 if __name__ == '__main__':

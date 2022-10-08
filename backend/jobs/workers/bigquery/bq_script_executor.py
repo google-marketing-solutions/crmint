@@ -39,22 +39,39 @@ class BQScriptExecutor(bq_worker.BQWorker):
       ('script', 'sql', True, '', 'SQL script'),
       ('bq_dataset_location', 'string', False, None, ('BQ Dataset Location '
                                                       '(optional)')),
+      ('dry_run', 'boolean', False, False, 'Dry Run'),
   ]
 
   def execute_script(self,
                      script: str,
-                     location: Optional[str] = None) -> None:
-    """Runs an SQL script.
+                     location: Optional[str] = None,
+                     dry_run: Optional[bool] = False) -> None:
+    """Runs a SQL script.
 
     Args:
       script: String containing the SQL script in the standard SQL dialect.
       location: Optional string representing the location where to run the job.
+      dry_run: Boolean Whether to test the total bytes processed only.
     """
     client = self._get_client()
-    job = client.query(
-        script, location=location, job_id_prefix=self._get_prefix())
-    self._wait(job)
+    if dry_run:
+      job_config = self._get_dry_run_job_config()
+      job = client.query(
+          script,
+          location=location,
+          job_id_prefix=self._get_prefix(),
+          job_config=job_config)
+      self.log_info(
+          f'This query will process '
+          f'{job.total_bytes_processed} bytes.')
+    else:
+      job = client.query(
+          script,
+          location=location,
+          job_id_prefix=self._get_prefix())
+      self._wait(job)
 
   def _execute(self) -> None:
     self.execute_script(self._params['script'],
-                        self._params['bq_dataset_location'])
+                        self._params['bq_dataset_location'],
+                        self._params['dry_run'])

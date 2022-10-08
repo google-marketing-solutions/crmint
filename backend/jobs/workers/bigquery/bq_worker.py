@@ -37,6 +37,9 @@ class BQWorker(worker.Worker):
   def _get_prefix(self):
     return f'{self._pipeline_id}_{self._job_id}_{self.__class__.__name__}'
 
+  def _get_dry_run_job_config(self):
+    return bigquery.QueryJobConfig(dry_run=True, use_query_cache=False)
+
   def _wait(self, job):
     """Waits for job completion and relays to BQWaiter if it takes too long."""
     delay = 5
