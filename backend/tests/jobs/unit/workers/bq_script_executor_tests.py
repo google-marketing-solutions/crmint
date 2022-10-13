@@ -158,7 +158,7 @@ class BQScriptExecutorTest(absltest.TestCase):
     self.assertSequenceEqual(
         [
             mock.call(mock.ANY),
-            mock.call('This query will process 16013044 bytes.'),
+            mock.call('This query will process 16.01 MB when run.'),
             mock.call('Finished successfully'),
         ],
         patched_logger.mock_calls

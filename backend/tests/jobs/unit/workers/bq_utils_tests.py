@@ -54,6 +54,16 @@ class BigqueryUtilsTest(parameterized.TestCase):
             bigquery.SchemaField('bar', 'STRING', mode='NULLABLE'),
         ])
 
+  def test_bytes_converter(self):
+    processed_units = bq_utils.bytes_converter(10000)
+    self.assertEqual(processed_units, '10.0 KB')
+    processed_units = bq_utils.bytes_converter(10000000)
+    self.assertEqual(processed_units, '10.0 MB')
+    processed_units = bq_utils.bytes_converter(10000000000)
+    self.assertEqual(processed_units, '10.0 GB')
+    processed_units = bq_utils.bytes_converter(10000000000000)
+    self.assertEqual(processed_units, '10.0 TB')
+
 
 if __name__ == '__main__':
   absltest.main()

@@ -16,6 +16,7 @@
 
 from typing import Optional
 
+from jobs.workers.bigquery import bq_utils
 from jobs.workers.bigquery import bq_worker
 
 
@@ -61,9 +62,10 @@ class BQScriptExecutor(bq_worker.BQWorker):
           location=location,
           job_id_prefix=self._get_prefix(),
           job_config=job_config)
+      processed_units = bq_utils.bytes_converter(job.total_bytes_processed)
       self.log_info(
           f'This query will process '
-          f'{job.total_bytes_processed} bytes.')
+          f'{processed_units} when run.')
     else:
       job = client.query(
           script,
