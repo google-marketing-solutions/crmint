@@ -74,7 +74,9 @@ class Configuration(Resource):
     # urlfetch.set_default_fetch_deadline(300)
     query = models.Param.where(pipeline_id=None, job_id=None)
     params = query.order_by(models.Param.name)
-    settings = models.GeneralSetting.query.order_by(models.GeneralSetting.name)
+    settings = (models.GeneralSetting.query
+        .order_by(models.GeneralSetting.name)
+        .all())
 
     # Get client id and secret from input fields stored in database
     client_id = models.GeneralSetting.where(name='client_id').first().value
