@@ -12,30 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-version: '3'
+version: "3"
 
 volumes:
   db_data:
-  root_config_gcloud:
-  root_cache_pip:
 
 services:
-  gcloud:
-    profiles: ["gcloud"]
-    image: gcr.io/google.com/cloudsdktool/cloud-sdk:alpine
-    volumes:
-      - root_config_gcloud:/root/.config/gcloud
-    environment:
-      GOOGLE_CLOUD_PROJECT: $GOOGLE_CLOUD_PROJECT
-    command: >
-      gcloud auth application-default login
-          --project=$GOOGLE_CLOUD_PROJECT
-          --no-launch-browser
-
   db:
     image: mysql:8.0
     environment:
-      MYSQL_ROOT_PASSWORD: 'root'
+      MYSQL_ROOT_PASSWORD: "root"
       MYSQL_DATABASE: crmint_development
       MYSQL_USER: crmint
       MYSQL_PASSWORD: crmint
@@ -44,45 +30,33 @@ services:
 
   pubsub:
     build:
-      context: .
-      dockerfile: docker/pubsub/Dockerfile
+      context: ./docker/pubsub
+      dockerfile: Dockerfile
 
   jobs:
     build:
-      context: .
-      dockerfile: docker/backend/Dockerfile
+      context: ./backend
+      dockerfile: jobs.Dockerfile
     ports:
       - "8081:8081"
     volumes:
-      - ./backend:/app/backend
-      - root_config_gcloud:/root/.config/gcloud
-      - root_cache_pip:/root/.cache/pip
+      - ./backend:/app
+      - ~/.config/gcloud:/root/.config/gcloud
     environment:
       GOOGLE_CLOUD_PROJECT: $GOOGLE_CLOUD_PROJECT
       PUBSUB_EMULATOR_HOST: pubsub:8432
       PUBSUB_PROJECT_ID: $GOOGLE_CLOUD_PROJECT
       PUBSUB_VERIFICATION_TOKEN: CRMintPubSubVerificationToken
       FLASK_ENV: development
+      PORT: 8081
+    command: ['flask', 'run', '--host', '0.0.0.0', '--port', '8081']
     depends_on:
       - pubsub
-    command: >
-      bash -c "cd /app/backend;
-               [ ! -d '.venv_jobs' ] &&
-                   python3 -m venv .venv_jobs &&
-                   . .venv_jobs/bin/activate &&
-                   pip install --upgrade pip wheel setuptools pip-tools \\
-                       --no-cache &&
-                   deactivate;
-               . .venv_jobs/bin/activate;
-               pip-compile -q --output-file requirements-jobs.txt \\
-                   requirements-jobs.in;
-               pip-sync requirements-jobs.txt;
-               python jobs_app.py"
 
   controller:
     build:
-      context: .
-      dockerfile: docker/backend/Dockerfile
+      context: ./backend
+      dockerfile: controller.Dockerfile
     ports:
       - "8080:8080"
     environment:
@@ -92,44 +66,28 @@ services:
       PUBSUB_VERIFICATION_TOKEN: CRMintPubSubVerificationToken
       DATABASE_URI: >
         mysql+mysqlconnector://crmint:crmint@db:3306/crmint_development
-      FLASK_APP: controller_app.py
       FLASK_ENV: development
+      SQLALCHEMY_ECHO: 1
+      PORT: 8080
+    command: ['flask', 'run', '--host', '0.0.0.0', '--port', '8080']
     volumes:
-      - ./backend:/app/backend
-      - root_config_gcloud:/root/.config/gcloud
-      - root_cache_pip:/root/.cache/pip
+      - ./backend:/app
+      - ~/.config/gcloud:/root/.config/gcloud
     depends_on:
       - db
       - pubsub
       - jobs
-    command: >
-      bash -c "cd /app/backend;
-               while ! wget -q --spider jobs:8081/api/workers 2>/dev/null;
-                   do sleep 3; done;
-               [ ! -d '.venv_controller' ] &&
-                   python3 -m venv .venv_controller &&
-                   . .venv_controller/bin/activate &&
-                   pip install --upgrade pip wheel setuptools pip-tools \\
-                       --no-cache &&
-                   deactivate;
-               . .venv_controller/bin/activate;
-               pip-compile -q --output-file requirements-controller.txt \\
-                   requirements-controller.in;
-               pip-sync requirements-controller.txt;
-               while ! mysqladmin ping -h db --silent; do sleep 3; done;
-               python -m flask db upgrade;
-               python -m flask db-seeds;
-               python setup_pubsub.py;
-               python controller_app.py"
 
   frontend:
     build:
-      context: .
-      dockerfile: docker/frontend/Dockerfile
+      context: ./frontend
+      dockerfile: Dockerfile
     ports:
       - "4200:4200"
+    environment:
+      PORT: 4200
     volumes:
-      - ./frontend:/app/frontend
+      - ./frontend:/app
     depends_on:
       - controller
       - jobs
