@@ -6,3 +6,10 @@ __pycache__
 # System Files
 .DS_Store
 Thumbs.db
+
+# Terraform
+*.tfstate
+*.tfstate.backup
+*.tfstate.lock.info
+*.tfvars
+.terraform/
