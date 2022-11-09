@@ -15,6 +15,8 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 
+const IP_ADDRESS_REGEX = /^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$/i;
+
 @Injectable()
 export class ApiService {
 
@@ -25,10 +27,17 @@ export class ApiService {
 
   constructor(protected http: HttpClient) { }
 
-  // Trick for detection of api domain
   protected getHost() {
     const h = window.location.hostname;
-    return h === 'localhost' ? `http://${h}:8080/api` : `https://${h}/api`;
+    if (h === 'localhost') {
+      return `http://${h}:8080/api`
+    }
+    else if (IP_ADDRESS_REGEX.test(h)) {
+      return `http://${h}/api`
+    } else {
+      // Force HTTPS
+      return `https://${h}/api`
+    }
   }
 
   protected handleError(error: any): Promise<any> {
