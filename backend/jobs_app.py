@@ -33,6 +33,16 @@ app = Flask(__name__)
 auth_filter.add(app)
 
 
+@app.route('/liveness_check', methods=['GET'])
+def liveness_check():
+  return 'OK'
+
+
+@app.route('/readiness_check', methods=['GET'])
+def readiness_check():
+  return 'OK'
+
+
 @app.route('/api/workers', methods=['GET'])
 def workers_list():
   return (json.jsonify(list(finder.WORKERS_MAPPING.keys())),

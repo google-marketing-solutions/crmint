@@ -24,10 +24,22 @@ from common import crmint_logging
 from common import message
 from controller import app as app_factory
 from controller import database
+from controller import extensions
 
 app = app_factory.create_app()
 flask_tasks.add(app)
 auth_filter.add(app)
+
+
+@app.route('/liveness_check', methods=['GET'])
+def liveness_check():
+  return 'OK'
+
+
+@app.route('/readiness_check', methods=['GET'])
+def readiness_check():
+  extensions.db.engine.execute('SELECT 1')
+  return 'OK'
 
 
 def shutdown_handler(sig: int, frame: types.FrameType) -> None:
