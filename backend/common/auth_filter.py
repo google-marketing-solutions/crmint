@@ -52,8 +52,5 @@ def add(app):
       if claim['email'] != f'{_PROJECT_ID}@appspot.gserviceaccount.com':
         return 'Invalid request', 400
     else:
-      # Check if the user is authenticated.
-      response = requests.head(f'{request.url_root}assets/favicon.ico',
-                               cookies=request.cookies)
-      if response.status_code != 200:
-        return redirect(request.url_root)
+      # NB: User authentication is handled by Identity-Aware Proxy.
+      return
