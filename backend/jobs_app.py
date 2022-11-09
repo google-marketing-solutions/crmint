@@ -122,6 +122,6 @@ def shutdown_handler(sig: int, frame: types.FrameType) -> None:
 if __name__ == '__main__':
   signal.signal(signal.SIGINT, shutdown_handler)  # Handles Ctrl-C locally.
   app.run(host='0.0.0.0', port=8081, debug=True)
-else:
+elif not app.config.get('DEBUG', False):
   # Handles App Engine instance termination.
   signal.signal(signal.SIGTERM, shutdown_handler)
