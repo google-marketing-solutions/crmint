@@ -259,11 +259,11 @@ class TestPipeline(controller_utils.ModelTestCase):
 
     self.assertLen(models.Pipeline.all(), 1)
     self.assertCountEqual(
-        pipeline.schedules.all(),
+        pipeline.schedules,
         [sc1, sc2]
     )
     pipeline.assign_schedules(schedules_to_assign)
-    self.assertLen(pipeline.schedules.all(), 3)
+    self.assertLen(pipeline.schedules, 3)
     self.assertEqual(pipeline.schedules[0].id, sc2.id)
     self.assertEqual(pipeline.schedules[0].cron, 'UPDATED')
     self.assertEqual(pipeline.schedules[1].cron, 'NEW1')
@@ -283,7 +283,7 @@ class TestPipeline(controller_utils.ModelTestCase):
          'value': 'Hello world!'},
     ]
     pipeline.assign_params(params)
-    self.assertLen(pipeline.params.all(), 2)
+    self.assertLen(pipeline.params, 2)
     self.assertEqual(pipeline.params[0].name, 'checkbox1')
     self.assertEqual(pipeline.params[1].name, 'desc')
 
@@ -315,11 +315,11 @@ class TestPipeline(controller_utils.ModelTestCase):
          'value': 'Hello world!'}
     ]
     relations = {'schedules': schedules, 'params': params}
-    self.assertEmpty(pipeline.schedules.all())
-    self.assertEmpty(pipeline.params.all())
+    self.assertEmpty(pipeline.schedules)
+    self.assertEmpty(pipeline.params)
     pipeline.save_relations(relations)
-    self.assertLen(pipeline.schedules.all(), 1)
-    self.assertLen(pipeline.params.all(), 1)
+    self.assertLen(pipeline.schedules, 1)
+    self.assertLen(pipeline.params, 1)
 
   def test_is_blocked_if_run_on_schedule(self):
     pipeline = models.Pipeline.create(run_on_schedule=True)
@@ -356,6 +356,15 @@ class TestPipeline(controller_utils.ModelTestCase):
     success = pipeline.populate_params_runtime_values()
     self.assertEqual(success, True)
     self.assertEqual(p5.runtime_value, 'foo baz goo zaz')
+
+  def test_has_no_jobs(self):
+    pipeline = models.Pipeline.create(name='pipeline1')
+    self.assertFalse(pipeline.has_jobs)
+
+  def test_has_jobs(self):
+    pipeline = models.Pipeline.create(name='pipeline1')
+    _ = models.Job.create(name='job1', pipeline_id=pipeline.id)
+    self.assertTrue(pipeline.has_jobs)
 
 
 class TestTaskEnqueued(controller_utils.ModelTestCase):

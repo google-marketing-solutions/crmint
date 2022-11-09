@@ -115,7 +115,7 @@ class JobList(Resource):
   def get(self):
     args = parser.parse_args()
     pipeline = models.Pipeline.find(args['pipeline_id'])
-    jobs = pipeline.jobs.all()
+    jobs = pipeline.jobs
     return jobs
 
   @marshal_with(job_fields)

@@ -30,11 +30,13 @@ from flask_restful import reqparse
 from flask_restful import Resource
 from google.cloud import logging
 import jinja2
+from sqlalchemy import orm
 import werkzeug
 
 from common import crmint_logging
 from common import insight
 from controller import models
+
 
 _PROJECT_ID = os.getenv('GOOGLE_CLOUD_PROJECT')
 _LOGS_PAGE_SIZE = 20
@@ -127,7 +129,11 @@ class PipelineList(Resource):
   def get(self):
     tracker = insight.GAProvider()
     tracker.track_event(category='pipelines', action='list')
-    pipelines = models.Pipeline.all()
+    pipelines = models.Pipeline.query.options(
+        (orm.defaultload(models.Pipeline.jobs).defaultload(
+            models.Job.params).defer(models.Param.value)),
+        (orm.defaultload(models.Pipeline.jobs).defaultload(
+            models.Job.params).defer(models.Param.runtime_value))).all()
     return pipelines
 
   @marshal_with(pipeline_fields)

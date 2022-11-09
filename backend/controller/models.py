@@ -77,11 +77,17 @@ class Pipeline(extensions.db.Model):
   status = Column(String(50), nullable=False, default='idle')
   status_changed_at = Column(DateTime)
   jobs = orm.relationship(
-      'Job', backref='pipeline', lazy='dynamic')
+      'Job', backref='pipeline', lazy='joined')
   run_on_schedule = Column(Boolean, nullable=False, default=False)
   schedules = orm.relationship(
-      'Schedule', lazy='dynamic', back_populates='pipeline')
-  params = orm.relationship('Param', lazy='dynamic', order_by='asc(Param.name)')
+      'Schedule',
+      lazy='joined',
+      order_by='asc(Schedule.id)',
+      back_populates='pipeline')
+  params = orm.relationship(
+      'Param',
+      lazy='joined',
+      order_by='asc(Param.name)')
 
   class STATUS:  # pylint: disable=too-few-public-methods
     """Pipeline statuses."""
@@ -98,7 +104,7 @@ class Pipeline(extensions.db.Model):
 
   @property
   def has_jobs(self):
-    return self.jobs.count() > 0
+    return len(self.jobs) > 0
 
   @property
   def recipients(self):
@@ -153,11 +159,11 @@ class Pipeline(extensions.db.Model):
       for param in Param.where(pipeline_id=None, job_id=None).all():
         global_context[param.name] = param.populate_runtime_value()
       pipeline_context = global_context.copy()
-      for param in self.params.all():
+      for param in self.params:
         pipeline_context[param.name] = param.populate_runtime_value(
             global_context)
-      for job in self.jobs.all():
-        for param in job.params.all():
+      for job in self.jobs:
+        for param in job.params:
           param.populate_runtime_value(pipeline_context)
       inline.close_session()
       return True
@@ -199,7 +205,7 @@ class Pipeline(extensions.db.Model):
       return PipelineReadyStatus.FAILED_RENDERING_PARAMETERS
     # Checks if there is at least one job to run.
     if not jobs:
-      jobs = self.jobs.all()
+      jobs = self.jobs
     if not jobs:
       return PipelineReadyStatus.NO_JOB
     # Checks if one job was already started.
@@ -211,10 +217,10 @@ class Pipeline(extensions.db.Model):
   def _start(self) -> None:
     # Updates statuses of pipeline and jobs, before starting any task.
     self.set_status(Pipeline.STATUS.RUNNING)
-    for job in self.jobs.all():
+    for job in self.jobs:
       job.set_status(Job.STATUS.WAITING)
     # Starts jobs now that all statuses are up-to-date.
-    for job in self.jobs.all():
+    for job in self.jobs:
       job.start()
 
   def start(self) -> bool:
@@ -233,7 +239,7 @@ class Pipeline(extensions.db.Model):
     ]
     if ready_status in notify_failure_for_statuses:
       self.set_status(Pipeline.STATUS.FAILED)
-      for job in self.jobs.all():
+      for job in self.jobs:
         job.set_status(Job.STATUS.FAILED)
     return False
 
@@ -242,7 +248,7 @@ class Pipeline(extensions.db.Model):
     if self.status != Pipeline.STATUS.RUNNING:
       return False
     self.set_status(Pipeline.STATUS.STOPPING)
-    for job in self.jobs.all():
+    for job in self.jobs:
       job.stop()
     return True
 
@@ -268,14 +274,14 @@ class Pipeline(extensions.db.Model):
 
     A pipeline is considered finished when all jobs are in an inactive status.
     """
-    for job in self.jobs.all():
+    for job in self.jobs:
       if job.status not in Job.STATUS.INACTIVE_STATUSES:
         return False
     return True
 
   def has_stopped(self) -> bool:
     """Returns True if a pipeline was stopped and has jobs in idle status."""
-    for job in self.jobs.all():
+    for job in self.jobs:
       if job.status in Job.STATUS.IDLE:
         return True
     return False
@@ -287,7 +293,7 @@ class Pipeline(extensions.db.Model):
       1. a leaf job failed (isolated or not)
       2. a starting condition is not fulfilled
     """
-    for job in self.jobs.all():
+    for job in self.jobs:
       # 1. Checks if a leaf job has failed.
       if not job.dependent_jobs:
         if job.status == Job.STATUS.FAILED:
@@ -344,7 +350,7 @@ class Pipeline(extensions.db.Model):
     for job in self.jobs:
       job.destroy()
 
-    param_ids = [p.id for p in self.params.all()]
+    param_ids = [p.id for p in self.params]
     if param_ids:
       Param.destroy(*param_ids)
     self.delete()
@@ -427,11 +433,12 @@ class Job(extensions.db.Model):
   status_changed_at = Column(DateTime)
   worker_class = Column(String(255))
   pipeline_id = Column(Integer, ForeignKey('pipelines.id'))
-  params = orm.relationship('Param', backref='job', lazy='dynamic')
+  params = orm.relationship('Param', backref='job', lazy='joined')
   start_conditions = orm.relationship(
       'StartCondition',
       primaryjoin='Job.id==StartCondition.job_id',
-      back_populates='job')
+      back_populates='job',
+      lazy='joined')
   affected_conditions = orm.relationship(
       'StartCondition',
       primaryjoin='Job.id==StartCondition.preceding_job_id',
@@ -476,7 +483,7 @@ class Job(extensions.db.Model):
     if dependent_job_sc_ids:
       StartCondition.destroy(*dependent_job_sc_ids)
 
-    param_ids = [p.id for p in self.params.all()]
+    param_ids = [p.id for p in self.params]
     if param_ids:
       Param.destroy(*param_ids)
     self.delete()

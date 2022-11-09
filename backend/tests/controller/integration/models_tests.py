@@ -396,14 +396,14 @@ class TestPipelineImport(ModelTestCase):
         ]
     }
     pipeline.import_data(data)
-    self.assertLen(pipeline.params.all(), 2)
+    self.assertLen(pipeline.params, 2)
     self.assertEqual(pipeline.params[0].name, 'p1')
     self.assertEqual(pipeline.params[0].label, 'P1')
     self.assertEqual(pipeline.params[0].value, 'foo')
     self.assertEqual(pipeline.params[1].name, 'p2')
     self.assertEqual(pipeline.params[1].label, 'P2')
     self.assertEqual(pipeline.params[1].value, 'bar')
-    self.assertLen(pipeline.jobs.all(), 2)
+    self.assertLen(pipeline.jobs, 2)
     self.assertEqual(pipeline.jobs[0].name, 'j1')
     self.assertEqual(pipeline.jobs[1].name, 'j2')
 
