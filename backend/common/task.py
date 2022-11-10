@@ -18,7 +18,7 @@ from common import message
 class Task:
   """Async task to be completed by a CRMint worker."""
 
-  _TOPIC = 'crmint-start-task'
+  _TOPIC = 'crmint-3-start-task'
 
   # pylint: disable=too-many-arguments
   def __init__(self, name, pipeline_id, job_id,

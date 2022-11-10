@@ -20,7 +20,7 @@ from common import message
 class Result:
   """Async task result to be reported to and processed by controller."""
 
-  _TOPIC = 'crmint-task-finished'
+  _TOPIC = 'crmint-3-task-finished'
 
   def __init__(self, task_name, job_id, success, workers_to_enqueue=None):
     self.task_name = task_name

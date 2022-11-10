@@ -89,6 +89,10 @@ resource "google_cloud_run_service" "controller_run" {
           name  = "DATABASE_URI"
           value = "mysql+mysqlconnector://${google_sql_user.crmint.name}:${google_sql_user.crmint.password}@/${google_sql_database.crmint.name}?unix_socket=/cloudsql/${google_sql_database_instance.main.connection_name}"
         }
+        env {
+          name  = "PUBSUB_VERIFICATION_TOKEN"
+          value = random_id.pubsub_verification_token.b64_url
+        }
       }
     }
   }
@@ -147,6 +151,11 @@ resource "google_cloud_run_service" "jobs_run" {
         #     path = "/readiness_check"
         #   }
         # }
+
+        env {
+          name  = "PUBSUB_VERIFICATION_TOKEN"
+          value = random_id.pubsub_verification_token.b64_url
+        }
       }
     }
   }

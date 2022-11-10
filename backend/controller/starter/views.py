@@ -32,7 +32,7 @@ api = Api(blueprint)
 
 
 class StarterResource(Resource):
-  """Processes PubSub POST requests from crmint-start-pipeline topic."""
+  """Processes PubSub POST requests from crmint-3-start-pipeline topic."""
 
   def _start_scheduled_pipelines(self):
     """Finds and tries starting the pipelines scheduled to be executed now."""

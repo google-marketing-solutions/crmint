@@ -19,24 +19,23 @@ from google.cloud import pubsub_v1
 
 def setup_pubsub():  # pylint: disable=too-many-locals
   """Create CRMint's PubSub topics and subscriptions."""
-  # TODO(dulacp): share this setting with `cli.cloud.SUBSCRIPTIONS` to be DRY
   crmint_subscriptions = {
-      'crmint-start-task': {
+      'crmint-3-start-task': {
           'push_endpoint': 'http://jobs:8081/push/start-task',
           'ack_deadline_seconds': 600,
           'minimum_backoff': 60,  # seconds
       },
-      'crmint-task-finished': {
+      'crmint-3-task-finished': {
           'push_endpoint': 'http://controller:8080/push/task-finished',
           'ack_deadline_seconds': 60,
           'minimum_backoff': 10,  # seconds
       },
-      'crmint-start-pipeline': {
+      'crmint-3-start-pipeline': {
           'push_endpoint': 'http://controller:8080/push/start-pipeline',
           'ack_deadline_seconds': 60,
           'minimum_backoff': 10,  # seconds
       },
-      'crmint-pipeline-finished': None,
+      'crmint-3-pipeline-finished': None,
   }
   project_id = os.getenv('GOOGLE_CLOUD_PROJECT')
   publisher = pubsub_v1.PublisherClient()
