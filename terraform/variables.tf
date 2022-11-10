@@ -13,7 +13,11 @@ variable "zone" {
 }
 
 variable "custom_domain" {
-  description = "CRMint Custom Domain"
+  description = <<EOF
+    (Optional) Custom Domain for the UI (e.g. crmint.example.com).
+    Leave this value empty to skip.
+    EOF
+  default     = ""
 }
 
 variable "iap_support_email" {
