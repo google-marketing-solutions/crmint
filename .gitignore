@@ -9,6 +9,7 @@ Thumbs.db
 
 # Terraform
 *.tfstate
+*.tfstate.d
 *.tfstate.backup
 *.tfstate.lock.info
 *.tfvars

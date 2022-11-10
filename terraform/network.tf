@@ -1,16 +1,6 @@
 resource "google_compute_global_address" "default" {
-  name          = "global-crmint-ip"
+  name          = "global-crmint-default"
   address_type  = "EXTERNAL"
-}
-
-resource "google_compute_managed_ssl_certificate" "default" {
-  name = "crmint-root"
-
-  managed {
-    domains = [
-      var.custom_domain
-    ]
-  }
 }
 
 resource "google_compute_region_network_endpoint_group" "frontend_neg" {
@@ -95,8 +85,8 @@ resource "google_compute_backend_service" "jobs_backend" {
 }
 
 resource "google_compute_url_map" "default" {
-  name               = "crmint-http-lb"
-  default_service    = google_compute_backend_service.frontend_backend.id
+  name             = "crmint-http-lb"
+  default_service  = google_compute_backend_service.frontend_backend.id
 
   host_rule {
     hosts        = ["*"]
@@ -120,13 +110,13 @@ resource "google_compute_url_map" "default" {
 }
 
 resource "google_compute_target_https_proxy" "default" {
-  name    = "crmint-https-lb-proxy"
+  name    = "crmint-default-https-lb-proxy"
   url_map = google_compute_url_map.default.id
-  ssl_certificates = [google_compute_managed_ssl_certificate.default.id]
+  ssl_certificates = [google_compute_ssl_certificate.locally_signed.id]
 }
 
 resource "google_compute_global_forwarding_rule" "default" {
-  name = "crmint-https-lb-forwarding-rule"
+  name = "crmint-default-https-lb-forwarding-rule"
   ip_protocol = "TCP"
   load_balancing_scheme = "EXTERNAL"
   port_range = "443"
