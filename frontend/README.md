@@ -27,7 +27,7 @@ Before running the tests make sure you are serving the app via `ng serve`.
 
 ```sh
 $ cd frontend
-$ gcloud builds submit --region=europe-weast1 --config cloudbuild.yaml
+$ gcloud builds submit --region=europe-west1 --config cloudbuild.yaml
 $ gcloud run services update frontend \
     --region us-east1 \
     --image=europe-docker.pkg.dev/${PROJECT_ID}/crmint/frontend:latest
