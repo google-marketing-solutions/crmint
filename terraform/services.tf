@@ -175,3 +175,34 @@ resource "google_cloud_run_service_iam_member" "jobs_run-public" {
   role = "roles/run.invoker"
   member = "allUsers"
 }
+
+# Runs the initial database migrations on Cloud Build.
+
+locals {
+  migrate_image = "europe-docker.pkg.dev/instant-bqml-demo-environment/crmint/controller:latest"
+  migrate_sql_conn_name = google_sql_database_instance.main.connection_name
+  migrate_cloud_db_uri = "mysql+mysqlconnector://${google_sql_user.crmint.name}:${google_sql_user.crmint.password}@/${google_sql_database.crmint.name}?unix_socket=/cloudsql/${google_sql_database_instance.main.connection_name}"
+}
+
+module "cli" {
+  source  = "terraform-google-modules/gcloud/google"
+  version = "~> 2.0"
+
+  platform = "linux"
+  additional_components = []
+
+  create_cmd_entrypoint = "gcloud"
+  create_cmd_body       = <<EOF
+    builds submit \
+      --region ${var.region} \
+      --config ../backend/cloudmigrate.yaml \
+      --no-source \
+      --substitutions _IMAGE_NAME=${local.migrate_image},_INSTANCE_CONNECTION_NAME=${local.migrate_sql_conn_name},_CLOUD_DB_URI=${local.migrate_cloud_db_uri}
+    EOF
+
+  # Runs the command at each terraform sync, using current timestamp as a cache buster.
+  # NB: essential to always ensure that the database schema is in sync with the infrastructure.
+  create_cmd_triggers = {
+    always_run = "${timestamp()}"
+  }
+}

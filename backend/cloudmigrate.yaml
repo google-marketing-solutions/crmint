@@ -1,56 +1,34 @@
 steps:
-  - id: "build image"
+  # Injects the Cloud SQL Proxy into our image.
+  - id: "docker-layer"
     name: "gcr.io/cloud-builders/docker"
-    args: ["build", "-t", "gcr.io/${PROJECT_ID}/${_SERVICE_NAME}", "."]
-
-  - id: "push image"
-    name: "gcr.io/cloud-builders/docker"
-    args: ["push", "gcr.io/${PROJECT_ID}/${_SERVICE_NAME}"]
-
-  - id: "apply migrations"
-    name: "gcr.io/google-appengine/exec-wrapper"
+    entrypoint: /bin/bash
     args:
-      [
-        "-i",
-        "gcr.io/$PROJECT_ID/${_SERVICE_NAME}",
-        "-s",
-        "${PROJECT_ID}:${_SQL_REGION}:${_SQL_INSTANCE_NAME}",
-        "-e",
-        "FLASK_APP=controller_app.py",
-        "-e",
-        "DATABASE_URI=${_CLOUD_DB_URI}",
-        "--",
-        "python",
-        "-m",
-        "flask",
-        "db",
-        "upgrade",
-      ]
+      - '-c'
+      - |
+        echo "FROM ${_IMAGE_NAME}
+        COPY --from=gcr.io/cloudsql-docker/gce-proxy /cloud_sql_proxy /cloudsql/cloud_sql_proxy
+        COPY --from=gcr.io/cloudsql-docker/gce-proxy /etc/ssl/certs /etc/ssl/certs" > Dockerfile-proxy;
 
-  - id: "sow seeds"
-    name: "gcr.io/google-appengine/exec-wrapper"
+        docker build -f Dockerfile-proxy -t ${_IMAGE_NAME}-proxy .
+
+  # Runs migrations and seeding the database.
+  - name: "${_IMAGE_NAME}-proxy"
+    dir: "/app"
+    entrypoint: /bin/bash
+    env:
+      - "DATABASE_URI=${_CLOUD_DB_URI}"
     args:
-      [
-        "-i",
-        "gcr.io/$PROJECT_ID/${_SERVICE_NAME}",
-        "-s",
-        "${PROJECT_ID}:${_SQL_REGION}:${_SQL_INSTANCE_NAME}",
-        "-e",
-        "FLASK_APP=controller_app.py",
-        "-e",
-        "DATABASE_URI=${_CLOUD_DB_URI}",
-        "--",
-        "python",
-        "-m",
-        "flask",
-        "db-seeds",
-      ]
+      - '-c'
+      - |
+        /cloudsql/cloud_sql_proxy -instances=${_INSTANCE_CONNECTION_NAME} -dir=/cloudsql & sleep 2;
+        python -m flask db upgrade;
+        python -m flask db-seeds;
+
+options:
+  dynamic_substitutions: true
 
 substitutions:
+  _IMAGE_NAME:
+  _INSTANCE_CONNECTION_NAME:
   _CLOUD_DB_URI:
-  _SQL_INSTANCE_NAME:
-  _SQL_REGION:
-  _SERVICE_NAME: crmintapp-db-migrations
-
-images:
-  - "gcr.io/${PROJECT_ID}/${_SERVICE_NAME}"

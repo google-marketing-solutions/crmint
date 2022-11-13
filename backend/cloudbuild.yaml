@@ -1,0 +1,67 @@
+steps:
+  # Pulls the latest images to enable caching.
+  - name: 'gcr.io/cloud-builders/docker'
+    env:
+      - 'PROJECT_ID=$PROJECT_ID'
+    script: |
+      #!/usr/bin/bash
+      docker pull ${_IMAGE_NAME}-base:latest || true
+      docker pull ${_IMAGE_NAME}-builder:latest || true
+      docker pull ${_IMAGE_NAME}:latest || true
+
+  # Builds the base image to cache it later on
+  - name: 'gcr.io/cloud-builders/docker'
+    args: [
+      'build',
+      '--cache-from', '${_IMAGE_NAME}-base:latest',
+      '--build-arg', 'BUILDKIT_INLINE_CACHE=1',
+      '--target', 'base',
+      '-t', '${_IMAGE_NAME}-base:latest',
+      '-f', '${_DOCKERFILE}',
+      '.',
+    ]
+    env:
+      - 'DOCKER_BUILDKIT=1'
+
+  # Builds the builder image to cache it later on
+  - name: 'gcr.io/cloud-builders/docker'
+    args: [
+      'build',
+      '--cache-from', '${_IMAGE_NAME}-base:latest',
+      '--cache-from', '${_IMAGE_NAME}-builder:latest',
+      '--build-arg', 'BUILDKIT_INLINE_CACHE=1',
+      '--target', 'builder',
+      '-t', '${_IMAGE_NAME}-builder:latest',
+      '-f', '${_DOCKERFILE}',
+      '.',
+    ]
+    env:
+      - 'DOCKER_BUILDKIT=1'
+
+  # Builds the app image.
+  - name: 'gcr.io/cloud-builders/docker'
+    args: [
+      'build',
+      '--cache-from', '${_IMAGE_NAME}-base:latest',
+      '--cache-from', '${_IMAGE_NAME}-builder:latest',
+      '--cache-from', '${_IMAGE_NAME}:latest',
+      '--build-arg', 'BUILDKIT_INLINE_CACHE=1',
+      '-t', '${_IMAGE_NAME}',
+      '-f', '${_DOCKERFILE}',
+      '.',
+    ]
+    env:
+      - 'DOCKER_BUILDKIT=1'
+
+images: [
+  '${_IMAGE_NAME}-base',
+  '${_IMAGE_NAME}-builder',
+  '${_IMAGE_NAME}',
+]
+
+options:
+  dynamic_substitutions: true
+
+substitutions:
+  _DOCKERFILE:
+  _IMAGE_NAME:

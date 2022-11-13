@@ -22,6 +22,12 @@ resource "google_service_account" "pubsub_sa" {
   project      = var.project_id
 }
 
+resource "google_project_service_identity" "cloudbuild_managed_sa" {
+  provider = google-beta
+  project  = var.project_id
+  service  = "cloudbuild.googleapis.com"
+}
+
 resource "google_project_service_identity" "pubsub_managed_sa" {
   provider = google-beta
   project  = var.project_id
@@ -30,6 +36,13 @@ resource "google_project_service_identity" "pubsub_managed_sa" {
 
 resource "google_project_iam_member" "controller_sa--cloudsql-client" {
   member  = "serviceAccount:${google_service_account.controller_sa.email}"
+  project = var.project_id
+  role    = "roles/cloudsql.client"
+}
+
+# Needed to run database migrations from Cloud Build.
+resource "google_project_iam_member" "cloudbuild_managed_sa--cloudsql-client" {
+  member  = "serviceAccount:${google_project_service_identity.cloudbuild_managed_sa.email}"
   project = var.project_id
   role    = "roles/cloudsql.client"
 }
