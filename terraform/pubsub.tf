@@ -1,6 +1,5 @@
-variable "subscriptions" {
-  type    = map
-  default = {
+locals {
+  subscriptions = {
     "crmint-3-start-task" = {
         "path" = "push/start-task",
         "ack_deadline_seconds" = 600,
@@ -22,7 +21,7 @@ variable "subscriptions" {
 }
 
 resource "google_pubsub_topic" "topics" {
-  for_each = var.subscriptions
+  for_each = local.subscriptions
   name = each.key
 }
 
@@ -35,7 +34,7 @@ resource "random_id" "pubsub_verification_token" {
 }
 
 resource "google_pubsub_subscription" "subscriptions" {
-  for_each = var.subscriptions
+  for_each = local.subscriptions
 
   name  = "${each.key}-subscription"
   topic = lookup(google_pubsub_topic.topics, each.key).id
