@@ -1,10 +1,12 @@
 resource "google_sql_database_instance" "main" {
-  name             = "crmintapp-db-clone"
+  name             = var.database_instance_name
   database_version = "MYSQL_8_0"
-  region           = var.region
+  project          = var.database_project_id != null ? var.database_project_id : var.project_id
+  region           = var.database_region != null ? var.database_region : var.region
 
   settings {
-    tier = "db-g1-small"
+    tier              = var.database_tier
+    availability_type = var.database_availability_type
 
     insights_config {
       query_insights_enabled  = true
@@ -21,7 +23,7 @@ resource "google_sql_database_instance" "main" {
 }
 
 resource "google_sql_database" "crmint" {
-  name     = "crmintapp-db"
+  name     = var.database_name
   instance = google_sql_database_instance.main.name
 }
 
@@ -30,7 +32,7 @@ resource "random_password" "main_db_password" {
 }
 
 resource "google_sql_user" "crmint" {
-  name     = "crmintapp"
+  name     = var.database_user
   instance = google_sql_database_instance.main.name
   password = random_password.main_db_password.result
 }
