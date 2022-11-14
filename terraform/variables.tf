@@ -12,12 +12,20 @@ variable "zone" {
   default = "us-east1-c"
 }
 
+variable "controller_image" {
+  description = <<EOF
+    Docker image uri for the controller service
+    (fully qualified uri, meaning with tag)"
+  EOF
+  default = "europe-docker.pkg.dev/crmint-builds/crmint/controller:latest"
+}
+
 variable "custom_domain" {
   description = <<EOF
     (Optional) Custom Domain for the UI (e.g. crmint.example.com).
     Leave this value empty to skip.
     EOF
-  default     = ""
+  default = ""
 }
 
 variable "iap_support_email" {

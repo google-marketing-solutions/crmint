@@ -176,7 +176,16 @@ resource "google_cloud_run_service_iam_member" "jobs_run-public" {
   member = "allUsers"
 }
 
-# Runs the initial database migrations on Cloud Build.
+# Detects if the controller image has changed.
+# TODO: move to a native data source when available
+data "external" "deployed_controller_image_metadata" {
+  program = ["../scripts/read_image_metadata.sh"]
+
+  query = {
+    image_name = split(":", var.controller_image)[0]
+    image_tag = split(":", var.controller_image)[1]
+  }
+}
 
 locals {
   migrate_image = "europe-docker.pkg.dev/instant-bqml-demo-environment/crmint/controller:latest"
@@ -184,6 +193,7 @@ locals {
   migrate_cloud_db_uri = "mysql+mysqlconnector://${google_sql_user.crmint.name}:${google_sql_user.crmint.password}@/${google_sql_database.crmint.name}?unix_socket=/cloudsql/${google_sql_database_instance.main.connection_name}"
 }
 
+# Runs database migrations on Cloud Build if the controller has changed.
 module "cli" {
   source  = "terraform-google-modules/gcloud/google"
   version = "~> 2.0"
@@ -200,9 +210,8 @@ module "cli" {
       --substitutions _IMAGE_NAME=${local.migrate_image},_INSTANCE_CONNECTION_NAME=${local.migrate_sql_conn_name},_CLOUD_DB_URI=${local.migrate_cloud_db_uri}
     EOF
 
-  # Runs the command at each terraform sync, using current timestamp as a cache buster.
-  # NB: essential to always ensure that the database schema is in sync with the infrastructure.
+  # Runs only if the controller digest has changed.
   create_cmd_triggers = {
-    always_run = "${timestamp()}"
+    controller_digest = data.external.deployed_controller_image_metadata.result.digest
   }
 }
