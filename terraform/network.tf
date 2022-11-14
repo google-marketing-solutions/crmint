@@ -123,3 +123,67 @@ resource "google_compute_global_forwarding_rule" "default" {
   target = google_compute_target_https_proxy.default.id
   ip_address = google_compute_global_address.default.id
 }
+
+##
+# Virtual Private Cloud
+
+resource "google_compute_network" "private" {
+  provider = google-beta
+  count = var.use_vpc ? 1 : 0
+
+  name                    = "crmint-private-network"
+  project                 = var.network_project_id != null ? var.network_project_id : var.project_id
+  routing_mode            = "REGIONAL"
+  mtu                     = 1460
+  auto_create_subnetworks = false  # Custom Subnet Mode
+}
+
+resource "google_compute_global_address" "db_private_ip_address" {
+  provider = google-beta
+  count = var.use_vpc ? 1 : 0
+
+  name          = "crmint-db-private-ip-address"
+  project       = var.network_project_id != null ? var.network_project_id : var.project_id
+  purpose       = "VPC_PEERING"
+  address_type  = "INTERNAL"
+  address       = "192.168.0.0"
+  prefix_length = 16
+  network       = google_compute_network.private[count.index].id
+}
+
+resource "google_service_networking_connection" "private_vpc_connection" {
+  provider = google-beta
+  count = var.use_vpc ? 1 : 0
+
+  network                 = google_compute_network.private[count.index].id
+  service                 = "servicenetworking.googleapis.com"
+  reserved_peering_ranges = [google_compute_global_address.db_private_ip_address[count.index].name]
+}
+
+resource "google_compute_subnetwork" "private" {
+  count = var.use_vpc ? 1 : 0
+
+  name          = "crmint-private-subnetwork"
+  ip_cidr_range = "10.8.0.0/28"
+  region        = var.network_region != null ? var.network_region : var.region
+  network       = google_compute_network.private[count.index].id
+}
+
+resource "google_vpc_access_connector" "connector" {
+  provider       = google-beta
+  count = var.use_vpc ? 1 : 0
+
+  name           = "crmint-vpc-conn"
+  machine_type   = "e2-micro"
+  max_instances  = 3
+  min_instances  = 2
+  project        = var.network_project_id != null ? var.network_project_id : var.project_id
+  region         = var.network_region != null ? var.network_region : var.region
+
+  subnet {
+    name = google_compute_subnetwork.private[count.index].name
+    project_id = var.network_project_id != null ? var.network_project_id : var.project_id
+  }
+
+  depends_on = [google_project_service.vpcaccess]
+}

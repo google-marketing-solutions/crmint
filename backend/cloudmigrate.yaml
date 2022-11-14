@@ -27,8 +27,11 @@ steps:
 
 options:
   dynamic_substitutions: true
+  pool:
+    name: ${_POOL}
 
 substitutions:
   _IMAGE_NAME:
   _INSTANCE_CONNECTION_NAME:
   _CLOUD_DB_URI:
+  _POOL:

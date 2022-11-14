@@ -17,6 +17,25 @@ variable "zone" {
 
 
 ##
+# Virtual Private Cloud
+
+variable "use_vpc" {
+  description = "Configures the database with a private IP. Default to true."
+  default = true
+}
+
+variable "network_project_id" {
+  description = "Network GCP project to use. Defaults to `var.project_id`."
+  default = null
+}
+
+variable "network_region" {
+  description = "Network region. Defaults to `var.region`."
+  default = null
+}
+
+
+##
 # Database
 
 variable "database_project_id" {

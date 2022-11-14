@@ -4,11 +4,12 @@ locals {
     "analytics.googleapis.com",
     "analyticsadmin.googleapis.com",
     "analyticsreporting.googleapis.com",
+    "cloudscheduler.googleapis.com",
     "logging.googleapis.com",
     "pubsub.googleapis.com",
+    "servicenetworking.googleapis.com",
     "storage-api.googleapis.com",
     "storage-component.googleapis.com",
-    "cloudscheduler.googleapis.com",
   ]
 }
 
@@ -17,4 +18,11 @@ resource "google_project_service" "aiplatform" {
 
   project = var.project_id
   service = each.key
+}
+
+resource "google_project_service" "vpcaccess" {
+  provider = google-beta
+
+  project = var.network_project_id != null ? var.network_project_id : var.project_id
+  service = "vpcaccess.googleapis.com"
 }

@@ -1,4 +1,10 @@
+locals {
+  private_network = var.use_vpc ? google_compute_network.private[0] : null
+}
+
 resource "google_sql_database_instance" "main" {
+  depends_on = [google_service_networking_connection.private_vpc_connection]
+
   name             = var.database_instance_name
   database_version = "MYSQL_8_0"
   project          = var.database_project_id != null ? var.database_project_id : var.project_id
@@ -13,6 +19,15 @@ resource "google_sql_database_instance" "main" {
       query_string_length     = 1024
       record_application_tags = false
       record_client_address   = false
+    }
+
+    dynamic "ip_configuration" {
+      # Includes this block only if `local.private_network` is set to a non-null value.
+      for_each = local.private_network[*]
+      content {
+        ipv4_enabled = false
+        private_network = local.private_network.id
+      }
     }
 
     maintenance_window {
