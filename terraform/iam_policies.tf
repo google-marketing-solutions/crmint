@@ -40,7 +40,14 @@ resource "google_project_iam_member" "controller_sa--cloudsql-client" {
   role    = "roles/cloudsql.client"
 }
 
-# Needed to run database migrations from Cloud Build.
+# Needed to access the controller image during migrations from Cloud Build.
+resource "google_project_iam_member" "cloudbuild_managed_sa--object-viewer" {
+  member  = "serviceAccount:${google_project_service_identity.cloudbuild_managed_sa.email}"
+  project = var.project_id
+  role    = "roles/storage.objectViewer"
+}
+
+# Needed to access the database during migrations from Cloud Build.
 resource "google_project_iam_member" "cloudbuild_managed_sa--cloudsql-client" {
   member  = "serviceAccount:${google_project_service_identity.cloudbuild_managed_sa.email}"
   project = var.project_id
