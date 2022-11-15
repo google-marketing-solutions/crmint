@@ -61,15 +61,6 @@ def fetch_stage_or_default(
 
   stage = shared.load_stage(stage_path)
   stage.stage_path = stage_path
-  if stage.spec_version != constants.LATEST_STAGE_VERSION:
-    click.secho(f'Stage file "{stage_path}" needs to be migrated. '
-                f'Current spec_version: {stage.spec_version}, '
-                f'latest: {constants.LATEST_STAGE_VERSION}',
-                fg='red',
-                bold=True)
-    click.secho('Fix this by running: $ crmint stages migrate', fg='green')
-    raise CannotFetchStageError('Stage file needs migration')
-
   return stage
 
 

@@ -128,6 +128,21 @@ def get_current_project_id(debug: bool = False) -> ProjectId:
   return out.strip()
 
 
+def get_user_email(debug: bool = False) -> str:
+  """Returns the user email configured in the gcloud config.
+
+  Args:
+    debug: Enables the debug mode on system calls.
+  """
+  cmd = f'{GCLOUD} config list --format="value(core.account)"'
+  _, out, _ = shared.execute_command(
+      'Retrieve gcloud current user',
+      cmd,
+      debug=debug,
+      debug_uses_std_out=False)
+  return out.strip()
+
+
 def get_default_stage_path(debug: bool = False) -> pathlib.Path:
   """Returns the default stage file path, derived from the GCP project name.
 
@@ -136,26 +151,24 @@ def get_default_stage_path(debug: bool = False) -> pathlib.Path:
   """
   project_id = get_current_project_id(debug=debug)
   click.echo(textwrap.indent(f'Project ID found: {project_id}', _INDENT_PREFIX))
-  return pathlib.Path(constants.STAGE_DIR, f'{project_id}.py')
+  return pathlib.Path(constants.STAGE_DIR, f'{project_id}.tfvars')
 
 
 def load_stage(stage_path: pathlib.Path) -> StageContext:
-  spec = importlib.util.spec_from_file_location('loaded_stage', stage_path)
+  """Loads stage by interpreting Terraform variables as Python code."""
+  loader = importlib.machinery.SourceFileLoader('stage_module', str(stage_path))
+  spec = importlib.util.spec_from_loader('stage_module', loader)
   module = importlib.util.module_from_spec(spec)
   spec.loader.exec_module(module)
   context = dict(
       (x, getattr(module, x)) for x in dir(module) if not x.startswith('__'))
   stage = types.SimpleNamespace(**context)
-  if not hasattr(stage, 'spec_version'):
-    # NOTE: `spec_version` flag was not in the v2 template,
-    #       which is why it's defined as the default value.
-    stage.spec_version = constants.STAGE_VERSION_2_0
   return stage
 
 
 def create_stage_file(stage_path: pathlib.Path, context: StageContext) -> None:
   """Saves the given context into the given path file."""
-  content = constants.STAGE_FILE_TEMPLATE.format(ctx=context)
+  content = constants.TFVARS_FILE_TEMPLATE.format(ctx=context)
   with open(stage_path, 'w+') as fp:
     fp.write(content)
 
@@ -171,10 +184,8 @@ def check_variables():
     os.environ['GOOGLE_CLOUD_SDK'] = out.decode('utf-8').strip()
 
 
-def get_regions(project_id: ProjectId) -> Tuple[str, str]:
-  """Returns (region, sql_region) from a given GCP project.
-
-  If no App Engine has been deployed before, prompt the user with choices.
+def get_region(project_id: ProjectId) -> str:
+  """Returns a Compute region.
 
   Args:
     project_id: GCP project identifier.
@@ -190,45 +201,28 @@ def get_regions(project_id: ProjectId) -> Tuple[str, str]:
     i = click.prompt(
         'Enter an index of the region to deploy CRMint in', type=int) - 1
   region = regions[i].strip()
-  sql_region = region
-  return region, sql_region
+  return region
 
 
-def default_stage_context(project_id: ProjectId) -> StageContext:
+def default_stage_context(project_id: ProjectId,
+                          gcloud_account_email: str) -> StageContext:
   """Returns a stage context initialized with default settings.
 
   Args:
     project_id: GCP project identifier.
+    gcloud_account_email: Email account running CloudShell.
   """
-  region, sql_region = get_regions(project_id)
-  gae_app_title = ' '.join(project_id.split('-')).title()
+  region = settings.REGION or get_region(project_id)
+  app_title = settings.APP_TITLE or ' '.join(project_id.split('-')).title()
   namespace = types.SimpleNamespace(
       project_id=project_id,
-      project_region=region,
-      workdir=f'/tmp/{project_id}',
-      database_name=settings.DATABASE_NAME,
-      database_region=sql_region,
-      database_tier=settings.DATABASE_TIER,
-      database_username=settings.DATABASE_USER,
-      database_password=settings.DATABASE_PASSWORD,
-      database_instance_name=settings.DATABASE_INSTANCE_NAME,
-      database_backup_enabled=settings.DATABASE_BACKUP_ENABLED,
-      database_ha_type=settings.DATABASE_HA_TYPE,
-      database_project=settings.DATABASE_PROJECT or project_id,
+      app_title=app_title,
+      iap_support_email=gcloud_account_email,
+      region=region,
       use_vpc=settings.USE_VPC,
-      network=settings.NETWORK,
-      subnet_region=sql_region,
-      connector=settings.CONNECTOR,
-      connector_subnet='crmint-{}-connector-subnet'.format(region),
-      connector_cidr=settings.CONNECTOR_CIDR,
-      connector_min_instances=settings.CONNECTOR_MIN_INSTANCES,
-      connector_max_instances=settings.CONNECTOR_MAX_INSTANCES,
-      connector_machine_type=settings.CONNECTOR_MACHINE_TYPE,
-      network_project=settings.NETWORK_PROJECT or project_id,
-      gae_project=settings.GAE_PROJECT or project_id,
-      gae_region=region,
-      gae_app_title=settings.GAE_APP_TITLE or gae_app_title,
-      pubsub_verification_token=settings.PUBSUB_VERIFICATION_TOKEN,
-      notification_sender_email=f'noreply@{project_id}.appspotmail.com',
-      enabled_stages=False)
+      database_tier=settings.DATABASE_TIER,
+      database_availability_type=settings.DATABASE_HA_TYPE,
+      frontend_image=settings.FRONTEND_IMAGE,
+      controller_image=settings.CONTROLLER_IMAGE,
+      jobs_image=settings.JOBS_IMAGE)
   return StageContext(namespace)

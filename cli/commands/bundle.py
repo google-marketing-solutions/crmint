@@ -36,7 +36,6 @@ def install(ctx: click.Context, use_vpc: bool, debug: bool) -> None:
   if use_vpc:
     settings.USE_VPC = True
   ctx.invoke(stages.create, debug=debug)
-  ctx.invoke(stages.migrate, debug=debug)
   ctx.invoke(cloud.checklist, debug=debug)
   ctx.invoke(cloud.setup, debug=debug)
 

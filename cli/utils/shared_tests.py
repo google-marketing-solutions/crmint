@@ -32,7 +32,7 @@ class SharedTests(absltest.TestCase):
     patched_click_echo = self.enter_context(
         mock.patch.object(click, 'echo', autospec=True))
     self.assertEqual(shared.get_default_stage_path(),
-                     pathlib.Path(constants.STAGE_DIR, 'foo.py'))
+                     pathlib.Path(constants.STAGE_DIR, 'foo.tfvars'))
     self.assertSequenceEqual(
         patched_click_echo.mock_calls,
         [mock.call('     Project ID found: foo')]
@@ -272,15 +272,15 @@ class GetRegionTests(absltest.TestCase):
     self.enter_context(
         mock.patch.object(click, 'prompt', autospec=True, return_value=4))
 
-  def test_get_regions(self):
-    self.assertEqual(shared.get_regions(shared.ProjectId('dummy_stage_v3')),
-                     ('australia-southeast1', 'australia-southeast1'))
+  def test_get_region(self):
+    self.assertEqual(shared.get_region(shared.ProjectId('dummy_stage_v3')),
+                     'australia-southeast1')
 
   def test_stdout(self):
 
     @click.command('custom')
     def _custom_command():
-      shared.get_regions(shared.ProjectId('dummy_stage_v3'))
+      shared.get_region(shared.ProjectId('dummy_stage_v3'))
 
     runner = testing.CliRunner(mix_stderr=False)
     result = runner.invoke(_custom_command, catch_exceptions=False)

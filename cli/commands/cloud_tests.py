@@ -87,7 +87,7 @@ class CloudSetupTest(parameterized.TestCase):
             shared,
             'get_current_project_id',
             autospec=True,
-            return_value='dummy_stage_v3'))
+            return_value='dummy_project_with_vpc'))
     # `create_tempfile` needs access to --test_tmpdir, however in the OSS world
     # pytest doesn't run `absltest.main`, so we need to init flags ourselves.
     test_helpers.initialize_flags_with_defaults()
@@ -95,10 +95,12 @@ class CloudSetupTest(parameterized.TestCase):
     tmp_stage_dir = self.create_tempdir('stage_dir')
     self.enter_context(
         mock.patch.object(constants, 'STAGE_DIR', tmp_stage_dir.full_path))
-    shutil.copyfile(_datafile('dummy_stage_v2.py'),
-                    pathlib.Path(constants.STAGE_DIR, 'dummy_stage_v2.py'))
-    shutil.copyfile(_datafile('dummy_stage_v3.py'),
-                    pathlib.Path(constants.STAGE_DIR, 'dummy_stage_v3.py'))
+    shutil.copyfile(
+        _datafile('dummy_project_with_vpc.tfvars'),
+        pathlib.Path(constants.STAGE_DIR, 'dummy_project_with_vpc.tfvars'))
+    shutil.copyfile(
+        _datafile('dummy_project_without_vpc.tfvars'),
+        pathlib.Path(constants.STAGE_DIR, 'dummy_project_without_vpc.tfvars'))
     # Uses a temporary directory we can keep a reference to.
     self.tmp_workdir = self.create_tempdir('workdir')
     self.enter_context(
@@ -108,26 +110,27 @@ class CloudSetupTest(parameterized.TestCase):
             autospec=True,
             return_value=self.tmp_workdir.full_path))
 
-  def test_fetch_stage_or_default_no_exception_for_latest_spec(self):
-    """Should raise an exception inviting the user to migrate."""
-    stage_path = pathlib.Path(constants.STAGE_DIR, 'dummy_stage_v3.py')
+  def test_fetch_existing_stage(self):
+    """Should not raise an exception if stage file exists."""
+    stage_path = pathlib.Path(
+        constants.STAGE_DIR, 'dummy_project_with_vpc.tfvars')
     try:
       stage = cloud.fetch_stage_or_default(stage_path)
     except cloud.CannotFetchStageError:
-      self.fail('Should not raise an exception on latest spec')
-    self.assertEqual(stage.spec_version, 'v3.0')
+      self.fail('Should not raise an exception')
 
-  def test_fetch_stage_or_default_on_old_spec_version(self):
-    """Should raise an exception inviting the user to migrate."""
+  def test_fetch_stage_suggest_resolution_if_no_stage(self):
+    """Should raise an exception inviting the user to create a stage file."""
     runner = testing.CliRunner(mix_stderr=False)
     with runner.isolation() as (out, err):
-      stage_path = pathlib.Path(constants.STAGE_DIR, 'dummy_stage_v2.py')
+      stage_path = pathlib.Path(
+          constants.STAGE_DIR, 'new_dummy_project.tfvars')
 
       with self.subTest('Raises an exception'):
         with self.assertRaises(cloud.CannotFetchStageError):
           cloud.fetch_stage_or_default(stage_path)
       with self.subTest('Suggest a resolution path to the user'):
-        self.assertIn(b'Fix this by running: $ crmint stages migrate',
+        self.assertIn(b'Fix this by running: $ crmint stages create',
                       out.getvalue())
         self.assertEmpty(err.getvalue())
 
@@ -166,7 +169,7 @@ class CloudSetupTest(parameterized.TestCase):
         result.output,
         textwrap.dedent("""\
             >>>> Setup
-                 Project ID found: dummy_stage_v3
+                 Project ID found: dummy_project_with_vpc
             ---> Initialize Terraform ✓
             ---> Generate Terraform plan ✓
                  Cloud Run Service \(3\)
@@ -181,8 +184,6 @@ class CloudSetupTest(parameterized.TestCase):
     self.assertNotIn('VPC Access Connector (1)', result.output)
 
   def test_validates_stdout_with_vpc(self):
-    shutil.copyfile(_datafile('dummy_stage_v3_with_vpc.py'),
-                    pathlib.Path(constants.STAGE_DIR, 'dummy_stage_v3.py'))
     tf_plan_file = _datafile('tfplan_with_vpc.json')
     with open(tf_plan_file, 'rb') as f:
       tf_plan_content = f.read()
