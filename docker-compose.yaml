@@ -82,6 +82,7 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      target: dev
     ports:
       - "4200:4200"
     environment:

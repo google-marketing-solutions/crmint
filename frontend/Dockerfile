@@ -1,7 +1,7 @@
 ##
-# Builder stage
+# Base stage
 #
-FROM node:16.16 AS builder
+FROM node:16.16 AS base
 
 WORKDIR /app
 
@@ -9,6 +9,17 @@ COPY package.json /app/package.json
 RUN npm install
 
 COPY . /app
+
+##
+# Development stage
+#
+FROM base AS dev
+CMD npm run start -- --watch --port $PORT
+
+##
+# Builder stage
+#
+FROM base AS builder
 RUN npm run build -- -c production
 
 ##
