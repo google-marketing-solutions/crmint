@@ -160,37 +160,6 @@ def create_stage_file(stage_path: pathlib.Path, context: StageContext) -> None:
     fp.write(content)
 
 
-def before_hook(stage: StageContext) -> StageContext:
-  """Adds variables to the stage context."""
-  if not stage.workdir:
-    # NOTE: We voluntarily won't delete the content of this temporary directory
-    #       so that debugging can be done. In addition, the directory size
-    #       is guaranteed to always be small.
-    stage.workdir = tempfile.mkdtemp()
-
-  stage.db_instance_conn_name = '{}:{}:{}'.format(
-      stage.database_project,
-      stage.database_region,
-      stage.database_instance_name)
-
-  stage.cloudsql_dir = '/tmp/cloudsql'
-
-  stage.cloud_db_uri = 'mysql+mysqlconnector://{}:{}@/{}?unix_socket=/cloudsql/{}'.format(
-      stage.database_username,
-      stage.database_password,
-      stage.database_name,
-      stage.db_instance_conn_name)
-
-  stage.local_db_uri = 'mysql+mysqlconnector://{}:{}@/{}?unix_socket={}/{}'.format(
-      stage.database_username,
-      stage.database_password,
-      stage.database_name,
-      stage.cloudsql_dir,
-      stage.db_instance_conn_name)
-
-  return stage
-
-
 def check_variables():
   # Google Cloud SDK
   if not os.environ.get('GOOGLE_CLOUD_SDK', None):
@@ -202,42 +171,6 @@ def check_variables():
     os.environ['GOOGLE_CLOUD_SDK'] = out.decode('utf-8').strip()
 
 
-def copy_tree(
-    src: str,
-    dst: str,
-    ignore: Optional[Callable[[Any, list[str]], set[str]]] = None) -> None:
-  """Copies an entire directory tree to a new location.
-
-  Our implementation mainly differs from `shutil.copytree` because it won't
-  preserve permissions from source directories.
-
-  Args:
-    src: The source directory to copy files from.
-    dst: The destination directory to copy files to.
-    ignore: A callable built from `shutil.ignore_patterns(*patterns)`.
-  """
-  if not os.path.isdir(src):
-    raise ValueError(f'Cannot copy tree "{src}": not a directory')
-
-  names = os.listdir(src)
-  if ignore is not None:
-    ignored_names = ignore(src, names)
-  else:
-    ignored_names = set()
-
-  os.makedirs(dst, exist_ok=True)
-
-  for name in names:
-    if name in ignored_names:
-      continue
-    src_name = os.path.join(src, name)
-    dst_name = os.path.join(dst, name)
-    if os.path.isdir(src_name):
-      copy_tree(src_name, dst_name, ignore=ignore)
-    else:
-      shutil.copyfile(src_name, dst_name)
-
-
 def get_regions(project_id: ProjectId) -> Tuple[str, str]:
   """Returns (region, sql_region) from a given GCP project.
 
@@ -246,31 +179,18 @@ def get_regions(project_id: ProjectId) -> Tuple[str, str]:
   Args:
     project_id: GCP project identifier.
   """
-  cmd = textwrap.dedent(f"""\
-      {GCLOUD} app describe --verbosity critical \\
-          --project={project_id} | grep locationId
-      """)
-  status, out, _ = execute_command(
-      'Get App Engine region',
-      cmd,
-      report_empty_err=False,
-      debug_uses_std_out=False)
-  if status == 0:  # App Engine app had already been deployed in some region.
-    region = out.strip().split()[1]
-  else:  # Get the list of available App Engine regions and prompt user.
-    click.echo('     No App Engine app has been deployed yet.')
-    cmd = f'{GCLOUD} app regions list --format="value(region)"'
-    _, out, _ = execute_command(
-        'Get available App Engine regions', cmd, debug_uses_std_out=False)
-    regions = out.strip().split('\n')
-    for i, region in enumerate(regions):
-      click.echo(f'{i + 1}) {region}')
-    i = -1
-    while i < 0 or i >= len(regions):
-      i = click.prompt(
-          'Enter an index of the region to deploy CRMint in', type=int) - 1
-    region = regions[i].strip()
-  sql_region = region if region[-1].isdigit() else f'{region}1'
+  cmd = f'{GCLOUD} compute regions list --format="value(name)"'
+  _, out, _ = execute_command(
+      'Get available Compute regions', cmd, debug_uses_std_out=False)
+  regions = out.strip().split('\n')
+  for i, region in enumerate(regions):
+    click.echo(f'{i + 1}) {region}')
+  i = -1
+  while i < 0 or i >= len(regions):
+    i = click.prompt(
+        'Enter an index of the region to deploy CRMint in', type=int) - 1
+  region = regions[i].strip()
+  sql_region = region
   return region, sql_region
 
 

@@ -199,8 +199,12 @@ resource "google_cloudbuild_worker_pool" "private" {
     no_external_ip = var.use_vpc ? true : false
   }
 
-  network_config {
-    peered_network = google_compute_network.private[0].id
+  dynamic "network_config" {
+    # Includes this block only if `local.private_network` is set to a non-null value.
+    for_each = local.private_network[*]
+    content {
+      peered_network = google_compute_network.private[0].id
+    }
   }
 
   depends_on = [

@@ -28,7 +28,6 @@ class AppCLITest(absltest.TestCase):
             Commands:
               bundle  Deploys CRMint in one command.
               cloud   Manage your CRMint instance on GCP.
-              dev     Local development utilities
               stages  Manage multiple instances of CRMint.
             """)
     )

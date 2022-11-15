@@ -41,6 +41,15 @@ $ open http://localhost:4200
 
 You can now edit files locally and the Flask services will reload appropriately.
 
+## Running tests locally
+
+Install the [act](https://github.com/nektos/act) tool to run Github Actions
+locally.
+
+```sh
+$ act -j run-cli-tests --reuse --bind
+```
+
 ## Community Guidelines
 
 This project follows [Google's Open Source Community

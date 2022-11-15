@@ -10,6 +10,7 @@ from absl.testing import absltest
 from click import testing
 
 from cli.commands import bundle
+from cli.commands import cloud
 from cli.utils import constants
 from cli.utils import shared
 from cli.utils import test_helpers
@@ -29,6 +30,15 @@ class BundleTest(absltest.TestCase):
     self.enter_context(
         mock.patch.object(
             subprocess, 'run', autospec=True, side_effect=side_effect_run))
+    tf_plan_file = _datafile('tfplan_with_vpc.json')
+    with open(tf_plan_file, 'rb') as f:
+      tf_plan_content = f.read()
+    self.enter_context(
+        mock.patch.object(
+            cloud,
+            'terraform_show_plan',
+            autospec=True,
+            return_value=tf_plan_content))
     # `create_tempfile` needs access to --test_tmpdir, however in the OSS world
     # pytest doesn't run `absltest.main`, so we need to init flags ourselves.
     test_helpers.initialize_flags_with_defaults()
@@ -57,7 +67,6 @@ class BundleTest(absltest.TestCase):
     self.assertIn('>>>> Migrate stage', result.output)
     self.assertIn('>>>> Checklist', result.output)
     self.assertIn('>>>> Setup', result.output)
-    self.assertIn('>>>> Deploy', result.output)
 
   def test_stage_file_has_use_vpc_enabled(self):
     runner = testing.CliRunner()
@@ -79,7 +88,6 @@ class BundleTest(absltest.TestCase):
     self.assertIn('Successfully migrated stage file', result.output)
     self.assertIn('>>>> Checklist', result.output)
     self.assertIn('>>>> Setup', result.output)
-    self.assertIn('>>>> Deploy', result.output)
 
   def test_can_run_install_latest_stage_version(self):
     shutil.copyfile(_datafile('dummy_stage_v3.py'),
@@ -92,7 +100,6 @@ class BundleTest(absltest.TestCase):
     self.assertIn('Already latest version detected', result.output)
     self.assertIn('>>>> Checklist', result.output)
     self.assertIn('>>>> Setup', result.output)
-    self.assertIn('>>>> Deploy', result.output)
 
 if __name__ == '__main__':
   absltest.main()
