@@ -129,7 +129,7 @@ def terraform_plan(stage: shared.StageContext, debug: bool = False) -> bool:
     stage: Stage context.
     debug: Enables the debug mode on system calls.
   """
-  cmd = 'terraform plan -out tfplan'
+  cmd = f'terraform plan -var-file={stage.stage_path} -out=/tmp/tfplan'
   shared.execute_command(
       'Generate Terraform plan', cmd, debug=debug, debug_uses_std_out=False)
 
@@ -140,7 +140,7 @@ def terraform_apply(stage: shared.StageContext, debug: bool = False) -> bool:
     stage: Stage context.
     debug: Enables the debug mode on system calls.
   """
-  cmd = 'terraform apply -auto-approve tfplan'
+  cmd = f'terraform apply -var-file={stage.stage_path} -auto-approve /tmp/tfplan'
   shared.execute_command(
       'Apply Terraform plan', cmd, debug=debug, debug_uses_std_out=False)
 
@@ -151,7 +151,7 @@ def terraform_show_plan(debug: bool = False) -> str:
   Args:
     debug: Boolean to force a more verbose output.
   """
-  cmd = 'terraform show -json tfplan'
+  cmd = 'terraform show -json /tmp/tfplan'
   _, out, _ = shared.execute_command(
       'Configuration summary', cmd, debug=debug, debug_uses_std_out=False)
   return out
