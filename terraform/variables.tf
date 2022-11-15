@@ -1,4 +1,28 @@
 ##
+# Application config
+
+variable "app_title" {
+  description = "Project name to display in the UI."
+}
+
+variable "notification_sender_email" {
+  description = "Email address to send notifications to."
+}
+
+
+##
+# Security (IAP configuration)
+
+variable "iap_support_email" {
+  description = "Support email used for configuring IAP"
+}
+
+variable "iap_allowed_users" {
+  type = list
+}
+
+
+##
 # Google Cloud Project
 
 variable "project_id" {
@@ -77,12 +101,19 @@ variable "database_user" {
 ##
 # Services Docker images
 
+variable "frontend_image" {
+  description = "Docker image uri (with tag) for the frontend service"
+  default = "europe-docker.pkg.dev/crmint-builds/crmint/frontend:latest"
+}
+
 variable "controller_image" {
-  description = <<EOF
-    Docker image uri for the controller service
-    (fully qualified uri, meaning with tag)"
-  EOF
+  description = "Docker image uri (with tag) for the controller service"
   default = "europe-docker.pkg.dev/crmint-builds/crmint/controller:latest"
+}
+
+variable "jobs_image" {
+  description = "Docker image uri (with tag) for the jobs service"
+  default = "europe-docker.pkg.dev/crmint-builds/crmint/jobs:latest"
 }
 
 
@@ -95,16 +126,4 @@ variable "custom_domain" {
     Leave this value empty to skip.
     EOF
   default = ""
-}
-
-
-##
-# IAP configuration
-
-variable "iap_support_email" {
-  description = "Support email used for configuring IAP"
-}
-
-variable "iap_allowed_users" {
-  type = list
 }

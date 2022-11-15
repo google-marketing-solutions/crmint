@@ -23,7 +23,7 @@ resource "google_cloud_run_service" "frontend_run" {
       service_account_name = google_service_account.frontend_sa.email
 
       containers {
-        image = "europe-docker.pkg.dev/${var.project_id}/crmint/frontend:latest"
+        image = var.frontend_image
       }
     }
   }
@@ -84,7 +84,7 @@ resource "google_cloud_run_service" "controller_run" {
       service_account_name = google_service_account.controller_sa.email
 
       containers {
-        image = "europe-docker.pkg.dev/${var.project_id}/crmint/controller:latest"
+        image = var.controller_image
 
         # TODO(dulacp): soon available in beta
         # liveness_probe {
@@ -151,7 +151,7 @@ resource "google_cloud_run_service" "jobs_run" {
       service_account_name = google_service_account.jobs_sa.email
 
       containers {
-        image = "europe-docker.pkg.dev/${var.project_id}/crmint/jobs:latest"
+        image = var.jobs_image
 
         # TODO(dulacp): soon available in beta
         # liveness_probe {
@@ -225,7 +225,7 @@ data "external" "deployed_controller_image_metadata" {
 }
 
 locals {
-  migrate_image = "europe-docker.pkg.dev/instant-bqml-demo-environment/crmint/controller:latest"
+  migrate_image = var.controller_image
   migrate_sql_conn_name = google_sql_database_instance.main.connection_name
   pool = google_cloudbuild_worker_pool.private.id
 }
