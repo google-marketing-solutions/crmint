@@ -16,13 +16,21 @@ import { Component } from '@angular/core';
 
 import { environment } from 'environments/environment';
 
+declare global {
+  interface Window {
+    crmintConf: {
+      appTitle: string
+    }
+  }
+}
+
 @Component({
   selector: 'app-root',
   templateUrl: './app.component.html',
   styleUrls: ['./app.component.sass']
 })
 export class AppComponent {
-  title = `CRMint App • ${environment.app_title}`;
+  title = `CRMint App • ${window.crmintConf.appTitle}`;
 
   alerts = [
     // Example

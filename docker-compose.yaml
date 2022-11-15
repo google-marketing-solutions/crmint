@@ -82,10 +82,11 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-      target: dev
+      target: prod
     ports:
       - "4200:4200"
     environment:
+      APP_TITLE: Local App
       PORT: 4200
     volumes:
       - ./frontend:/app
