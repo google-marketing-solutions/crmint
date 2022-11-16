@@ -23,6 +23,7 @@ import click
 
 from cli.utils import constants
 from cli.utils import shared
+from cli.utils.constants import GCLOUD
 
 
 def get_user_email(debug: bool = False) -> str:
