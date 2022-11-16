@@ -319,10 +319,10 @@ def setup(stage_path: Union[None, str], debug: bool) -> None:
     sys.exit(1)
 
   # Switches workspace.
+  terraform_init(stage, debug=debug)
   terraform_switch_workspace(stage, debug=debug)
 
   # Runs setup steps.
-  terraform_init(stage, debug=debug)
   terraform_plan(stage, debug=debug)
   configuration_summary_from_plan(stage, debug=debug)
   terraform_apply(stage, debug=debug)
@@ -348,6 +348,7 @@ def reset(stage_path: Union[None, str], debug: bool):
     sys.exit(1)
 
   # Switches workspace.
+  terraform_init(stage, debug=debug)
   terraform_switch_workspace(stage, debug=debug)
 
   # Retrieves outputs from the current Terraform state.
