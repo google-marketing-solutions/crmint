@@ -12,5 +12,5 @@ Thumbs.db
 *.tfstate.d
 *.tfstate.backup
 *.tfstate.lock.info
-*.tfvars
+terraform/*.tfvars
 .terraform/
