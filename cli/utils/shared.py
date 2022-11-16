@@ -126,6 +126,15 @@ def get_current_project_id(debug: bool = False) -> ProjectId:
   return out.strip()
 
 
+def activate_apis(debug: bool = False) -> None:
+  """
+  Args:
+    debug: Flag to enable debug mode outputs.
+  """
+  cmd = f'{GCLOUD} services enable run.googleapis.com'
+  execute_command('Activate Cloud services', cmd, debug=debug)
+
+
 def get_default_stage_path(debug: bool = False) -> pathlib.Path:
   """Returns the default stage file path, derived from the GCP project name.
 

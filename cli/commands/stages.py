@@ -64,6 +64,7 @@ def create(stage_path: Union[None, str], debug: bool) -> None:
                            fg='red',
                            bold=True))
   else:
+    shared.activate_apis(debug=debug)
     project_id = shared.get_current_project_id(debug=debug)
     gcloud_account_email = get_user_email(debug=debug)
     context = shared.default_stage_context(project_id, gcloud_account_email)
