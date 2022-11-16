@@ -24,6 +24,11 @@ resource "google_cloud_run_service" "frontend_run" {
 
       containers {
         image = var.frontend_image
+
+        env {
+          name  = "APP_TITLE"
+          value = var.app_title
+        }
       }
     }
   }
