@@ -36,7 +36,7 @@ jobs:
         uses: docker/build-push-action@ad44023a93711e3deb337508980b4b5e9bcdc5dc
         with:
           context: ./frontend
-          file: Dockerfile
+          file: ./frontend/Dockerfile
           target: prod
           push: true
           tags: ${{ steps.meta.outputs.tags }}
@@ -71,7 +71,7 @@ jobs:
         uses: docker/build-push-action@ad44023a93711e3deb337508980b4b5e9bcdc5dc
         with:
           context: ./backend
-          file: controller.Dockerfile
+          file: ./backend/controller.Dockerfile
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
@@ -105,7 +105,7 @@ jobs:
         uses: docker/build-push-action@ad44023a93711e3deb337508980b4b5e9bcdc5dc
         with:
           context: ./backend
-          file: jobs.Dockerfile
+          file: ./backend/jobs.Dockerfile
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
