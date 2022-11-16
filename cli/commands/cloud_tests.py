@@ -170,9 +170,9 @@ class CloudSetupTest(parameterized.TestCase):
         textwrap.dedent("""\
             >>>> Setup
                  Project ID found: dummy_project_with_vpc
+            ---> Initialize Terraform ✓
             ---> List Terraform workspaces ✓
             ---> Create new Terraform workspace: dummy_project_with_vpc ✓
-            ---> Initialize Terraform ✓
             ---> Generate Terraform plan ✓
                  Cloud Run Service \(3\)
                  Cloud Run Service IAM Member \(3\)
