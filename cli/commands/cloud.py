@@ -146,7 +146,11 @@ def terraform_init(stage: shared.StageContext, debug: bool = False) -> bool:
   """
   cmd = 'terraform init'
   shared.execute_command(
-      'Initialize Terraform', cmd, debug=debug, debug_uses_std_out=False)
+      'Initialize Terraform',
+      cmd,
+      cwd='./terraform',
+      debug=debug,
+      debug_uses_std_out=False)
 
 
 def terraform_plan(stage: shared.StageContext, debug: bool = False) -> bool:
@@ -157,7 +161,11 @@ def terraform_plan(stage: shared.StageContext, debug: bool = False) -> bool:
   """
   cmd = f'terraform plan -var-file={stage.stage_path} -out=/tmp/tfplan'
   shared.execute_command(
-      'Generate Terraform plan', cmd, debug=debug, debug_uses_std_out=False)
+      'Generate Terraform plan',
+      cmd,
+      cwd='./terraform',
+      debug=debug,
+      debug_uses_std_out=False)
 
 
 def terraform_apply(stage: shared.StageContext, debug: bool = False) -> bool:
