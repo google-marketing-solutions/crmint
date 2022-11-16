@@ -112,6 +112,37 @@ def check_billing_enabled(stage: shared.StageContext,
   return out.strip().lower() == 'true'
 
 
+def terraform_switch_workspace(stage: shared.StageContext, debug: bool = False) -> bool:
+  """Creates or reuses the workspace that stores the Terraform state.
+
+  Args:
+    stage: Stage context.
+    debug: Enables the debug mode on system calls.
+  """
+  cmd = 'terraform workspace list'
+  _, out, _ = shared.execute_command(
+      'List Terraform workspaces',
+      cmd,
+      cwd='./terraform',
+      debug=debug,
+      debug_uses_std_out=False)
+  workspaces = [name.lstrip('*').strip() for name in out.strip().split('\n')]
+  if stage.project_id not in workspaces:
+    cmd = f'terraform workspace new {stage.project_id}'
+    shared.execute_command(
+        f'Create new Terraform workspace: {stage.project_id}',
+        cmd,
+        cwd='./terraform',
+        debug=debug)
+  else:
+    cmd = f'terraform workspace select {stage.project_id}'
+    shared.execute_command(
+        f'Select existing Terraform workspace: {stage.project_id}',
+        cmd,
+        cwd='./terraform',
+        debug=debug)
+
+
 def terraform_init(stage: shared.StageContext, debug: bool = False) -> bool:
   """
   Args:
@@ -279,18 +310,17 @@ def setup(stage_path: Union[None, str], debug: bool) -> None:
   except CannotFetchStageError:
     sys.exit(1)
 
+  # Switches workspace.
+  terraform_switch_workspace(stage, debug=debug)
+
   # Runs setup steps.
-  components = [
-      terraform_init,
-      terraform_plan,
-      configuration_summary_from_plan,
-      terraform_apply,
-  ]
+  terraform_init(stage, debug=debug)
+  terraform_plan(stage, debug=debug)
+  configuration_summary_from_plan(stage, debug=debug)
+  terraform_apply(stage, debug=debug)
 
   # Displays the frontend url to improve the user experience.
-  components.append(display_frontend_url)
-  for component in components:
-    component(stage, debug=debug)
+  display_frontend_url(stage, debug=debug)
   click.echo(click.style('Done.', fg='magenta', bold=True))
 
 
@@ -309,8 +339,21 @@ def reset(stage_path: Union[None, str], debug: bool):
   except CannotFetchStageError:
     sys.exit(1)
 
+  # Switches workspace.
+  terraform_switch_workspace(stage, debug=debug)
+
+  # Retrieves outputs from the current Terraform state.
   outputs_json_raw = terraform_outputs(stage, debug=debug)
   outputs = json.loads(outputs_json_raw)
+
+  if not outputs:
+    click.secho(f'No state found in current workspace: {stage.project_id}',
+                fg='red',
+                bold=True)
+    click.secho('Fix this by running: $ crmint cloud setup', fg='green')
+    sys.exit(1)
+
+  # Resets the state of pipelines and jobs.
   trigger_reset(outputs, debug=debug)
   click.echo(click.style('Done.', fg='magenta', bold=True))
 
