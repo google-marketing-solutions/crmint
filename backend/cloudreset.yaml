@@ -1,0 +1,36 @@
+steps:
+  # Injects the Cloud SQL Proxy into our image.
+  - id: "docker-layer"
+    name: "gcr.io/cloud-builders/docker"
+    entrypoint: /bin/bash
+    args:
+      - '-c'
+      - |
+        echo "FROM ${_IMAGE_NAME}
+        COPY --from=gcr.io/cloudsql-docker/gce-proxy /cloud_sql_proxy /cloudsql/cloud_sql_proxy
+        COPY --from=gcr.io/cloudsql-docker/gce-proxy /etc/ssl/certs /etc/ssl/certs" > Dockerfile-proxy;
+
+        docker build -f Dockerfile-proxy -t ${_IMAGE_NAME}-proxy .
+
+  # Runs migrations and seeding the database.
+  - name: "${_IMAGE_NAME}-proxy"
+    dir: "/app"
+    entrypoint: /bin/bash
+    env:
+      - "DATABASE_URI=${_CLOUD_DB_URI}"
+    args:
+      - '-c'
+      - |
+        /cloudsql/cloud_sql_proxy -instances=${_INSTANCE_CONNECTION_NAME} -dir=/cloudsql & sleep 2;
+        python -m flask reset-pipelines;
+
+options:
+  dynamic_substitutions: true
+  pool:
+    name: ${_POOL}
+
+substitutions:
+  _IMAGE_NAME:
+  _INSTANCE_CONNECTION_NAME:
+  _CLOUD_DB_URI:
+  _POOL:

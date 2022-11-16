@@ -205,6 +205,33 @@ def display_frontend_url(stage: shared.StageContext, debug: bool = False):
   click.echo(textwrap.indent(out, _INDENT_PREFIX))
 
 
+def terraform_outputs(stage: shared.StageContext, debug: bool = False):
+  cmd = 'terraform output -json'
+  _, out, _ = shared.execute_command(
+      'Retrieve configuration',
+      cmd,
+      cwd='./terraform',
+      debug_uses_std_out=False,
+      debug=debug)
+  return out
+
+
+def trigger_reset(outputs: dict[str, str], debug: bool = False):
+  region = outputs['region']['value']
+  image = outputs['migrate_image']['value']
+  db_conn_name = outputs['migrate_sql_conn_name']['value']
+  db_uri = outputs['cloud_db_uri']['value']
+  pool = outputs['cloud_build_worker_pool']['value']
+  cmd = textwrap.dedent(f"""\
+      {GCLOUD} builds submit \\
+          --region {region} \\
+          --config ./backend/cloudreset.yaml \\
+          --no-source \\
+          --substitutions _POOL={pool},_IMAGE_NAME={image},_INSTANCE_CONNECTION_NAME={db_conn_name},_CLOUD_DB_URI={db_uri}
+      """)
+  shared.execute_command('Reset states', cmd, debug=debug)
+
+
 @cli.command('checklist')
 @click.option('--stage_path', type=str, default=None)
 @click.option('--debug/--no-debug', default=False)
@@ -282,12 +309,9 @@ def reset(stage_path: Union[None, str], debug: bool):
   except CannotFetchStageError:
     sys.exit(1)
 
-  # Runs setup stages.
-  components = [
-      # TODO: implement
-  ]
-  for component in components:
-    component(stage, debug=debug)
+  outputs_json_raw = terraform_outputs(stage, debug=debug)
+  outputs = json.loads(outputs_json_raw)
+  trigger_reset(outputs, debug=debug)
   click.echo(click.style('Done.', fg='magenta', bold=True))
 
 
