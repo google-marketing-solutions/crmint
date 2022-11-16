@@ -24,13 +24,15 @@ declare global {
   }
 }
 
+const crmintConf = window.crmintConf || {appTitle: 'Custom'};
+
 @Component({
   selector: 'app-root',
   templateUrl: './app.component.html',
   styleUrls: ['./app.component.sass']
 })
 export class AppComponent {
-  title = `CRMint App • ${window.crmintConf.appTitle}`;
+  title = `CRMint App • ${crmintConf.appTitle}`;
 
   alerts = [
     // Example
