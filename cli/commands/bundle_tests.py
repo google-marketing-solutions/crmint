@@ -11,6 +11,7 @@ from click import testing
 
 from cli.commands import bundle
 from cli.commands import cloud
+from cli.commands import stages
 from cli.utils import constants
 from cli.utils import shared
 from cli.utils import test_helpers
@@ -54,7 +55,7 @@ class BundleTest(absltest.TestCase):
             return_value='dummy_project_with_vpc'))
     self.enter_context(
         mock.patch.object(
-            shared,
+            stages,
             'get_user_email',
             autospec=True,
             return_value='user@example.com'))

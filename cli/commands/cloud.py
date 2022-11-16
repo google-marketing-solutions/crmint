@@ -64,11 +64,6 @@ def fetch_stage_or_default(
   return stage
 
 
-@click.group()
-def cli():
-  """Manage your CRMint instance on GCP."""
-
-
 def check_billing_configured(stage: shared.StageContext,
                              debug: bool = False) -> bool:
   """Returns True if billing is configured for the given project.
@@ -261,6 +256,11 @@ def trigger_reset(outputs: dict[str, str], debug: bool = False):
           --substitutions _POOL={pool},_IMAGE_NAME={image},_INSTANCE_CONNECTION_NAME={db_conn_name},_CLOUD_DB_URI={db_uri}
       """)
   shared.execute_command('Reset states', cmd, debug=debug)
+
+
+@click.group()
+def cli():
+  """Manage your CRMint instance on GCP."""
 
 
 @cli.command('checklist')

@@ -126,21 +126,6 @@ def get_current_project_id(debug: bool = False) -> ProjectId:
   return out.strip()
 
 
-def get_user_email(debug: bool = False) -> str:
-  """Returns the user email configured in the gcloud config.
-
-  Args:
-    debug: Enables the debug mode on system calls.
-  """
-  cmd = f'{GCLOUD} config list --format="value(core.account)"'
-  _, out, _ = shared.execute_command(
-      'Retrieve gcloud current user',
-      cmd,
-      debug=debug,
-      debug_uses_std_out=False)
-  return out.strip()
-
-
 def get_default_stage_path(debug: bool = False) -> pathlib.Path:
   """Returns the default stage file path, derived from the GCP project name.
 
