@@ -88,21 +88,11 @@ class StagesTest(absltest.TestCase):
             'get_region',
             autospec=True,
             return_value='europe-west1'))
-    with self.subTest('Creates the stage file'):
-      runner = testing.CliRunner()
-      result = runner.invoke(stages.create, catch_exceptions=False)
-      self.assertEqual(result.exit_code, 0, msg=result.output)
-      self.assertRegex(result.output,
-                       r'Stage file created\: .*new_dummy_project.tfvars$')
-    with self.subTest('Validates content of the stage file'):
-      stage_path = shared.get_default_stage_path()
-      stage = shared.load_stage(stage_path)
-      expected_context = shared.default_stage_context(
-          shared.ProjectId('new_dummy_project'), 'user@example.com')
-      expected_context.notification_sender_email = 'user@example.com'
-      expected_context.iap_allowed_users = ['user@example.com']
-      expected_context.custom_domain = ''
-      self.assertEqual(stage.__dict__, expected_context.__dict__)
+    runner = testing.CliRunner()
+    result = runner.invoke(stages.create, catch_exceptions=False)
+    self.assertEqual(result.exit_code, 0, msg=result.output)
+    self.assertRegex(result.output,
+                     r'Stage file created\: .*new_dummy_project.tfvars$')
 
   def test_migrate_shows_deprecation(self):
     runner = testing.CliRunner()

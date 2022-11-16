@@ -65,7 +65,7 @@ TFVARS_FILE_TEMPLATE = textwrap.dedent("""\
     ##
     # Virtual Private Cloud (more settings in `terraform/variables.tf`)
 
-    use_vpc = {ctx.use_vpc}
+    use_vpc = {ctx.use_vpc_tfvar_boolean}
 
     ##
     # Database (more settings in `terraform/variables.tf`)

@@ -14,16 +14,13 @@
 
 """Package for shared methods among the commands."""
 
-import importlib
 import os
 import pathlib
-import shutil
 import subprocess
 import sys
-import tempfile
 import textwrap
 import types
-from typing import Any, Callable, NewType, Optional, Tuple, Union
+from typing import Callable, NewType, Tuple, Union
 
 import click
 
@@ -34,6 +31,7 @@ from cli.utils.constants import GCLOUD
 
 ProjectId = NewType('ProjectId', str)
 StageContext = NewType('StageContext', types.SimpleNamespace)
+StageInputContext = NewType('StageInputContext', types.SimpleNamespace)
 
 _INDENT_PREFIX = '     '
 
@@ -156,19 +154,19 @@ def get_default_stage_path(debug: bool = False) -> pathlib.Path:
 
 def load_stage(stage_path: pathlib.Path) -> StageContext:
   """Loads stage by interpreting Terraform variables as Python code."""
-  loader = importlib.machinery.SourceFileLoader('stage_module', str(stage_path))
-  spec = importlib.util.spec_from_loader('stage_module', loader)
-  module = importlib.util.module_from_spec(spec)
-  spec.loader.exec_module(module)
-  context = dict(
-      (x, getattr(module, x)) for x in dir(module) if not x.startswith('__'))
-  stage = types.SimpleNamespace(**context)
+  stage = types.SimpleNamespace(
+      stage_path=stage_path,
+      project_id=stage_path.stem)
   return stage
 
 
-def create_stage_file(stage_path: pathlib.Path, context: StageContext) -> None:
+def create_stage_file(stage_path: pathlib.Path, context: StageInputContext) -> None:
   """Saves the given context into the given path file."""
-  content = constants.TFVARS_FILE_TEMPLATE.format(ctx=context)
+  extra = {
+    'use_vpc_tfvar_boolean': 'true' if context.use_vpc else 'false',
+  }
+  context_with_extra = types.SimpleNamespace(**context.__dict__, **extra)
+  content = constants.TFVARS_FILE_TEMPLATE.format(ctx=context_with_extra)
   with open(stage_path, 'w+') as fp:
     fp.write(content)
 
@@ -205,7 +203,7 @@ def get_region(project_id: ProjectId) -> str:
 
 
 def default_stage_context(project_id: ProjectId,
-                          gcloud_account_email: str) -> StageContext:
+                          gcloud_account_email: str) -> StageInputContext:
   """Returns a stage context initialized with default settings.
 
   Args:
@@ -225,4 +223,4 @@ def default_stage_context(project_id: ProjectId,
       frontend_image=settings.FRONTEND_IMAGE,
       controller_image=settings.CONTROLLER_IMAGE,
       jobs_image=settings.JOBS_IMAGE)
-  return StageContext(namespace)
+  return StageInputContext(namespace)
