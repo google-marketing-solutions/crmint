@@ -24,12 +24,11 @@ jobs:
       # Clone repository code
       - uses: actions/checkout@v3
       # Authenticate to GCP
-      - id: auth
-        name: Authenticate to Google Cloud
+      - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v1
         with:
-          workload_identity_provider: '${{ secrets.WORKLOAD_IDENTITY_PROVIDER }}'
-          service_account: '${{ secrets.CLOUD_BUILD_RUNNER_SA }}'
+          workload_identity_provider: ${{ secrets.WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.CLOUD_BUILD_RUNNER_SA }}
       # Setup gcloud CLI
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v0
