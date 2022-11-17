@@ -1,14 +1,18 @@
 name: Build Docker images on Cloud Build
 
 on:
-  workflow_dispatch:
-
   push:
     branches:
       - 'master'
       - 'new-architecture-crmint-3.0'
+    tags:
+      - 'v*'
     paths-ignore:
       - 'README.md'
+  pull_request:
+    branches:
+      - 'master'
+
 jobs:
   build-controller-image:
     runs-on: ubuntu-18.04

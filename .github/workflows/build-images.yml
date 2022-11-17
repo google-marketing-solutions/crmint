@@ -7,6 +7,8 @@ on:
       - 'new-architecture-crmint-3.0'
     tags:
       - 'v*'
+    paths-ignore:
+      - 'README.md'
   pull_request:
     branches:
       - 'master'
