@@ -177,12 +177,15 @@ def check_variables():
 
 
 def get_region(project_id: ProjectId) -> str:
-  """Returns a Compute region.
+  """Returns a Cloud Scheduler compatible region.
+
+  Cloud Scheduler is the limiting factor for picking up a cloud region as it
+  is not available in all Cloud Run available regions.
 
   Args:
     project_id: GCP project identifier.
   """
-  cmd = f'{GCLOUD} run regions list --format="value(locationId)"'
+  cmd = f'{GCLOUD} scheduler locations list --format="value(locationId)"'
   _, out, _ = execute_command(
       'Get available Compute regions', cmd, debug_uses_std_out=False)
   regions = out.strip().split('\n')
