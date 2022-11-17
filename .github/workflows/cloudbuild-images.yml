@@ -38,5 +38,5 @@ jobs:
         run: |-
           gcloud builds submit \
             --quiet \
-            --config controller_cloudbuild.yaml \
+            --config cloudbuild.yaml \
             --substitutions _DOCKERFILE=controller.Dockerfile,_IMAGE_NAME=europe-docker.pkg.dev/instant-bqml-demo-environment/crmint/controller
