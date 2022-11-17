@@ -53,7 +53,7 @@ TFVARS_FILE_TEMPLATE = textwrap.dedent("""\
 
     # List of authorized users to open the app.
     iap_allowed_users = [
-        "{ctx.iap_support_email}",
+        "user:{ctx.iap_support_email}",
     ]
 
     ###

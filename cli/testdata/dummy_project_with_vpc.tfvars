@@ -26,7 +26,7 @@ iap_support_email = "user@example.com"
 
 # List of authorized users to open the app.
 iap_allowed_users = [
-    "user@example.com",
+    "user:user@example.com",
 ]
 
 ###
