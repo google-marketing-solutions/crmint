@@ -262,7 +262,7 @@ def trigger_command(cmd: str, outputs: dict[str, str], debug: bool = False):
           --region {region} \\
           --config ./backend/cloudbuild_run_command.yaml \\
           --no-source \\
-          --substitutions _COMMAND={cmd},_POOL={pool},_IMAGE_NAME={image},_INSTANCE_CONNECTION_NAME={db_conn_name},_CLOUD_DB_URI={db_uri}
+          --substitutions _COMMAND="{cmd}",_POOL={pool},_IMAGE_NAME={image},_INSTANCE_CONNECTION_NAME={db_conn_name},_CLOUD_DB_URI={db_uri}
       """)
   shared.execute_command('Reset states', cmd, debug=debug)
 
