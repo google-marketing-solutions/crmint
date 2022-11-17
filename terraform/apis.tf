@@ -4,6 +4,7 @@ locals {
     "analytics.googleapis.com",
     "analyticsadmin.googleapis.com",
     "analyticsreporting.googleapis.com",
+    "cloudbuild.googleapis.com",
     "cloudscheduler.googleapis.com",
     "logging.googleapis.com",
     "pubsub.googleapis.com",
