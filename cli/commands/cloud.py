@@ -144,13 +144,9 @@ def terraform_init(stage: shared.StageContext, debug: bool = False) -> bool:
     stage: Stage context.
     debug: Enables the debug mode on system calls.
   """
-  cmd = 'terraform init'
+  cmd = 'terraform init -upgrade'
   shared.execute_command(
-      'Initialize Terraform',
-      cmd,
-      cwd='./terraform',
-      debug=debug,
-      debug_uses_std_out=False)
+      'Initialize Terraform', cmd, cwd='./terraform', debug=debug)
 
 
 def terraform_plan(stage: shared.StageContext, debug: bool = False) -> bool:
@@ -161,11 +157,7 @@ def terraform_plan(stage: shared.StageContext, debug: bool = False) -> bool:
   """
   cmd = f'terraform plan -var-file={stage.stage_path} -out=/tmp/tfplan'
   shared.execute_command(
-      'Generate Terraform plan',
-      cmd,
-      cwd='./terraform',
-      debug=debug,
-      debug_uses_std_out=False)
+      'Generate Terraform plan', cmd, cwd='./terraform', debug=debug)
 
 
 def terraform_apply(stage: shared.StageContext, debug: bool = False) -> bool:
@@ -174,9 +166,10 @@ def terraform_apply(stage: shared.StageContext, debug: bool = False) -> bool:
     stage: Stage context.
     debug: Enables the debug mode on system calls.
   """
-  cmd = f'terraform apply -var-file={stage.stage_path} -auto-approve /tmp/tfplan'
+  # NB: No need to set `-var-file` when applying a saved plan.
+  cmd = f'terraform apply -auto-approve /tmp/tfplan'
   shared.execute_command(
-      'Apply Terraform plan', cmd, debug=debug, debug_uses_std_out=False)
+      'Apply Terraform plan', cmd, cwd='./terraform', debug=debug)
 
 
 def terraform_show_plan(debug: bool = False) -> str:
@@ -187,7 +180,11 @@ def terraform_show_plan(debug: bool = False) -> str:
   """
   cmd = 'terraform show -json /tmp/tfplan'
   _, out, _ = shared.execute_command(
-      'Configuration summary', cmd, debug=debug, debug_uses_std_out=False)
+      'Summarize Terraform plan',
+      cmd,
+      cwd='./terraform',
+      debug=debug,
+      debug_uses_std_out=False)
   return out
 
 
@@ -235,7 +232,11 @@ def configuration_summary_from_plan(stage: shared.StageContext,
 def display_frontend_url(stage: shared.StageContext, debug: bool = False):
   cmd = 'terraform output frontend_url'
   _, out, _ = shared.execute_command(
-      'CRMint UI', cmd, debug_uses_std_out=False, debug=debug)
+      'CRMint UI',
+      cmd,
+      cwd='./terraform',
+      debug_uses_std_out=False,
+      debug=debug)
   click.echo(textwrap.indent(out, _INDENT_PREFIX))
 
 

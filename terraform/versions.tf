@@ -2,7 +2,11 @@ terraform {
   required_providers {
     google = {
       source = "hashicorp/google"
-      version = "4.42.1"
+      version = "4.43.1"
+    }
+    google-beta = {
+      source = "hashicorp/google"
+      version = "4.43.1"
     }
     random = {
       source = "hashicorp/random"
@@ -18,5 +22,9 @@ terraform {
 provider "google" {
   project = var.project_id
   region  = var.region
-  zone    = var.zone
+}
+
+provider "google-beta" {
+  project = var.project_id
+  region  = var.region
 }
