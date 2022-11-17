@@ -22,26 +22,32 @@ jobs:
         include:
           - dockerfile: ./frontend/Dockerfile
             context: ./frontend
-            image: ghcr.io/${{ github.repository }}-frontend
+            image: europe-docker.pkg.dev/instant-bqml-demo-environment/crmint/frontend
           - dockerfile: ./backend/controller.Dockerfile
             context: ./backend
-            image: ghcr.io/${{ github.repository }}-controller
+            image: europe-docker.pkg.dev/instant-bqml-demo-environment/crmint/controller
           - dockerfile: ./backend/jobs.Dockerfile
             context: ./backend
-            image: ghcr.io/${{ github.repository }}-jobs
+            image: europe-docker.pkg.dev/instant-bqml-demo-environment/crmint/jobs
     permissions:
       contents: read
-      packages: write
+      id-token: write
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
-      - name: Log in to the Container registry
-        #if: github.event_name != 'pull_request'
-        uses: docker/login-action@f054a8b539a109f9f41c372932f1ae047eff08c9
+      - id: auth
+        name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v1
         with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          token_format: access_token
+          workload_identity_provider: ${{ secrets.WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.CLOUD_BUILD_RUNNER_SA }}
+      - name: Login to Google Artifact Registry
+        uses: docker/login-action@v1
+        with:
+          registry: europe-docker.pkg.dev
+          username: oauth2accesstoken
+          password: ${{ steps.auth.outputs.access_token }}
       - name: Extract metadata (tags, labels) for Docker
         id: meta
         uses: docker/metadata-action@98669ae865ea3cffbcbaa878cf57c20bbf1c6c38
