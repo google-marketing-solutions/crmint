@@ -264,7 +264,7 @@ def trigger_command(cmd: str, outputs: dict[str, str], debug: bool = False):
           --no-source \\
           --substitutions _COMMAND="{cmd}",_POOL={pool},_IMAGE_NAME={image},_INSTANCE_CONNECTION_NAME={db_conn_name},_CLOUD_DB_URI={db_uri}
       """)
-  shared.execute_command('Reset states', cmd, debug=debug)
+  shared.execute_command('Run on Cloud Build', cmd, debug=debug)
 
 
 @click.group()
@@ -333,9 +333,12 @@ def setup(stage_path: Union[None, str], debug: bool) -> None:
   click.echo(click.style('Done.', fg='magenta', bold=True))
 
 
-def _run_command(cmd: str, stage_path: Union[None, str], debug: bool):
+def _run_command(section_name: str,
+                 cmd: str,
+                 stage_path: Union[None, str],
+                 debug: bool):
   """Reset pipeline statuses."""
-  click.echo(click.style('>>>> Sync database', fg='magenta', bold=True))
+  click.echo(click.style(section_name, fg='magenta', bold=True))
 
   if stage_path is not None:
     stage_path = pathlib.Path(stage_path)
@@ -371,6 +374,7 @@ def _run_command(cmd: str, stage_path: Union[None, str], debug: bool):
 def migrate(stage_path: Union[None, str], debug: bool):
   """Reset pipeline statuses."""
   _run_command(
+      '>>>> Sync database',
       'python -m flask db upgrade; python -m flask db-seeds;',
       stage_path,
       debug=debug)
@@ -381,7 +385,11 @@ def migrate(stage_path: Union[None, str], debug: bool):
 @click.option('--debug/--no-debug', default=False)
 def reset(stage_path: Union[None, str], debug: bool):
   """Reset pipeline statuses."""
-  _run_command('python -m flask reset-pipelines;', stage_path, debug=debug)
+  _run_command(
+      '>>>> Reset database',
+      'python -m flask reset-pipelines;',
+      stage_path,
+      debug=debug)
 
 
 if __name__ == '__main__':
