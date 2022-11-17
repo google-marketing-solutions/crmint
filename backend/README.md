@@ -20,16 +20,8 @@ $ gcloud run services update controller \
     --region europe-west1 \
     --image=${IMAGE}:latest
 
-# (Optional) Run migrations with Terraform
-$ cd terraform
-$ terraform apply -target module.cli.null_resource.run_command[0]
-
 # (Optional) Run migrations manually
-$ gcloud builds submit \
-    --region ${REGION} \
-    --config ../backend/cloudmigrate.yaml \
-    --no-source \
-    --substitutions _IMAGE_NAME=${IMAGE}:latest,_INSTANCE_CONNECTION_NAME=${DB_CONN_NAME},_CLOUD_DB_URI=${DB_URI}
+$ crmint cloud migrate
 ```
 
 **Update the jobs service**

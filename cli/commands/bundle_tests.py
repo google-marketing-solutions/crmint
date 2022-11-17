@@ -1,5 +1,6 @@
 """Tests for cli.commands.stages."""
 
+import json
 import os
 import pathlib
 import shutil
@@ -45,6 +46,13 @@ class BundleTest(absltest.TestCase):
     test_helpers.initialize_flags_with_defaults()
     # Overrides the default stage directory with a custom temporary directory.
     tmp_stage_dir = self.create_tempdir('stage_dir')
+    expected_terraform_outputs = {
+        'region': {'value': 'REGION'},
+        'migrate_image': {'value': 'IMAGE:latest'},
+        'migrate_sql_conn_name': {'value': 'project:region:db_instance'},
+        'cloud_db_uri': {'value': 'mysql://db:3306/name'},
+        'cloud_build_worker_pool': {'value': 'my_worker_pool'},
+    }
     self.enter_context(
         mock.patch.object(constants, 'STAGE_DIR', tmp_stage_dir.full_path))
     self.enter_context(
@@ -65,6 +73,12 @@ class BundleTest(absltest.TestCase):
             'get_region',
             autospec=True,
             return_value='us-central1'))
+    self.enter_context(
+        mock.patch.object(
+            cloud,
+            'terraform_outputs',
+            autospec=True,
+            return_value=json.dumps(expected_terraform_outputs)))
 
   def test_can_run_install_without_stage_file(self):
     runner = testing.CliRunner()
@@ -74,6 +88,7 @@ class BundleTest(absltest.TestCase):
     self.assertIn('Stage file created:', result.output)
     self.assertIn('>>>> Checklist', result.output)
     self.assertIn('>>>> Setup', result.output)
+    self.assertIn('>>>> Sync database', result.output)
 
   def test_can_run_install_with_existing_stage_file(self):
     shutil.copyfile(
@@ -86,6 +101,8 @@ class BundleTest(absltest.TestCase):
     self.assertRegex(result.output, 'This stage file ".*" already exists.')
     self.assertIn('>>>> Checklist', result.output)
     self.assertIn('>>>> Setup', result.output)
+    self.assertIn('>>>> Sync database', result.output)
+
 
 if __name__ == '__main__':
   absltest.main()

@@ -250,7 +250,7 @@ def terraform_outputs(stage: shared.StageContext, debug: bool = False):
   return out
 
 
-def trigger_reset(outputs: dict[str, str], debug: bool = False):
+def trigger_command(cmd: str, outputs: dict[str, str], debug: bool = False):
   region = outputs['region']['value']
   image = outputs['migrate_image']['value']
   db_conn_name = outputs['migrate_sql_conn_name']['value']
@@ -259,9 +259,9 @@ def trigger_reset(outputs: dict[str, str], debug: bool = False):
   cmd = textwrap.dedent(f"""\
       {GCLOUD} builds submit \\
           --region {region} \\
-          --config ./backend/cloudreset.yaml \\
+          --config ./backend/cloudbuild_run_command.yaml \\
           --no-source \\
-          --substitutions _POOL={pool},_IMAGE_NAME={image},_INSTANCE_CONNECTION_NAME={db_conn_name},_CLOUD_DB_URI={db_uri}
+          --substitutions _COMMAND={cmd},_POOL={pool},_IMAGE_NAME={image},_INSTANCE_CONNECTION_NAME={db_conn_name},_CLOUD_DB_URI={db_uri}
       """)
   shared.execute_command('Reset states', cmd, debug=debug)
 
@@ -332,12 +332,9 @@ def setup(stage_path: Union[None, str], debug: bool) -> None:
   click.echo(click.style('Done.', fg='magenta', bold=True))
 
 
-@cli.command('reset')
-@click.option('--stage_path', type=str, default=None)
-@click.option('--debug/--no-debug', default=False)
-def reset(stage_path: Union[None, str], debug: bool):
+def _run_command(cmd: str, stage_path: Union[None, str], debug: bool):
   """Reset pipeline statuses."""
-  click.echo(click.style('>>>> Reset pipelines', fg='magenta', bold=True))
+  click.echo(click.style('>>>> Sync database', fg='magenta', bold=True))
 
   if stage_path is not None:
     stage_path = pathlib.Path(stage_path)
@@ -363,8 +360,27 @@ def reset(stage_path: Union[None, str], debug: bool):
     sys.exit(1)
 
   # Resets the state of pipelines and jobs.
-  trigger_reset(outputs, debug=debug)
+  trigger_command(cmd, outputs, debug=debug)
   click.echo(click.style('Done.', fg='magenta', bold=True))
+
+
+@cli.command('migrate')
+@click.option('--stage_path', type=str, default=None)
+@click.option('--debug/--no-debug', default=False)
+def migrate(stage_path: Union[None, str], debug: bool):
+  """Reset pipeline statuses."""
+  _run_command(
+      'python -m flask db upgrade; python -m flask db-seeds;',
+      stage_path,
+      debug=debug)
+
+
+@cli.command('reset')
+@click.option('--stage_path', type=str, default=None)
+@click.option('--debug/--no-debug', default=False)
+def reset(stage_path: Union[None, str], debug: bool):
+  """Reset pipeline statuses."""
+  _run_command('python -m flask reset-pipelines;', stage_path, debug=debug)
 
 
 if __name__ == '__main__':

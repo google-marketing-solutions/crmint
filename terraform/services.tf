@@ -218,42 +218,9 @@ resource "google_cloudbuild_worker_pool" "private" {
   ]
 }
 
-# Detects if the controller image has changed.
-# TODO: move to a native data source when available
-data "external" "deployed_controller_image_metadata" {
-  program = ["../scripts/read_image_metadata.sh"]
-
-  query = {
-    image_name = split(":", var.controller_image)[0]
-    image_tag = split(":", var.controller_image)[1]
-  }
-}
-
+# Local variables are used to simplify the definition of outputs.
 locals {
   migrate_image = var.controller_image
   migrate_sql_conn_name = google_sql_database_instance.main.connection_name
   pool = google_cloudbuild_worker_pool.private.id
-}
-
-# Runs database migrations on Cloud Build if the controller has changed.
-module "cli" {
-  source  = "terraform-google-modules/gcloud/google"
-  version = "~> 2.0"
-
-  platform = "linux"
-  additional_components = []
-
-  create_cmd_entrypoint = "gcloud"
-  create_cmd_body       = <<EOF
-    builds submit \
-      --region ${var.region} \
-      --config ../backend/cloudmigrate.yaml \
-      --no-source \
-      --substitutions _POOL=${local.pool},_IMAGE_NAME=${local.migrate_image},_INSTANCE_CONNECTION_NAME=${local.migrate_sql_conn_name},_CLOUD_DB_URI=${local.cloud_db_uri}
-    EOF
-
-  # Runs only if the controller digest has changed.
-  create_cmd_triggers = {
-    controller_digest = data.external.deployed_controller_image_metadata.result.digest
-  }
 }
