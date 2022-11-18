@@ -96,11 +96,11 @@ class CloudSetupTest(parameterized.TestCase):
     self.enter_context(
         mock.patch.object(constants, 'STAGE_DIR', tmp_stage_dir.full_path))
     shutil.copyfile(
-        _datafile('dummy_project_with_vpc.tfvars'),
-        pathlib.Path(constants.STAGE_DIR, 'dummy_project_with_vpc.tfvars'))
+        _datafile('dummy_project_with_vpc.tfvars.json'),
+        pathlib.Path(constants.STAGE_DIR, 'dummy_project_with_vpc.tfvars.json'))
     shutil.copyfile(
-        _datafile('dummy_project_without_vpc.tfvars'),
-        pathlib.Path(constants.STAGE_DIR, 'dummy_project_without_vpc.tfvars'))
+        _datafile('dummy_project_without_vpc.tfvars.json'),
+        pathlib.Path(constants.STAGE_DIR, 'dummy_project_without_vpc.tfvars.json'))
     # Uses a temporary directory we can keep a reference to.
     self.tmp_workdir = self.create_tempdir('workdir')
     self.enter_context(
@@ -113,7 +113,7 @@ class CloudSetupTest(parameterized.TestCase):
   def test_fetch_existing_stage(self):
     """Should not raise an exception if stage file exists."""
     stage_path = pathlib.Path(
-        constants.STAGE_DIR, 'dummy_project_with_vpc.tfvars')
+        constants.STAGE_DIR, 'dummy_project_with_vpc.tfvars.json')
     try:
       stage = cloud.fetch_stage_or_default(stage_path)
     except cloud.CannotFetchStageError:
@@ -124,7 +124,7 @@ class CloudSetupTest(parameterized.TestCase):
     runner = testing.CliRunner(mix_stderr=False)
     with runner.isolation() as (out, err):
       stage_path = pathlib.Path(
-          constants.STAGE_DIR, 'new_dummy_project.tfvars')
+          constants.STAGE_DIR, 'new_dummy_project.tfvars.json')
 
       with self.subTest('Raises an exception'):
         with self.assertRaises(cloud.CannotFetchStageError):

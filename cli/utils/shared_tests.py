@@ -32,7 +32,7 @@ class SharedTests(absltest.TestCase):
     patched_click_echo = self.enter_context(
         mock.patch.object(click, 'echo', autospec=True))
     self.assertEqual(shared.get_default_stage_path(),
-                     pathlib.Path(constants.STAGE_DIR, 'foo.tfvars'))
+                     pathlib.Path(constants.STAGE_DIR, 'foo.tfvars.json'))
     self.assertSequenceEqual(
         patched_click_echo.mock_calls,
         [mock.call('     Project ID found: foo')]

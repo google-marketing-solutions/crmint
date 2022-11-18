@@ -14,6 +14,7 @@
 
 """Package for shared methods among the commands."""
 
+import json
 import os
 import pathlib
 import subprocess
@@ -31,7 +32,6 @@ from cli.utils.constants import GCLOUD
 
 ProjectId = NewType('ProjectId', str)
 StageContext = NewType('StageContext', types.SimpleNamespace)
-StageInputContext = NewType('StageInputContext', types.SimpleNamespace)
 
 _INDENT_PREFIX = '     '
 
@@ -143,26 +143,21 @@ def get_default_stage_path(debug: bool = False) -> pathlib.Path:
   """
   project_id = get_current_project_id(debug=debug)
   click.echo(textwrap.indent(f'Project ID found: {project_id}', _INDENT_PREFIX))
-  return pathlib.Path(constants.STAGE_DIR, f'{project_id}.tfvars')
+  return pathlib.Path(constants.STAGE_DIR, f'{project_id}.tfvars.json')
 
 
 def load_stage(stage_path: pathlib.Path) -> StageContext:
   """Loads stage by interpreting Terraform variables as Python code."""
-  stage = types.SimpleNamespace(
-      stage_path=stage_path,
-      project_id=stage_path.stem)
+  with open(stage_path, 'rb') as fp:
+    context = json.load(fp)
+  stage = types.SimpleNamespace(**context)
   return stage
 
 
-def create_stage_file(stage_path: pathlib.Path, context: StageInputContext) -> None:
+def create_stage_file(stage_path: pathlib.Path, context: StageContext) -> None:
   """Saves the given context into the given path file."""
-  extra = {
-    'use_vpc_tfvar_boolean': 'true' if context.use_vpc else 'false',
-  }
-  context_with_extra = types.SimpleNamespace(**context.__dict__, **extra)
-  content = constants.TFVARS_FILE_TEMPLATE.format(ctx=context_with_extra)
   with open(stage_path, 'w+') as fp:
-    fp.write(content)
+    json.dump(context.__dict__, fp)
 
 
 def check_variables():
@@ -200,7 +195,7 @@ def get_region(project_id: ProjectId) -> str:
 
 
 def default_stage_context(project_id: ProjectId,
-                          gcloud_account_email: str) -> StageInputContext:
+                          gcloud_account_email: str) -> StageContext:
   """Returns a stage context initialized with default settings.
 
   Args:
@@ -210,9 +205,11 @@ def default_stage_context(project_id: ProjectId,
   region = settings.REGION or get_region(project_id)
   app_title = settings.APP_TITLE or ' '.join(project_id.split('-')).title()
   namespace = types.SimpleNamespace(
-      project_id=project_id,
       app_title=app_title,
+      notification_sender_email=gcloud_account_email,
       iap_support_email=gcloud_account_email,
+      iap_allowed_users=[f'user:{gcloud_account_email}'],
+      project_id=project_id,
       region=region,
       use_vpc=settings.USE_VPC,
       database_tier=settings.DATABASE_TIER,
@@ -220,4 +217,4 @@ def default_stage_context(project_id: ProjectId,
       frontend_image=settings.FRONTEND_IMAGE,
       controller_image=settings.CONTROLLER_IMAGE,
       jobs_image=settings.JOBS_IMAGE)
-  return StageInputContext(namespace)
+  return StageContext(namespace)

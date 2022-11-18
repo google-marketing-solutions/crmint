@@ -78,8 +78,8 @@ def list_stages(stage_dir: Union[None, str]):
   """List your stages defined in cli/stages directory."""
   if stage_dir is None:
     stage_dir = constants.STAGE_DIR
-  for stage_path in pathlib.Path(stage_dir).glob('*.tfvars'):
-    click.echo(stage_path.stem)
+  for stage_path in pathlib.Path(stage_dir).glob('*.tfvars.json'):
+    click.echo(stage_path.name.rstrip('tfvars.json'))
 
 
 @cli.command('migrate')

@@ -38,8 +38,8 @@ class StagesTest(absltest.TestCase):
     self.enter_context(
         mock.patch.object(constants, 'STAGE_DIR', tmp_stage_dir.full_path))
     shutil.copyfile(
-        _datafile('dummy_project_with_vpc.tfvars'),
-        pathlib.Path(constants.STAGE_DIR, 'dummy_project_with_vpc.tfvars'))
+        _datafile('dummy_project_with_vpc.tfvars.json'),
+        pathlib.Path(constants.STAGE_DIR, 'dummy_project_with_vpc.tfvars.json'))
 
   def test_list_stages_in_default_directory(self):
     runner = testing.CliRunner()
@@ -92,7 +92,7 @@ class StagesTest(absltest.TestCase):
     result = runner.invoke(stages.create, catch_exceptions=False)
     self.assertEqual(result.exit_code, 0, msg=result.output)
     self.assertRegex(result.output,
-                     r'Stage file created\: .*new_dummy_project.tfvars$')
+                     r'Stage file created\: .*new_dummy_project.tfvars.json$')
 
   def test_migrate_shows_deprecation(self):
     runner = testing.CliRunner()

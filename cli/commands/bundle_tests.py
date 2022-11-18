@@ -80,6 +80,14 @@ class BundleTest(absltest.TestCase):
             autospec=True,
             return_value=json.dumps(expected_terraform_outputs)))
 
+  def test_stage_file_has_use_vpc_enabled_by_default(self):
+    runner = testing.CliRunner()
+    result = runner.invoke(bundle.install, catch_exceptions=False)
+    self.assertEqual(result.exit_code, 0, msg=result.output)
+    stage = shared.load_stage(
+        pathlib.Path(constants.STAGE_DIR, 'dummy_project_with_vpc.tfvars.json'))
+    self.assertTrue(stage.use_vpc)
+
   def test_can_run_install_without_stage_file(self):
     runner = testing.CliRunner()
     result = runner.invoke(bundle.install, catch_exceptions=False)
@@ -92,8 +100,8 @@ class BundleTest(absltest.TestCase):
 
   def test_can_run_install_with_existing_stage_file(self):
     shutil.copyfile(
-        _datafile('dummy_project_with_vpc.tfvars'),
-        pathlib.Path(constants.STAGE_DIR, 'dummy_project_with_vpc.tfvars'))
+        _datafile('dummy_project_with_vpc.tfvars.json'),
+        pathlib.Path(constants.STAGE_DIR, 'dummy_project_with_vpc.tfvars.json'))
     runner = testing.CliRunner()
     result = runner.invoke(bundle.install, catch_exceptions=False)
     self.assertEqual(result.exit_code, 0, msg=result.output)
