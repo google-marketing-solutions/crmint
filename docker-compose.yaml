@@ -60,6 +60,9 @@ services:
     ports:
       - "8080:8080"
     environment:
+      APP_TITLE: Local App
+      NOTIFICATION_SENDER_EMAIL: notify@example.com
+      SERVICE_ACCOUNT_EMAIL: service@account.com
       GOOGLE_CLOUD_PROJECT: $GOOGLE_CLOUD_PROJECT
       PUBSUB_EMULATOR_HOST: pubsub:8432
       PUBSUB_PROJECT_ID: $GOOGLE_CLOUD_PROJECT

@@ -104,6 +104,18 @@ resource "google_cloud_run_service" "controller_run" {
         # }
 
         env {
+          name  = "APP_TITLE"
+          value = var.app_title
+        }
+        env {
+          name  = "NOTIFICATION_SENDER_EMAIL"
+          value = var.notification_sender_email
+        }
+        env {
+          name  = "SERVICE_ACCOUNT_EMAIL"
+          value = google_service_account.controller_sa.email
+        }
+        env {
           name  = "DATABASE_URI"
           value = local.cloud_db_uri
         }

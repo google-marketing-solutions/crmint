@@ -14,6 +14,8 @@
 
 """General section."""
 
+import os
+
 from flask import Blueprint
 from flask_restful import Api
 from flask_restful import fields
@@ -22,7 +24,6 @@ from flask_restful import reqparse
 from flask_restful import Resource
 
 from controller import ads_auth_code
-from controller import app_data
 from controller import models
 
 # from google.appengine.api import urlfetch
@@ -84,7 +85,7 @@ class Configuration(Resource):
     url = ads_auth_code.get_url(client_id)
 
     return {
-        'sa_email': app_data.APP_DATA['sa_email'],
+        'sa_email': os.getenv('SERVICE_ACCOUNT_EMAIL'),
         'variables': params,
         'settings': settings,
         # Added url to config

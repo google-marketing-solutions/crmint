@@ -14,9 +14,9 @@
 
 """Mailer implementation."""
 
-from google.appengine.api import mail
+import os
 
-from controller import app_data
+from google.appengine.api import mail
 
 
 class BaseNotifier(object):
@@ -38,8 +38,8 @@ class NotificationMailer(BaseNotifier):
   """Mails the notification to the end user."""
 
   SENDER = 'CRMintApp %s Notification <%s>' % (
-      app_data.APP_DATA['app_title'],
-      app_data.APP_DATA['notification_sender_email']
+      os.getenv('APP_TITLE', 'Custom'),
+      os.getenv('NOTIFICATION_SENDER_EMAIL', None)
   )
 
   def finished_pipeline(self, pipeline: 'models.Pipeline') -> None:
