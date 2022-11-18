@@ -100,6 +100,60 @@ class StagesTest(absltest.TestCase):
     self.assertEqual(result.exit_code, 0, msg=result.output)
     self.assertRegex(result.output, r'Deprecated')
 
+  def test_can_update_stage_file_to_new_version(self):
+    self.enter_context(
+        mock.patch.object(
+            shared,
+            'get_current_project_id',
+            autospec=True,
+            return_value='dummy_project_with_vpc'))
+    self.enter_context(
+        mock.patch.object(
+            shared,
+            'list_available_versions',
+            autospec=True,
+            return_value=['3.2', '3.1', '3.0']))
+    runner = testing.CliRunner()
+    result = runner.invoke(
+        stages.update,
+        args=[f'--version=3.2'],
+        catch_exceptions=False)
+    with self.subTest('Validates command line output'):
+      self.assertEqual(0, result.exit_code, msg=result.output)
+      self.assertIn('Stage updated to version: 3.2', result.output)
+    with self.subTest('Validates content of new stage file'):
+      updated_stage = shared.load_stage(
+          pathlib.Path(constants.STAGE_DIR,
+          'dummy_project_with_vpc.tfvars.json'))
+      self.assertEqual(
+          updated_stage.frontend_image.split(':')[1], '3.2')
+      self.assertEqual(
+          updated_stage.controller_image.split(':')[1], '3.2')
+      self.assertEqual(
+          updated_stage.jobs_image.split(':')[1], '3.2')
+
+  def test_suggest_fix_if_version_not_available(self):
+    self.enter_context(
+        mock.patch.object(
+            shared,
+            'get_current_project_id',
+            autospec=True,
+            return_value='dummy_project_with_vpc'))
+    self.enter_context(
+        mock.patch.object(
+            shared,
+            'list_available_versions',
+            autospec=True,
+            return_value=['3.2', '3.1', '3.0']))
+    runner = testing.CliRunner()
+    result = runner.invoke(
+        stages.update,
+        args=[f'--version=4.0'],
+        catch_exceptions=False)
+    with self.subTest('Validates command line output'):
+      self.assertEqual(1, result.exit_code, msg=result.output)
+      self.assertIn('Pick a version from: ', result.output)
+
 
 if __name__ == '__main__':
   absltest.main()

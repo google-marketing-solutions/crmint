@@ -34,36 +34,6 @@ from cli.utils.constants import GCLOUD
 _INDENT_PREFIX = '     '
 
 
-class CannotFetchStageError(Exception):
-  """Raised when the stage file cannot be fetched."""
-
-
-def fetch_stage_or_default(
-    stage_path: Union[None, pathlib.Path],
-    debug: bool = False) -> shared.StageContext:
-  """Returns the loaded stage context.
-
-  Args:
-    stage_path: Stage path to load. If None a default stage path is used.
-    debug: Enables the debug mode on system calls.
-
-  Raises:
-    CannotFetchStageError: if the stage file can be fetched.
-  """
-  if not stage_path:
-    stage_path = shared.get_default_stage_path(debug=debug)
-  if not stage_path.exists():
-    click.secho(f'Stage file not found at path: {stage_path}',
-                fg='red',
-                bold=True)
-    click.secho('Fix this by running: $ crmint stages create', fg='green')
-    raise CannotFetchStageError(f'Not found at: {stage_path}')
-
-  stage = shared.load_stage(stage_path)
-  stage.stage_path = stage_path
-  return stage
-
-
 def check_billing_configured(stage: shared.StageContext,
                              debug: bool = False) -> bool:
   """Returns True if billing is configured for the given project.
@@ -306,8 +276,8 @@ def checklist(stage_path: Union[None, str], debug: bool) -> None:
     stage_path = pathlib.Path(stage_path)
 
   try:
-    stage = fetch_stage_or_default(stage_path, debug=debug)
-  except CannotFetchStageError:
+    stage = shared.fetch_stage_or_default(stage_path, debug=debug)
+  except shared.CannotFetchStageError:
     sys.exit(1)
 
   if not check_billing_configured(stage, debug=debug):
@@ -338,8 +308,8 @@ def setup(stage_path: Union[None, str], debug: bool) -> None:
     stage_path = pathlib.Path(stage_path)
 
   try:
-    stage = fetch_stage_or_default(stage_path, debug=debug)
-  except CannotFetchStageError:
+    stage = shared.fetch_stage_or_default(stage_path, debug=debug)
+  except shared.CannotFetchStageError:
     sys.exit(1)
 
   # Switches workspace.
@@ -371,8 +341,8 @@ def _run_command(section_name: str,
     stage_path = pathlib.Path(stage_path)
 
   try:
-    stage = fetch_stage_or_default(stage_path, debug=debug)
-  except CannotFetchStageError:
+    stage = shared.fetch_stage_or_default(stage_path, debug=debug)
+  except shared.CannotFetchStageError:
     sys.exit(1)
 
   # Switches workspace.

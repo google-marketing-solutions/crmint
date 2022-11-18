@@ -95,3 +95,35 @@ def list_stages(stage_dir: Union[None, str]):
 def migrate(stage_path: Union[None, str], debug: bool) -> None:
   """Migrate old stage file format to the latest one."""
   click.echo(click.style('Deprecated.', fg='blue', bold=True))
+
+
+@cli.command('update')
+@click.option('--stage_path', default=None)
+@click.option('--version', default=None)
+@click.option('--debug/--no-debug', default=False)
+def update(stage_path: Union[None, str], version: str, debug: bool) -> None:
+  """Update CRMint version."""
+  click.echo(click.style('>>>> Update CRMint version', fg='magenta', bold=True))
+
+  if stage_path is not None:
+    stage_path = pathlib.Path(stage_path)
+
+  try:
+    stage = shared.fetch_stage_or_default(stage_path, debug=debug)
+  except shared.CannotFetchStageError:
+    sys.exit(1)
+
+  available_versions = shared.list_available_versions(
+      stage.controller_image, debug=debug)
+  if version not in available_versions:
+    click.echo(click.style(f'The version "{version}" does not exist. '
+                           f'Pick a version from: {available_versions}',
+                           fg='red',
+                           bold=True))
+    sys.exit(1)
+
+  stage.frontend_image = f'{stage.frontend_image.split(":")[0]}:{version}'
+  stage.controller_image = f'{stage.controller_image.split(":")[0]}:{version}'
+  stage.jobs_image = f'{stage.jobs_image.split(":")[0]}:{version}'
+  shared.create_stage_file(str(stage.stage_path), stage)
+  click.echo(click.style(f'Stage updated to version: {version}', fg='green'))

@@ -156,8 +156,40 @@ def load_stage(stage_path: pathlib.Path) -> StageContext:
 
 def create_stage_file(stage_path: pathlib.Path, context: StageContext) -> None:
   """Saves the given context into the given path file."""
+  if hasattr(context, 'stage_path'):
+    del context.stage_path
   with open(stage_path, 'w+') as fp:
-    json.dump(context.__dict__, fp)
+    json.dump(context.__dict__, fp, indent=2)
+
+
+class CannotFetchStageError(Exception):
+  """Raised when the stage file cannot be fetched."""
+
+
+def fetch_stage_or_default(
+    stage_path: Union[None, pathlib.Path],
+    debug: bool = False) -> StageContext:
+  """Returns the loaded stage context.
+
+  Args:
+    stage_path: Stage path to load. If None a default stage path is used.
+    debug: Enables the debug mode on system calls.
+
+  Raises:
+    CannotFetchStageError: if the stage file can be fetched.
+  """
+  if not stage_path:
+    stage_path = get_default_stage_path(debug=debug)
+  if not stage_path.exists():
+    click.secho(f'Stage file not found at path: {stage_path}',
+                fg='red',
+                bold=True)
+    click.secho('Fix this by running: $ crmint stages create', fg='green')
+    raise CannotFetchStageError(f'Not found at: {stage_path}')
+
+  stage = load_stage(stage_path)
+  stage.stage_path = stage_path
+  return stage
 
 
 def check_variables():
@@ -254,3 +286,26 @@ def resolve_image_with_digest(image_uri: str, debug: bool = False):
   image_with_digest = out.strip()
   click.echo(textwrap.indent(image_with_digest, _INDENT_PREFIX))
   return image_with_digest
+
+
+def list_available_versions(image_uri: str, debug: bool = False):
+  """Returns a list of available versions to update CRMint to.
+
+  Args:
+    image_uri: Image URI (with or without a tag)
+    debug: Flag to enable debug mode outputs.
+  """
+  image_uri_without_tag = image_uri.split(':')[0]
+  cmd = textwrap.dedent(f"""\
+      {GCLOUD} container images list-tags {image_uri_without_tag} \\
+          --filter "tags:*" \\
+          --format="value(tags)"
+      """)
+  _, out, _ = execute_command(
+      f'List available versions for CRMint',
+      cmd,
+      debug=debug,
+      debug_uses_std_out=False)
+  versions = out.strip().replace('\n', ',').split(',')
+  click.echo(textwrap.indent(','.join(versions), _INDENT_PREFIX))
+  return versions

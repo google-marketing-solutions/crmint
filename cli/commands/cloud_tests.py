@@ -34,7 +34,7 @@ class CloudChecklistTest(parameterized.TestCase):
         mock.patch.object(
             subprocess, 'run', autospec=True, side_effect=side_effect_run))
     self.enter_context(
-        mock.patch.object(cloud, 'fetch_stage_or_default', autospec=True))
+        mock.patch.object(shared, 'fetch_stage_or_default', autospec=True))
     runner = testing.CliRunner()
     result = runner.invoke(cloud.checklist, catch_exceptions=False)
     self.assertEqual(result.exit_code, 1, msg=result.output)
@@ -47,7 +47,7 @@ class CloudChecklistTest(parameterized.TestCase):
         mock.patch.object(
             subprocess, 'run', autospec=True, side_effect=side_effect_run))
     self.enter_context(
-        mock.patch.object(cloud, 'fetch_stage_or_default', autospec=True))
+        mock.patch.object(shared, 'fetch_stage_or_default', autospec=True))
     runner = testing.CliRunner()
     result = runner.invoke(cloud.checklist, catch_exceptions=False)
     self.assertEqual(result.exit_code, 1, msg=result.output)
@@ -59,7 +59,7 @@ class CloudChecklistTest(parameterized.TestCase):
         mock.patch.object(
             subprocess, 'run', autospec=True, side_effect=side_effect_run))
     self.enter_context(
-        mock.patch.object(cloud, 'fetch_stage_or_default', autospec=True))
+        mock.patch.object(shared, 'fetch_stage_or_default', autospec=True))
     runner = testing.CliRunner()
     result = runner.invoke(cloud.checklist, catch_exceptions=False)
     self.assertEqual(result.exit_code, 0, msg=result.output)
@@ -115,8 +115,8 @@ class CloudSetupTest(parameterized.TestCase):
     stage_path = pathlib.Path(
         constants.STAGE_DIR, 'dummy_project_with_vpc.tfvars.json')
     try:
-      stage = cloud.fetch_stage_or_default(stage_path)
-    except cloud.CannotFetchStageError:
+      stage = shared.fetch_stage_or_default(stage_path)
+    except shared.CannotFetchStageError:
       self.fail('Should not raise an exception')
 
   def test_fetch_stage_suggest_resolution_if_no_stage(self):
@@ -127,8 +127,8 @@ class CloudSetupTest(parameterized.TestCase):
           constants.STAGE_DIR, 'new_dummy_project.tfvars.json')
 
       with self.subTest('Raises an exception'):
-        with self.assertRaises(cloud.CannotFetchStageError):
-          cloud.fetch_stage_or_default(stage_path)
+        with self.assertRaises(shared.CannotFetchStageError):
+          shared.fetch_stage_or_default(stage_path)
       with self.subTest('Suggest a resolution path to the user'):
         self.assertIn(b'Fix this by running: $ crmint stages create',
                       out.getvalue())
@@ -173,6 +173,12 @@ class CloudSetupTest(parameterized.TestCase):
             ---> Initialize Terraform ✓
             ---> List Terraform workspaces ✓
             ---> Create new Terraform workspace: dummy_project_with_vpc ✓
+            ---> Retrieve digest for image: frontend:latest ✓
+                 output
+            ---> Retrieve digest for image: controller:latest ✓
+                 output
+            ---> Retrieve digest for image: jobs:latest ✓
+                 output
             ---> Generate Terraform plan ✓
                  Cloud Run Service \(3\)
                  Cloud Run Service IAM Member \(3\)
