@@ -171,7 +171,7 @@ def check_variables():
     os.environ['GOOGLE_CLOUD_SDK'] = out.decode('utf-8').strip()
 
 
-def get_region(project_id: ProjectId) -> str:
+def get_region(project_id: ProjectId, debug: bool = False) -> str:
   """Returns a Cloud Scheduler compatible region.
 
   Cloud Scheduler is the limiting factor for picking up a cloud region as it
@@ -179,10 +179,14 @@ def get_region(project_id: ProjectId) -> str:
 
   Args:
     project_id: GCP project identifier.
+    debug: Flag to enable debug mode outputs.
   """
   cmd = f'{GCLOUD} scheduler locations list --format="value(locationId)"'
   _, out, _ = execute_command(
-      'Get available Compute regions', cmd, debug_uses_std_out=False)
+      'Get available Compute regions',
+      cmd,
+      debug_uses_std_out=False,
+      debug=debug)
   regions = out.strip().split('\n')
   for i, region in enumerate(regions):
     click.echo(f'{i + 1}) {region}')
@@ -194,15 +198,17 @@ def get_region(project_id: ProjectId) -> str:
   return region
 
 
-def default_stage_context(project_id: ProjectId,
+def default_stage_context(*,
+                          project_id: ProjectId,
+                          region: str,
                           gcloud_account_email: str) -> StageContext:
   """Returns a stage context initialized with default settings.
 
   Args:
     project_id: GCP project identifier.
+    region: GCP region (compatible with Cloud Run and Cloud Scheduler).
     gcloud_account_email: Email account running CloudShell.
   """
-  region = settings.REGION or get_region(project_id)
   app_title = settings.APP_TITLE or ' '.join(project_id.split('-')).title()
   namespace = types.SimpleNamespace(
       app_title=app_title,
@@ -218,3 +224,12 @@ def default_stage_context(project_id: ProjectId,
       controller_image=settings.CONTROLLER_IMAGE,
       jobs_image=settings.JOBS_IMAGE)
   return StageContext(namespace)
+
+
+def detect_settings_envs():
+  """Returns the list of env variables overriding settings defaults."""
+  settings_envs = [varname for varname in os.environ if hasattr(settings, varname)]
+  click.secho(f'---> Detect env variables', fg='blue', bold=True, nl=True)
+  for varname in settings_envs:
+    value = os.getenv(varname)
+    click.echo(textwrap.indent(f'{varname}={value}', _INDENT_PREFIX))
