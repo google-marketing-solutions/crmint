@@ -135,6 +135,20 @@ class BundleTest(absltest.TestCase):
     self.assertIn('>>>> Setup', result.output)
     self.assertIn('>>>> Sync database', result.output)
 
+  def test_can_allow_new_users_and_setup(self):
+    shutil.copyfile(
+        _datafile('dummy_project_with_vpc.tfvars.json'),
+        pathlib.Path(constants.STAGE_DIR, 'dummy_project_with_vpc.tfvars.json'))
+    runner = testing.CliRunner()
+    result = runner.invoke(
+        bundle.allow_users,
+        args=['new@example.com'],
+        catch_exceptions=False)
+    self.assertEqual(result.exit_code, 0, msg=result.output)
+    self.assertIn('>>>> Allow new users', result.output)
+    self.assertIn('>>>> Setup', result.output)
+    self.assertNotIn('>>>> Sync database', result.output)
+
 
 if __name__ == '__main__':
   absltest.main()

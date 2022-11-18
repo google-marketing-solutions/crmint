@@ -44,10 +44,20 @@ def install(ctx: click.Context, use_vpc: bool, debug: bool) -> None:
 @click.option('--debug/--no-debug', default=False)
 @click.pass_context
 def update(ctx: click.Context, version: str, debug: bool):
-  """Updates CRMint to its latest stable version."""
+  """Updates CRMint to its latest stable version and Setup."""
   ctx.invoke(stages.update, debug=debug)
   ctx.invoke(cloud.setup, debug=debug)
   ctx.invoke(cloud.migrate, debug=debug)
+
+
+@cli.command('allow-users')
+@click.argument('user_emails', type=str)
+@click.option('--debug/--no-debug', default=False)
+@click.pass_context
+def allow_users(ctx: click.Context, user_emails: str, debug: bool):
+  """Allow a list of user emails to access CRMint and Setup."""
+  ctx.invoke(stages.allow_users, user_emails=user_emails, debug=debug)
+  ctx.invoke(cloud.setup, debug=debug)
 
 
 if __name__ == '__main__':

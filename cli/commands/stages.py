@@ -131,3 +131,25 @@ def update(stage_path: Union[None, str], version: str, debug: bool) -> None:
   stage.jobs_image = f'{stage.jobs_image.split(":")[0]}:{version}'
   shared.create_stage_file(str(stage.stage_path), stage)
   click.echo(click.style(f'Stage updated to version: {version}', fg='green'))
+
+
+@cli.command('allow-users')
+@click.argument('user_emails', type=str)
+@click.option('--stage_path', default=None)
+@click.option('--debug/--no-debug', default=False)
+def allow_users(user_emails: str, stage_path: Union[None, str], debug: bool) -> None:
+  """Allow a list of user emails to access CRMint (separated with a comma)."""
+  click.echo(click.style('>>>> Allow new users', fg='magenta', bold=True))
+
+  if stage_path is not None:
+    stage_path = pathlib.Path(stage_path)
+
+  try:
+    stage = shared.fetch_stage_or_default(stage_path, debug=debug)
+  except shared.CannotFetchStageError:
+    sys.exit(1)
+
+  stage.iap_allowed_users.extend(
+      [f'user:{email}' for email in user_emails.split(',')])
+  shared.create_stage_file(str(stage.stage_path), stage)
+  click.echo(click.style(f'Stage updated with new IAP users', fg='green'))

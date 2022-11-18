@@ -183,6 +183,28 @@ class StagesTest(absltest.TestCase):
       self.assertEqual(1, result.exit_code, msg=result.output)
       self.assertIn('Pick a version from: ', result.output)
 
+  def test_can_allow_new_user_in_iap_settings(self):
+    self.enter_context(
+        mock.patch.object(
+            shared,
+            'get_current_project_id',
+            autospec=True,
+            return_value='dummy_project_with_vpc'))
+    runner = testing.CliRunner()
+    result = runner.invoke(
+        stages.allow_users,
+        args=['me@example.com,you@example.com'],
+        catch_exceptions=False)
+    with self.subTest('Validates command line output'):
+      self.assertEqual(0, result.exit_code, msg=result.output)
+      self.assertIn('Stage updated with new IAP users', result.output)
+    with self.subTest('Validates content of new stage file'):
+      updated_stage = shared.load_stage(
+          pathlib.Path(constants.STAGE_DIR,
+          'dummy_project_with_vpc.tfvars.json'))
+      self.assertIn('user:me@example.com', updated_stage.iap_allowed_users)
+      self.assertIn('user:you@example.com', updated_stage.iap_allowed_users)
+
 
 if __name__ == '__main__':
   absltest.main()
