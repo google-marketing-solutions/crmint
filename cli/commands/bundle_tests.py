@@ -111,6 +111,30 @@ class BundleTest(absltest.TestCase):
     self.assertIn('>>>> Setup', result.output)
     self.assertIn('>>>> Sync database', result.output)
 
+  def test_cannot_run_update_without_stage_file(self):
+    runner = testing.CliRunner()
+    result = runner.invoke(bundle.update, catch_exceptions=False)
+    self.assertEqual(result.exit_code, 1, msg=result.output)
+    self.assertIn('Fix this by running: $ crmint stages create', result.output)
+
+  def test_can_run_update_with_stage_file(self):
+    shutil.copyfile(
+        _datafile('dummy_project_with_vpc.tfvars.json'),
+        pathlib.Path(constants.STAGE_DIR, 'dummy_project_with_vpc.tfvars.json'))
+    self.enter_context(
+        mock.patch.object(
+            shared,
+            'list_available_tags',
+            autospec=True,
+            return_value=['3.3', '3.2', '3.1', '3.0']))
+    runner = testing.CliRunner()
+    result = runner.invoke(bundle.update, catch_exceptions=False)
+    self.assertEqual(result.exit_code, 0, msg=result.output)
+    self.assertIn('>>>> Update CRMint version', result.output)
+    self.assertRegex(result.output, 'Stage updated to version: 3.3')
+    self.assertIn('>>>> Setup', result.output)
+    self.assertIn('>>>> Sync database', result.output)
+
 
 if __name__ == '__main__':
   absltest.main()

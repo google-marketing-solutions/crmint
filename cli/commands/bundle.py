@@ -28,15 +28,24 @@ def cli():
 
 @cli.command('install')
 @click.option('--use_vpc', is_flag=True, default=False,
-              help='Deploys a Virtual Private Cloud network')
+              help='[Deprecated] Deploys a Virtual Private Cloud network')
 @click.option('--debug/--no-debug', default=False)
 @click.pass_context
 def install(ctx: click.Context, use_vpc: bool, debug: bool) -> None:
   """Runs all commands needed to deploy CRMint in one command."""
-  if use_vpc:
-    settings.USE_VPC = True
   ctx.invoke(stages.create, debug=debug)
   ctx.invoke(cloud.checklist, debug=debug)
+  ctx.invoke(cloud.setup, debug=debug)
+  ctx.invoke(cloud.migrate, debug=debug)
+
+
+@cli.command('update')
+@click.option('--version', type=str, default=None)
+@click.option('--debug/--no-debug', default=False)
+@click.pass_context
+def update(ctx: click.Context, version: str, debug: bool):
+  """Updates CRMint to its latest stable version."""
+  ctx.invoke(stages.update, debug=debug)
   ctx.invoke(cloud.setup, debug=debug)
   ctx.invoke(cloud.migrate, debug=debug)
 
