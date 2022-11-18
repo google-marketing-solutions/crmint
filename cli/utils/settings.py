@@ -22,13 +22,12 @@ USE_VPC = bool(int(os.getenv('USE_VPC', '1')))
 DATABASE_TIER = os.getenv('DATABASE_TIER', 'db-g1-small')
 DATABASE_HA_TYPE = os.getenv('DATABASE_HA_TYPE', 'ZONAL')
 
-# TODO: pinned versions instead of latest to freeze images.
 FRONTEND_IMAGE = os.getenv(
     'FRONTEND_IMAGE',
-    'europe-docker.pkg.dev/crmint-builds/crmint/frontend:latest')
+    'europe-docker.pkg.dev/instant-bqml-demo-environment/crmint/frontend:latest')
 CONTROLLER_IMAGE = os.getenv(
     'CONTROLLER_IMAGE',
-    'europe-docker.pkg.dev/crmint-builds/crmint/controller:latest')
+    'europe-docker.pkg.dev/instant-bqml-demo-environment/crmint/controller:latest')
 JOBS_IMAGE = os.getenv(
     'JOBS_IMAGE',
-    'europe-docker.pkg.dev/crmint-builds/crmint/jobs:latest')
+    'europe-docker.pkg.dev/instant-bqml-demo-environment/crmint/jobs:latest')
