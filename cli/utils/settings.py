@@ -24,10 +24,10 @@ DATABASE_HA_TYPE = os.getenv('DATABASE_HA_TYPE', 'ZONAL')
 
 FRONTEND_IMAGE = os.getenv(
     'FRONTEND_IMAGE',
-    'europe-docker.pkg.dev/instant-bqml-demo-environment/crmint/frontend:latest')
+    'europe-docker.pkg.dev/instant-bqml-demo-environment/crmint/frontend:3.0')
 CONTROLLER_IMAGE = os.getenv(
     'CONTROLLER_IMAGE',
-    'europe-docker.pkg.dev/instant-bqml-demo-environment/crmint/controller:latest')
+    'europe-docker.pkg.dev/instant-bqml-demo-environment/crmint/controller:3.0')
 JOBS_IMAGE = os.getenv(
     'JOBS_IMAGE',
-    'europe-docker.pkg.dev/instant-bqml-demo-environment/crmint/jobs:latest')
+    'europe-docker.pkg.dev/instant-bqml-demo-environment/crmint/jobs:3.0')
