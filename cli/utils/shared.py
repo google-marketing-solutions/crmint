@@ -233,3 +233,24 @@ def detect_settings_envs():
   for varname in settings_envs:
     value = os.getenv(varname)
     click.echo(textwrap.indent(f'{varname}={value}', _INDENT_PREFIX))
+
+
+def resolve_image_with_digest(image_uri: str, debug: bool = False):
+  """Returns the image with its SHA256 digest, given an image URI.
+
+  Args:
+    image_uri: Fully-qualified image URI.
+    debug: Flag to enable debug mode outputs.
+  """
+  cmd = textwrap.dedent(f"""\
+      {GCLOUD} --verbosity=none container images describe {image_uri} \\
+          --format="value(image_summary.fully_qualified_digest)"
+      """)
+  _, out, _ = execute_command(
+      f'Retrieve digest for image: {image_uri}',
+      cmd,
+      debug=debug,
+      debug_uses_std_out=False)
+  image_with_digest = out.strip()
+  click.echo(textwrap.indent(image_with_digest, _INDENT_PREFIX))
+  return image_with_digest

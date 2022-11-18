@@ -155,7 +155,14 @@ def terraform_plan(stage: shared.StageContext, debug: bool = False) -> bool:
     stage: Stage context.
     debug: Enables the debug mode on system calls.
   """
-  cmd = f'terraform plan -var-file={stage.stage_path} -out=/tmp/tfplan'
+  cmd = textwrap.dedent(f"""\
+      terraform plan \\
+          -var-file={stage.stage_path} \\
+          -var frontend_image={stage.frontend_image_with_digest} \\
+          -var controller_image={stage.controller_image_with_digest} \\
+          -var jobs_image={stage.jobs_image_with_digest} \\
+          -out=/tmp/tfplan
+      """)
   shared.execute_command(
       'Generate Terraform plan', cmd, cwd='./terraform', debug=debug)
 
@@ -267,6 +274,22 @@ def trigger_command(cmd: str, outputs: dict[str, str], debug: bool = False):
   shared.execute_command('Run on Cloud Build', cmd, debug=debug)
 
 
+def update_stage_with_image_digests(stage: shared.StageContext,
+                                    debug: bool = False) -> None:
+  """Updates the stage file with the latest image digests.
+
+  Args:
+    stage: Stage context.
+    debug: Enables the debug mode on system calls.
+  """
+  stage.frontend_image_with_digest = shared.resolve_image_with_digest(
+      stage.frontend_image, debug=debug)
+  stage.controller_image_with_digest = shared.resolve_image_with_digest(
+      stage.controller_image, debug=debug)
+  stage.jobs_image_with_digest = shared.resolve_image_with_digest(
+      stage.jobs_image, debug=debug)
+
+
 @click.group()
 def cli():
   """Manage your CRMint instance on GCP."""
@@ -322,6 +345,10 @@ def setup(stage_path: Union[None, str], debug: bool) -> None:
   # Switches workspace.
   terraform_init(stage, debug=debug)
   terraform_switch_workspace(stage, debug=debug)
+
+  # Updates service image digest in the tfvars file to trigger Cloud Run
+  # to update the services accordingly.
+  update_stage_with_image_digests(stage, debug=debug)
 
   # Runs setup steps.
   terraform_plan(stage, debug=debug)
