@@ -149,7 +149,7 @@ def allow_users(user_emails: str, stage_path: Union[None, str], debug: bool) -> 
   except shared.CannotFetchStageError:
     sys.exit(1)
 
-  stage.iap_allowed_users.extend(
-      [f'user:{email}' for email in user_emails.split(',')])
+  new_iap_users = [f'user:{email}' for email in user_emails.split(',')]
+  stage.iap_allowed_users = list(set(stage.iap_allowed_users + new_iap_users))
   shared.create_stage_file(str(stage.stage_path), stage)
   click.echo(click.style(f'Stage updated with new IAP users', fg='green'))
