@@ -9,6 +9,7 @@ from typing import Tuple
 from unittest import mock
 
 from absl.testing import absltest
+from absl.testing import parameterized
 import click
 from click import testing
 
@@ -304,6 +305,18 @@ class GetRegionTests(absltest.TestCase):
             14) us-west4
             """)
     )
+
+
+class TagsAndVersionsHelpersTests(parameterized.TestCase):
+
+  @parameterized.named_parameters(
+      ('No tags', [], []),
+      ('No versions', ['foo', 'bar'], []),
+      ('Removes non-versions', ['foo-3.0.0', '3.0.0', '4.0'], ['3.0.0', '4.0']),
+  )
+  def filters_versions_from_list_of_tags(self, tags, expected_versions):
+    versions = shared.filter_versions_from_tags(tags)
+    self.assertSequenceEqual(versions, expected_versions)
 
 
 if __name__ == '__main__':

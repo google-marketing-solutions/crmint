@@ -17,6 +17,7 @@
 import json
 import os
 import pathlib
+import re
 import subprocess
 import sys
 import textwrap
@@ -288,8 +289,8 @@ def resolve_image_with_digest(image_uri: str, debug: bool = False):
   return image_with_digest
 
 
-def list_available_versions(image_uri: str, debug: bool = False):
-  """Returns a list of available versions to update CRMint to.
+def list_available_tags(image_uri: str, debug: bool = False):
+  """Returns a list of available tags to update CRMint to.
 
   Args:
     image_uri: Image URI (with or without a tag)
@@ -299,13 +300,18 @@ def list_available_versions(image_uri: str, debug: bool = False):
   cmd = textwrap.dedent(f"""\
       {GCLOUD} container images list-tags {image_uri_without_tag} \\
           --filter "tags:*" \\
-          --format="value(tags)"
+          --format="value(tags)" \\
+          --sort-by=~timestamp
       """)
   _, out, _ = execute_command(
-      f'List available versions for CRMint',
+      f'List available tags for CRMint',
       cmd,
       debug=debug,
       debug_uses_std_out=False)
-  versions = out.strip().replace('\n', ',').split(',')
-  click.echo(textwrap.indent(','.join(versions), _INDENT_PREFIX))
-  return versions
+  tags = out.strip().replace('\n', ',').split(',')
+  return tags
+
+
+def filter_versions_from_tags(tags: list[str]) -> list[str]:
+  """Filters a list of tags to return a list of versions."""
+  return [tag for tag in tags if re.fullmatch(r'[\d\.]+', tag)]

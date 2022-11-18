@@ -113,9 +113,13 @@ def update(stage_path: Union[None, str], version: str, debug: bool) -> None:
   except shared.CannotFetchStageError:
     sys.exit(1)
 
-  available_versions = shared.list_available_versions(
+  available_tags = shared.list_available_tags(
       stage.controller_image, debug=debug)
-  if version not in available_versions:
+  if version is None:
+    available_versions = shared.filter_versions_from_tags(available_tags)
+    version = available_versions[0]
+  elif version not in available_tags:
+    available_versions = shared.filter_versions_from_tags(available_tags)
     click.echo(click.style(f'The version "{version}" does not exist. '
                            f'Pick a version from: {available_versions}',
                            fg='red',
