@@ -43,7 +43,8 @@ resource "google_sql_database" "crmint" {
 }
 
 resource "random_password" "main_db_password" {
-  length = 16
+  length  = 16
+  special = false
 }
 
 resource "google_sql_user" "crmint" {
