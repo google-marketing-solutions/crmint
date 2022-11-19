@@ -27,6 +27,7 @@ from typing import Tuple, Union
 import click
 import yaml
 
+from backend.common import insight
 from cli.utils import constants
 from cli.utils import shared
 from cli.utils.constants import GCLOUD
@@ -125,12 +126,15 @@ def terraform_plan(stage: shared.StageContext, debug: bool = False) -> bool:
     stage: Stage context.
     debug: Enables the debug mode on system calls.
   """
+  tracker = insight.GAProvider()
+  report_usage_consent = 'true' if tracker.opt_out is False else 'false'
   cmd = textwrap.dedent(f"""\
       terraform plan \\
           -var-file={stage.stage_path} \\
           -var frontend_image={stage.frontend_image_with_digest} \\
           -var controller_image={stage.controller_image_with_digest} \\
           -var jobs_image={stage.jobs_image_with_digest} \\
+          -var report_usage_consent={report_usage_consent} \\
           -out=/tmp/tfplan
       """)
   shared.execute_command(

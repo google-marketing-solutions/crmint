@@ -104,6 +104,10 @@ resource "google_cloud_run_service" "controller_run" {
         # }
 
         env {
+          name  = "REPORT_USAGE_ID"
+          value = var.report_usage_id
+        }
+        env {
           name  = "APP_TITLE"
           value = var.app_title
         }

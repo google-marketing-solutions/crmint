@@ -46,7 +46,7 @@ class GAProvider(object):
   """Reports usage to Google Analytics."""
   URL = 'https://www.google-analytics.com/collect'
 
-  def __init__(self, force_opt_out=False):
+  def __init__(self, force_opt_out=False, allow_new_client_id=False):
     self.force_opt_out = force_opt_out
     self.tracking_id = DEFAULT_TRACKING_ID
     self.os_name = platform.system()
@@ -54,7 +54,9 @@ class GAProvider(object):
     self.app_version = get_crmint_version()
 
     conf = self._load_insight_config()
-    conf = self._define_random_values(conf)
+    if allow_new_client_id:
+      conf = self._define_random_values(conf)
+    self._check_client_id_exists(conf)
     self.config = conf
 
   def _define_random_values(self, conf):
@@ -64,7 +66,7 @@ class GAProvider(object):
 
   def _load_insight_config(self):
     if not os.path.exists(INSIGHT_CONF_FILEPATH):
-      return {}
+      return {'client_id': os.getenv('REPORT_USAGE_ID')}
     with open(INSIGHT_CONF_FILEPATH, 'r') as fp:
       try:
         conf = json.load(fp)
@@ -73,6 +75,10 @@ class GAProvider(object):
         # Ill-formatted value
         pass
     return {}
+
+  def _check_client_id_exists(self, conf):
+    if not conf.get('client_id'):
+      raise ValueError('No client_id defined')
 
   @property
   def opt_out(self):

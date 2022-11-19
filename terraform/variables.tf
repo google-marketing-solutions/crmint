@@ -1,4 +1,12 @@
 ##
+# Report usage analytics consent
+
+variable "report_usage_id" {
+  description = "Report anonymous usage to our analytics to improve the tool."
+  nullable    = false
+}
+
+##
 # Application config
 
 variable "app_title" {
