@@ -24,21 +24,12 @@ class CommonInsightOnFreshInstallTest(absltest.TestCase):
     self.enter_context(
         mock.patch.object(insight, 'INSIGHT_CONF_FILEPATH', tmp_filepath))
 
-  def test_raise_exception_if_no_client_id(self):
-    with self.assertRaisesRegex(ValueError, 'No client_id defined'):
-      _ = insight.GAProvider()
-
-  def test_do_not_raise_exception_if_client_id_disabled(self):
-    try:
-      _ = insight.GAProvider(check_client_id=False)
-    except ValueError:
-      self.fail('Check client_id disabled, should not raise an exception')
+  def test_client_id_defaults_to_none(self):
+    tracker = insight.GAProvider()
+    self.assertIsNone(tracker.client_id)
 
   def test_can_assign_new_client_id(self):
-    try:
-      tracker = insight.GAProvider(allow_new_client_id=True)
-    except ValueError:
-      self.fail('Cannot assign new client id')
+    tracker = insight.GAProvider(allow_new_client_id=True)
     self.assertIsNotNone(tracker.client_id)
 
   def test_sending_event(self):
@@ -90,10 +81,7 @@ class CommonInsightNoConsentTest(absltest.TestCase):
         mock.patch.object(insight, 'INSIGHT_CONF_FILEPATH', tmp_filepath))
 
   def test_not_raising_exception_when_loading_file(self):
-    try:
-      tracker = insight.GAProvider()
-    except ValueError:
-      self.fail('Failed to load insight.json')
+    tracker = insight.GAProvider()
     self.assertEqual(tracker.client_id, 123)
 
   def test_reuse_client_id(self):

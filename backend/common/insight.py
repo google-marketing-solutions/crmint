@@ -46,7 +46,7 @@ class GAProvider(object):
   """Reports usage to Google Analytics."""
   URL = 'https://www.google-analytics.com/collect'
 
-  def __init__(self, allow_new_client_id=False, check_client_id=True):
+  def __init__(self, allow_new_client_id=False):
     self.tracking_id = DEFAULT_TRACKING_ID
     self.os_name = platform.system()
     self.python_version = platform.python_version()
@@ -55,8 +55,6 @@ class GAProvider(object):
     conf = self._load_insight_config()
     if allow_new_client_id:
       conf = self._define_random_values(conf)
-    if check_client_id:
-      self._check_client_id_exists(conf)
     self.config = conf
 
   def _define_random_values(self, conf):
@@ -79,10 +77,6 @@ class GAProvider(object):
         # Ill-formatted value
         pass
     return {}
-
-  def _check_client_id_exists(self, conf):
-    if conf.get('client_id', None) is None:
-      raise ValueError('No client_id defined')
 
   @property
   def client_id(self):
