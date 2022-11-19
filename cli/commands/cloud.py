@@ -126,7 +126,7 @@ def terraform_plan(stage: shared.StageContext, debug: bool = False) -> bool:
     stage: Stage context.
     debug: Enables the debug mode on system calls.
   """
-  tracker = insight.GAProvider()
+  tracker = insight.GAProvider(check_client_id=False)
   report_usage_id = tracker.client_id if tracker.opt_out is False else ''
   cmd = textwrap.dedent(f"""\
       terraform plan \\

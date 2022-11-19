@@ -26,7 +26,13 @@ class CommonInsightOnFreshInstallTest(absltest.TestCase):
 
   def test_raise_exception_if_no_client_id(self):
     with self.assertRaisesRegex(ValueError, 'No client_id defined'):
-      tracker = insight.GAProvider()
+      _ = insight.GAProvider()
+
+  def test_do_not_raise_exception_if_client_id_disabled(self):
+    try:
+      _ = insight.GAProvider(check_client_id=False)
+    except ValueError:
+      self.fail('Check client_id disabled, should not raise an exception')
 
   def test_can_assign_new_client_id(self):
     try:

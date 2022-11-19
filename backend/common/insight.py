@@ -46,8 +46,7 @@ class GAProvider(object):
   """Reports usage to Google Analytics."""
   URL = 'https://www.google-analytics.com/collect'
 
-  def __init__(self, force_opt_out=False, allow_new_client_id=False):
-    self.force_opt_out = force_opt_out
+  def __init__(self, allow_new_client_id=False, check_client_id=True):
     self.tracking_id = DEFAULT_TRACKING_ID
     self.os_name = platform.system()
     self.python_version = platform.python_version()
@@ -56,7 +55,8 @@ class GAProvider(object):
     conf = self._load_insight_config()
     if allow_new_client_id:
       conf = self._define_random_values(conf)
-    self._check_client_id_exists(conf)
+    if check_client_id:
+      self._check_client_id_exists(conf)
     self.config = conf
 
   def _define_random_values(self, conf):
@@ -90,7 +90,7 @@ class GAProvider(object):
 
   @property
   def opt_out(self):
-    return self.force_opt_out or self.config.get('opt_out', None)
+    return self.config.get('opt_out', None)
 
   def _send(self, payload):
     now_ms = math.floor(time.time() * 1000)
