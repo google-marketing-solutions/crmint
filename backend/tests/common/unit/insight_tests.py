@@ -33,7 +33,7 @@ class CommonInsightOnFreshInstallTest(absltest.TestCase):
       tracker = insight.GAProvider(allow_new_client_id=True)
     except ValueError:
       self.fail('Cannot assign new client id')
-    self.assertIsNotNone(tracker.config.get('client_id'))
+    self.assertIsNotNone(tracker.client_id)
 
   def test_sending_event(self):
     tracker = insight.GAProvider(allow_new_client_id=True)
@@ -88,11 +88,11 @@ class CommonInsightNoConsentTest(absltest.TestCase):
       tracker = insight.GAProvider()
     except ValueError:
       self.fail('Failed to load insight.json')
-    self.assertEqual(tracker.config.get('client_id'), 123)
+    self.assertEqual(tracker.client_id, 123)
 
   def test_reuse_client_id(self):
     tracker = insight.GAProvider(allow_new_client_id=True)
-    self.assertEqual(tracker.config.get('client_id'), 123)
+    self.assertEqual(tracker.client_id, 123)
 
   def test_expose_opt_out(self):
     tracker = insight.GAProvider()
@@ -104,6 +104,49 @@ class CommonInsightNoConsentTest(absltest.TestCase):
     tracker = insight.GAProvider()
     tracker.track('some_event')
     self.patched_send.assert_not_called()
+
+
+class CommonInsightFromEnvTest(absltest.TestCase):
+
+  def setUp(self):
+    super().setUp()
+    # `create_tempfile` needs access to --test_tmpdir, however in the OSS world
+    # pytest doesn't run `absltest.main`, so we need to init flags ourselves.
+    utils.initialize_flags_with_defaults()
+    # Overrides the default data directory with a custom temporary directory.
+    tmp_data_dir = self.create_tempdir('data_dir')
+    tmp_filepath = os.path.join(tmp_data_dir, 'insight.json')
+    self.enter_context(
+        mock.patch.object(insight, 'INSIGHT_CONF_FILEPATH', tmp_filepath))
+
+  @mock.patch.dict(os.environ, {'REPORT_USAGE_ID': '123456'})
+  def test_consent(self):
+    tracker = insight.GAProvider()
+    self.assertFalse(tracker.opt_out)
+    self.assertEqual(tracker.client_id, '123456')
+
+  @mock.patch.dict(os.environ, {'REPORT_USAGE_ID': '123456'})
+  def test_send_event_with_consent(self):
+    tracker = insight.GAProvider()
+    patched_send = self.enter_context(
+        mock.patch.object(tracker, '_send', autospec=True))
+    tracker.track('some_event')
+    patched_send.assert_called_once_with(
+        {'type': 'pageview', 'path': '/some_event'})
+
+  @mock.patch.dict(os.environ, {'REPORT_USAGE_ID': ''})
+  def test_optout(self):
+    tracker = insight.GAProvider()
+    self.assertTrue(tracker.opt_out)
+    self.assertEqual(tracker.client_id, '')
+
+  @mock.patch.dict(os.environ, {'REPORT_USAGE_ID': ''})
+  def test_do_not_send_event_without_consent(self):
+    tracker = insight.GAProvider()
+    patched_send = self.enter_context(
+        mock.patch.object(tracker, '_send', autospec=True))
+    tracker.track('some_event')
+    patched_send.assert_not_called()
 
 
 if __name__ == '__main__':

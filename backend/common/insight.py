@@ -65,8 +65,12 @@ class GAProvider(object):
     return conf
 
   def _load_insight_config(self):
-    if not os.path.exists(INSIGHT_CONF_FILEPATH):
-      return {'client_id': os.getenv('REPORT_USAGE_ID')}
+    if 'REPORT_USAGE_ID' in os.environ:
+      client_id = os.getenv('REPORT_USAGE_ID')
+      opt_out = not bool(client_id)
+      return {'client_id': client_id, 'opt_out': opt_out}
+    elif not os.path.exists(INSIGHT_CONF_FILEPATH):
+      return {}
     with open(INSIGHT_CONF_FILEPATH, 'r') as fp:
       try:
         conf = json.load(fp)
@@ -77,8 +81,12 @@ class GAProvider(object):
     return {}
 
   def _check_client_id_exists(self, conf):
-    if not conf.get('client_id'):
+    if conf.get('client_id', None) is None:
       raise ValueError('No client_id defined')
+
+  @property
+  def client_id(self):
+    return self.config.get('client_id', None)
 
   @property
   def opt_out(self):

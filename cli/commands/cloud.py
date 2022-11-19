@@ -127,14 +127,14 @@ def terraform_plan(stage: shared.StageContext, debug: bool = False) -> bool:
     debug: Enables the debug mode on system calls.
   """
   tracker = insight.GAProvider()
-  report_usage_consent = 'true' if tracker.opt_out is False else 'false'
+  report_usage_id = tracker.client_id if tracker.opt_out is False else ''
   cmd = textwrap.dedent(f"""\
       terraform plan \\
           -var-file={stage.stage_path} \\
           -var frontend_image={stage.frontend_image_with_digest} \\
           -var controller_image={stage.controller_image_with_digest} \\
           -var jobs_image={stage.jobs_image_with_digest} \\
-          -var report_usage_consent={report_usage_consent} \\
+          -var report_usage_id={report_usage_id} \\
           -out=/tmp/tfplan
       """)
   shared.execute_command(
