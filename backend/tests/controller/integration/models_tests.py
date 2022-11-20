@@ -19,7 +19,6 @@ from absl.testing import parameterized
 
 from common import crmint_logging
 from common import task
-from controller import mailers
 from controller import models
 from tests import controller_utils
 
@@ -296,20 +295,26 @@ class TestPipelineFinishingStatus(ModelTestCase):
     self.assertEqual(pipeline.status, pipeline_status)
 
   @parameterized.named_parameters(
-      ('Finished with success', models.Job.STATUS.SUCCEEDED),
-      ('Finished with failure', models.Job.STATUS.FAILED),
+      ('Finished with success',
+       models.Job.STATUS.SUCCEEDED,
+       models.Pipeline.STATUS.SUCCEEDED),
+      ('Finished with failure',
+       models.Job.STATUS.FAILED,
+       models.Pipeline.STATUS.FAILED),
   )
-  def test_mailer_sending_notification_on_finished_state(self, job_status):
-    patched_mailer = self.enter_context(
-        mock.patch.object(
-            mailers.NotificationMailer, 'finished_pipeline', autospec=True))
+  def test_log_for_notification_on_finished_state(self,
+                                                  job_status,
+                                                  pipeline_status):
+    patched_log = self.enter_context(
+        mock.patch.object(crmint_logging, 'log_pipeline_status', autospec=True))
     pipeline = models.Pipeline.create(status=models.Pipeline.STATUS.RUNNING)
     job1 = models.Job.create(
         pipeline_id=pipeline.id, status=models.Job.STATUS.WAITING)
     task1 = job1.start()
     job1._task_finished(task1.name, job_status)
     self.assertNotEqual(pipeline.status, models.Pipeline.STATUS.RUNNING)
-    patched_mailer.assert_called_once_with(mock.ANY, pipeline)
+    patched_log.assert_called_once_with(
+        mock.ANY, pipeline_status=pipeline_status, pipeline_id=mock.ANY)
 
   @parameterized.named_parameters(
       ('Finished with success',
