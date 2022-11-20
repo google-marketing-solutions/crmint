@@ -45,7 +45,7 @@ def install(ctx: click.Context, use_vpc: bool, debug: bool) -> None:
 @click.pass_context
 def update(ctx: click.Context, version: str, debug: bool):
   """Updates CRMint to its latest stable version and Setup."""
-  ctx.invoke(stages.update, debug=debug)
+  ctx.invoke(stages.update, version=version, debug=debug)
   ctx.invoke(cloud.setup, debug=debug)
   ctx.invoke(cloud.migrate, debug=debug)
 
