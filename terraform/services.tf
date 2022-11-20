@@ -116,6 +116,10 @@ resource "google_cloud_run_service" "controller_run" {
           value = var.notification_sender_email
         }
         env {
+          name  = "GOOGLE_CLOUD_PROJECT"
+          value = var.project_id
+        }
+        env {
           name  = "SERVICE_ACCOUNT_EMAIL"
           value = google_service_account.controller_sa.email
         }
@@ -186,6 +190,10 @@ resource "google_cloud_run_service" "jobs_run" {
         #   }
         # }
 
+        env {
+          name  = "GOOGLE_CLOUD_PROJECT"
+          value = var.project_id
+        }
         env {
           name  = "PUBSUB_VERIFICATION_TOKEN"
           value = random_id.pubsub_verification_token.b64_url
