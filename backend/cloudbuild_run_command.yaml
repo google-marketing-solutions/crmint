@@ -10,10 +10,10 @@ steps:
         COPY --from=gcr.io/cloudsql-docker/gce-proxy /cloud_sql_proxy /cloudsql/cloud_sql_proxy
         COPY --from=gcr.io/cloudsql-docker/gce-proxy /etc/ssl/certs /etc/ssl/certs" > Dockerfile-proxy;
 
-        docker build -f Dockerfile-proxy -t ${_IMAGE_NAME}-proxy .
+        docker build -f Dockerfile-proxy -t image-with-proxy .
 
   # Runs migrations and seeding the database.
-  - name: "${_IMAGE_NAME}-proxy"
+  - name: "image-with-proxy"
     dir: "/app"
     entrypoint: /bin/bash
     env:
