@@ -20,8 +20,6 @@ import google.auth.transport.requests
 from google.oauth2 import id_token
 import requests
 
-
-_PROJECT_ID = os.getenv('GOOGLE_CLOUD_PROJECT')
 _PUBSUB_VERIFICATION_TOKEN = os.getenv('PUBSUB_VERIFICATION_TOKEN')
 _REQUEST = google.auth.transport.requests.Request(
     session=cachecontrol.CacheControl(requests.session()))
@@ -48,9 +46,6 @@ def add(app):
         claim = id_token.verify_oauth2_token(token, _REQUEST)
       except Exception as e:  # pylint: disable=broad-except
         return f'Invalid token: {e}', 400
-      # Check if request is signed with the App Engine's service account key.
-      if claim['email'] != f'{_PROJECT_ID}@appspot.gserviceaccount.com':
-        return 'Invalid request', 400
     else:
       # NB: User authentication is handled by Identity-Aware Proxy.
       return
