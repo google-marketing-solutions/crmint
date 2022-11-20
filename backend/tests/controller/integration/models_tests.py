@@ -31,6 +31,8 @@ class ModelTestCase(controller_utils.ModelTestCase):
         mock.patch.object(task.Task, 'enqueue', autospec=True))
     self.patched_log_message = self.enter_context(
         mock.patch.object(crmint_logging, 'log_message', autospec=True))
+    self.patched_log_pipeline_status = self.enter_context(
+        mock.patch.object(crmint_logging, 'log_pipeline_status', autospec=True))
 
 
 class TestPipelineWithJobs(ModelTestCase):
