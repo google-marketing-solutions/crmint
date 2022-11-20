@@ -29,7 +29,10 @@ resource "google_iap_client" "default" {
 data "google_iam_policy" "iap_users" {
   binding {
     role = "roles/iap.httpsResourceAccessor"
-    members = var.iap_allowed_users
+    members = concat(
+      ["serviceAccount:${google_service_account.pubsub_sa.email}"],
+      var.iap_allowed_users
+    )
   }
 }
 

@@ -58,6 +58,12 @@ resource "google_project_iam_member" "controller_sa--logging-viewer" {
   role    = "roles/logging.viewer"
 }
 
+resource "google_project_iam_member" "jobs_sa--pubsub-publisher" {
+  member  = "serviceAccount:${google_service_account.jobs_sa.email}"
+  project = var.project_id
+  role    = "roles/pubsub.publisher"
+}
+
 resource "google_project_iam_member" "jobs_sa--logging-writer" {
   member  = "serviceAccount:${google_service_account.jobs_sa.email}"
   project = var.project_id

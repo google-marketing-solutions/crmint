@@ -1,21 +1,21 @@
 locals {
   subscriptions = {
     "crmint-3-start-task" = {
-        "path" = "push/start-task",
-        "ack_deadline_seconds" = 600,
-        "minimum_backoff" = 60,  # seconds
+      "endpoint" = "${google_cloud_run_service.jobs_run.status[0].url}/push/start-task",
+      "ack_deadline_seconds" = 600,
+      "minimum_backoff" = 60,  # seconds
     }
 
     "crmint-3-task-finished" = {
-        "path" = "push/task-finished",
-        "ack_deadline_seconds" = 60,
-        "minimum_backoff" = 10,  # seconds
+      "endpoint" = "${google_cloud_run_service.controller_run.status[0].url}/push/task-finished",
+      "ack_deadline_seconds" = 60,
+      "minimum_backoff" = 10,  # seconds
     }
 
     "crmint-3-start-pipeline" = {
-        "path" = "push/start-pipeline",
-        "ack_deadline_seconds" = 60,
-        "minimum_backoff" = 10,  # seconds
+      "endpoint" = "${google_cloud_run_service.controller_run.status[0].url}/push/start-pipeline",
+      "ack_deadline_seconds" = 60,
+      "minimum_backoff" = 10,  # seconds
     }
   }
 }
@@ -49,13 +49,10 @@ resource "google_pubsub_subscription" "subscriptions" {
 
   push_config {
     oidc_token {
+      audience              = google_iap_client.default.client_id
       service_account_email = google_service_account.pubsub_sa.email
     }
 
-    push_endpoint = (
-      length(var.custom_domain) > 0
-      ? "https://${var.custom_domain}/${each.value.path}?token=${random_id.pubsub_verification_token.b64_url}"
-      : "https://${tls_cert_request.default.dns_names[0]}/${each.value.path}?token=${random_id.pubsub_verification_token.b64_url}"
-    )
+    push_endpoint = "${each.value.endpoint}?token=${random_id.pubsub_verification_token.b64_url}"
   }
 }
