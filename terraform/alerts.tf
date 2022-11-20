@@ -53,11 +53,6 @@ resource "google_monitoring_alert_policy" "notify_on_pipeline_status_failed" {
         per_series_aligner   = "ALIGN_COUNT"
       }
     }
-#    alert_strategy {
-#      notification_rate_limit {
-#        period = ...
-#      }
-#    }
   }
   notification_channels = [google_monitoring_notification_channel.email.id]
 }

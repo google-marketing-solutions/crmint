@@ -58,6 +58,12 @@ resource "google_project_iam_member" "controller_sa--logging-viewer" {
   role    = "roles/logging.viewer"
 }
 
+resource "google_project_iam_member" "jobs_sa--logging-writer" {
+  member  = "serviceAccount:${google_service_account.jobs_sa.email}"
+  project = var.project_id
+  role    = "roles/logging.logWriter"
+}
+
 # Needed to access the controller image during migrations from Cloud Build.
 resource "google_project_iam_member" "cloudbuild_managed_sa--object-viewer" {
   member  = "serviceAccount:${google_project_service_identity.cloudbuild_managed_sa.email}"
