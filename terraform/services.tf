@@ -237,7 +237,7 @@ resource "google_cloudbuild_worker_pool" "private" {
   }
 
   depends_on = [
-    google_project_service.aiplatform,
+    google_project_service.apis,
     google_project_service.vpcaccess,
     google_service_networking_connection.private_vpc_connection
   ]
