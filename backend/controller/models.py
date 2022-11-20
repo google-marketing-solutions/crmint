@@ -73,7 +73,6 @@ class Pipeline(extensions.db.Model):
 
   id = Column(Integer, primary_key=True, autoincrement=True)
   name = Column(String(255))
-  emails_for_notifications = Column(String(255))
   status = Column(String(50), nullable=False, default='idle')
   status_changed_at = Column(DateTime)
   jobs = orm.relationship(
@@ -103,12 +102,6 @@ class Pipeline(extensions.db.Model):
   @property
   def has_jobs(self):
     return len(self.jobs) > 0
-
-  @property
-  def recipients(self):
-    if self.emails_for_notifications:
-      return self.emails_for_notifications.split()
-    return []
 
   def assign_attributes(self, attributes):
     for key, value in attributes.items():

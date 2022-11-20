@@ -31,7 +31,7 @@ def load_fixtures(logger_func: Optional[Callable[[str], None]] = None) -> None:
     logger_func: Logger function to display the loading state.
   """
   general_settings = [
-      'client_id', 'client_secret', 'emails_for_notifications',
+      'client_id', 'client_secret',
       'google_ads_authentication_code', 'google_ads_refresh_token',
       'developer_token', 'app_conversion_api_developer_token']
   for setting in general_settings:
