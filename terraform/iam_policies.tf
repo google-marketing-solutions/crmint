@@ -70,6 +70,24 @@ resource "google_project_iam_member" "jobs_sa--logging-writer" {
   role    = "roles/logging.logWriter"
 }
 
+resource "google_project_iam_member" "jobs_sa--bigquery-data-editor" {
+  member  = "serviceAccount:${google_service_account.jobs_sa.email}"
+  project = var.project_id
+  role    = "roles/bigquery.dataEditor"
+}
+
+resource "google_project_iam_member" "jobs_sa--bigquery-job-user" {
+  member  = "serviceAccount:${google_service_account.jobs_sa.email}"
+  project = var.project_id
+  role    = "roles/bigquery.jobUser"
+}
+
+resource "google_project_iam_member" "jobs_sa--bigquery-resource-viewer" {
+  member  = "serviceAccount:${google_service_account.jobs_sa.email}"
+  project = var.project_id
+  role    = "roles/bigquery.resourceViewer"
+}
+
 # Needed to access the controller image during migrations from Cloud Build.
 resource "google_project_iam_member" "cloudbuild_managed_sa--object-viewer" {
   member  = "serviceAccount:${google_project_service_identity.cloudbuild_managed_sa.email}"
