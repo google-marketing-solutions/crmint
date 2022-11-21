@@ -42,10 +42,14 @@ class StagesTest(absltest.TestCase):
         pathlib.Path(constants.STAGE_DIR, 'dummy_project_with_vpc.tfvars.json'))
 
   def test_list_stages_in_default_directory(self):
+    shutil.copyfile(
+        _datafile('dummy_project_with_vpc.tfvars.json'),
+        pathlib.Path(constants.STAGE_DIR, 'other-environment.tfvars.json'))
     runner = testing.CliRunner()
     result = runner.invoke(stages.list_stages, catch_exceptions=False)
     self.assertEqual(result.exit_code, 0, msg=result.output)
-    self.assertEqual(result.output, 'dummy_project_with_vpc\n')
+    self.assertEqual(result.output,
+                     'dummy_project_with_vpc\nother-environment\n')
 
   def test_list_stages_in_custom_directory(self):
     runner = testing.CliRunner()
