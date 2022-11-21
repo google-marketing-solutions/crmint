@@ -366,6 +366,9 @@ def _run_command(section_name: str,
 
   # Resets the state of pipelines and jobs.
   trigger_command(cmd, outputs, debug=debug)
+
+  # Displays the frontend url to improve the user experience.
+  display_frontend_url(stage, debug=debug)
   click.echo(click.style('Done.', fg='magenta', bold=True))
 
 
