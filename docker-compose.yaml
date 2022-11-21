@@ -30,7 +30,7 @@ services:
 
   pubsub:
     build:
-      context: ./docker/pubsub
+      context: ./backend/pubsub
       dockerfile: Dockerfile
 
   jobs:

@@ -10,3 +10,4 @@
 lib
 lib_dev
 htmlcov/
+pubsub/
