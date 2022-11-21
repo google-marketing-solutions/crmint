@@ -35,6 +35,31 @@ from cli.utils.constants import GCLOUD
 _INDENT_PREFIX = '     '
 
 
+def retrieve_user_roles(user_email: str,
+                        stage: shared.StageContext,
+                        debug: bool = False) -> bool:
+  """Returns the list of roles for the given user.
+
+  Args:
+    user_email: Email address to check the owner role on.
+    stage: Stage context.
+    debug: Enables the debug mode on system calls.
+  """
+  project_id = stage.project_id
+  cmd = textwrap.dedent(f"""\
+      {GCLOUD} projects get-iam-policy {project_id} \\
+          --flatten="bindings[].members" \\
+          --filter="bindings.members=user:{user_email}" \\
+          --format="value(bindings.role)"
+      """)
+  _, out, _ = shared.execute_command(
+      'Retrieve user IAM roles',
+      cmd,
+      debug=debug,
+      debug_uses_std_out=False)
+  return out.strip().split('\n')
+
+
 def check_billing_configured(stage: shared.StageContext,
                              debug: bool = False) -> bool:
   """Returns True if billing is configured for the given project.
@@ -282,6 +307,29 @@ def checklist(stage_path: Union[None, str], debug: bool) -> None:
   try:
     stage = shared.fetch_stage_or_default(stage_path, debug=debug)
   except shared.CannotFetchStageError:
+    sys.exit(1)
+
+  # The user needs to be either Owner or Editor with extra roles.
+  user_email = shared.get_user_email(debug=debug)
+  user_roles = retrieve_user_roles(user_email, stage, debug=debug)
+  minimal_roles = [
+      'roles/editor',
+      'roles/iap.admin',
+      'roles/run.admin',
+      'roles/compute.networkAdmin',
+      'roles/resourcemanager.projectIamAdmin',
+  ]
+  user_has_enough_roles_to_deploy = any([
+      'roles/owner' in user_roles,
+      all([role in user_roles for role in minimal_roles])
+  ])
+  if not user_has_enough_roles_to_deploy:
+    missing_roles = set(minimal_roles) - set(user_roles)
+    click.secho(textwrap.indent(textwrap.dedent(f"""\
+        The user "{user_email}" doesn't have required roles to deploy CRMint.
+        Missing IAM roles are: {', '.join(missing_roles)}
+        Please contact your administrator to get all these roles.
+        """), _INDENT_PREFIX), fg='red', bold=True)
     sys.exit(1)
 
   if not check_billing_configured(stage, debug=debug):

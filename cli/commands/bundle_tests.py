@@ -63,7 +63,7 @@ class BundleTest(absltest.TestCase):
             return_value='dummy_project_with_vpc'))
     self.enter_context(
         mock.patch.object(
-            stages,
+            shared,
             'get_user_email',
             autospec=True,
             return_value='user@example.com'))

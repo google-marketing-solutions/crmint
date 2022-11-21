@@ -27,6 +27,30 @@ def _datafile(filename):
 
 class CloudChecklistTest(parameterized.TestCase):
 
+  @parameterized.named_parameters(
+      ('User not project owner', 'roles/editor', 1),
+      ('User is project owner', 'roles/owner', 0),
+      ('User has other role is project owner', 'roles/viewer\nroles/owner', 0),
+      ('User is project editor with missing roles', 'roles/editor\nroles/viewer', 1),
+      ('User is project editor with one missing role', 'roles/editor\nroles/iap.admin\nroles/run.admin\nroles/compute.networkAdmin', 1),
+      ('User is project editor with all extra roles', 'roles/editor\nroles/iap.admin\nroles/run.admin\nroles/compute.networkAdmin\nroles/resourcemanager.projectIamAdmin', 0),
+  )
+  def test_user_with_different_roles(self, user_role, exit_code):
+    side_effect_run = test_helpers.mock_subprocess_result_side_effect(
+        user_role=user_role)
+    self.enter_context(
+        mock.patch.object(
+            subprocess, 'run', autospec=True, side_effect=side_effect_run))
+    self.enter_context(
+        mock.patch.object(shared, 'fetch_stage_or_default', autospec=True))
+    runner = testing.CliRunner()
+    result = runner.invoke(cloud.checklist, catch_exceptions=False)
+    self.assertEqual(result.exit_code, exit_code, msg=result.output)
+    if exit_code == 0:
+      self.assertNotIn('Missing IAM roles are: ', result.output)
+    else:
+      self.assertIn('Missing IAM roles are: ', result.output)
+
   def test_billing_not_configured(self):
     side_effect_run = test_helpers.mock_subprocess_result_side_effect(
         billing_account_name=b'', billing_enabled=False)
@@ -67,6 +91,8 @@ class CloudChecklistTest(parameterized.TestCase):
         result.output,
         textwrap.dedent("""\
             >>>> Checklist
+            ---> Retrieve gcloud current user ✓
+            ---> Retrieve user IAM roles ✓
             ---> Retrieve billing account name ✓
             ---> Check that billing is enabled ✓
             Done.
@@ -180,8 +206,8 @@ class CloudSetupTest(parameterized.TestCase):
             ---> Retrieve digest for image: jobs:latest ✓
                  output
             ---> Generate Terraform plan ✓
-                 Cloud Run Service \(3\)
-                 Cloud Run Service IAM Member \(3\)
+                 Cloud Run Service \\(3\\)
+                 Cloud Run Service IAM Member \\(3\\)
                  (.|\\n)*
             ---> Apply Terraform plan ✓
             ---> CRMint UI ✓

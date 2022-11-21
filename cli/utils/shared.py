@@ -204,6 +204,21 @@ def check_variables():
     os.environ['GOOGLE_CLOUD_SDK'] = out.decode('utf-8').strip()
 
 
+def get_user_email(debug: bool = False) -> str:
+  """Returns the user email configured in the gcloud config.
+
+  Args:
+    debug: Enables the debug mode on system calls.
+  """
+  cmd = f'{GCLOUD} config list --format="value(core.account)"'
+  _, out, _ = execute_command(
+      'Retrieve gcloud current user',
+      cmd,
+      debug=debug,
+      debug_uses_std_out=False)
+  return out.strip()
+
+
 def get_region(project_id: ProjectId, debug: bool = False) -> str:
   """Returns a Cloud Scheduler compatible region.
 

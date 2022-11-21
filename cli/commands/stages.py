@@ -28,21 +28,6 @@ from cli.utils import shared
 from cli.utils.constants import GCLOUD
 
 
-def get_user_email(debug: bool = False) -> str:
-  """Returns the user email configured in the gcloud config.
-
-  Args:
-    debug: Enables the debug mode on system calls.
-  """
-  cmd = f'{GCLOUD} config list --format="value(core.account)"'
-  _, out, _ = shared.execute_command(
-      'Retrieve gcloud current user',
-      cmd,
-      debug=debug,
-      debug_uses_std_out=False)
-  return out.strip()
-
-
 @click.group()
 def cli():
   """Manage multiple instances of CRMint."""
@@ -70,7 +55,7 @@ def create(stage_path: Union[None, str], debug: bool) -> None:
     shared.activate_apis(debug=debug)
     project_id = shared.get_current_project_id(debug=debug)
     region = settings.REGION or shared.get_region(project_id, debug=debug)
-    gcloud_account_email = get_user_email(debug=debug)
+    gcloud_account_email = shared.get_user_email(debug=debug)
     context = shared.default_stage_context(
         project_id=project_id,
         region=region,
