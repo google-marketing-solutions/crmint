@@ -22,7 +22,12 @@ jobs:
           pip install -r tests/requirements.txt
       - name: Run the tests
         working-directory: backend
-        run: pytest tests/common tests/controller --cov=. --cov-report=xml
+        run: |
+          pytest tests/common tests/controller \
+              --cov=common \
+              --cov=controller \
+              --cov=controller_app.py \
+              --cov-report=xml
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3
         with:
@@ -46,7 +51,12 @@ jobs:
       # Run the tests
       - name: Run the tests
         working-directory: backend
-        run: pytest tests/common tests/jobs --cov=. --cov-report=xml
+        run: |
+          pytest tests/common tests/jobs \
+              --cov=common \
+              --cov=jobs \
+              --cov=jobs_app.py \
+              --cov-report=xml
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3
         with:
