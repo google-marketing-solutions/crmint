@@ -5,6 +5,7 @@ import enum
 import json
 import re
 import string
+import time
 from typing import Callable, Mapping, NewType, Optional, Type, TypeVar, Union
 
 from google.api_core import retry
@@ -412,6 +413,9 @@ def run_audience_operations_ga4(
   """
   progress_callback = progress_callback or _null_progress_callback
   for op in operations:
+    # Wait 1 second between operations to stay within Analytics Admin API quota.
+    # https://developers.google.com/analytics/devguides/config/admin/v1/quotas
+    time.sleep(1)
     if isinstance(op, AudienceOperationInsert):
       request = ga_client.properties().audiences().create(
           parent=f'properties/{ga_property_id}',
