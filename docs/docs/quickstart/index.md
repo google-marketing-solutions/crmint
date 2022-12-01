@@ -14,7 +14,7 @@ type: markdown
 
 ### Prerequisites
 
-*   About 25 mins of time.
+*   About 10 mins of time.
 *   A Google Account, for use on the Google Cloud Platform.
 
 ## Create a project on Google Cloud
@@ -31,16 +31,17 @@ type: markdown
 
 1.  Open a Cloud Shell
 
-    <a id='cloudshell-url' class="gray-image" target="_blank" data-href="https://console.cloud.google.com/cloudshell/editor?project=placeholder&cloudshell_git_repo=https%3A%2F%2Fgithub.com%2Fgoogle%2Fcrmint&cloudshell_git_branch=master&&cloudshell_tutorial=docsource%2Fdocs%2Fquickstart%2Fcloudshell.md&cloudshell_open_in_editor=README.md">
+    <a id="cloudshell-url" class="gray-image" target="_blank" data-href="https://console.cloud.google.com/cloudshell/editor?project=placeholder&amp;cloudshell_git_repo=https%3A%2F%2Fgithub.com%2Fgoogle%2Fcrmint&amp;cloudshell_git_branch=master&amp;cloudshell_tutorial=docs%2Fdocs%2Fquickstart%2Fcloudshell.md&amp;show=terminal">
     <img alt="Open in Cloud Shell" src ="https://gstatic.com/cloudssh/images/open-btn.svg" style="width:250px;"></a>
 
 1.  Follow the <a href="cloudshell.md" target="_blank">instructions</a> which appear in the tutorial within the Cloud Shell environment, on the right side-panel.
 
-1.  Once this script has completed executing, CRMint has been installed!
-
 ## Verifying the installation
 
-1.  Launch the CRMint Application on your newly-created instance at: <a href="https://xxxxxx.appspot.com" id="crm-launch" target="_blank">&lt;Project ID not set&gt;</a>
+1.  Launch the CRMint Application using the UI URL displayed at the end of the installation command.
+
+    > If you didn't use a custom domain, the default address will have this
+    > format `crmint.<YOUR_LOAD_BALANCER_IP_ADDRESS>.nip.io`.
 
 1.  You should see a CRMint control panel, showing no pipelines.
 
@@ -48,7 +49,8 @@ type: markdown
 
 ## What's next
 
+- [Create your first CRMint pipeline with BigQuery ML](../quickstart/tutorial.html)
+- [Run the Instant-BQML tool](https://instant-bqml.appspot.com/) to produce
+  Machine-Learning pipelines to process Google Analytics data
 - Read a full explanation of how CRMint works in [What is CRMint?](../guides/)
   and [CRMint Concepts](../guides/concepts.html)
-- CRMint pipeline concepts
-- [Create your first CRMint pipeline with BigQuery ML](../quickstart/tutorial.html)

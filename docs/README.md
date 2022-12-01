@@ -6,8 +6,10 @@ To test the documentation locally:
 
     ```shell
     $ gem install bundler
-    $ echo "source 'https://rubygems.org'
-    $ gem 'github-pages', group: :jekyll_plugins" > Gemfile
+    $ cat <<EOT > Gemfile
+    source 'https://rubygems.org'
+    gem 'github-pages', group: :jekyll_plugins
+    EOT
     $ bundle install
     ```
 

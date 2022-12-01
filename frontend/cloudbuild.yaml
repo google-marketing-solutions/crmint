@@ -1,0 +1,60 @@
+steps:
+  # Pulls the latest images to enable caching.
+  - name: 'gcr.io/cloud-builders/docker'
+    env:
+      - 'PROJECT_ID=$PROJECT_ID'
+    script: |
+      #!/usr/bin/bash
+      docker pull europe-docker.pkg.dev/${PROJECT_ID}/crmint/frontend-base:latest || true
+      docker pull europe-docker.pkg.dev/${PROJECT_ID}/crmint/frontend-builder:latest || true
+      docker pull europe-docker.pkg.dev/${PROJECT_ID}/crmint/frontend:latest || true
+
+  # Builds the base image to cache it later on
+  - name: 'gcr.io/cloud-builders/docker'
+    args: [
+      'build',
+      '--cache-from', 'europe-docker.pkg.dev/${PROJECT_ID}/crmint/frontend-base:latest',
+      '--build-arg', 'BUILDKIT_INLINE_CACHE=1',
+      '--target', 'base',
+      '-t', 'europe-docker.pkg.dev/${PROJECT_ID}/crmint/frontend-base:latest',
+      '-f', 'Dockerfile',
+      '.',
+    ]
+    env:
+      - 'DOCKER_BUILDKIT=1'
+
+  # Builds the builder image to cache it later on
+  - name: 'gcr.io/cloud-builders/docker'
+    args: [
+      'build',
+      '--cache-from', 'europe-docker.pkg.dev/${PROJECT_ID}/crmint/frontend-base:latest',
+      '--cache-from', 'europe-docker.pkg.dev/${PROJECT_ID}/crmint/frontend-builder:latest',
+      '--build-arg', 'BUILDKIT_INLINE_CACHE=1',
+      '--target', 'builder',
+      '-t', 'europe-docker.pkg.dev/${PROJECT_ID}/crmint/frontend-builder:latest',
+      '-f', 'Dockerfile',
+      '.',
+    ]
+    env:
+      - 'DOCKER_BUILDKIT=1'
+
+  # Builds the app image.
+  - name: 'gcr.io/cloud-builders/docker'
+    args: [
+      'build',
+      '--cache-from', 'europe-docker.pkg.dev/${PROJECT_ID}/crmint/frontend-base:latest',
+      '--cache-from', 'europe-docker.pkg.dev/${PROJECT_ID}/crmint/frontend-builder:latest',
+      '--cache-from', 'europe-docker.pkg.dev/${PROJECT_ID}/crmint/frontend:latest',
+      '--build-arg', 'BUILDKIT_INLINE_CACHE=1',
+      '-t', 'europe-docker.pkg.dev/${PROJECT_ID}/crmint/frontend',
+      '-f', 'Dockerfile',
+      '.',
+    ]
+    env:
+      - 'DOCKER_BUILDKIT=1'
+
+images: [
+  'europe-docker.pkg.dev/${PROJECT_ID}/crmint/frontend-base',
+  'europe-docker.pkg.dev/${PROJECT_ID}/crmint/frontend-builder',
+  'europe-docker.pkg.dev/${PROJECT_ID}/crmint/frontend',
+]

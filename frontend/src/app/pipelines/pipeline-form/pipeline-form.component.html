@@ -23,13 +23,6 @@
             <input matInput placeholder="Name" formControlName="name">
           </mat-form-field>
         </div>
-        <div class="crmi-form-group">
-          <label class="crmi-form-label">Emails for notifications</label>
-          <mat-form-field floatPlaceholder="never">
-            <textarea matInput cdkTextareaAutosize placeholder="Emails for notifications" formControlName="emails_for_notifications"></textarea>
-            <mat-hint>One email on line</mat-hint>
-          </mat-form-field>
-        </div>
         <br/>
         <div class="crmi-form-offset crmi-form-group-checkbox" *ngIf="pipeline.has_jobs">
           <mat-checkbox formControlName="run_on_schedule">Run on Schedule</mat-checkbox>

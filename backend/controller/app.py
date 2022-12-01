@@ -38,6 +38,8 @@ def create_app(config: Optional[dict[str, Any]] = None) -> Flask:
     The configured Flask application.
   """
   app = Flask(__name__)
+  app.config['SQLALCHEMY_ECHO'] = bool(int(os.getenv('SQLALCHEMY_ECHO', '0')))
+  app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
   app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv(
       'DATABASE_URI',
       'mysql+mysqlconnector://crmint:crmint@db:3306/crmint_development')

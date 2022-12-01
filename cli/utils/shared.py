@@ -14,16 +14,15 @@
 
 """Package for shared methods among the commands."""
 
-import importlib
+import json
 import os
 import pathlib
-import shutil
+import re
 import subprocess
 import sys
-import tempfile
 import textwrap
 import types
-from typing import Any, Callable, NewType, Optional, Tuple, Union
+from typing import Callable, NewType, Tuple, Union
 
 import click
 
@@ -128,6 +127,21 @@ def get_current_project_id(debug: bool = False) -> ProjectId:
   return out.strip()
 
 
+def activate_apis(debug: bool = False) -> None:
+  """Activates Cloud Services APIs.
+
+  Args:
+    debug: Flag to enable debug mode outputs.
+  """
+  services = [
+      'run.googleapis.com',
+      'cloudscheduler.googleapis.com',
+  ]
+  formatted_services = ' '.join(services)
+  cmd = f'{GCLOUD} services enable {formatted_services}'
+  execute_command('Activate Cloud services', cmd, debug=debug)
+
+
 def get_default_stage_path(debug: bool = False) -> pathlib.Path:
   """Returns the default stage file path, derived from the GCP project name.
 
@@ -136,58 +150,52 @@ def get_default_stage_path(debug: bool = False) -> pathlib.Path:
   """
   project_id = get_current_project_id(debug=debug)
   click.echo(textwrap.indent(f'Project ID found: {project_id}', _INDENT_PREFIX))
-  return pathlib.Path(constants.STAGE_DIR, f'{project_id}.py')
+  return pathlib.Path(constants.STAGE_DIR, f'{project_id}.tfvars.json')
 
 
 def load_stage(stage_path: pathlib.Path) -> StageContext:
-  spec = importlib.util.spec_from_file_location('loaded_stage', stage_path)
-  module = importlib.util.module_from_spec(spec)
-  spec.loader.exec_module(module)
-  context = dict(
-      (x, getattr(module, x)) for x in dir(module) if not x.startswith('__'))
+  """Loads stage by interpreting Terraform variables as Python code."""
+  with open(stage_path, 'rb') as fp:
+    context = json.load(fp)
   stage = types.SimpleNamespace(**context)
-  if not hasattr(stage, 'spec_version'):
-    # NOTE: `spec_version` flag was not in the v2 template,
-    #       which is why it's defined as the default value.
-    stage.spec_version = constants.STAGE_VERSION_2_0
   return stage
 
 
 def create_stage_file(stage_path: pathlib.Path, context: StageContext) -> None:
   """Saves the given context into the given path file."""
-  content = constants.STAGE_FILE_TEMPLATE.format(ctx=context)
+  if hasattr(context, 'stage_path'):
+    del context.stage_path
   with open(stage_path, 'w+') as fp:
-    fp.write(content)
+    json.dump(context.__dict__, fp, indent=2)
 
 
-def before_hook(stage: StageContext) -> StageContext:
-  """Adds variables to the stage context."""
-  if not stage.workdir:
-    # NOTE: We voluntarily won't delete the content of this temporary directory
-    #       so that debugging can be done. In addition, the directory size
-    #       is guaranteed to always be small.
-    stage.workdir = tempfile.mkdtemp()
+class CannotFetchStageError(Exception):
+  """Raised when the stage file cannot be fetched."""
 
-  stage.db_instance_conn_name = '{}:{}:{}'.format(
-      stage.database_project,
-      stage.database_region,
-      stage.database_instance_name)
 
-  stage.cloudsql_dir = '/tmp/cloudsql'
+def fetch_stage_or_default(
+    stage_path: Union[None, pathlib.Path],
+    debug: bool = False) -> StageContext:
+  """Returns the loaded stage context.
 
-  stage.cloud_db_uri = 'mysql+mysqlconnector://{}:{}@/{}?unix_socket=/cloudsql/{}'.format(
-      stage.database_username,
-      stage.database_password,
-      stage.database_name,
-      stage.db_instance_conn_name)
+  Args:
+    stage_path: Stage path to load. If None a default stage path is used.
+    debug: Enables the debug mode on system calls.
 
-  stage.local_db_uri = 'mysql+mysqlconnector://{}:{}@/{}?unix_socket={}/{}'.format(
-      stage.database_username,
-      stage.database_password,
-      stage.database_name,
-      stage.cloudsql_dir,
-      stage.db_instance_conn_name)
+  Raises:
+    CannotFetchStageError: if the stage file can be fetched.
+  """
+  if not stage_path:
+    stage_path = get_default_stage_path(debug=debug)
+  if not stage_path.exists():
+    click.secho(f'Stage file not found at path: {stage_path}',
+                fg='red',
+                bold=True)
+    click.secho('Fix this by running: $ crmint stages create', fg='green')
+    raise CannotFetchStageError(f'Not found at: {stage_path}')
 
+  stage = load_stage(stage_path)
+  stage.stage_path = stage_path
   return stage
 
 
@@ -202,113 +210,129 @@ def check_variables():
     os.environ['GOOGLE_CLOUD_SDK'] = out.decode('utf-8').strip()
 
 
-def copy_tree(
-    src: str,
-    dst: str,
-    ignore: Optional[Callable[[Any, list[str]], set[str]]] = None) -> None:
-  """Copies an entire directory tree to a new location.
-
-  Our implementation mainly differs from `shutil.copytree` because it won't
-  preserve permissions from source directories.
+def get_user_email(debug: bool = False) -> str:
+  """Returns the user email configured in the gcloud config.
 
   Args:
-    src: The source directory to copy files from.
-    dst: The destination directory to copy files to.
-    ignore: A callable built from `shutil.ignore_patterns(*patterns)`.
+    debug: Enables the debug mode on system calls.
   """
-  if not os.path.isdir(src):
-    raise ValueError(f'Cannot copy tree "{src}": not a directory')
-
-  names = os.listdir(src)
-  if ignore is not None:
-    ignored_names = ignore(src, names)
-  else:
-    ignored_names = set()
-
-  os.makedirs(dst, exist_ok=True)
-
-  for name in names:
-    if name in ignored_names:
-      continue
-    src_name = os.path.join(src, name)
-    dst_name = os.path.join(dst, name)
-    if os.path.isdir(src_name):
-      copy_tree(src_name, dst_name, ignore=ignore)
-    else:
-      shutil.copyfile(src_name, dst_name)
+  cmd = f'{GCLOUD} config list --format="value(core.account)"'
+  _, out, _ = execute_command(
+      'Retrieve gcloud current user',
+      cmd,
+      debug=debug,
+      debug_uses_std_out=False)
+  return out.strip()
 
 
-def get_regions(project_id: ProjectId) -> Tuple[str, str]:
-  """Returns (region, sql_region) from a given GCP project.
+def get_region(project_id: ProjectId, debug: bool = False) -> str:
+  """Returns a Cloud Scheduler compatible region.
 
-  If no App Engine has been deployed before, prompt the user with choices.
+  Cloud Scheduler is the limiting factor for picking up a cloud region as it
+  is not available in all Cloud Run available regions.
 
   Args:
     project_id: GCP project identifier.
+    debug: Flag to enable debug mode outputs.
   """
-  cmd = textwrap.dedent(f"""\
-      {GCLOUD} app describe --verbosity critical \\
-          --project={project_id} | grep locationId
-      """)
-  status, out, _ = execute_command(
-      'Get App Engine region',
+  cmd = f'{GCLOUD} scheduler locations list --format="value(locationId)"'
+  _, out, _ = execute_command(
+      'Get available Compute regions',
       cmd,
-      report_empty_err=False,
-      debug_uses_std_out=False)
-  if status == 0:  # App Engine app had already been deployed in some region.
-    region = out.strip().split()[1]
-  else:  # Get the list of available App Engine regions and prompt user.
-    click.echo('     No App Engine app has been deployed yet.')
-    cmd = f'{GCLOUD} app regions list --format="value(region)"'
-    _, out, _ = execute_command(
-        'Get available App Engine regions', cmd, debug_uses_std_out=False)
-    regions = out.strip().split('\n')
-    for i, region in enumerate(regions):
-      click.echo(f'{i + 1}) {region}')
-    i = -1
-    while i < 0 or i >= len(regions):
-      i = click.prompt(
-          'Enter an index of the region to deploy CRMint in', type=int) - 1
-    region = regions[i].strip()
-  sql_region = region if region[-1].isdigit() else f'{region}1'
-  return region, sql_region
+      debug_uses_std_out=False,
+      debug=debug)
+  regions = out.strip().split('\n')
+  for i, region in enumerate(regions):
+    click.echo(f'{i + 1}) {region}')
+  i = -1
+  while i < 0 or i >= len(regions):
+    i = click.prompt(
+        'Enter an index of the region to deploy CRMint in', type=int) - 1
+  region = regions[i].strip()
+  return region
 
 
-def default_stage_context(project_id: ProjectId) -> StageContext:
+def default_stage_context(*,
+                          project_id: ProjectId,
+                          region: str,
+                          gcloud_account_email: str) -> StageContext:
   """Returns a stage context initialized with default settings.
 
   Args:
     project_id: GCP project identifier.
+    region: GCP region (compatible with Cloud Run and Cloud Scheduler).
+    gcloud_account_email: Email account running CloudShell.
   """
-  region, sql_region = get_regions(project_id)
-  gae_app_title = ' '.join(project_id.split('-')).title()
+  app_title = settings.APP_TITLE or ' '.join(project_id.split('-')).title()
   namespace = types.SimpleNamespace(
+      app_title=app_title,
+      notification_sender_email=gcloud_account_email,
+      iap_support_email=gcloud_account_email,
+      iap_allowed_users=[f'user:{gcloud_account_email}'],
       project_id=project_id,
-      project_region=region,
-      workdir=f'/tmp/{project_id}',
-      database_name=settings.DATABASE_NAME,
-      database_region=sql_region,
-      database_tier=settings.DATABASE_TIER,
-      database_username=settings.DATABASE_USER,
-      database_password=settings.DATABASE_PASSWORD,
-      database_instance_name=settings.DATABASE_INSTANCE_NAME,
-      database_backup_enabled=settings.DATABASE_BACKUP_ENABLED,
-      database_ha_type=settings.DATABASE_HA_TYPE,
-      database_project=settings.DATABASE_PROJECT or project_id,
+      region=region,
       use_vpc=settings.USE_VPC,
-      network=settings.NETWORK,
-      subnet_region=sql_region,
-      connector=settings.CONNECTOR,
-      connector_subnet='crmint-{}-connector-subnet'.format(region),
-      connector_cidr=settings.CONNECTOR_CIDR,
-      connector_min_instances=settings.CONNECTOR_MIN_INSTANCES,
-      connector_max_instances=settings.CONNECTOR_MAX_INSTANCES,
-      connector_machine_type=settings.CONNECTOR_MACHINE_TYPE,
-      network_project=settings.NETWORK_PROJECT or project_id,
-      gae_project=settings.GAE_PROJECT or project_id,
-      gae_region=region,
-      gae_app_title=settings.GAE_APP_TITLE or gae_app_title,
-      pubsub_verification_token=settings.PUBSUB_VERIFICATION_TOKEN,
-      notification_sender_email=f'noreply@{project_id}.appspotmail.com',
-      enabled_stages=False)
+      database_tier=settings.DATABASE_TIER,
+      database_availability_type=settings.DATABASE_HA_TYPE,
+      frontend_image=settings.FRONTEND_IMAGE,
+      controller_image=settings.CONTROLLER_IMAGE,
+      jobs_image=settings.JOBS_IMAGE)
   return StageContext(namespace)
+
+
+def detect_settings_envs():
+  """Returns the list of env variables overriding settings defaults."""
+  settings_envs = [varname for varname in os.environ if hasattr(settings, varname)]
+  click.secho(f'---> Detect env variables', fg='blue', bold=True, nl=True)
+  for varname in settings_envs:
+    value = os.getenv(varname)
+    click.echo(textwrap.indent(f'{varname}={value}', _INDENT_PREFIX))
+
+
+def resolve_image_with_digest(image_uri: str, debug: bool = False):
+  """Returns the image with its SHA256 digest, given an image URI.
+
+  Args:
+    image_uri: Fully-qualified image URI.
+    debug: Flag to enable debug mode outputs.
+  """
+  cmd = textwrap.dedent(f"""\
+      {GCLOUD} --verbosity=none container images describe {image_uri} \\
+          --format="value(image_summary.fully_qualified_digest)"
+      """)
+  _, out, _ = execute_command(
+      f'Retrieve digest for image: {image_uri}',
+      cmd,
+      debug=debug,
+      debug_uses_std_out=False)
+  image_with_digest = out.strip()
+  click.echo(textwrap.indent(image_with_digest, _INDENT_PREFIX))
+  return image_with_digest
+
+
+def list_available_tags(image_uri: str, debug: bool = False):
+  """Returns a list of available tags to update CRMint to.
+
+  Args:
+    image_uri: Image URI (with or without a tag)
+    debug: Flag to enable debug mode outputs.
+  """
+  image_uri_without_tag = image_uri.split(':')[0]
+  cmd = textwrap.dedent(f"""\
+      {GCLOUD} container images list-tags {image_uri_without_tag} \\
+          --filter "tags:*" \\
+          --format="value(tags)" \\
+          --sort-by=~timestamp
+      """)
+  _, out, _ = execute_command(
+      f'List available tags for CRMint',
+      cmd,
+      debug=debug,
+      debug_uses_std_out=False)
+  tags = out.strip().replace('\n', ',').split(',')
+  return tags
+
+
+def filter_versions_from_tags(tags: list[str]) -> list[str]:
+  """Filters a list of tags to return a list of versions."""
+  return [tag for tag in tags if re.fullmatch(r'[\d\.]+', tag)]

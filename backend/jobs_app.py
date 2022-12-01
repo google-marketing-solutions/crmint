@@ -33,6 +33,16 @@ app = Flask(__name__)
 auth_filter.add(app)
 
 
+@app.route('/liveness_check', methods=['GET'])
+def liveness_check():
+  return 'OK'
+
+
+@app.route('/readiness_check', methods=['GET'])
+def readiness_check():
+  return 'OK'
+
+
 @app.route('/api/workers', methods=['GET'])
 def workers_list():
   return (json.jsonify(list(finder.WORKERS_MAPPING.keys())),
@@ -122,6 +132,6 @@ def shutdown_handler(sig: int, frame: types.FrameType) -> None:
 if __name__ == '__main__':
   signal.signal(signal.SIGINT, shutdown_handler)  # Handles Ctrl-C locally.
   app.run(host='0.0.0.0', port=8081, debug=True)
-else:
+elif not app.config.get('DEBUG', False):
   # Handles App Engine instance termination.
   signal.signal(signal.SIGTERM, shutdown_handler)

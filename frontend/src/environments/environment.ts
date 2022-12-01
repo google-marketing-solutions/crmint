@@ -19,6 +19,5 @@
 
 export const environment = {
   production: false,
-  app_title: 'Local',
-  enabled_stages: true
+  enabled_stages: false
 };

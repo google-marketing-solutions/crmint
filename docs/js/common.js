@@ -25,7 +25,6 @@ $('#project-id').on('input',  function() {
   var projectIdValue = projectId.value;
   var anchorTagId = projectId.getAttribute('data-target-id');
   var anchorTag = document.getElementById(anchorTagId);
-  var launchTag = document.getElementById('crm-launch');
 
   /*
    * A project ID must be 6 to 30 lowercase letters, digits, or hyphens.
@@ -44,13 +43,9 @@ $('#project-id').on('input',  function() {
     ].join('');
     anchorTag.href = newUrl;
     anchorTag.classList.remove('gray-image');
-    launchTag.href = 'https://' + projectIdValue + '.appspot.com';
-    launchTag.innerHTML = projectIdValue + '.appspot.com';
   } else {
     anchorTag.removeAttribute('href');
-    launchTag.removeAttribute('href');
     anchorTag.classList.add('gray-image');
-    launchTag.innerHTML = '&lt;Project ID not set&gt;';
   }
 });
 

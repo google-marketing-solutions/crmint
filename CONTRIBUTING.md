@@ -22,6 +22,34 @@ use GitHub pull requests for this purpose. Consult
 [GitHub Help](https://help.github.com/articles/about-pull-requests/) for more
 information on using pull requests.
 
+## Run local version of CRMint
+
+**Initialize the local database**
+
+```sh
+$ docker-compose run controller python -m flask db upgrade
+$ docker-compose run controller python -m flask db-seeds
+$ docker-compose run controller python -m python setup_pubsub.py
+```
+
+**Run all services and open the frontend**
+
+```sh
+$ docker-compose up
+$ open http://localhost:4200
+```
+
+You can now edit files locally and the Flask services will reload appropriately.
+
+## Running tests locally
+
+Install the [act](https://github.com/nektos/act) tool to run Github Actions
+locally.
+
+```sh
+$ act -j run-cli-tests --reuse --bind
+```
+
 ## Community Guidelines
 
 This project follows [Google's Open Source Community

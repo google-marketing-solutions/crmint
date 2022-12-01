@@ -37,14 +37,19 @@ class StagesTest(absltest.TestCase):
     tmp_stage_dir = self.create_tempdir('stage_dir')
     self.enter_context(
         mock.patch.object(constants, 'STAGE_DIR', tmp_stage_dir.full_path))
-    shutil.copyfile(_datafile('dummy_stage_v3.py'),
-                    pathlib.Path(constants.STAGE_DIR, 'dummy_stage_v3.py'))
+    shutil.copyfile(
+        _datafile('dummy_project_with_vpc.tfvars.json'),
+        pathlib.Path(constants.STAGE_DIR, 'dummy_project_with_vpc.tfvars.json'))
 
   def test_list_stages_in_default_directory(self):
+    shutil.copyfile(
+        _datafile('dummy_project_with_vpc.tfvars.json'),
+        pathlib.Path(constants.STAGE_DIR, 'other-environment.tfvars.json'))
     runner = testing.CliRunner()
     result = runner.invoke(stages.list_stages, catch_exceptions=False)
     self.assertEqual(result.exit_code, 0, msg=result.output)
-    self.assertEqual(result.output, 'dummy_stage_v3\n')
+    self.assertEqual(result.output,
+                     'dummy_project_with_vpc\nother-environment\n')
 
   def test_list_stages_in_custom_directory(self):
     runner = testing.CliRunner()
@@ -62,7 +67,7 @@ class StagesTest(absltest.TestCase):
             shared,
             'get_current_project_id',
             autospec=True,
-            return_value='dummy_stage_v3'))
+            return_value='dummy_project_with_vpc'))
     runner = testing.CliRunner()
     result = runner.invoke(stages.create, catch_exceptions=False)
     self.assertEqual(result.exit_code, 0, msg=result.output)
@@ -74,96 +79,135 @@ class StagesTest(absltest.TestCase):
             shared,
             'get_current_project_id',
             autospec=True,
-            return_value='new_dummy_stage'))
+            return_value='new_dummy_project'))
     self.enter_context(
         mock.patch.object(
             shared,
-            'get_regions',
+            'get_user_email',
             autospec=True,
-            return_value=('europe-west', 'europe-west1')))
-    with self.subTest('Creates the stage file'):
-      runner = testing.CliRunner()
-      result = runner.invoke(stages.create, catch_exceptions=False)
-      self.assertEqual(result.exit_code, 0, msg=result.output)
-      self.assertRegex(result.output,
-                       r'Stage file created\: .*new_dummy_stage.py$')
-    with self.subTest('Validates content of the stage file'):
-      stage_path = shared.get_default_stage_path()
-      stage = shared.load_stage(stage_path)
-      expected_context = shared.default_stage_context(
-          shared.ProjectId('new_dummy_stage'))
-      expected_context.spec_version = 'v3.0'
-      self.assertEqual(stage.__dict__, expected_context.__dict__)
+            return_value='user@example.com'))
+    self.enter_context(
+        mock.patch.object(
+            shared,
+            'get_region',
+            autospec=True,
+            return_value='europe-west1'))
+    runner = testing.CliRunner()
+    result = runner.invoke(stages.create, catch_exceptions=False)
+    self.assertEqual(result.exit_code, 0, msg=result.output)
+    self.assertRegex(result.output,
+                     r'Stage file created\: .*new_dummy_project.tfvars.json$')
 
-  def test_migrate_stage_from_v2_to_v3(self):
-    self.enter_context(
-        mock.patch.object(
-            shared,
-            'get_regions',
-            autospec=True,
-            return_value=('us-central', 'us-central1')))
+  def test_migrate_shows_deprecation(self):
+    runner = testing.CliRunner()
+    result = runner.invoke(stages.migrate, catch_exceptions=False)
+    self.assertEqual(result.exit_code, 0, msg=result.output)
+    self.assertRegex(result.output, r'Deprecated')
+
+  def test_can_update_stage_file_to_new_version(self):
     self.enter_context(
         mock.patch.object(
             shared,
             'get_current_project_id',
             autospec=True,
-            return_value='dummy_stage_v2'))
-    shutil.copyfile(_datafile('dummy_stage_v2.py'),
-                    pathlib.Path(constants.STAGE_DIR, 'dummy_stage_v2.py'))
-    with self.subTest('Migrates the v2 stage to v3'):
-      runner = testing.CliRunner()
-      result = runner.invoke(stages.migrate, catch_exceptions=False)
-      self.assertEqual(result.exit_code, 0, msg=result.output)
-      self.assertRegex(result.output, r'Successfully migrated stage file at: ')
-    with self.subTest('Validates content of the migrate stage file'):
-      stage_path = shared.get_default_stage_path()
-      stage = shared.load_stage(stage_path)
-      self.assertEqual(stage.spec_version, 'v3.0')
-      self.assertEqual(stage.project_id, 'crmint-dummy-v2')
-      self.assertEqual(stage.project_region, 'europe-west')
-      self.assertEqual(stage.workdir, '/tmp/crmint-dummy-v2')
-      self.assertEqual(stage.database_project, 'crmint-dummy-v2')
-      self.assertEqual(stage.database_region, 'europe-west1')
-      self.assertEqual(stage.database_tier, 'db-g2-small')
-      self.assertEqual(stage.database_name, 'old_name')
-      self.assertEqual(stage.database_username, 'old_username')
-      self.assertEqual(stage.database_password, 'old_password')
-      self.assertEqual(stage.database_instance_name, 'old_instance_name')
-      self.assertEqual(stage.notification_sender_email,
-                       'noreply@crmint-dummy-v2.appspotmail.com')
-      self.assertEqual(stage.gae_app_title, 'Crmint Dummy v2')
-
-  def test_migrate_latest_spec_does_nothing(self):
+            return_value='dummy_project_with_vpc'))
     self.enter_context(
         mock.patch.object(
             shared,
-            'get_regions',
+            'list_available_tags',
             autospec=True,
-            return_value=('us-central', 'us-central1')))
+            return_value=['3.2', '3.1', '3.0']))
+    runner = testing.CliRunner()
+    result = runner.invoke(
+        stages.update,
+        args=[f'--version=3.2'],
+        catch_exceptions=False)
+    with self.subTest('Validates command line output'):
+      self.assertEqual(0, result.exit_code, msg=result.output)
+      self.assertIn('Stage updated to version: 3.2', result.output)
+    with self.subTest('Validates content of new stage file'):
+      updated_stage = shared.load_stage(
+          pathlib.Path(constants.STAGE_DIR,
+          'dummy_project_with_vpc.tfvars.json'))
+      self.assertEqual(
+          updated_stage.frontend_image.split(':')[1], '3.2')
+      self.assertEqual(
+          updated_stage.controller_image.split(':')[1], '3.2')
+      self.assertEqual(
+          updated_stage.jobs_image.split(':')[1], '3.2')
+
+  def test_update_to_latest_version_if_none_specified(self):
     self.enter_context(
         mock.patch.object(
             shared,
             'get_current_project_id',
             autospec=True,
-            return_value='dummy_stage_v3'))
-    shared.create_stage_file(
-        pathlib.Path(constants.STAGE_DIR, 'dummy_stage_v2.py'),
-        shared.default_stage_context(shared.ProjectId('id')))
-    stage_path = shared.get_default_stage_path()
-    stage = shared.load_stage(stage_path)
-    with self.subTest('Before migration spec version'):
-      stage_path = shared.get_default_stage_path()
-      stage = shared.load_stage(stage_path)
-      self.assertEqual(stage.spec_version, constants.LATEST_STAGE_VERSION)
-    with self.subTest('Migrate does nothing'):
-      runner = testing.CliRunner()
-      result = runner.invoke(stages.migrate, catch_exceptions=False)
-      self.assertEqual(result.exit_code, 0, msg=result.output)
-      self.assertRegex(result.output, r'Already latest version detected: ')
-    with self.subTest('After migration spec version'):
-      stage_path = shared.get_default_stage_path()
-      stage = shared.load_stage(stage_path)
-      self.assertEqual(stage.spec_version, constants.LATEST_STAGE_VERSION)
+            return_value='dummy_project_with_vpc'))
+    self.enter_context(
+        mock.patch.object(
+            shared,
+            'list_available_tags',
+            autospec=True,
+            return_value=['3.3', '3.2', '3.1', '3.0']))
+    runner = testing.CliRunner()
+    result = runner.invoke(stages.update, catch_exceptions=False)
+    with self.subTest('Validates command line output'):
+      self.assertEqual(0, result.exit_code, msg=result.output)
+      self.assertIn('Stage updated to version: 3.3', result.output)
+    with self.subTest('Validates content of new stage file'):
+      updated_stage = shared.load_stage(
+          pathlib.Path(constants.STAGE_DIR,
+          'dummy_project_with_vpc.tfvars.json'))
+      self.assertEqual(
+          updated_stage.frontend_image.split(':')[1], '3.3')
+      self.assertEqual(
+          updated_stage.controller_image.split(':')[1], '3.3')
+      self.assertEqual(
+          updated_stage.jobs_image.split(':')[1], '3.3')
+
+  def test_suggest_fix_if_version_not_available(self):
+    self.enter_context(
+        mock.patch.object(
+            shared,
+            'get_current_project_id',
+            autospec=True,
+            return_value='dummy_project_with_vpc'))
+    self.enter_context(
+        mock.patch.object(
+            shared,
+            'list_available_tags',
+            autospec=True,
+            return_value=['3.2', '3.1', '3.0']))
+    runner = testing.CliRunner()
+    result = runner.invoke(
+        stages.update,
+        args=[f'--version=4.0'],
+        catch_exceptions=False)
+    with self.subTest('Validates command line output'):
+      self.assertEqual(1, result.exit_code, msg=result.output)
+      self.assertIn('Pick a version from: ', result.output)
+
+  def test_can_allow_new_user_in_iap_settings(self):
+    self.enter_context(
+        mock.patch.object(
+            shared,
+            'get_current_project_id',
+            autospec=True,
+            return_value='dummy_project_with_vpc'))
+    runner = testing.CliRunner()
+    result = runner.invoke(
+        stages.allow_users,
+        args=['me@example.com,you@example.com'],
+        catch_exceptions=False)
+    with self.subTest('Validates command line output'):
+      self.assertEqual(0, result.exit_code, msg=result.output)
+      self.assertIn('Stage updated with new IAP users', result.output)
+    with self.subTest('Validates content of new stage file'):
+      updated_stage = shared.load_stage(
+          pathlib.Path(constants.STAGE_DIR,
+          'dummy_project_with_vpc.tfvars.json'))
+      self.assertIn('user:me@example.com', updated_stage.iap_allowed_users)
+      self.assertIn('user:you@example.com', updated_stage.iap_allowed_users)
 
 
 if __name__ == '__main__':

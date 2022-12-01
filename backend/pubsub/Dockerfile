@@ -14,14 +14,19 @@
 
 # Docker: Google App Engine
 
-FROM java:jre-alpine
+FROM mcr.microsoft.com/java/jre-headless:11-zulu-ubuntu
 MAINTAINER Alex Prikhodko <aprikhodko@google.com>
 
 ENV CLOUDSDK_CORE_DISABLE_PROMPTS 1
 ENV DATA_DIR "/opt/pubsub"
 ENV HOST_PORT 8432
 
-RUN apk add --no-cache curl bash python
+RUN apt-get update \
+    && apt-get install -y \
+        curl bash python \
+    # Cleaning
+    && rm -rf /var/cache/apt/archives/*.deb \
+    && rm -rf /var/lib/apt/lists/*
 
 # Install Google Cloud SDK
 COPY install_google_cloud_sdk.bash install_google_cloud_sdk.bash

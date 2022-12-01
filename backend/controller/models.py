@@ -35,7 +35,7 @@ from common import crmint_logging
 from common import task
 from controller import extensions
 from controller import inline
-from controller import mailers
+from controller import shared
 
 
 def _str_to_number(x: str) -> numbers.Number:
@@ -73,7 +73,6 @@ class Pipeline(extensions.db.Model):
 
   id = Column(Integer, primary_key=True, autoincrement=True)
   name = Column(String(255))
-  emails_for_notifications = Column(String(255))
   status = Column(String(50), nullable=False, default='idle')
   status_changed_at = Column(DateTime)
   jobs = orm.relationship(
@@ -89,14 +88,12 @@ class Pipeline(extensions.db.Model):
       lazy='joined',
       order_by='asc(Param.name)')
 
-  class STATUS:  # pylint: disable=too-few-public-methods
-    """Pipeline statuses."""
-    IDLE = 'idle'
-    FAILED = 'failed'
-    SUCCEEDED = 'succeeded'
-    STOPPING = 'stopping'
-    RUNNING = 'running'
-    INACTIVE_STATUSES = [IDLE, FAILED, SUCCEEDED]
+  STATUS = shared.PipelineStatus
+  INACTIVE_STATUSES = [
+      shared.PipelineStatus.IDLE,
+      shared.PipelineStatus.FAILED,
+      shared.PipelineStatus.SUCCEEDED,
+  ]
 
   def __init__(self, name=None):
     super().__init__()
@@ -105,12 +102,6 @@ class Pipeline(extensions.db.Model):
   @property
   def has_jobs(self):
     return len(self.jobs) > 0
-
-  @property
-  def recipients(self):
-    if self.emails_for_notifications:
-      return self.emails_for_notifications.split()
-    return []
 
   def assign_attributes(self, attributes):
     for key, value in attributes.items():
@@ -187,8 +178,10 @@ class Pipeline(extensions.db.Model):
           worker_class=worker_class)
       return False
 
-  def set_status(self, status):
-    self.update(status=status, status_changed_at=datetime.datetime.utcnow())
+  def set_status(self, status: shared.PipelineStatus):
+    self.update(
+        status=str(status),
+        status_changed_at=datetime.datetime.now(tz=datetime.timezone.utc))
 
   def get_ready(self,
                 jobs: Optional[list['Job']] = None) -> PipelineReadyStatus:
@@ -198,7 +191,7 @@ class Pipeline(extensions.db.Model):
       jobs: List of job to run `get_ready` on too. If None, all pipeline's jobs
         will be fetched.
     """
-    if self.status not in Pipeline.STATUS.INACTIVE_STATUSES:
+    if self.status not in Pipeline.INACTIVE_STATUSES:
       return PipelineReadyStatus.ALREADY_RUNNING
     # Checks that parameters can be rendered to runtime values.
     if not self.populate_params_runtime_values():
@@ -275,7 +268,7 @@ class Pipeline(extensions.db.Model):
     A pipeline is considered finished when all jobs are in an inactive status.
     """
     for job in self.jobs:
-      if job.status not in Job.STATUS.INACTIVE_STATUSES:
+      if job.status not in Job.INACTIVE_STATUSES:
         return False
     return True
 
@@ -310,12 +303,18 @@ class Pipeline(extensions.db.Model):
     if self.has_failed():
       self.stop()
       self.set_status(Pipeline.STATUS.FAILED)
-      mailers.NotificationMailer().finished_pipeline(self)
+      crmint_logging.log_pipeline_status(
+          f'Failed pipeline "{self.name}"',
+          pipeline_status=self.status,
+          pipeline_id=self.id)
     elif self.has_stopped():
       self.set_status(Pipeline.STATUS.IDLE)
     elif self.has_finished():
       self.set_status(Pipeline.STATUS.SUCCEEDED)
-      mailers.NotificationMailer().finished_pipeline(self)
+      crmint_logging.log_pipeline_status(
+          f'Succeeded pipeline "{self.name}"',
+          pipeline_status=self.status,
+          pipeline_id=self.id)
 
   def import_data(self, data):
     self.assign_params(data['params'])
@@ -458,14 +457,12 @@ class Job(extensions.db.Model):
       back_populates='dependent_jobs',
       viewonly=True)
 
-  class STATUS:  # pylint: disable=too-few-public-methods
-    IDLE = 'idle'
-    FAILED = 'failed'
-    SUCCEEDED = 'succeeded'
-    RUNNING = 'running'
-    WAITING = 'waiting'
-    STOPPING = 'stopping'
-    INACTIVE_STATUSES = [IDLE, FAILED, SUCCEEDED]
+  STATUS = shared.JobStatus
+  INACTIVE_STATUSES = [
+      shared.JobStatus.IDLE,
+      shared.JobStatus.FAILED,
+      shared.JobStatus.SUCCEEDED,
+  ]
 
   def __init__(self, name=None, worker_class=None, pipeline_id=None):
     super().__init__()
@@ -550,12 +547,14 @@ class Job(extensions.db.Model):
         preceding_job_id__in=delete_sc_ids
     ).delete(synchronize_session=False)
 
-  def set_status(self, status):
-    self.update(status=status, status_changed_at=datetime.datetime.utcnow())
+  def set_status(self, status: shared.JobStatus):
+    self.update(
+        status=str(status),
+        status_changed_at=datetime.datetime.now(tz=datetime.timezone.utc))
 
   def get_ready(self) -> bool:
     """Returns True if the job is ready to be started."""
-    if self.status not in Job.STATUS.INACTIVE_STATUSES:
+    if self.status not in Job.INACTIVE_STATUSES:
       return False
     return True
 
@@ -591,7 +590,7 @@ class Job(extensions.db.Model):
       #       so other jobs are still in an inactive status.
       return None
     for start_condition in self.start_conditions:
-      if start_condition.preceding_job.status not in Job.STATUS.INACTIVE_STATUSES:
+      if start_condition.preceding_job.status not in Job.INACTIVE_STATUSES:
         # Starting condition still running.
         return None
       if not self._start_condition_is_fulfilled(start_condition):

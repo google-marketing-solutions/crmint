@@ -1,0 +1,13 @@
+.DS_Store
+.git
+.coveragerc
+.editorconfig
+.flake8
+.pylintrc
+*.pyc
+*.pyo
+*.swp
+lib
+lib_dev
+htmlcov/
+pubsub/

@@ -15,11 +15,13 @@
 import base64
 import json
 from typing import Any, Tuple
+from unittest import mock
 
 from absl.testing import absltest
 from absl.testing import parameterized
 import freezegun
 
+from common import crmint_logging
 from controller import models
 from tests import controller_utils
 
@@ -87,6 +89,8 @@ class TestResultViews(controller_utils.ControllerAppTest):
                                workers_to_enqueue,
                                expected_job_status,
                                expected_enqueing_count):
+    patched_log_pipeline_status = self.enter_context(
+        mock.patch.object(crmint_logging, 'log_pipeline_status', autospec=True))
     pipeline = models.Pipeline.create(status=models.Pipeline.STATUS.RUNNING)
     job1 = models.Job.create(
         pipeline_id=pipeline.id, status=models.Job.STATUS.WAITING)

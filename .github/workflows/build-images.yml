@@ -1,0 +1,70 @@
+name: Builds and publishes new Docker image for our services
+
+on:
+  push:
+    branches:
+      - 'master'
+      - 'new-architecture-crmint-3.0'
+    tags:
+      - 'v*'
+    paths-ignore:
+      - 'README.md'
+  pull_request:
+    branches:
+      - 'master'
+
+jobs:
+  build-and-push-image:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - dockerfile: ./frontend/Dockerfile
+            context: ./frontend
+            image: europe-docker.pkg.dev/instant-bqml-demo-environment/crmint/frontend
+          - dockerfile: ./backend/controller.Dockerfile
+            context: ./backend
+            image: europe-docker.pkg.dev/instant-bqml-demo-environment/crmint/controller
+          - dockerfile: ./backend/jobs.Dockerfile
+            context: ./backend
+            image: europe-docker.pkg.dev/instant-bqml-demo-environment/crmint/jobs
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+      - id: auth
+        name: Authenticate to Google Cloud
+        if: github.event_name != 'pull_request'
+        uses: google-github-actions/auth@v1
+        with:
+          token_format: access_token
+          workload_identity_provider: ${{ secrets.WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.CLOUD_BUILD_RUNNER_SA }}
+      - name: Login to Google Artifact Registry
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v1
+        with:
+          registry: europe-docker.pkg.dev
+          username: oauth2accesstoken
+          password: ${{ steps.auth.outputs.access_token }}
+      - name: Extract metadata (tags, labels) for Docker
+        id: meta
+        uses: docker/metadata-action@98669ae865ea3cffbcbaa878cf57c20bbf1c6c38
+        with:
+          images: ${{ matrix.image }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+      - name: Build and push Docker image
+        uses: docker/build-push-action@ad44023a93711e3deb337508980b4b5e9bcdc5dc
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.dockerfile }}
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}

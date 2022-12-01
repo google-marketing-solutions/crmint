@@ -17,80 +17,12 @@ from cli.commands import cloud
 from cli.utils import constants
 from cli.utils import shared
 from cli.utils import test_helpers
-from cli.utils import vpc_helpers
 
 DATA_DIR = os.path.join(os.path.dirname(__file__), '../testdata')
-
-PUBSUB_TOPICS_OUTPUT = textwrap.dedent("""\
-    messageStoragePolicy:
-      allowedPersistenceRegions:
-      - europe-west1
-      - us-central1
-    name: projects/myproject/topics/crmint-start-task
-    ---
-    messageStoragePolicy:
-      allowedPersistenceRegions:
-      - europe-west1
-      - us-central1
-    name: projects/myproject/topics/crmint-start-pipeline
-    """)
-
-PUBSUB_SUBSCRIPTIONS_OUTPUT = textwrap.dedent("""\
-    ackDeadlineSeconds: 60
-    expirationPolicy: {}
-    messageRetentionDuration: 604800s
-    name: projects/myproject/subscriptions/crmint-start-pipeline-subscription
-    pushConfig:
-      attributes:
-        x-goog-version: v1
-      pushEndpoint: https://myproject.appspot.com/push/start-pipeline?token=ca39175dbde9d587534ffd6c769e0a4e6a0d7570a68d0fd9a4303970c26469be
-    retryPolicy:
-      maximumBackoff: 600s
-      minimumBackoff: 10s
-    state: ACTIVE
-    topic: projects/myproject/topics/crmint-start-pipeline
-    ---
-    ackDeadlineSeconds: 600
-    expirationPolicy: {}
-    messageRetentionDuration: 604800s
-    name: projects/myproject/subscriptions/crmint-start-task-subscription
-    pushConfig:
-      attributes:
-        x-goog-version: v1
-      pushEndpoint: https://myproject.appspot.com/push/start-task?token=ca39175dbde9d587534ffd6c769e0a4e6a0d7570a68d0fd9a4303970c26469be
-    retryPolicy:
-      maximumBackoff: 600s
-      minimumBackoff: 60s
-    state: ACTIVE
-    topic: projects/myproject/topics/crmint-start-task
-    """)
 
 
 def _datafile(filename):
   return os.path.join(DATA_DIR, filename)
-
-
-class PubSubHelpersTest(parameterized.TestCase):
-
-  @parameterized.named_parameters(
-      ('Topics', 'topics', PUBSUB_TOPICS_OUTPUT,
-       ['crmint-start-pipeline', 'crmint-start-task']),
-      ('Subscriptions', 'subscriptions', PUBSUB_SUBSCRIPTIONS_OUTPUT,
-       ['crmint-start-pipeline-subscription', 'crmint-start-task-subscription'])
-  )
-  def test_get_existing_pubsub_topics(self, entity_name, cmd_output, entities):
-    mock_result = mock.create_autospec(
-        subprocess.CompletedProcess, instance=True)
-    mock_result.returncode = 0
-    mock_result.stdout = cmd_output
-    mock_result.stderr = b''
-    self.enter_context(
-        mock.patch.object(
-            subprocess, 'run', autospec=True, return_value=mock_result))
-    stage = shared.default_stage_context(shared.ProjectId('foo'))
-    self.assertCountEqual(
-        cloud._get_existing_pubsub_entities(stage, entity_name),
-        entities)
 
 
 class CloudChecklistTest(parameterized.TestCase):
@@ -98,24 +30,26 @@ class CloudChecklistTest(parameterized.TestCase):
   @parameterized.named_parameters(
       ('User not project owner', 'roles/editor', 1),
       ('User is project owner', 'roles/owner', 0),
-      ('User is project owner has other role', 'roles/owner\nroles/viewer', 0),
       ('User has other role is project owner', 'roles/viewer\nroles/owner', 0),
+      ('User is project editor with missing roles', 'roles/editor\nroles/viewer', 1),
+      ('User is project editor with one missing role', 'roles/editor\nroles/iap.admin\nroles/run.admin\nroles/compute.networkAdmin', 1),
+      ('User is project editor with all extra roles', 'roles/editor\nroles/iap.admin\nroles/run.admin\nroles/compute.networkAdmin\nroles/resourcemanager.projectIamAdmin', 0),
   )
-  def test_user_not_project_owner(self, user_role, exit_code):
+  def test_user_with_different_roles(self, user_role, exit_code):
     side_effect_run = test_helpers.mock_subprocess_result_side_effect(
         user_role=user_role)
     self.enter_context(
         mock.patch.object(
             subprocess, 'run', autospec=True, side_effect=side_effect_run))
     self.enter_context(
-        mock.patch.object(cloud, 'fetch_stage_or_default', autospec=True))
+        mock.patch.object(shared, 'fetch_stage_or_default', autospec=True))
     runner = testing.CliRunner()
     result = runner.invoke(cloud.checklist, catch_exceptions=False)
     self.assertEqual(result.exit_code, exit_code, msg=result.output)
     if exit_code == 0:
-      self.assertNotIn('Missing roles/owner for user', result.output)
+      self.assertNotIn('Missing IAM roles are: ', result.output)
     else:
-      self.assertIn('Missing roles/owner for user', result.output)
+      self.assertIn('Missing IAM roles are: ', result.output)
 
   def test_billing_not_configured(self):
     side_effect_run = test_helpers.mock_subprocess_result_side_effect(
@@ -124,7 +58,7 @@ class CloudChecklistTest(parameterized.TestCase):
         mock.patch.object(
             subprocess, 'run', autospec=True, side_effect=side_effect_run))
     self.enter_context(
-        mock.patch.object(cloud, 'fetch_stage_or_default', autospec=True))
+        mock.patch.object(shared, 'fetch_stage_or_default', autospec=True))
     runner = testing.CliRunner()
     result = runner.invoke(cloud.checklist, catch_exceptions=False)
     self.assertEqual(result.exit_code, 1, msg=result.output)
@@ -137,7 +71,7 @@ class CloudChecklistTest(parameterized.TestCase):
         mock.patch.object(
             subprocess, 'run', autospec=True, side_effect=side_effect_run))
     self.enter_context(
-        mock.patch.object(cloud, 'fetch_stage_or_default', autospec=True))
+        mock.patch.object(shared, 'fetch_stage_or_default', autospec=True))
     runner = testing.CliRunner()
     result = runner.invoke(cloud.checklist, catch_exceptions=False)
     self.assertEqual(result.exit_code, 1, msg=result.output)
@@ -149,7 +83,7 @@ class CloudChecklistTest(parameterized.TestCase):
         mock.patch.object(
             subprocess, 'run', autospec=True, side_effect=side_effect_run))
     self.enter_context(
-        mock.patch.object(cloud, 'fetch_stage_or_default', autospec=True))
+        mock.patch.object(shared, 'fetch_stage_or_default', autospec=True))
     runner = testing.CliRunner()
     result = runner.invoke(cloud.checklist, catch_exceptions=False)
     self.assertEqual(result.exit_code, 0, msg=result.output)
@@ -158,8 +92,7 @@ class CloudChecklistTest(parameterized.TestCase):
         textwrap.dedent("""\
             >>>> Checklist
             ---> Retrieve gcloud current user ✓
-            ---> Getting project number ✓
-            ---> Validates current user has roles/owner ✓
+            ---> Retrieve user IAM roles ✓
             ---> Retrieve billing account name ✓
             ---> Check that billing is enabled ✓
             Done.
@@ -167,7 +100,7 @@ class CloudChecklistTest(parameterized.TestCase):
     )
 
 
-class CloudBaseTest(parameterized.TestCase):
+class CloudSetupTest(parameterized.TestCase):
 
   def setUp(self):
     super().setUp()
@@ -180,7 +113,7 @@ class CloudBaseTest(parameterized.TestCase):
             shared,
             'get_current_project_id',
             autospec=True,
-            return_value='dummy_stage_v3'))
+            return_value='dummy_project_with_vpc'))
     # `create_tempfile` needs access to --test_tmpdir, however in the OSS world
     # pytest doesn't run `absltest.main`, so we need to init flags ourselves.
     test_helpers.initialize_flags_with_defaults()
@@ -188,10 +121,12 @@ class CloudBaseTest(parameterized.TestCase):
     tmp_stage_dir = self.create_tempdir('stage_dir')
     self.enter_context(
         mock.patch.object(constants, 'STAGE_DIR', tmp_stage_dir.full_path))
-    shutil.copyfile(_datafile('dummy_stage_v2.py'),
-                    pathlib.Path(constants.STAGE_DIR, 'dummy_stage_v2.py'))
-    shutil.copyfile(_datafile('dummy_stage_v3.py'),
-                    pathlib.Path(constants.STAGE_DIR, 'dummy_stage_v3.py'))
+    shutil.copyfile(
+        _datafile('dummy_project_with_vpc.tfvars.json'),
+        pathlib.Path(constants.STAGE_DIR, 'dummy_project_with_vpc.tfvars.json'))
+    shutil.copyfile(
+        _datafile('dummy_project_without_vpc.tfvars.json'),
+        pathlib.Path(constants.STAGE_DIR, 'dummy_project_without_vpc.tfvars.json'))
     # Uses a temporary directory we can keep a reference to.
     self.tmp_workdir = self.create_tempdir('workdir')
     self.enter_context(
@@ -201,175 +136,27 @@ class CloudBaseTest(parameterized.TestCase):
             autospec=True,
             return_value=self.tmp_workdir.full_path))
 
-
-class CloudSetupTest(CloudBaseTest):
-
-  @parameterized.named_parameters(
-      ('Invoked without options', []),
-      ('Invoked with --debug', ['--debug']),
-  )
-  def test_can_run_deploy(self, args):
-    runner = testing.CliRunner()
-    result = runner.invoke(cloud.setup, args=args, catch_exceptions=False)
-    self.assertEqual(result.exit_code, 0, msg=result.output)
-
-  def test_validates_stdout_without_vpc(self):
-    self.enter_context(
-        mock.patch.object(
-            vpc_helpers,
-            '_check_if_vpc_exists',
-            autospec=True,
-            return_value=False))
-    runner = testing.CliRunner()
-    result = runner.invoke(cloud.setup, catch_exceptions=False)
-    self.assertEqual(result.exit_code, 0, msg=result.output)
-    self.assertRegex(
-        result.output,
-        textwrap.dedent("""\
-            >>>> Setup
-                 Project ID found: dummy_stage_v3
-            ---> Activate Cloud services ✓
-            ---> Check if App Engine app already exists ✓
-            (.|\\n)*
-            Done.
-            """)
-    )
-
-  def test_validates_stdout_with_vpc(self):
-    shutil.copyfile(_datafile('dummy_stage_v3_with_vpc.py'),
-                    pathlib.Path(constants.STAGE_DIR, 'dummy_stage_v3.py'))
-    self.enter_context(
-        mock.patch.object(
-            vpc_helpers,
-            '_check_if_vpc_exists',
-            autospec=True,
-            return_value=False))
-    runner = testing.CliRunner()
-    result = runner.invoke(cloud.setup, catch_exceptions=False)
-    self.assertEqual(result.exit_code, 0, msg=result.output)
-    self.assertRegex(
-        result.output,
-        textwrap.dedent("""\
-            >>>> Setup
-                 Project ID found: dummy_stage_v3
-            ---> Activate Cloud services ✓
-            ---> Create the VPC ✓
-            ---> Allocating an IP address range ✓
-            ---> Check if VPC Peering exists ✓
-            ---> Updating the private connection ✓
-            ---> Check if VPC Subnet already exists ✓
-                 VPC Connector Subnet already exists.
-            ---> Check if VPC Connector already exists ✓
-                 VPC Connector already exists.
-            ---> Check if App Engine app already exists ✓
-            (.|\\n)*
-            Done.
-            """)
-    )
-
-  def test_validates_stdout_with_existing_vpc(self):
-    shutil.copyfile(_datafile('dummy_stage_v3_with_vpc.py'),
-                    pathlib.Path(constants.STAGE_DIR, 'dummy_stage_v3.py'))
-    self.enter_context(
-        mock.patch.object(
-            vpc_helpers,
-            '_check_if_vpc_exists',
-            autospec=True,
-            return_value=True))
-    runner = testing.CliRunner()
-    result = runner.invoke(cloud.setup, catch_exceptions=False)
-    self.assertEqual(result.exit_code, 0, msg=result.output)
-    self.assertRegex(result.output, 'VPC already exists.')
-
-  def test_validates_stdout_with_no_vpc_peerings(self):
-    shutil.copyfile(_datafile('dummy_stage_v3_with_vpc.py'),
-                    pathlib.Path(constants.STAGE_DIR, 'dummy_stage_v3.py'))
-    self.enter_context(
-        mock.patch.object(
-            vpc_helpers,
-            '_check_if_peering_exists',
-            autospec=True,
-            return_value=False))
-    runner = testing.CliRunner()
-    result = runner.invoke(cloud.setup, catch_exceptions=False)
-    self.assertEqual(result.exit_code, 0, msg=result.output)
-    self.assertRegex(result.output, '---> Creating the private connection')
-
-  def test_validates_stdout_updating_tokens(self):
-    shutil.copyfile(_datafile('dummy_stage_v3_with_vpc.py'),
-                    pathlib.Path(constants.STAGE_DIR, 'dummy_stage_v3.py'))
-    self.enter_context(
-        mock.patch.object(
-            cloud,
-            '_get_existing_pubsub_entities',
-            autospec=True,
-            return_value=['crmint-start-task-subscription']))
-    runner = testing.CliRunner()
-    result = runner.invoke(cloud.setup, catch_exceptions=False)
-    self.assertEqual(result.exit_code, 0, msg=result.output)
-    self.assertRegex(
-        result.output,
-        textwrap.dedent("""\
-            ---> Updating subscription token ✓
-                 Token updated for subscription crmint-start-task-subscription
-            """)
-    )
-    self.assertRegex(
-        result.output,
-        '---> Creating PubSub subscription crmint-task-finished-subscription ✓',
-    )
-
-  def test_validates_stdout_on_grant_required_permissions(self):
-    self.enter_context(
-        mock.patch.object(
-            shared,
-            'get_regions',
-            autospec=True,
-            return_value=('us-central', 'us-central1')))
-    self.enter_context(
-        mock.patch.object(
-            cloud, 'get_project_number', autospec=True, return_value='123'))
-    stage = shared.default_stage_context(shared.ProjectId('foo'))
-
-    @click.command('custom')
-    def _custom_command() -> None:
-      cloud._grant_required_permissions(stage)
-
-    runner = testing.CliRunner()
-    result = runner.invoke(
-        _custom_command, standalone_mode=False, catch_exceptions=False)
-    # Our command wrapper should not fail, exit_code should be 0 and report the
-    # error on the standard output.
-    self.assertEqual(result.exit_code, 0, msg=result.output)
-    self.assertStartsWith(
-        result.output,
-        '---> Grant required permissions (1/',
-        msg='Ensures that the first granting permission index starts at 1.'
-    )
-
-
-class CloudDeployTest(CloudBaseTest):
-
-  def test_fetch_stage_or_default_no_exception_for_latest_spec(self):
-    """Should raise an exception inviting the user to migrate."""
-    stage_path = pathlib.Path(constants.STAGE_DIR, 'dummy_stage_v3.py')
+  def test_fetch_existing_stage(self):
+    """Should not raise an exception if stage file exists."""
+    stage_path = pathlib.Path(
+        constants.STAGE_DIR, 'dummy_project_with_vpc.tfvars.json')
     try:
-      stage = cloud.fetch_stage_or_default(stage_path)
-    except cloud.CannotFetchStageError:
-      self.fail('Should not raise an exception on latest spec')
-    self.assertEqual(stage.spec_version, 'v3.0')
+      stage = shared.fetch_stage_or_default(stage_path)
+    except shared.CannotFetchStageError:
+      self.fail('Should not raise an exception')
 
-  def test_fetch_stage_or_default_on_old_spec_version(self):
-    """Should raise an exception inviting the user to migrate."""
+  def test_fetch_stage_suggest_resolution_if_no_stage(self):
+    """Should raise an exception inviting the user to create a stage file."""
     runner = testing.CliRunner(mix_stderr=False)
     with runner.isolation() as (out, err):
-      stage_path = pathlib.Path(constants.STAGE_DIR, 'dummy_stage_v2.py')
+      stage_path = pathlib.Path(
+          constants.STAGE_DIR, 'new_dummy_project.tfvars.json')
 
       with self.subTest('Raises an exception'):
-        with self.assertRaises(cloud.CannotFetchStageError):
-          cloud.fetch_stage_or_default(stage_path)
+        with self.assertRaises(shared.CannotFetchStageError):
+          shared.fetch_stage_or_default(stage_path)
       with self.subTest('Suggest a resolution path to the user'):
-        self.assertIn(b'Fix this by running: $ crmint stages migrate',
+        self.assertIn(b'Fix this by running: $ crmint stages create',
                       out.getvalue())
         self.assertEmpty(err.getvalue())
 
@@ -377,80 +164,73 @@ class CloudDeployTest(CloudBaseTest):
       ('Invoked without options', []),
       ('Invoked with --debug', ['--debug']),
   )
-  def test_can_run_deploy(self, args):
+  def test_can_run_setup(self, args):
+    tf_plan_file = _datafile('tfplan_with_vpc.json')
+    with open(tf_plan_file, 'rb') as f:
+      tf_plan_content = f.read()
+    self.enter_context(
+        mock.patch.object(
+            cloud,
+            'terraform_show_plan',
+            autospec=True,
+            return_value=tf_plan_content))
     runner = testing.CliRunner()
-    result = runner.invoke(cloud.deploy, args=args, catch_exceptions=False)
+    result = runner.invoke(cloud.setup, args=args, catch_exceptions=False)
     self.assertEqual(result.exit_code, 0, msg=result.output)
 
-  def test_validates_stdout(self):
+  def test_validates_stdout_without_vpc(self):
+    tf_plan_file = _datafile('tfplan_without_vpc.json')
+    with open(tf_plan_file, 'rb') as f:
+      tf_plan_content = f.read()
+    self.enter_context(
+        mock.patch.object(
+            cloud,
+            'terraform_show_plan',
+            autospec=True,
+            return_value=tf_plan_content))
     runner = testing.CliRunner()
-    result = runner.invoke(cloud.deploy, catch_exceptions=False)
+    result = runner.invoke(cloud.setup, catch_exceptions=False)
     self.assertEqual(result.exit_code, 0, msg=result.output)
     self.assertRegex(
         result.output,
         textwrap.dedent("""\
-            >>>> Deploy
-                 Project ID found: dummy_stage_v3
-            (.|\\n)*
+            >>>> Setup
+                 Project ID found: dummy_project_with_vpc
+            ---> Initialize Terraform ✓
+            ---> List Terraform workspaces ✓
+            ---> Create new Terraform workspace: dummy_project_with_vpc ✓
+            ---> Retrieve digest for image: frontend:latest ✓
+                 output
+            ---> Retrieve digest for image: controller:latest ✓
+                 output
+            ---> Retrieve digest for image: jobs:latest ✓
+                 output
+            ---> Generate Terraform plan ✓
+                 Cloud Run Service \\(3\\)
+                 Cloud Run Service IAM Member \\(3\\)
+                 (.|\\n)*
+            ---> Apply Terraform plan ✓
             ---> CRMint UI ✓
                  output
             Done.
             """)
     )
-    self.assertIn('Working directory: ', result.output)
-    self.assertIn('---> Deploy frontend service', result.output)
-    self.assertIn('---> Deploy controller service', result.output)
-    self.assertIn('---> Deploy jobs service', result.output)
-    self.assertIn('---> Deploy dispatch rules', result.output)
+    self.assertNotIn('VPC Access Connector (1)', result.output)
 
-  def test_validates_app_data_content(self):
-    runner = testing.CliRunner()
-    result = runner.invoke(cloud.deploy, catch_exceptions=False)
-    self.assertEqual(result.exit_code, 0, msg=result.output)
-    app_filepath = pathlib.Path(self.tmp_workdir.full_path,
-                                'backend/data/app.json')
-    with open(app_filepath, 'r') as f:
-      content = f.read()
-      self.assertIn('GAE_APP_TITLE', content)
-      self.assertIn('NOTIF_SENDER_EMAIL', content)
-
-  def test_validates_environment_content(self):
-    runner = testing.CliRunner()
-    result = runner.invoke(cloud.deploy, catch_exceptions=False)
-    self.assertEqual(result.exit_code, 0, msg=result.output)
-    env_filepath = pathlib.Path(self.tmp_workdir.full_path,
-                                'frontend/src/environments/environment.prod.ts')
-    with open(env_filepath, 'r') as f:
-      content = f.read()
-      self.assertIn('GAE_APP_TITLE', content)
-
-  def test_unretriable_error(self):
+  def test_validates_stdout_with_vpc(self):
+    tf_plan_file = _datafile('tfplan_with_vpc.json')
+    with open(tf_plan_file, 'rb') as f:
+      tf_plan_content = f.read()
     self.enter_context(
         mock.patch.object(
             cloud,
-            '_run_frontend_deployment',
+            'terraform_show_plan',
             autospec=True,
-            return_value=[1, '', 'Error: Random unretriable error.']))
+            return_value=tf_plan_content))
     runner = testing.CliRunner()
-    result = runner.invoke(cloud.deploy, catch_exceptions=False)
+    result = runner.invoke(cloud.setup, catch_exceptions=False)
     self.assertEqual(result.exit_code, 0, msg=result.output)
-    self.assertNotIn(
-        'Detected retriable error. Retrying deployment.',
-        result.output)
-
-  def test_retriable_p4sa_error(self):
-    self.enter_context(
-        mock.patch.object(
-            cloud,
-            '_run_frontend_deployment',
-            autospec=True,
-            return_value=[1, '', 'Error: Unable to retrieve P4SA on GAE.']))
-    runner = testing.CliRunner()
-    result = runner.invoke(cloud.deploy, catch_exceptions=False)
-    self.assertEqual(result.exit_code, 0, msg=result.output)
-    self.assertIn(
-        'Detected retriable error. Retrying deployment.',
-        result.output)
+    self.assertIn('VPC Access Connector (1)', result.output)
 
 
 if __name__ == '__main__':

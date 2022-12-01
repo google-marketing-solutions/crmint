@@ -46,7 +46,6 @@ api = Api(blueprint)
 
 parser = reqparse.RequestParser()
 parser.add_argument('name')
-parser.add_argument('emails_for_notifications')
 parser.add_argument('run_on_schedule')
 parser.add_argument('schedules', type=list, location='json')
 parser.add_argument('params', type=list, location='json')
@@ -66,7 +65,6 @@ param_fields = {
 pipeline_fields = {
     'id': fields.Integer,
     'name': fields.String,
-    'emails_for_notifications': fields.String,
     'status': fields.String,
     'updated_at': fields.String,
     'run_on_schedule': fields.Boolean,

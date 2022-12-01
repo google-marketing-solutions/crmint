@@ -46,15 +46,15 @@ class GAProvider(object):
   """Reports usage to Google Analytics."""
   URL = 'https://www.google-analytics.com/collect'
 
-  def __init__(self, force_opt_out=False):
-    self.force_opt_out = force_opt_out
+  def __init__(self, allow_new_client_id=False):
     self.tracking_id = DEFAULT_TRACKING_ID
     self.os_name = platform.system()
     self.python_version = platform.python_version()
     self.app_version = get_crmint_version()
 
     conf = self._load_insight_config()
-    conf = self._define_random_values(conf)
+    if allow_new_client_id:
+      conf = self._define_random_values(conf)
     self.config = conf
 
   def _define_random_values(self, conf):
@@ -63,7 +63,11 @@ class GAProvider(object):
     return conf
 
   def _load_insight_config(self):
-    if not os.path.exists(INSIGHT_CONF_FILEPATH):
+    if 'REPORT_USAGE_ID' in os.environ:
+      client_id = os.getenv('REPORT_USAGE_ID')
+      opt_out = not bool(client_id)
+      return {'client_id': client_id, 'opt_out': opt_out}
+    elif not os.path.exists(INSIGHT_CONF_FILEPATH):
       return {}
     with open(INSIGHT_CONF_FILEPATH, 'r') as fp:
       try:
@@ -75,8 +79,12 @@ class GAProvider(object):
     return {}
 
   @property
+  def client_id(self):
+    return self.config.get('client_id', None)
+
+  @property
   def opt_out(self):
-    return self.force_opt_out or self.config.get('opt_out', None)
+    return self.config.get('opt_out', None)
 
   def _send(self, payload):
     now_ms = math.floor(time.time() * 1000)

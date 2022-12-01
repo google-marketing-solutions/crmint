@@ -14,6 +14,5 @@
 
 export const environment = {
   production: true,
-  app_title: '',
   enabled_stages: false
 };

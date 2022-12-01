@@ -86,20 +86,20 @@ class CRMintCLI(click.MultiCommand):
     return getattr(module, 'cli', None)
 
   def resolve_command(self, ctx, args):
-    self.insight = insight.GAProvider()
+    tracker = insight.GAProvider(allow_new_client_id=True)
     if '--no-insight' in args:
       args.remove('--no-insight')
-      _set_insight_opt_out(self.insight.config, True)
-    if self.insight.opt_out is None:
+      _set_insight_opt_out(tracker.config, True)
+    if tracker.opt_out is None:
       # None means that we still didn't record the user consent.
-      self.insight.track('downloaded')
+      tracker.track('downloaded')
       permission_given = self._ask_permission()
-      _set_insight_opt_out(self.insight.config, not permission_given)
+      _set_insight_opt_out(tracker.config, not permission_given)
       # Reload with the new configuration.
-      self.insight = insight.GAProvider()
-      self.insight.track('installed')
-    self.insight.track(*args)
-    return super(CRMintCLI, self).resolve_command(ctx, args)
+      tracker = insight.GAProvider()
+      tracker.track('installed')
+    tracker.track(*args)
+    return super().resolve_command(ctx, args)
 
 
 @click.command(

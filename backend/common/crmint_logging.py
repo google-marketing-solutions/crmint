@@ -21,6 +21,8 @@ from google.auth import credentials as auth_credentials
 from google.cloud import logging
 from google.cloud.logging import Logger
 
+from controller import shared
+
 
 @functools.cache
 def get_logger(
@@ -80,5 +82,34 @@ def log_message(
           'worker_class': worker_class,
       },
       'log_level': log_level,
+      'message': message,
+  })
+
+
+def log_pipeline_status(
+    message: str,
+    *,
+    pipeline_status: shared.PipelineStatus,
+    pipeline_id: int,
+    logger_project: Optional[str] = None,
+    logger_credentials: Optional[auth_credentials.Credentials] = None) -> None:
+  """Logs a structured message attached to a pipeline status change.
+
+  Args:
+    message: Message to be logged.
+    status: Pipeline status (e.g. 'failed', 'succeeded').
+    pipeline_id: Id of the pipeline to attach the message to.
+    logger_project: GCP Project ID string or None.
+    logger_credentials: Instance of `google.auth.credentials.Credentials`
+      or None.
+  """
+  logger = get_logger(project=logger_project, credentials=logger_credentials)
+  logger.log_struct({
+      'labels': {
+          'pipeline_status': pipeline_status,
+          'pipeline_id': pipeline_id,
+      },
+      'log_type': 'PIPELINE_STATUS',
+      'log_level': 'INFO',
       'message': message,
   })

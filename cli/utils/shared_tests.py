@@ -9,6 +9,7 @@ from typing import Tuple
 from unittest import mock
 
 from absl.testing import absltest
+from absl.testing import parameterized
 import click
 from click import testing
 
@@ -32,7 +33,7 @@ class SharedTests(absltest.TestCase):
     patched_click_echo = self.enter_context(
         mock.patch.object(click, 'echo', autospec=True))
     self.assertEqual(shared.get_default_stage_path(),
-                     pathlib.Path(constants.STAGE_DIR, 'foo.py'))
+                     pathlib.Path(constants.STAGE_DIR, 'foo.tfvars.json'))
     self.assertSequenceEqual(
         patched_click_echo.mock_calls,
         [mock.call('     Project ID found: foo')]
@@ -238,128 +239,64 @@ class SharedTests(absltest.TestCase):
         [1, 'foo=bar', 'error details']
     )
 
-  def test_copy_tree_with_ignores(self):
-    """Validates copy tree with given structure.
 
-        src_dir/
-        ├─ include/
-        |  ├─ pattern/
-        |  |  ├─ foo.csv
-        |  ├─ bar.py
-        |  ├─ bar_pattern.py
-        ├─ exclude/
-        |  ├─ foo.txt
-        ├─ abc.py
-        ├─ az.py
-
-    """
-    test_helpers.initialize_flags_with_defaults()
-    src_dir = self.create_tempdir('src')
-    src_dir.mkdir('include')
-    src_dir.mkdir('include/pattern')
-    src_dir.create_file('include/pattern/foo.csv')
-    src_dir.create_file('include/bar.py')
-    src_dir.create_file('include/bar_pattern.py')
-    src_dir.mkdir('exclude')
-    src_dir.create_file('exclude/foo.txt')
-    src_dir.create_file('abc.py')
-    src_dir.create_file('az.py')
-    dst_dir = self.create_tempdir('dst')
-    print(src_dir.full_path)
-    self.assertCountEqual(
-        os.listdir(src_dir.full_path),
-        ['abc.py', 'az.py', 'exclude', 'include'])
-    shared.copy_tree(
-        src_dir.full_path,
-        dst_dir.full_path,
-        ignore=shutil.ignore_patterns('*z.py', 'exclude', 'pattern'))
-    self.assertCountEqual(os.listdir(dst_dir.full_path), ['abc.py', 'include'])
-    self.assertCountEqual(
-        os.listdir(os.path.join(dst_dir.full_path, 'include')),
-        ['bar.py', 'bar_pattern.py'])
-
-
-class GetRegionWithAppEngineTests(absltest.TestCase):
-
-  def test_get_regions_with_existing_app_engine(self):
-    mock_result = mock.create_autospec(
-        subprocess.CompletedProcess, instance=True)
-    mock_result.returncode = 0
-    mock_result.stdout = b'locationId: europe-west'
-    mock_result.stderr = b''
-    self.enter_context(
-        mock.patch.object(
-            subprocess, 'run', autospec=True, return_value=mock_result))
-    self.assertEqual(shared.get_regions(shared.ProjectId('dummy_stage_v3')),
-                     ('europe-west', 'europe-west1'))
-
-
-class GetRegionWihtoutAppEngineTests(absltest.TestCase):
+class GetRegionTests(absltest.TestCase):
 
   def setUp(self):
     super().setUp()
-    # No appengine
-    mock_result_1 = mock.create_autospec(
-        subprocess.CompletedProcess, instance=True)
-    mock_result_1.returncode = 1
-    mock_result_1.stdout = b'output'
-    mock_result_1.stderr = b''
-    # List of regions
     list_of_regions_bytes = textwrap.dedent("""\
         asia-east1
         asia-northeast1
         asia-southeast1
         australia-southeast1
-        europe-west
+        europe-west1
         europe-west2
         europe-west3
-        us-central
+        us-central1
         us-east1
         us-east4
         us-west1
         us-west2
         us-west3
         us-west4""").encode('utf-8')
-    mock_result_2 = mock.create_autospec(
+    mock_result = mock.create_autospec(
         subprocess.CompletedProcess, instance=True)
-    mock_result_2.returncode = 0
-    mock_result_2.stdout = list_of_regions_bytes
-    mock_result_2.stderr = b''
+    mock_result.returncode = 0
+    mock_result.stdout = list_of_regions_bytes
+    mock_result.stderr = b''
     self.enter_context(
         mock.patch.object(
             subprocess,
             'run',
             autospec=True,
-            side_effect=[mock_result_1, mock_result_2]))
+            return_value=mock_result))
     self.enter_context(
         mock.patch.object(click, 'prompt', autospec=True, return_value=4))
 
-  def test_get_regions_no_app_engine(self):
-    self.assertEqual(shared.get_regions(shared.ProjectId('dummy_stage_v3')),
-                     ('australia-southeast1', 'australia-southeast1'))
+  def test_get_region(self):
+    self.assertEqual(shared.get_region(shared.ProjectId('dummy_stage_v3')),
+                     'australia-southeast1')
 
-  def test_stdout_without_appengine(self):
+  def test_stdout(self):
 
     @click.command('custom')
     def _custom_command():
-      shared.get_regions(shared.ProjectId('dummy_stage_v3'))
+      shared.get_region(shared.ProjectId('dummy_stage_v3'))
 
     runner = testing.CliRunner(mix_stderr=False)
     result = runner.invoke(_custom_command, catch_exceptions=False)
     self.assertEqual(
         result.output,
         textwrap.dedent("""\
-            ---> Get App Engine region ✓
-                 No App Engine app has been deployed yet.
-            ---> Get available App Engine regions ✓
+            ---> Get available Compute regions ✓
             1) asia-east1
             2) asia-northeast1
             3) asia-southeast1
             4) australia-southeast1
-            5) europe-west
+            5) europe-west1
             6) europe-west2
             7) europe-west3
-            8) us-central
+            8) us-central1
             9) us-east1
             10) us-east4
             11) us-west1
@@ -368,6 +305,18 @@ class GetRegionWihtoutAppEngineTests(absltest.TestCase):
             14) us-west4
             """)
     )
+
+
+class TagsAndVersionsHelpersTests(parameterized.TestCase):
+
+  @parameterized.named_parameters(
+      ('No tags', [], []),
+      ('No versions', ['foo', 'bar'], []),
+      ('Removes non-versions', ['foo-3.0.0', '3.0.0', '4.0'], ['3.0.0', '4.0']),
+  )
+  def filters_versions_from_list_of_tags(self, tags, expected_versions):
+    versions = shared.filter_versions_from_tags(tags)
+    self.assertSequenceEqual(versions, expected_versions)
 
 
 if __name__ == '__main__':

@@ -24,10 +24,22 @@ from common import crmint_logging
 from common import message
 from controller import app as app_factory
 from controller import database
+from controller import extensions
 
 app = app_factory.create_app()
 flask_tasks.add(app)
 auth_filter.add(app)
+
+
+@app.route('/liveness_check', methods=['GET'])
+def liveness_check():
+  return 'OK'
+
+
+@app.route('/readiness_check', methods=['GET'])
+def readiness_check():
+  extensions.db.engine.execute('SELECT 1')
+  return 'OK'
 
 
 def shutdown_handler(sig: int, frame: types.FrameType) -> None:
@@ -56,6 +68,6 @@ def shutdown_handler(sig: int, frame: types.FrameType) -> None:
 if __name__ == '__main__':
   signal.signal(signal.SIGINT, shutdown_handler)  # Handles Ctrl-C locally.
   app.run(host='0.0.0.0', port=8080, debug=True)
-else:
+elif not app.config.get('DEBUG', False):
   # Handles App Engine instance termination.
   signal.signal(signal.SIGTERM, shutdown_handler)

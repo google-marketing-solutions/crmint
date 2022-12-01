@@ -22,7 +22,6 @@ import { Param } from './param';
 export class Pipeline {
   id: number;
   name: string;
-  emails_for_notifications: string;
   status: string;
   updated_at: string;
   run_on_schedule: boolean;

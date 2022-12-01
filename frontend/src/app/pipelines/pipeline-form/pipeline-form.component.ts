@@ -47,7 +47,6 @@ export class PipelineFormComponent implements OnInit {
   createForm() {
     this.pipelineForm = this._fb.group({
       name: ['', Validators.required],
-      emails_for_notifications: [''],
       run_on_schedule: [false],
       schedulesLairs: this._fb.array([]),
       paramsLairs: this._fb.array([]),
@@ -57,7 +56,6 @@ export class PipelineFormComponent implements OnInit {
   assignModelToForm() {
     this.pipelineForm.reset({
       name: this.pipeline.name,
-      emails_for_notifications: this.pipeline.emails_for_notifications,
       run_on_schedule: this.pipeline.run_on_schedule,
       paramsLairs: this._fb.array([])
     });
@@ -137,7 +135,6 @@ export class PipelineFormComponent implements OnInit {
     // and deep copies of changed form model values
     this.pipeline.name = formModel.name as string;
     this.pipeline.run_on_schedule = formModel.run_on_schedule as boolean;
-    this.pipeline.emails_for_notifications = formModel.emails_for_notifications as string;
     this.pipeline.schedules = schedulesDeepCopy;
     this.pipeline.params = paramsDeepCopy;
   }

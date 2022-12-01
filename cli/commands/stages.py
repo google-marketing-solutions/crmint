@@ -14,6 +14,7 @@
 
 """Command line to manage stage files."""
 
+import os
 import pathlib
 import sys
 import types
@@ -22,84 +23,9 @@ from typing import Union
 import click
 
 from cli.utils import constants
+from cli.utils import settings
 from cli.utils import shared
-
-SUPPORTED_STAGE_VERSIONS = (
-    constants.STAGE_VERSION_1_0,
-    constants.STAGE_VERSION_2_0,
-    constants.STAGE_VERSION_3_0
-)
-
-MAPPING_v3_from_v2 = {
-    'project_id': 'project_id_gae',
-    'project_region': 'project_region',
-    'database_tier': 'project_sql_tier',
-    'database_region': 'project_sql_region',
-    'workdir': 'workdir',
-    'database_name': 'db_name',
-    'database_username': 'db_username',
-    'database_password': 'db_password',
-    'database_instance_name': 'db_instance_name',
-    'database_project': 'project_id_gae',
-    'notification_sender_email': 'notification_sender_email',
-    'gae_app_title': 'app_title',
-    'gae_project': 'project_id_gae',
-    'network_project': 'project_id_gae',
-    'enabled_stages': 'enabled_stages',
-}
-
-
-def _detect_stage_version(stage_path: pathlib.Path) -> constants.SpecVersion:
-  """Returns the spec version detected for a given stage_path.
-
-  Stage version is defined as:
-    - `v1` for bash script stage definitions
-    - `v2` for python stage definitions
-    - `v3` new python stage definitions with VPC support
-
-  Starts by checking for latest version.
-
-  Args:
-    stage_path: Path to the stage file.
-
-  Raises:
-    ValueError: if the spec version is unsupported or the path does not exist.
-  """
-  if stage_path.exists():
-    stage = shared.load_stage(stage_path)
-    if stage.spec_version not in SUPPORTED_STAGE_VERSIONS:
-      raise ValueError(f'Unsupported spec version: "{stage.spec_version}". '
-                       f'Supported versions are {SUPPORTED_STAGE_VERSIONS}')
-    return stage.spec_version
-
-  stage_bash_filename = f'{stage_path.stem}.sh'
-  stage_bash_filepath = pathlib.Path(
-      constants.PROJECT_DIR, 'scripts/variables/stages', stage_bash_filename)
-  if stage_bash_filepath.exists():
-    return constants.STAGE_VERSION_1_0
-
-  raise ValueError(f'Stage file not found neither at path: "{stage_path}" '
-                   f'nor at path: {stage_bash_filepath}')
-
-
-def _parse_stage_file(stage_path: pathlib.Path) -> shared.StageContext:
-  stage_version = _detect_stage_version(stage_path)
-  if stage_version == constants.STAGE_VERSION_1_0:
-    # Loads bash env variables.
-    cmd = f'source {stage_path} && set 2>/dev/null'
-    _, out, _ = shared.execute_command(
-        'Load bash environment variables',
-        cmd,
-        cwd=constants.PROJECT_DIR,
-        debug_uses_std_out=False)
-    # Converts these env vars to dict representation.
-    old_stage = types.SimpleNamespace()
-    for line in out.split('\n'):
-      key, _, value = line.partition('=')
-      setattr(old_stage, key, value)
-    return shared.StageContext(old_stage)
-  else:
-    return shared.load_stage(stage_path)
+from cli.utils.constants import GCLOUD
 
 
 @click.group()
@@ -125,8 +51,15 @@ def create(stage_path: Union[None, str], debug: bool) -> None:
                            fg='red',
                            bold=True))
   else:
+    shared.detect_settings_envs()
+    shared.activate_apis(debug=debug)
     project_id = shared.get_current_project_id(debug=debug)
-    context = shared.default_stage_context(project_id)
+    region = settings.REGION or shared.get_region(project_id, debug=debug)
+    gcloud_account_email = shared.get_user_email(debug=debug)
+    context = shared.default_stage_context(
+        project_id=project_id,
+        region=region,
+        gcloud_account_email=gcloud_account_email)
     shared.create_stage_file(stage_path, context)
     click.echo(click.style(f'Stage file created: {stage_path}', fg='green'))
 
@@ -137,9 +70,8 @@ def list_stages(stage_dir: Union[None, str]):
   """List your stages defined in cli/stages directory."""
   if stage_dir is None:
     stage_dir = constants.STAGE_DIR
-  for stage_path in pathlib.Path(stage_dir).glob('*.py'):
-    if not stage_path.name.startswith('__'):
-      click.echo(stage_path.stem)
+  for stage_path in sorted(pathlib.Path(stage_dir).glob('*.tfvars.json')):
+    click.echo(stage_path.name.removesuffix('.tfvars.json'))
 
 
 @cli.command('migrate')
@@ -147,29 +79,62 @@ def list_stages(stage_dir: Union[None, str]):
 @click.option('--debug/--no-debug', default=False)
 def migrate(stage_path: Union[None, str], debug: bool) -> None:
   """Migrate old stage file format to the latest one."""
-  click.echo(click.style('>>>> Migrate stage', fg='magenta', bold=True))
+  click.echo(click.style('Deprecated.', fg='blue', bold=True))
 
-  if not stage_path:
-    stage_path = shared.get_default_stage_path(debug=debug)
 
-  stage_version = _detect_stage_version(stage_path)
-  if stage_version == constants.LATEST_STAGE_VERSION:
-    click.echo(click.style(
-        f'Already latest version detected: {stage_path}', fg='green'))
-    return
+@cli.command('update')
+@click.option('--stage_path', default=None)
+@click.option('--version', default=None)
+@click.option('--debug/--no-debug', default=False)
+def update(stage_path: Union[None, str], version: str, debug: bool) -> None:
+  """Update CRMint version."""
+  click.echo(click.style('>>>> Update CRMint version', fg='magenta', bold=True))
+
+  if stage_path is not None:
+    stage_path = pathlib.Path(stage_path)
 
   try:
-    old_context = _parse_stage_file(stage_path)
-  except ValueError as inst:
-    click.echo(click.style(str(inst), fg='red', bold=True))
+    stage = shared.fetch_stage_or_default(stage_path, debug=debug)
+  except shared.CannotFetchStageError:
     sys.exit(1)
 
-  # Save the new stage
-  project_id = shared.get_current_project_id(debug=debug)
-  new_context = shared.default_stage_context(project_id)
-  # NOTE: Variable names are identical in spec v1 and v2
-  for key_v3, key_v2 in MAPPING_v3_from_v2.items():
-    setattr(new_context, key_v3, getattr(old_context, key_v2))
-  shared.create_stage_file(stage_path, new_context)
-  click.echo(click.style(
-      f'Successfully migrated stage file at: {stage_path}', fg='green'))
+  available_tags = shared.list_available_tags(
+      stage.controller_image, debug=debug)
+  if version is None:
+    available_versions = shared.filter_versions_from_tags(available_tags)
+    version = available_versions[0]
+  elif version not in available_tags:
+    available_versions = shared.filter_versions_from_tags(available_tags)
+    click.echo(click.style(f'The version "{version}" does not exist. '
+                           f'Pick a version from: {available_versions}',
+                           fg='red',
+                           bold=True))
+    sys.exit(1)
+
+  stage.frontend_image = f'{stage.frontend_image.split(":")[0]}:{version}'
+  stage.controller_image = f'{stage.controller_image.split(":")[0]}:{version}'
+  stage.jobs_image = f'{stage.jobs_image.split(":")[0]}:{version}'
+  shared.create_stage_file(stage.stage_path, stage)
+  click.echo(click.style(f'Stage updated to version: {version}', fg='green'))
+
+
+@cli.command('allow-users')
+@click.argument('user_emails', type=str)
+@click.option('--stage_path', default=None)
+@click.option('--debug/--no-debug', default=False)
+def allow_users(user_emails: str, stage_path: Union[None, str], debug: bool) -> None:
+  """Allow a list of user emails to access CRMint (separated with a comma)."""
+  click.echo(click.style('>>>> Allow new users', fg='magenta', bold=True))
+
+  if stage_path is not None:
+    stage_path = pathlib.Path(stage_path)
+
+  try:
+    stage = shared.fetch_stage_or_default(stage_path, debug=debug)
+  except shared.CannotFetchStageError:
+    sys.exit(1)
+
+  new_iap_users = [f'user:{email}' for email in user_emails.split(',')]
+  stage.iap_allowed_users = list(set(stage.iap_allowed_users + new_iap_users))
+  shared.create_stage_file(stage.stage_path, stage)
+  click.echo(click.style(f'Stage updated with new IAP users', fg='green'))
