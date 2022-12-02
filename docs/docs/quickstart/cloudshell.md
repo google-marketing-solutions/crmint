@@ -4,6 +4,12 @@ Please run each of these commands in your CloudShell terminal.
 
 ## Install the command-line
 
+1.  Select your project
+
+    ```shell
+    echo -n 'Input a Cloud Project ID: ' && read project_id && gcloud config set project "$project_id"
+    ```
+
 1.  Switch to your home directory
 
     ```shell
