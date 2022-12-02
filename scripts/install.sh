@@ -47,13 +47,14 @@ cd $HOME/crmint
 git checkout $TARGET_BRANCH
 git pull --quiet --rebase
 
-# Installs the command-line.
-if [ ! -d .venv ]; then
-  sudo apt-get install -y python3-venv
-  python3 -m venv .venv
+# Resets the virtual environment.
+if [ -d .venv ]; then
+  rm -r .venv
 fi
+python -m venv --upgrade-deps .venv
+
+# Installs the command-line.
 . .venv/bin/activate
-pip install --quiet --upgrade pip
 pip install --quiet -e cli/
 
 # Adds the wrapper function to the user `.bashrc` file.
@@ -64,17 +65,11 @@ cat <<EOF >>$HOME/.bashrc
 # Automatically activates the virtualenv and makes the command
 # accessible from all directories
 function crmint {
-  CURRENT_DIR=\$(pwd)
-  cd \$HOME/crmint
-  . .venv/bin/activate
+  . $HOME/crmint/.venv/bin/activate
   command crmint \$@ || return
   deactivate
-  cd "\$CURRENT_DIR"
 }
 EOF
-
-# Restores initial directory.
-cd "$CURRENT_DIR"
 
 # Runs the command line if configured for.
 if [[ ! -z "$COMMAND" ]]; then
@@ -85,3 +80,6 @@ else
   echo "You can use it now by typing: crmint --help"
   exec bash
 fi
+
+# Restores initial directory.
+cd "$CURRENT_DIR"

@@ -1,8 +1,6 @@
 """Tests for cli.utils.shared."""
 
-import os
 import pathlib
-import shutil
 import subprocess
 import textwrap
 from typing import Tuple
@@ -16,7 +14,6 @@ from click import testing
 
 from cli.utils import constants
 from cli.utils import shared
-from cli.utils import test_helpers
 
 
 class SharedTests(absltest.TestCase):
@@ -240,6 +237,52 @@ class SharedTests(absltest.TestCase):
     )
 
 
+class ProjectIdTests(absltest.TestCase):
+
+  def test_get_current_project_id_configured(self):
+    output_bytes = 'my_gcp_project\n'.encode('utf-8')
+    mock_run = mock.create_autospec(
+        subprocess.CompletedProcess, instance=True)
+    mock_run.returncode = 0
+    mock_run.stdout = output_bytes
+    mock_run.stderr = b''
+    self.enter_context(
+        mock.patch.object(
+            subprocess, 'run', autospec=True, return_value=mock_run))
+    self.assertEqual(shared.get_current_project_id(), 'my_gcp_project')
+
+  def test_get_current_project_id_unconfigured(self):
+    output_bytes = '\n'.encode('utf-8')
+    mock_run = mock.create_autospec(
+        subprocess.CompletedProcess, instance=True)
+    mock_run.returncode = 0
+    mock_run.stdout = output_bytes
+    mock_run.stderr = b''
+    self.enter_context(
+        mock.patch.object(
+            subprocess, 'run', autospec=True, return_value=mock_run))
+    self.assertEqual(shared.get_current_project_id(), '')
+
+  def test_list_user_project_ids(self):
+    output_bytes = 'other_gcp_project\nmy_gcp_project\n'.encode('utf-8')
+    mock_run = mock.create_autospec(
+        subprocess.CompletedProcess, instance=True)
+    mock_run.returncode = 0
+    mock_run.stdout = output_bytes
+    mock_run.stderr = b''
+    self.enter_context(
+        mock.patch.object(
+            subprocess, 'run', autospec=True, return_value=mock_run))
+    self.assertCountEqual(shared.list_user_project_ids(),
+                          ['other_gcp_project', 'my_gcp_project'])
+
+  def test_select_project_id(self):
+    patched_run = self.enter_context(
+        mock.patch.object(subprocess, 'run', autospec=True))
+    shared.select_project_id(shared.ProjectId('gcp_id'))
+    patched_run.assert_called_once()
+
+
 class GetRegionTests(absltest.TestCase):
 
   def setUp(self):
@@ -274,14 +317,13 @@ class GetRegionTests(absltest.TestCase):
         mock.patch.object(click, 'prompt', autospec=True, return_value=4))
 
   def test_get_region(self):
-    self.assertEqual(shared.get_region(shared.ProjectId('dummy_stage_v3')),
-                     'australia-southeast1')
+    self.assertEqual(shared.get_region(), 'australia-southeast1')
 
   def test_stdout(self):
 
     @click.command('custom')
     def _custom_command():
-      shared.get_region(shared.ProjectId('dummy_stage_v3'))
+      shared.get_region()
 
     runner = testing.CliRunner(mix_stderr=False)
     result = runner.invoke(_custom_command, catch_exceptions=False)
@@ -314,7 +356,7 @@ class TagsAndVersionsHelpersTests(parameterized.TestCase):
       ('No versions', ['foo', 'bar'], []),
       ('Removes non-versions', ['foo-3.0.0', '3.0.0', '4.0'], ['3.0.0', '4.0']),
   )
-  def filters_versions_from_list_of_tags(self, tags, expected_versions):
+  def test_filters_versions_from_list_of_tags(self, tags, expected_versions):
     versions = shared.filter_versions_from_tags(tags)
     self.assertSequenceEqual(versions, expected_versions)
 

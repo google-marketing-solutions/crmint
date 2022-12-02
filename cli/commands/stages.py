@@ -14,10 +14,8 @@
 
 """Command line to manage stage files."""
 
-import os
 import pathlib
 import sys
-import types
 from typing import Union
 
 import click
@@ -25,7 +23,6 @@ import click
 from cli.utils import constants
 from cli.utils import settings
 from cli.utils import shared
-from cli.utils.constants import GCLOUD
 
 
 @click.group()
@@ -41,7 +38,7 @@ def create(stage_path: Union[None, str], debug: bool) -> None:
   click.echo(click.style('>>>> Create stage', fg='magenta', bold=True))
 
   if not stage_path:
-    stage_path = shared.get_default_stage_path()
+    stage_path = shared.get_default_stage_path(debug=debug)
   else:
     stage_path = pathlib.Path(stage_path)
 
@@ -54,7 +51,7 @@ def create(stage_path: Union[None, str], debug: bool) -> None:
     shared.detect_settings_envs()
     shared.activate_apis(debug=debug)
     project_id = shared.get_current_project_id(debug=debug)
-    region = settings.REGION or shared.get_region(project_id, debug=debug)
+    region = settings.REGION or shared.get_region(debug=debug)
     gcloud_account_email = shared.get_user_email(debug=debug)
     context = shared.default_stage_context(
         project_id=project_id,

@@ -4,6 +4,7 @@ import os
 import pathlib
 import shutil
 import subprocess
+import textwrap
 from unittest import mock
 
 from absl.testing import absltest
@@ -120,7 +121,7 @@ class StagesTest(absltest.TestCase):
     runner = testing.CliRunner()
     result = runner.invoke(
         stages.update,
-        args=[f'--version=3.2'],
+        args=['--version=3.2'],
         catch_exceptions=False)
     with self.subTest('Validates command line output'):
       self.assertEqual(0, result.exit_code, msg=result.output)
@@ -128,7 +129,7 @@ class StagesTest(absltest.TestCase):
     with self.subTest('Validates content of new stage file'):
       updated_stage = shared.load_stage(
           pathlib.Path(constants.STAGE_DIR,
-          'dummy_project_with_vpc.tfvars.json'))
+                       'dummy_project_with_vpc.tfvars.json'))
       self.assertEqual(
           updated_stage.frontend_image.split(':')[1], '3.2')
       self.assertEqual(
@@ -157,7 +158,7 @@ class StagesTest(absltest.TestCase):
     with self.subTest('Validates content of new stage file'):
       updated_stage = shared.load_stage(
           pathlib.Path(constants.STAGE_DIR,
-          'dummy_project_with_vpc.tfvars.json'))
+                       'dummy_project_with_vpc.tfvars.json'))
       self.assertEqual(
           updated_stage.frontend_image.split(':')[1], '3.3')
       self.assertEqual(
@@ -181,7 +182,7 @@ class StagesTest(absltest.TestCase):
     runner = testing.CliRunner()
     result = runner.invoke(
         stages.update,
-        args=[f'--version=4.0'],
+        args=['--version=4.0'],
         catch_exceptions=False)
     with self.subTest('Validates command line output'):
       self.assertEqual(1, result.exit_code, msg=result.output)
@@ -205,9 +206,79 @@ class StagesTest(absltest.TestCase):
     with self.subTest('Validates content of new stage file'):
       updated_stage = shared.load_stage(
           pathlib.Path(constants.STAGE_DIR,
-          'dummy_project_with_vpc.tfvars.json'))
+                       'dummy_project_with_vpc.tfvars.json'))
       self.assertIn('user:me@example.com', updated_stage.iap_allowed_users)
       self.assertIn('user:you@example.com', updated_stage.iap_allowed_users)
+
+  def test_validates_stdout_on_create_stage_with_project_id(self):
+    self.enter_context(
+        mock.patch.object(
+            shared,
+            'get_current_project_id',
+            autospec=True,
+            return_value='other_gcp_project'))
+    self.enter_context(
+        mock.patch.object(
+            shared,
+            'list_user_project_ids',
+            autospec=True,
+            return_value=['other_gcp_project', 'my_gcp_project']))
+    self.enter_context(
+        mock.patch.object(
+            shared,
+            'get_region',
+            autospec=True,
+            return_value='europe-west1'))
+    runner = testing.CliRunner()
+    result = runner.invoke(stages.create, catch_exceptions=False)
+    self.assertEqual(result.exit_code, 0, msg=result.output)
+    self.assertRegex(
+        result.output,
+        textwrap.dedent("""\
+            >>>> Create stage
+                 Project ID found: other_gcp_project
+            ---> Detect env variables
+            ---> Activate Cloud services ✓
+            ---> Retrieve gcloud current user ✓
+            Stage file created: .*/other_gcp_project.tfvars.json
+            """))
+
+  def test_validates_stdout_on_create_stage_without_project_id(self):
+    self.enter_context(
+        mock.patch.object(
+            shared,
+            'get_current_project_id',
+            autospec=True,
+            return_value=''))
+    self.enter_context(
+        mock.patch.object(
+            shared,
+            'list_user_project_ids',
+            autospec=True,
+            return_value=['other_gcp_project', 'my_gcp_project']))
+    self.enter_context(
+        mock.patch.object(
+            shared,
+            'get_region',
+            autospec=True,
+            return_value='europe-west1'))
+    runner = testing.CliRunner()
+    result = runner.invoke(
+        stages.create, catch_exceptions=False, input='my_gcp_project')
+    self.assertEqual(result.exit_code, 0, msg=result.output)
+    self.assertRegex(
+        result.output,
+        textwrap.dedent("""\
+            >>>> Create stage
+                 Enter your Cloud Project ID: my_gcp_project
+                 Allowed to access Project ID "my_gcp_project"
+            ---> Configure gcloud with new Project Id ✓
+                 Project ID found: my_gcp_project
+            ---> Detect env variables
+            ---> Activate Cloud services ✓
+            ---> Retrieve gcloud current user ✓
+            Stage file created: (.*)/my_gcp_project.tfvars.json
+            """))
 
 
 if __name__ == '__main__':

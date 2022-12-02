@@ -19,7 +19,6 @@ import os
 import pathlib
 import re
 import subprocess
-import sys
 import textwrap
 import types
 from typing import Callable, NewType, Tuple, Union
@@ -116,15 +115,36 @@ def get_current_project_id(debug: bool = False) -> ProjectId:
   Args:
     debug: Flag to enable debug mode outputs.
   """
-  command = f'{GCLOUD} config get-value project 2>/dev/null'
-  status, out, _ = execute_command(
+  command = f'{GCLOUD} config list --format="value(core.project)"'
+  _, out, _ = execute_command(
       'Get current project identifier',
       command,
       debug=debug,
       debug_uses_std_out=False)
-  if status != 0:
-    sys.exit(status)
   return out.strip()
+
+
+def list_user_project_ids(debug: bool = False) -> [ProjectId]:
+  """Returns a list of valid project ids the user has access to.
+
+  Args:
+    debug: Flag to enable debug mode outputs.
+  """
+  command = f'{GCLOUD} projects list --format="value(project_id)"'
+  _, out, _ = execute_command(
+      'List available projects', command, debug=debug)
+  return out.strip().split('\n')
+
+
+def select_project_id(project_id: ProjectId, debug: bool = False) -> None:
+  """Configures the gcloud command to use the given project Id.
+
+  Args:
+    project_id: The new project Id to set in the gcloud config.
+    debug: Flag to enable debug mode outputs.
+  """
+  command = f'{GCLOUD} config set project {project_id}'
+  execute_command('Configure gcloud with new Project Id', command, debug=debug)
 
 
 def activate_apis(debug: bool = False) -> None:
@@ -149,6 +169,21 @@ def get_default_stage_path(debug: bool = False) -> pathlib.Path:
     debug: Flag to enable debug mode outputs.
   """
   project_id = get_current_project_id(debug=debug)
+  while not project_id:
+    new_project_id = click.prompt(
+        textwrap.indent('Enter your Cloud Project ID', _INDENT_PREFIX),
+        type=str).strip()
+    allowed_project_ids = list_user_project_ids(debug=debug)
+    if new_project_id in allowed_project_ids:
+      msg = textwrap.indent(
+          f'Allowed to access Project ID "{new_project_id}"', _INDENT_PREFIX)
+      click.echo(click.style(msg, fg='green', bold=True))
+      project_id = ProjectId(new_project_id)
+      select_project_id(project_id, debug=debug)
+    else:
+      msg = textwrap.indent(
+          f'Not allowed to access Project ID: {new_project_id}', _INDENT_PREFIX)
+      click.echo(click.style(msg, fg='red', bold=True))
   click.echo(textwrap.indent(f'Project ID found: {project_id}', _INDENT_PREFIX))
   return pathlib.Path(constants.STAGE_DIR, f'{project_id}.tfvars.json')
 
@@ -225,14 +260,13 @@ def get_user_email(debug: bool = False) -> str:
   return out.strip()
 
 
-def get_region(project_id: ProjectId, debug: bool = False) -> str:
+def get_region(debug: bool = False) -> str:
   """Returns a Cloud Scheduler compatible region.
 
   Cloud Scheduler is the limiting factor for picking up a cloud region as it
   is not available in all Cloud Run available regions.
 
   Args:
-    project_id: GCP project identifier.
     debug: Flag to enable debug mode outputs.
   """
   cmd = f'{GCLOUD} scheduler locations list --format="value(locationId)"'
