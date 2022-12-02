@@ -241,8 +241,7 @@ class ProjectIdTests(absltest.TestCase):
 
   def test_get_current_project_id_configured(self):
     output_bytes = 'my_gcp_project\n'.encode('utf-8')
-    mock_run = mock.create_autospec(
-        subprocess.CompletedProcess, instance=True)
+    mock_run = mock.create_autospec(subprocess.CompletedProcess, instance=True)
     mock_run.returncode = 0
     mock_run.stdout = output_bytes
     mock_run.stderr = b''
@@ -253,8 +252,7 @@ class ProjectIdTests(absltest.TestCase):
 
   def test_get_current_project_id_unconfigured(self):
     output_bytes = '\n'.encode('utf-8')
-    mock_run = mock.create_autospec(
-        subprocess.CompletedProcess, instance=True)
+    mock_run = mock.create_autospec(subprocess.CompletedProcess, instance=True)
     mock_run.returncode = 0
     mock_run.stdout = output_bytes
     mock_run.stderr = b''
@@ -265,8 +263,7 @@ class ProjectIdTests(absltest.TestCase):
 
   def test_list_user_project_ids(self):
     output_bytes = 'other_gcp_project\nmy_gcp_project\n'.encode('utf-8')
-    mock_run = mock.create_autospec(
-        subprocess.CompletedProcess, instance=True)
+    mock_run = mock.create_autospec(subprocess.CompletedProcess, instance=True)
     mock_run.returncode = 0
     mock_run.stdout = output_bytes
     mock_run.stderr = b''
@@ -277,8 +274,13 @@ class ProjectIdTests(absltest.TestCase):
                           ['other_gcp_project', 'my_gcp_project'])
 
   def test_select_project_id(self):
+    mock_run = mock.create_autospec(subprocess.CompletedProcess, instance=True)
+    mock_run.returncode = 0
+    mock_run.stdout = b''
+    mock_run.stderr = b''
     patched_run = self.enter_context(
-        mock.patch.object(subprocess, 'run', autospec=True))
+        mock.patch.object(
+            subprocess, 'run', autospec=True, return_value=mock_run))
     shared.select_project_id(shared.ProjectId('gcp_id'))
     patched_run.assert_called_once()
 
@@ -331,20 +333,20 @@ class GetRegionTests(absltest.TestCase):
         result.output,
         textwrap.dedent("""\
             ---> Get available Compute regions ✓
-            1) asia-east1
-            2) asia-northeast1
-            3) asia-southeast1
-            4) australia-southeast1
-            5) europe-west1
-            6) europe-west2
-            7) europe-west3
-            8) us-central1
-            9) us-east1
-            10) us-east4
-            11) us-west1
-            12) us-west2
-            13) us-west3
-            14) us-west4
+                 1) asia-east1
+                 2) asia-northeast1
+                 3) asia-southeast1
+                 4) australia-southeast1
+                 5) europe-west1
+                 6) europe-west2
+                 7) europe-west3
+                 8) us-central1
+                 9) us-east1
+                 10) us-east4
+                 11) us-west1
+                 12) us-west2
+                 13) us-west3
+                 14) us-west4
             """)
     )
 

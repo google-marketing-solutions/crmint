@@ -277,11 +277,13 @@ def get_region(debug: bool = False) -> str:
       debug=debug)
   regions = out.strip().split('\n')
   for i, region in enumerate(regions):
-    click.echo(f'{i + 1}) {region}')
+    click.echo(textwrap.indent(f'{i + 1}) {region}', _INDENT_PREFIX))
   i = -1
   while i < 0 or i >= len(regions):
     i = click.prompt(
-        'Enter an index of the region to deploy CRMint in', type=int) - 1
+        textwrap.indent('Enter an index of the region to deploy CRMint in',
+                        _INDENT_PREFIX),
+        type=int) - 1
   region = regions[i].strip()
   return region
 
@@ -316,8 +318,8 @@ def default_stage_context(*,
 
 def detect_settings_envs():
   """Returns the list of env variables overriding settings defaults."""
-  settings_envs = [varname for varname in os.environ if hasattr(settings, varname)]
-  click.secho(f'---> Detect env variables', fg='blue', bold=True, nl=True)
+  settings_envs = [key for key in os.environ if hasattr(settings, key)]
+  click.secho('---> Detect env variables', fg='blue', bold=True, nl=True)
   for varname in settings_envs:
     value = os.getenv(varname)
     click.echo(textwrap.indent(f'{varname}={value}', _INDENT_PREFIX))
@@ -359,7 +361,7 @@ def list_available_tags(image_uri: str, debug: bool = False):
           --sort-by=~timestamp
       """)
   _, out, _ = execute_command(
-      f'List available tags for CRMint',
+      'List available tags for CRMint',
       cmd,
       debug=debug,
       debug_uses_std_out=False)
