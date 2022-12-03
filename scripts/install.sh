@@ -45,7 +45,7 @@ cd $HOME/crmint
 
 # Updates the targeted branch.
 git checkout $TARGET_BRANCH
-git pull --quiet --rebase
+git pull --rebase
 
 # Resets the virtual environment.
 if [ -d .venv ]; then
@@ -55,7 +55,8 @@ python -m venv --upgrade-deps .venv
 
 # Installs the command-line.
 . .venv/bin/activate
-pip install --quiet -e cli/
+pip install --require-hashes -r cli/requirements.txt
+python cli/setup.py develop
 
 # Adds the wrapper function to the user `.bashrc` file.
 echo -e "\\nAdding a bash function to your $HOME/.bashrc file."

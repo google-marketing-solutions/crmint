@@ -46,6 +46,7 @@ COPY ./requirements-jobs.txt /app/requirements-jobs.txt
 RUN mkdir -p /install/dependencies
 RUN mkdir -p /install/wheels
 RUN pip install \
+    --require-hashes \
     --disable-pip-version-check \
     --no-cache-dir \
     --target=/install/dependencies \
