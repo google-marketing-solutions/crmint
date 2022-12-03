@@ -136,6 +136,9 @@ resource "google_compute_network" "private" {
   routing_mode            = "REGIONAL"
   mtu                     = 1460
   auto_create_subnetworks = false  # Custom Subnet Mode
+
+  # Create a network only if the compute.googleapis.com API has been activated.
+  depends_on = [google_project_service.apis]
 }
 
 resource "google_compute_global_address" "db_private_ip_address" {
