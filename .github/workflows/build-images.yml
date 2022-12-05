@@ -1,4 +1,4 @@
-name: Builds and publishes new Docker image for our services
+name: build-images
 
 on:
   push:

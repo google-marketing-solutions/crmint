@@ -9,11 +9,12 @@ advertisers.**
 * [Wiki](https://github.com/google/crmint/wiki)
 
 
-| Status | Coverage | Branch | Description |
-| :----- | :--------- | :----- | :---------- |
-| [![testing-cli](https://github.com/google/crmint/actions/workflows/testing-cli.yml/badge.svg?branch=master)](https://github.com/google/crmint/actions/workflows/testing-cli.yml) | [![codecov](https://codecov.io/gh/google/crmint/branch/master/graph/badge.svg?flag=cli)](https://codecov.io/gh/google/crmint) | [master](https://github.com/google/crmint/tree/master) | Testing the reliability of our deployment tool  |
-| [![testing-backend](https://github.com/google/crmint/actions/workflows/testing-backend.yml/badge.svg?branch=master)](https://github.com/google/crmint/actions/workflows/testing-backend.yml) | [![codecov](https://codecov.io/gh/google/crmint/branch/master/graph/badge.svg?flag=backend)](https://codecov.io/gh/google/crmint) | [master](https://github.com/google/crmint/tree/master) | Testing the core of CRMint backend engine |
-| [![testing-frontend](https://github.com/google/crmint/actions/workflows/testing-frontend.yml/badge.svg?branch=master)](https://github.com/google/crmint/actions/workflows/testing-frontend.yml) | - | [master](https://github.com/google/crmint/tree/master) | Testing our frontend |
+| Status | Coverage | Description |
+| :----- | :--------- | :---------- |
+| [![testing-cli](https://github.com/google/crmint/actions/workflows/testing-cli.yml/badge.svg?branch=master)](https://github.com/google/crmint/actions/workflows/testing-cli.yml) | [![codecov](https://codecov.io/gh/google/crmint/branch/master/graph/badge.svg?flag=cli)](https://codecov.io/gh/google/crmint) | Testing the reliability of our deployment tool |
+| [![testing-backend](https://github.com/google/crmint/actions/workflows/testing-backend.yml/badge.svg?branch=master)](https://github.com/google/crmint/actions/workflows/testing-backend.yml) | [![codecov](https://codecov.io/gh/google/crmint/branch/master/graph/badge.svg?flag=backend)](https://codecov.io/gh/google/crmint) | Testing the core of CRMint backend engine |
+| [![testing-frontend](https://github.com/google/crmint/actions/workflows/testing-frontend.yml/badge.svg?branch=master)](https://github.com/google/crmint/actions/workflows/testing-frontend.yml) | - | Testing our frontend |
+| [![build-images](https://github.com/google/crmint/actions/workflows/build-images.yml/badge.svg?branch=master)](https://github.com/google/crmint/actions/workflows/build-images.yml) | - | Building docker images for our services |
 
 ## Deploy CRMint
 
