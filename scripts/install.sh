@@ -66,9 +66,12 @@ cat <<EOF >>$HOME/.bashrc
 # Automatically activates the virtualenv and makes the command
 # accessible from all directories
 function crmint {
-  . $HOME/crmint/.venv/bin/activate
+  CURRENT_DIR=\$(pwd)
+  cd $HOME/crmint
+  . .venv/bin/activate
   command crmint \$@ || return
   deactivate
+  cd "\$CURRENT_DIR"
 }
 EOF
 
