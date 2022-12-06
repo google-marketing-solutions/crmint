@@ -11,6 +11,7 @@ from typing import Callable, Mapping, NewType, Optional, Type, TypeVar, Union
 from google.api_core import retry
 from google.cloud import bigquery
 from googleapiclient import discovery
+from googleapiclient import errors
 from googleapiclient import http as api_httplib
 import httplib2
 
@@ -433,6 +434,66 @@ def run_audience_operations_ga4(
     else:
       raise ValueError(f'Unsupported operation type: {op}')
     retry.Retry()(request.execute)()
+
+
+def create_custom_dimension_ga4(
+    ga_client: discovery.Resource,
+    ga_property_id: str,
+    parameter_name: str,
+    scope: str,
+    display_name: str,
+    disallow_ads_personalization: bool,
+    description: str,
+    progress_callback: Optional[Callable[[str], None]] = None) -> None:
+  """Creates a custom dimension using the Google Analytics API.
+
+  Args:
+    ga_client: Google Analytics API client.
+    ga_property_id: Identifier for the Google Analytics Property to retrieve
+      audiences from.
+    parameter_name: The name of the custom dimension paramater.
+    scope: Scope of the dimension (USER / EVENT).
+    display_name: Display name for this custom dimension as shown in the
+      Analytics UI. Max length of 82 characters.
+    disallow_ads_personalization: If set to true, sets this dimension as NPA and
+      excludes it from ads personalization. This is currently only supported by
+      user-scoped custom dimensions.
+    description: Description for this custom dimension. Max length of
+      150 characters.
+    progress_callback: Callback to send progress messages.
+  Raises:
+    ValueError: if input values do not meet API conditions.
+  """
+  progress_callback = progress_callback or _null_progress_callback
+  if scope == 'USER' and len(parameter_name) > 24:
+    raise ValueError('Parameter Name can be 24 characters maximum.')
+  elif scope == 'EVENT' and len(parameter_name) > 40:
+    raise ValueError('Parameter Name can be 40 characters maximum.')
+  elif len(display_name) > 82:
+    raise ValueError('Display Name can be 82 characters maximum.')
+  elif len(description) > 150:
+    raise ValueError('Description can be 150 characters maximum.')
+  elif scope not in ['USER', 'EVENT']:
+    raise ValueError('Scope must be either USER or EVENT.')
+  fields = {
+      'parameterName': parameter_name,
+      'scope': scope,
+      'displayName': display_name
+  }
+  if scope == 'USER':
+    fields['disallowAdsPersonalization'] = disallow_ads_personalization
+  if description:
+    fields['description'] = description
+  try:
+    request = ga_client.properties().customDimensions().create(
+        parent=f'properties/{ga_property_id}',
+        body=fields)
+    progress_callback('Inserting new custom dimension.')
+    retry.Retry()(request.execute)()
+  except errors.HttpError as e:
+    if e.resp.status == 409:
+      progress_callback('Requested parameter name already exists. '
+                        'No changes made.')
 
 
 def get_url_param_by_id(measurement_id: str) -> str:
