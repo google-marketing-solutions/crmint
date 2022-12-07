@@ -219,6 +219,8 @@ resource "google_cloud_run_service_iam_member" "jobs_run-public" {
 }
 
 resource "google_cloudbuild_worker_pool" "private" {
+  count = var.use_vpc ? 1 : 0
+
   name = "crmint-private-pool"
   location = var.region
 
@@ -247,5 +249,5 @@ resource "google_cloudbuild_worker_pool" "private" {
 locals {
   migrate_image = var.controller_image
   migrate_sql_conn_name = google_sql_database_instance.main.connection_name
-  pool = google_cloudbuild_worker_pool.private.id
+  pool = var.use_vpc ? google_cloudbuild_worker_pool.private[0].id : "default"
 }

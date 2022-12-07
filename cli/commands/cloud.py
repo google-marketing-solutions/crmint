@@ -272,12 +272,14 @@ def trigger_command(cmd: str,
   db_conn_name = outputs['migrate_sql_conn_name']['value']
   db_uri = outputs['cloud_db_uri']['value']
   pool = outputs['cloud_build_worker_pool']['value']
+  pool_arg = f'--worker-pool "{pool}"' if pool != 'default' else ''
   cmd = textwrap.dedent(f"""\
       {GCLOUD} builds submit \\
           --region {region} \\
           --config ./backend/cloudbuild_run_command.yaml \\
           --no-source \\
-          --substitutions _COMMAND="{cmd}",_POOL="{pool}",_IMAGE_NAME="{image}",_INSTANCE_CONNECTION_NAME="{db_conn_name}",_CLOUD_DB_URI="{db_uri}"
+          {pool_arg} \\
+          --substitutions _COMMAND="{cmd}",_IMAGE_NAME="{image}",_INSTANCE_CONNECTION_NAME="{db_conn_name}",_CLOUD_DB_URI="{db_uri}"
       """)
   shared.execute_command('Run on Cloud Build', cmd, debug=debug)
 
@@ -395,7 +397,7 @@ def _run_command(section_name: str,
                  cmd: str,
                  stage_path: Union[None, str],
                  debug: bool):
-  """Reset pipeline statuses."""
+  """Runs a command on Cloud Build."""
   click.echo(click.style(section_name, fg='magenta', bold=True))
 
   if stage_path is not None:
