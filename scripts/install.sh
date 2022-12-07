@@ -55,8 +55,9 @@ python -m venv --upgrade-deps .venv
 
 # Installs the command-line.
 . .venv/bin/activate
-pip install --require-hashes -r cli/requirements.txt
-python cli/setup.py develop
+cd ./cli
+pip install --require-hashes -r requirements.txt
+python setup.py develop
 
 # Adds the wrapper function to the user `.bashrc` file.
 echo -e "\\nAdding a bash function to your $HOME/.bashrc file."
@@ -66,12 +67,9 @@ cat <<EOF >>$HOME/.bashrc
 # Automatically activates the virtualenv and makes the command
 # accessible from all directories
 function crmint {
-  CURRENT_DIR=\$(pwd)
-  cd $HOME/crmint
-  . .venv/bin/activate
+  . $HOME/crmint/.venv/bin/activate
   command crmint \$@ || return
   deactivate
-  cd "\$CURRENT_DIR"
 }
 EOF
 
