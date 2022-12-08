@@ -15,19 +15,20 @@ For more detail on pipelines, jobs, workers, and key concepts of what CRMint doe
 
 ![Overview](../../img/architecture.svg)
 
-CRMint is a [Google App Engine](https://cloud.google.com/appengine/) application, comprising of 3 *services*:
+CRMint is a [Cloud Run](https://cloud.google.com/run/) application, comprising 3 *services*:
 
-*   **Web application** - service name: `default`. The `default` service serves the static components that make up the CRMint user interface.
-*   **[CRMint interface API](#crmint-interface-api)** - service name: `api-service`: This provides the means for the CRMint user interface to interact with the core CRMint application.
-*   **[CRMint Core](#crmint-core)** - service name `job-service`: This service performs the core actions of executing pipelines.
+*   **[Frontend](#frontend-service)** - service name: `frontend`, which serves the static components that make up the CRMint user interface.
+*   **[Controller](#controller-service)** - service name: `controller`, provides the means for the CRMint user interface to interact with the `jobs` service.
+*   **[Jobs](#jobs-service)** - service name `jobs`, performs the core actions of executing pipeline tasks.
 
-## Web application
+## Frontend service
 
-The CRMint user interface is an Angular project, and can be found [here](https://github.com/google/crmint/tree/master/frontend).
+The CRMint user interface is an Angular project, and can be found in the [`frontend`](https://github.com/google/crmint/tree/master/frontend) directory.
 
-## CRMint interface API
+## Controller service
 
-This service provides the means for the UI to interact with the CRMint core.
+This service provides the means for the UI to interact with the `jobs` service,
+it is the only service which has access to the Cloud SQL instance.
 
 This includes:
 
@@ -38,14 +39,17 @@ This includes:
 *   Worker definitions
 *   Task execution
 
-The API is defined [here](https://github.com/google/crmint/tree/master/backends/ibackend).
+You can find its source code in the [`backend/controller`](https://github.com/google/crmint/tree/master/backend/controller) directory.
 
-## CRMint Core
+## Jobs service
 
-The core CRMint service is defined [here](https://github.com/google/crmint/tree/master/backends/jbackend).
-Through use of the Task Queue and Cron, the execution of pipelines is controlled.
+Tasks are registered in our Pub/Sub topics. The `jobs` service subscribes to
+these topics to receive in push mode the tasks to execute.
 
-Individual tasks, invoked from the Task Queue, interact with the relevant APIs e.g. Google Analytics, Cloud Storage etc.
+Push mode enables our Cloud Run service to automatically detect high-load and
+spin up new instances if needed.
 
-Pipeline definitions and other settings are stored in the associated Cloud SQL instance.
+This service does not have access to the database, it is solely responsible to
+execute tasks and publish success messages back to Pub/Sub.
 
+You can find its source code in the [`backend/jobs`](https://github.com/google/crmint/tree/master/backend/jobs) directory.
