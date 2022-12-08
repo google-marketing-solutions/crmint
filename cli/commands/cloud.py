@@ -14,21 +14,17 @@
 
 """Command line to setup and deploy CRMint on GCP."""
 
-from collections import defaultdict
+import collections
 import json
-import os
 import pathlib
 import re
-import shutil
 import sys
 import textwrap
-from typing import Tuple, Union
+from typing import Union
 
 import click
-import yaml
 
 from backend.common import insight
-from cli.utils import constants
 from cli.utils import shared
 from cli.utils.constants import GCLOUD
 
@@ -103,7 +99,8 @@ def check_billing_enabled(stage: shared.StageContext,
   return out.strip().lower() == 'true'
 
 
-def terraform_switch_workspace(stage: shared.StageContext, debug: bool = False) -> bool:
+def terraform_switch_workspace(stage: shared.StageContext,
+                               debug: bool = False) -> bool:
   """Creates or reuses the workspace that stores the Terraform state.
 
   Args:
@@ -134,25 +131,22 @@ def terraform_switch_workspace(stage: shared.StageContext, debug: bool = False) 
         debug=debug)
 
 
-def terraform_init(stage: shared.StageContext, debug: bool = False) -> bool:
-  """
-  Args:
-    stage: Stage context.
-    debug: Enables the debug mode on system calls.
-  """
+def terraform_init(debug: bool = False) -> bool:
+  """Runs the Terraform init command."""
   cmd = 'terraform init -upgrade'
   shared.execute_command(
       'Initialize Terraform', cmd, cwd='./terraform', debug=debug)
 
 
 def terraform_plan(stage: shared.StageContext, debug: bool = False) -> bool:
-  """
+  """Runs the Terraform plan command.
+
   Args:
     stage: Stage context.
     debug: Enables the debug mode on system calls.
   """
   tracker = insight.GAProvider()
-  report_usage_id = tracker.client_id if tracker.opt_out is False else ''
+  report_usage_id = tracker.client_id if not tracker.opt_out else ''
   cmd = textwrap.dedent(f"""\
       terraform plan \\
           -var-file={stage.stage_path} \\
@@ -166,14 +160,10 @@ def terraform_plan(stage: shared.StageContext, debug: bool = False) -> bool:
       'Generate Terraform plan', cmd, cwd='./terraform', debug=debug)
 
 
-def terraform_apply(stage: shared.StageContext, debug: bool = False) -> bool:
-  """
-  Args:
-    stage: Stage context.
-    debug: Enables the debug mode on system calls.
-  """
+def terraform_apply(debug: bool = False) -> bool:
+  """Runs the Terraform apply command."""
   # NB: No need to set `-var-file` when applying a saved plan.
-  cmd = f'terraform apply -auto-approve /tmp/tfplan'
+  cmd = 'terraform apply -auto-approve /tmp/tfplan'
   shared.execute_command(
       'Apply Terraform plan', cmd, cwd='./terraform', debug=debug)
 
@@ -194,16 +184,11 @@ def terraform_show_plan(debug: bool = False) -> str:
   return out
 
 
-def configuration_summary_from_plan(stage: shared.StageContext,
-                                    debug: bool = False) -> bool:
-  """
-  Args:
-    stage: Stage context.
-    debug: Enables the debug mode on system calls.
-  """
+def configuration_summary_from_plan(debug: bool = False) -> bool:
+  """Parses the Terraform plan and outputs a summary."""
   out = terraform_show_plan(debug=debug)
   plan = json.loads(out)
-  resources_map = defaultdict(list)
+  resources_map = collections.defaultdict(list)
   for resource in plan['configuration']['root_module']['resources']:
     # Check if there is a count condition
     will_be_deployed = True
@@ -235,7 +220,7 @@ def configuration_summary_from_plan(stage: shared.StageContext,
         textwrap.indent(f'{resource_type_cleaned} ({count})', _INDENT_PREFIX))
 
 
-def display_frontend_url(stage: shared.StageContext, debug: bool = False):
+def display_frontend_url(debug: bool = False):
   cmd = 'terraform output frontend_url'
   _, out, _ = shared.execute_command(
       'CRMint UI',
@@ -246,7 +231,8 @@ def display_frontend_url(stage: shared.StageContext, debug: bool = False):
   click.echo(textwrap.indent(out, _INDENT_PREFIX))
 
 
-def terraform_outputs(stage: shared.StageContext, debug: bool = False):
+def terraform_outputs(debug: bool = False):
+  """Runs the Terraform output command."""
   cmd = 'terraform output -json'
   _, out, _ = shared.execute_command(
       'Retrieve configuration',
@@ -376,7 +362,7 @@ def setup(stage_path: Union[None, str], debug: bool) -> None:
     sys.exit(1)
 
   # Switches workspace.
-  terraform_init(stage, debug=debug)
+  terraform_init(debug=debug)
   terraform_switch_workspace(stage, debug=debug)
 
   # Updates service image digest in the tfvars file to trigger Cloud Run
@@ -385,11 +371,11 @@ def setup(stage_path: Union[None, str], debug: bool) -> None:
 
   # Runs setup steps.
   terraform_plan(stage, debug=debug)
-  configuration_summary_from_plan(stage, debug=debug)
-  terraform_apply(stage, debug=debug)
+  configuration_summary_from_plan(debug=debug)
+  terraform_apply(debug=debug)
 
   # Displays the frontend url to improve the user experience.
-  display_frontend_url(stage, debug=debug)
+  display_frontend_url(debug=debug)
   click.echo(click.style('Done.', fg='magenta', bold=True))
 
 
@@ -409,11 +395,11 @@ def _run_command(section_name: str,
     sys.exit(1)
 
   # Switches workspace.
-  terraform_init(stage, debug=debug)
+  terraform_init(debug=debug)
   terraform_switch_workspace(stage, debug=debug)
 
   # Retrieves outputs from the current Terraform state.
-  outputs_json_raw = terraform_outputs(stage, debug=debug)
+  outputs_json_raw = terraform_outputs(debug=debug)
   outputs = json.loads(outputs_json_raw)
 
   if not outputs:
@@ -427,7 +413,7 @@ def _run_command(section_name: str,
   trigger_command(cmd, outputs, debug=debug)
 
   # Displays the frontend url to improve the user experience.
-  display_frontend_url(stage, debug=debug)
+  display_frontend_url(debug=debug)
   click.echo(click.style('Done.', fg='magenta', bold=True))
 
 

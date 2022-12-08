@@ -76,6 +76,8 @@ def list_stages(stage_dir: Union[None, str]):
 @click.option('--debug/--no-debug', default=False)
 def migrate(stage_path: Union[None, str], debug: bool) -> None:
   """Migrate old stage file format to the latest one."""
+  del stage_path
+  del debug
   click.echo(click.style('Deprecated.', fg='blue', bold=True))
 
 
@@ -119,7 +121,9 @@ def update(stage_path: Union[None, str], version: str, debug: bool) -> None:
 @click.argument('user_emails', type=str)
 @click.option('--stage_path', default=None)
 @click.option('--debug/--no-debug', default=False)
-def allow_users(user_emails: str, stage_path: Union[None, str], debug: bool) -> None:
+def allow_users(user_emails: str,
+                stage_path: Union[None, str],
+                debug: bool) -> None:
   """Allow a list of user emails to access CRMint (separated with a comma)."""
   click.echo(click.style('>>>> Allow new users', fg='magenta', bold=True))
 
@@ -134,4 +138,4 @@ def allow_users(user_emails: str, stage_path: Union[None, str], debug: bool) -> 
   new_iap_users = [f'user:{email}' for email in user_emails.split(',')]
   stage.iap_allowed_users = list(set(stage.iap_allowed_users + new_iap_users))
   shared.create_stage_file(stage.stage_path, stage)
-  click.echo(click.style(f'Stage updated with new IAP users', fg='green'))
+  click.echo(click.style('Stage updated with new IAP users', fg='green'))

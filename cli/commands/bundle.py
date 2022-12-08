@@ -18,7 +18,6 @@ import click
 
 from cli.commands import cloud
 from cli.commands import stages
-from cli.utils import settings
 
 
 @click.group()
@@ -33,6 +32,7 @@ def cli():
 @click.pass_context
 def install(ctx: click.Context, use_vpc: bool, debug: bool) -> None:
   """Runs all commands needed to deploy CRMint in one command."""
+  del use_vpc
   ctx.invoke(stages.create, debug=debug)
   ctx.invoke(cloud.checklist, debug=debug)
   ctx.invoke(cloud.setup, debug=debug)
