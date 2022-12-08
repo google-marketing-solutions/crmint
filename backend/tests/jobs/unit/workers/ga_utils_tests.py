@@ -552,6 +552,49 @@ class GoogleAnalyticsUtilsTest(parameterized.TestCase):
             }),
         ])
 
+  @parameterized.named_parameters(
+      ('parameter_longer_than_24_chars', 'a' * 25, 'USER', 'ValidDisplayName',
+       False, 'ValidDescription'),
+      ('parameter_longer_than_40_chars', 'a' * 41, 'EVENT', 'ValidDisplayName',
+       False, 'ValidDescription'),
+      ('display_longer_than_82_chars', 'ValidParameter', 'USER',
+       'a' * 83, False, 'ValidDescription'),
+      ('description_longer_than_150_chars', 'ValidParameter', 'USER',
+       'ValidDisplayName', False, 'a' * 151),
+  )
+  def test_create_custom_dimension_ga4_raises_error_with_variations(
+      self, parameter_name, scope, display_name, disallow_ads_personalization,
+      description):
+    """Raises a ValueError on Custom Dimension limits."""
+    ga_client = ga_utils.get_client(
+        'analyticsadmin', 'v1alpha', http=self.http_v1alpha)
+    ga_property_id = '123456789'
+    with self.assertRaisesRegex(
+        ValueError,
+        '(Parameter Name|Display Name|Description) can '
+        'be (24|40|82|150) characters maximum.'):
+      ga_utils.create_custom_dimension_ga4(ga_client, ga_property_id,
+                                           parameter_name, scope, display_name,
+                                           disallow_ads_personalization,
+                                           description)
+
+  def test_create_custom_dimension_ga4_raises_error_invalid_scope(self):
+    """Raises a ValueError on Custom Dimension invalid scope."""
+    ga_client = ga_utils.get_client(
+        'analyticsadmin', 'v1alpha', http=self.http_v1alpha)
+    ga_property_id = '123456789'
+    parameter_name = 'ValidParameter'
+    scope = 'INVALIDSCOPE'
+    display_name = 'ValidDisplayName'
+    disallow_ads_personalization = False
+    description = 'ValidDescription'
+    with self.assertRaisesRegex(
+        ValueError, 'Scope must be either USER or EVENT.'):
+      ga_utils.create_custom_dimension_ga4(ga_client, ga_property_id,
+                                           parameter_name, scope, display_name,
+                                           disallow_ads_personalization,
+                                           description)
+
 
 if __name__ == '__main__':
   absltest.main()
