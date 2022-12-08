@@ -212,6 +212,8 @@ class CloudSetupTest(parameterized.TestCase):
             ---> Apply Terraform plan ✓
             ---> CRMint UI ✓
                  output
+            ---> CRMint UI \\(unsecured, temporarily\\) ✓
+                 output
             Done.
             """)
     )

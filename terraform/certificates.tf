@@ -1,3 +1,8 @@
+locals {
+  unsecured_domain = "crmint-unsecured.${google_compute_global_address.default.address}.nip.io"
+  secured_domain = "crmint.${google_compute_global_address.default.address}.nip.io"
+}
+
 resource "tls_private_key" "root" {
   algorithm = "RSA"
   rsa_bits  = 2048
@@ -30,17 +35,13 @@ resource "tls_cert_request" "default" {
   private_key_pem = tls_private_key.default.private_key_pem
 
   # Subject Alternative Name DNS entries
-  dns_names = [
-    "crmint.${google_compute_global_address.default.address}.nip.io"
-  ]
+  dns_names = [local.unsecured_domain]
 
   # Subject Alternative Name IP entries
-  ip_addresses = [
-    google_compute_global_address.default.address
-  ]
+  ip_addresses = [google_compute_global_address.default.address]
 
   subject {
-    common_name = "crmint.${google_compute_global_address.default.address}.nip.io"
+    common_name = local.unsecured_domain
     organization = "CRMint OpenSource"
   }
 }
@@ -61,7 +62,7 @@ resource "tls_locally_signed_cert" "default" {
 }
 
 resource "google_compute_ssl_certificate" "locally_signed" {
-  name = "crmint-locally-signed-with-chain"
+  name = "crmint-self-signed-with-chain"
   description = "Self managed certificate"
 
   private_key = tls_private_key.default.private_key_pem
@@ -75,5 +76,13 @@ resource "google_compute_ssl_certificate" "locally_signed" {
 
   lifecycle {
     create_before_destroy = true
+  }
+}
+
+resource "google_compute_managed_ssl_certificate" "default" {
+  name = "crmint-managed"
+
+  managed {
+    domains = [local.secured_domain]
   }
 }

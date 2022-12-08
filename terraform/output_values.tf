@@ -1,6 +1,11 @@
-output "frontend_url" {
-  value       = "https://${tls_cert_request.default.dns_names[0]}"
-  description = "The url to access CRMint UI."
+output "unsecured_url" {
+  value       = "https://${local.unsecured_domain}"
+  description = "The url to access CRMint UI (with self-signed certificate)."
+}
+
+output "secured_url" {
+  value       = "https://${local.secured_domain}"
+  description = "The url to access CRMint UI (with Google Managed certificate)."
 }
 
 output "region" {

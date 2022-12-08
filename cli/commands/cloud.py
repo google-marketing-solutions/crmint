@@ -221,14 +221,23 @@ def configuration_summary_from_plan(debug: bool = False) -> bool:
 
 
 def display_frontend_url(debug: bool = False):
-  cmd = 'terraform output frontend_url'
+  """Displays CRMint UI urls."""
+  cmd = 'terraform output secured_url'
   _, out, _ = shared.execute_command(
       'CRMint UI',
       cmd,
       cwd='./terraform',
       debug_uses_std_out=False,
       debug=debug)
-  click.echo(textwrap.indent(out, _INDENT_PREFIX))
+  click.echo(textwrap.indent(out.strip(), _INDENT_PREFIX))
+  cmd = 'terraform output unsecured_url'
+  _, out, _ = shared.execute_command(
+      'CRMint UI (unsecured, temporarily)',
+      cmd,
+      cwd='./terraform',
+      debug_uses_std_out=False,
+      debug=debug)
+  click.echo(textwrap.indent(out.strip(), _INDENT_PREFIX))
 
 
 def terraform_outputs(debug: bool = False):
