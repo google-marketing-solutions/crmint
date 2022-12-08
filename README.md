@@ -15,6 +15,7 @@ advertisers.**
 | [![testing-backend](https://github.com/google/crmint/actions/workflows/testing-backend.yml/badge.svg?branch=master)](https://github.com/google/crmint/actions/workflows/testing-backend.yml) | [![codecov](https://codecov.io/gh/google/crmint/branch/master/graph/badge.svg?flag=backend)](https://codecov.io/gh/google/crmint) | Testing the core of CRMint backend engine |
 | [![testing-frontend](https://github.com/google/crmint/actions/workflows/testing-frontend.yml/badge.svg?branch=master)](https://github.com/google/crmint/actions/workflows/testing-frontend.yml) | - | Testing our frontend |
 | [![build-images](https://github.com/google/crmint/actions/workflows/build-images.yml/badge.svg?branch=master)](https://github.com/google/crmint/actions/workflows/build-images.yml) | - | Building docker images for our services |
+| [![terraform-plan](https://github.com/google/crmint/actions/workflows/terraform.yml/badge.svg?branch=master)](https://github.com/google/crmint/actions/workflows/terraform.yml) | - | Testing our Terraform plan |
 
 ## Deploy CRMint
 

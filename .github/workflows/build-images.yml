@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - 'master'
-      - 'new-architecture-crmint-3.0'
     tags:
       - 'v*'
     paths-ignore:
