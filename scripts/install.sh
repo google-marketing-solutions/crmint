@@ -78,7 +78,8 @@ EOF
 
 # Runs the command line if configured for.
 if [[ ! -z "$COMMAND" ]]; then
-  hash -r
+  cd $HOME/crmint
+  . .venv/bin/activate
   eval "${COMMAND} ${COMMAND_OPTIONS}"
 else
   echo -e "\nSuccessfully installed the CRMint command-line."
