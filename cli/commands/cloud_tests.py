@@ -158,7 +158,7 @@ class CloudSetupTest(parameterized.TestCase):
       with self.subTest('Suggest a resolution path to the user'):
         self.assertIn(b'Fix this by running: $ crmint stages create',
                       out.getvalue())
-        self.assertEmpty(err.getvalue())
+        self.assertEmpty(err.getvalue())  # pytype: disable=attribute-error
 
   @parameterized.named_parameters(
       ('Invoked without options', []),
