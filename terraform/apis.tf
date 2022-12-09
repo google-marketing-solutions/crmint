@@ -9,6 +9,7 @@ locals {
     "compute.googleapis.com",
     "logging.googleapis.com",
     "pubsub.googleapis.com",
+    "secretmanager.googleapis.com",
     "servicenetworking.googleapis.com",
     "sqladmin.googleapis.com",
     "storage-api.googleapis.com",

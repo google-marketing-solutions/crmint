@@ -53,6 +53,26 @@ locals {
   cloud_db_uri = var.use_vpc ? "mysql+mysqlconnector://${google_sql_user.crmint.name}:${google_sql_user.crmint.password}@${google_sql_database_instance.main.first_ip_address}/${google_sql_database.crmint.name}" : "mysql+mysqlconnector://${google_sql_user.crmint.name}:${google_sql_user.crmint.password}@/${google_sql_database.crmint.name}?unix_socket=/cloudsql/${google_sql_database_instance.main.connection_name}"
 }
 
+resource "google_secret_manager_secret" "cloud_db_uri" {
+  secret_id = "cloud_db_uri"
+  replication {
+    automatic = true
+  }
+
+  depends_on = [google_project_service.apis]
+}
+
+resource "google_secret_manager_secret_version" "cloud_db_uri-latest" {
+  secret = google_secret_manager_secret.cloud_db_uri.name
+  secret_data = local.cloud_db_uri
+}
+
+resource "google_secret_manager_secret_iam_member" "cloud_db_uri-access" {
+  secret_id = google_secret_manager_secret.cloud_db_uri.id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${google_service_account.controller_sa.email}"
+}
+
 resource "google_cloud_run_service" "controller_run" {
   provider = google-beta
   name     = "controller"
@@ -124,12 +144,17 @@ resource "google_cloud_run_service" "controller_run" {
           value = google_service_account.controller_sa.email
         }
         env {
-          name  = "DATABASE_URI"
-          value = local.cloud_db_uri
-        }
-        env {
           name  = "PUBSUB_VERIFICATION_TOKEN"
           value = random_id.pubsub_verification_token.b64_url
+        }
+        env {
+          name  = "DATABASE_URI"
+          value_from {
+            secret_key_ref {
+              name = google_secret_manager_secret.cloud_db_uri.secret_id
+              key = "latest"
+            }
+          }
         }
       }
     }
@@ -141,6 +166,8 @@ resource "google_cloud_run_service" "controller_run" {
     percent         = 100
     latest_revision = true
   }
+
+  depends_on = [google_secret_manager_secret_version.cloud_db_uri-latest]
 }
 
 resource "google_cloud_run_service_iam_member" "controller_run-public" {

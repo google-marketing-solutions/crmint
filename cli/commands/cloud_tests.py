@@ -33,7 +33,7 @@ class CloudChecklistTest(parameterized.TestCase):
       ('User has other role is project owner', 'roles/viewer\nroles/owner', 0),
       ('User is project editor with missing roles', 'roles/editor\nroles/viewer', 1),
       ('User is project editor with one missing role', 'roles/editor\nroles/iap.admin\nroles/run.admin\nroles/compute.networkAdmin', 1),
-      ('User is project editor with all extra roles', 'roles/editor\nroles/iap.admin\nroles/run.admin\nroles/compute.networkAdmin\nroles/resourcemanager.projectIamAdmin', 0),
+      ('User is project editor with all extra roles', 'roles/editor\nroles/iap.admin\nroles/run.admin\nroles/compute.networkAdmin\nroles/resourcemanager.projectIamAdmin\nroles/secretmanager.admin', 0),
   )
   def test_user_with_different_roles(self, user_role, exit_code):
     side_effect_run = test_helpers.mock_subprocess_result_side_effect(

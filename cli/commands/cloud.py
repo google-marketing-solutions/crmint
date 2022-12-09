@@ -324,6 +324,7 @@ def checklist(stage_path: Union[None, str], debug: bool) -> None:
       'roles/run.admin',
       'roles/compute.networkAdmin',
       'roles/resourcemanager.projectIamAdmin',
+      'roles/secretmanager.admin',
   ]
   user_has_enough_roles_to_deploy = any([
       'roles/owner' in user_roles,
