@@ -37,6 +37,7 @@ def install(ctx: click.Context, use_vpc: bool, debug: bool) -> None:
   ctx.invoke(cloud.checklist, debug=debug)
   ctx.invoke(cloud.setup, debug=debug)
   ctx.invoke(cloud.migrate, debug=debug)
+  ctx.invoke(cloud.url, debug=debug)
 
 
 @cli.command('update')
@@ -48,6 +49,7 @@ def update(ctx: click.Context, version: str, debug: bool):
   ctx.invoke(stages.update, version=version, debug=debug)
   ctx.invoke(cloud.setup, debug=debug)
   ctx.invoke(cloud.migrate, debug=debug)
+  ctx.invoke(cloud.url, debug=debug)
 
 
 @cli.command('allow-users')
@@ -58,6 +60,7 @@ def allow_users(ctx: click.Context, user_emails: str, debug: bool):
   """Allow a list of user emails to access CRMint and Setup."""
   ctx.invoke(stages.allow_users, user_emails=user_emails, debug=debug)
   ctx.invoke(cloud.setup, debug=debug)
+  ctx.invoke(cloud.url, debug=debug)
 
 
 if __name__ == '__main__':

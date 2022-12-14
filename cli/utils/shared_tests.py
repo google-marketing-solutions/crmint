@@ -10,7 +10,7 @@ from absl.testing import absltest
 from absl.testing import parameterized
 import click
 from click import testing
-
+import requests
 
 from cli.utils import constants
 from cli.utils import shared
@@ -361,6 +361,120 @@ class TagsAndVersionsHelpersTests(parameterized.TestCase):
   def test_filters_versions_from_list_of_tags(self, tags, expected_versions):
     versions = shared.filter_versions_from_tags(tags)
     self.assertSequenceEqual(versions, expected_versions)
+
+
+class WaitForFrontendTests(parameterized.TestCase):
+
+  def setUp(self):
+    super().setUp()
+    self.enter_context(
+        mock.patch(
+            'time.sleep',
+            side_effect=lambda delay: delay,
+            autospec=True,
+            spec_set=True))
+
+  def test_none_available(self):
+    mock_response1 = mock.Mock()
+    mock_response1.ok = False
+    patched_requests_head = self.enter_context(
+        mock.patch.object(
+            requests,
+            'head',
+            autospec=True,
+            return_value=mock_response1))
+    available_url = shared.wait_for_frontend('url1', max_attempts=100)
+    self.assertIsNone(available_url)
+    self.assertEqual(patched_requests_head.call_count, 100)
+
+  def test_secured_not_available(self):
+    mock_response1 = mock.Mock()
+    mock_response1.ok = False
+    mock_response2 = mock.Mock()
+    mock_response2.ok = True
+    patched_requests_head = self.enter_context(
+        mock.patch.object(
+            requests,
+            'head',
+            autospec=True,
+            side_effect=[mock_response1, mock_response2]))
+    available_url = shared.wait_for_frontend('url1', max_attempts=100)
+    self.assertIsNotNone(available_url)
+    self.assertEqual(patched_requests_head.call_count, 2)
+    self.assertEqual(available_url, 'url1')
+
+  @parameterized.named_parameters(
+      ('SSLError', requests.exceptions.SSLError),
+      ('ConnectionError', requests.exceptions.ConnectionError),
+  )
+  def test_requests_raises_exception(self, exception_class):
+    patched_requests_head = self.enter_context(
+        mock.patch.object(
+            requests, 'head', autospec=True, side_effect=exception_class))
+    try:
+      available_url = shared.wait_for_frontend('url1', max_attempts=1)
+    except exception_class:
+      self.fail(f'Should handle the {exception_class.__name__} exception')
+    self.assertIsNone(available_url)
+    self.assertEqual(patched_requests_head.call_count, 1)
+
+  def test_success_stdout(self):
+    mock_response1 = mock.Mock()
+    mock_response1.ok = False
+    mock_response2 = mock.Mock()
+    mock_response2.ok = True
+    patched_requests_head = self.enter_context(
+        mock.patch.object(
+            requests,
+            'head',
+            autospec=True,
+            side_effect=[requests.exceptions.SSLError, mock_response2]))
+
+    @click.command('custom')
+    def _custom_command():
+      shared.wait_for_frontend('url1', max_attempts=10)
+
+    runner = testing.CliRunner(mix_stderr=False)
+    result = runner.invoke(_custom_command, catch_exceptions=False)
+    self.assertEqual(patched_requests_head.call_count, 2)
+    self.assertEqual(
+        result.output,
+        textwrap.dedent("""\
+            ---> Waiting for the UI readiness (~15min on average, up to 2h max) ✓
+                 Ready
+            """)
+    )
+
+  def test_success_debug_stdout(self):
+    mock_response1 = mock.Mock()
+    mock_response1.ok = True
+    mock_response1.request.method = 'HEAD'
+    mock_response1.request.url = 'https://secured.com'
+    mock_response1.status_code = 301
+    mock_response1.headers = {'Content-type': 'application/text'}
+    patched_requests_head = self.enter_context(
+        mock.patch.object(
+            requests, 'head', autospec=True, return_value=mock_response1))
+
+    @click.command('custom')
+    def _custom_command():
+      shared.wait_for_frontend('url1', max_attempts=100, debug=True)
+
+    runner = testing.CliRunner(mix_stderr=False)
+    result = runner.invoke(_custom_command, catch_exceptions=False)
+    self.assertEqual(patched_requests_head.call_count, 1)
+    self.assertEqual(
+        result.output,
+        textwrap.dedent("""\
+            ---> Waiting for the UI readiness (~15min on average, up to 2h max)
+
+            HEAD https://secured.com
+            HTTP/1 301 Moved Permanently
+            Content-type: application/text
+
+                 Ready
+            """)
+    )
 
 
 if __name__ == '__main__':

@@ -1,5 +1,5 @@
 locals {
-  unsecured_domain = "crmint-unsecured.${google_compute_global_address.default.address}.nip.io"
+  unsecured_domain = "crmint-dev.${google_compute_global_address.default.address}.nip.io"
   secured_domain = "crmint.${google_compute_global_address.default.address}.nip.io"
 }
 

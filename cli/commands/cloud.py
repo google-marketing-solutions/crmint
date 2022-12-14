@@ -165,7 +165,7 @@ def terraform_apply(debug: bool = False) -> bool:
   # NB: No need to set `-var-file` when applying a saved plan.
   cmd = 'terraform apply -auto-approve /tmp/tfplan'
   shared.execute_command(
-      'Apply Terraform plan', cmd, cwd='./terraform', debug=debug)
+      'Apply Terraform plan (~10min)', cmd, cwd='./terraform', debug=debug)
 
 
 def terraform_show_plan(debug: bool = False) -> str:
@@ -218,26 +218,6 @@ def configuration_summary_from_plan(debug: bool = False) -> bool:
     count = len(resource_names)
     click.echo(
         textwrap.indent(f'{resource_type_cleaned} ({count})', _INDENT_PREFIX))
-
-
-def display_frontend_url(debug: bool = False):
-  """Displays CRMint UI urls."""
-  cmd = 'terraform output secured_url'
-  _, out, _ = shared.execute_command(
-      'CRMint UI',
-      cmd,
-      cwd='./terraform',
-      debug_uses_std_out=False,
-      debug=debug)
-  click.echo(textwrap.indent(out.strip(), _INDENT_PREFIX))
-  cmd = 'terraform output unsecured_url'
-  _, out, _ = shared.execute_command(
-      'CRMint UI (unsecured, temporarily)',
-      cmd,
-      cwd='./terraform',
-      debug_uses_std_out=False,
-      debug=debug)
-  click.echo(textwrap.indent(out.strip(), _INDENT_PREFIX))
 
 
 def terraform_outputs(debug: bool = False):
@@ -383,9 +363,6 @@ def setup(stage_path: Union[None, str], debug: bool) -> None:
   terraform_plan(stage, debug=debug)
   configuration_summary_from_plan(debug=debug)
   terraform_apply(debug=debug)
-
-  # Displays the frontend url to improve the user experience.
-  display_frontend_url(debug=debug)
   click.echo(click.style('Done.', fg='magenta', bold=True))
 
 
@@ -421,9 +398,6 @@ def _run_command(section_name: str,
 
   # Resets the state of pipelines and jobs.
   trigger_command(cmd, outputs, debug=debug)
-
-  # Displays the frontend url to improve the user experience.
-  display_frontend_url(debug=debug)
   click.echo(click.style('Done.', fg='magenta', bold=True))
 
 
@@ -431,7 +405,7 @@ def _run_command(section_name: str,
 @click.option('--stage_path', type=str, default=None)
 @click.option('--debug/--no-debug', default=False)
 def migrate(stage_path: Union[None, str], debug: bool):
-  """Reset pipeline statuses."""
+  """Migrate the database to the latest schema."""
   _run_command(
       '>>>> Sync database',
       'python -m flask db upgrade; python -m flask db-seeds;',
@@ -449,6 +423,45 @@ def reset(stage_path: Union[None, str], debug: bool):
       'python -m flask reset-pipelines;',
       stage_path,
       debug=debug)
+
+
+@cli.command('url')
+@click.option('--stage_path', type=str, default=None)
+@click.option('--debug/--no-debug', default=False)
+def url(stage_path: Union[None, str], debug: bool):
+  """Retrieve the frontend URL to access the UI."""
+  click.echo(click.style('>>>> CRMint UI', fg='magenta', bold=True))
+
+  if stage_path is not None:
+    stage_path = pathlib.Path(stage_path)
+
+  try:
+    stage = shared.fetch_stage_or_default(stage_path, debug=debug)
+  except shared.CannotFetchStageError:
+    sys.exit(1)
+
+  # Switches workspace.
+  terraform_init(debug=debug)
+  terraform_switch_workspace(stage, debug=debug)
+
+  # Retrieves outputs from the current Terraform state.
+  outputs_json_raw = terraform_outputs(debug=debug)
+  outputs = json.loads(outputs_json_raw)
+
+  if not outputs:
+    click.secho(f'No state found in current workspace: {stage.project_id}',
+                fg='red',
+                bold=True)
+    click.secho('Fix this by running: $ crmint cloud setup', fg='green')
+    sys.exit(1)
+
+  secured_url = outputs['secured_url']['value']
+  available_url = shared.wait_for_frontend(secured_url, debug=debug)
+  if available_url:
+    click.secho(f'Secured url: {available_url}', fg='green', bold=True)
+  else:
+    # No available url yet.
+    sys.exit(1)
 
 
 if __name__ == '__main__':

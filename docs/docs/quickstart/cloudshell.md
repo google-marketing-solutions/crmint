@@ -81,7 +81,17 @@ _For advanced users, you move to the next section for more flexibility._
     crmint cloud migrate
     ```
 
-    > Once this script has completed executing, the installation is complete.
+    > Once this command has completed the installation has finished but some
+    > Cloud resources are still propagating across Google global infrastructure.
+
+1.  Retrieve the UI url:
+
+    ```shell
+    crmint cloud url
+    ```
+
+    > This command will wait until the UI is ready to be opened.
+
 
 1.  (Optional) Allow more users from your organization to access CRMint tool:
 

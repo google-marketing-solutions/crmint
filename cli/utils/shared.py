@@ -14,16 +14,20 @@
 
 """Package for shared methods among the commands."""
 
+import http
 import json
 import os
 import pathlib
 import re
 import subprocess
 import textwrap
+import time
 import types
 from typing import Callable, NewType, Tuple, Union
 
 import click
+import requests
+from requests import exceptions
 
 from cli.utils import constants
 from cli.utils import settings
@@ -372,3 +376,64 @@ def list_available_tags(image_uri: str, debug: bool = False):
 def filter_versions_from_tags(tags: list[str]) -> list[str]:
   """Filters a list of tags to return a list of versions."""
   return [tag for tag in tags if re.fullmatch(r'[\d\.]+', tag)]
+
+
+def wait_for_frontend(url: str,
+                      max_attempts: int = 720,
+                      attempt_delay: int = 10,
+                      debug: bool = False) -> Union[str, None]:
+  """Waiting loop to detect when the frontend is accessible.
+
+  This is needed, because an Global External HTTPS Load Balancer can take
+  some time before exposing itself to the public IP address.
+
+  Args:
+    url: Frontend URL to ping.
+    max_attempts: Maximum number of attempts to get a ready url.
+        Defaults to 720 attempts.
+    attempt_delay: Number of seconds between each attempt. Defaults to 10.
+    debug: Enables the debug mode on requests calls.
+  Returns:
+    The first available url or None if we reached the max number of attempts.
+  """
+  click.secho(
+      '---> Waiting for the UI readiness (~15min on average, up to 2h max)',
+      fg='blue',
+      bold=True,
+      nl=debug)
+  if debug:
+    click.echo('')
+  available_url = None
+  ping_attempts = 0
+  with spinner.spinner(disable=debug, color='blue', bold=True):
+    while ping_attempts < max_attempts:
+      try:
+        response = requests.head(url, verify=True)
+      except (exceptions.SSLError, exceptions.ConnectionError) as inst:
+        response = None
+        if debug:
+          click.echo(f'Failed to connect: {str(inst)}')
+          click.echo('')
+      if debug and response:
+        status_code_explained = http.client.responses[response.status_code]
+        headers_formatted = '\n'.join(
+            f'{k}: {v}' for k, v in response.headers.items())
+        click.echo(f'{response.request.method} {response.request.url}')
+        click.echo(f'HTTP/1 {response.status_code} {status_code_explained}')
+        click.echo(headers_formatted)
+        click.echo('')
+      if response and response.ok:
+        available_url = url
+        break
+      ping_attempts += 1
+      time.sleep(attempt_delay)
+  if not debug:
+    click.echo('')
+  if ping_attempts >= max_attempts:
+    click.echo(textwrap.indent(
+        f'Failed after {ping_attempts} attempts. Retry: $ crmint cloud url',
+        _INDENT_PREFIX))
+    return None
+  else:
+    click.echo(textwrap.indent('Ready', _INDENT_PREFIX))
+    return available_url

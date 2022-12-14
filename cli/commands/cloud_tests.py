@@ -1,5 +1,6 @@
 """Tests for cli.commands.cloud."""
 
+import json
 import os
 import pathlib
 import shutil
@@ -10,7 +11,6 @@ from unittest import mock
 
 from absl.testing import absltest
 from absl.testing import parameterized
-import click
 from click import testing
 
 from cli.commands import cloud
@@ -31,9 +31,9 @@ class CloudChecklistTest(parameterized.TestCase):
       ('User not project owner', 'roles/editor', 1),
       ('User is project owner', 'roles/owner', 0),
       ('User has other role is project owner', 'roles/viewer\nroles/owner', 0),
-      ('User is project editor with missing roles', 'roles/editor\nroles/viewer', 1),
-      ('User is project editor with one missing role', 'roles/editor\nroles/iap.admin\nroles/run.admin\nroles/compute.networkAdmin', 1),
-      ('User is project editor with all extra roles', 'roles/editor\nroles/iap.admin\nroles/run.admin\nroles/compute.networkAdmin\nroles/resourcemanager.projectIamAdmin\nroles/secretmanager.admin', 0),
+      ('User is project editor with missing roles', 'roles/editor\nroles/viewer', 1),  # pylint: disable=line-too-long
+      ('User is project editor with one missing role', 'roles/editor\nroles/iap.admin\nroles/run.admin\nroles/compute.networkAdmin', 1),  # pylint: disable=line-too-long
+      ('User is project editor with all extra roles', 'roles/editor\nroles/iap.admin\nroles/run.admin\nroles/compute.networkAdmin\nroles/resourcemanager.projectIamAdmin\nroles/secretmanager.admin', 0),  # pylint: disable=line-too-long
   )
   def test_user_with_different_roles(self, user_role, exit_code):
     side_effect_run = test_helpers.mock_subprocess_result_side_effect(
@@ -100,7 +100,7 @@ class CloudChecklistTest(parameterized.TestCase):
     )
 
 
-class CloudSetupTest(parameterized.TestCase):
+class CloudTestBase(parameterized.TestCase):
 
   def setUp(self):
     super().setUp()
@@ -123,10 +123,12 @@ class CloudSetupTest(parameterized.TestCase):
         mock.patch.object(constants, 'STAGE_DIR', tmp_stage_dir.full_path))
     shutil.copyfile(
         _datafile('dummy_project_with_vpc.tfvars.json'),
-        pathlib.Path(constants.STAGE_DIR, 'dummy_project_with_vpc.tfvars.json'))
+        pathlib.Path(constants.STAGE_DIR,
+                     'dummy_project_with_vpc.tfvars.json'))
     shutil.copyfile(
         _datafile('dummy_project_without_vpc.tfvars.json'),
-        pathlib.Path(constants.STAGE_DIR, 'dummy_project_without_vpc.tfvars.json'))
+        pathlib.Path(constants.STAGE_DIR,
+                     'dummy_project_without_vpc.tfvars.json'))
     # Uses a temporary directory we can keep a reference to.
     self.tmp_workdir = self.create_tempdir('workdir')
     self.enter_context(
@@ -136,12 +138,15 @@ class CloudSetupTest(parameterized.TestCase):
             autospec=True,
             return_value=self.tmp_workdir.full_path))
 
+
+class CloudSetupTest(CloudTestBase):
+
   def test_fetch_existing_stage(self):
     """Should not raise an exception if stage file exists."""
     stage_path = pathlib.Path(
         constants.STAGE_DIR, 'dummy_project_with_vpc.tfvars.json')
     try:
-      stage = shared.fetch_stage_or_default(stage_path)
+      _ = shared.fetch_stage_or_default(stage_path)
     except shared.CannotFetchStageError:
       self.fail('Should not raise an exception')
 
@@ -209,11 +214,7 @@ class CloudSetupTest(parameterized.TestCase):
                  Cloud Run Service \\(3\\)
                  Cloud Run Service IAM Member \\(3\\)
                  (.|\\n)*
-            ---> Apply Terraform plan ✓
-            ---> CRMint UI ✓
-                 output
-            ---> CRMint UI \\(unsecured, temporarily\\) ✓
-                 output
+            ---> Apply Terraform plan \\(~10min\\) ✓
             Done.
             """)
     )
@@ -233,6 +234,32 @@ class CloudSetupTest(parameterized.TestCase):
     result = runner.invoke(cloud.setup, catch_exceptions=False)
     self.assertEqual(result.exit_code, 0, msg=result.output)
     self.assertIn('VPC Access Connector (1)', result.output)
+
+
+class CloudUrlTest(CloudTestBase):
+
+  def setUp(self):
+    super().setUp()
+    tf_outputs = json.dumps(
+        {
+            'secured_url': {'value': 'https://secured.com'},
+            'unsecured_url': {'value': 'https://temporary.com'},
+        })
+    self.enter_context(
+        mock.patch.object(
+            cloud, 'terraform_outputs', autospec=True, return_value=tf_outputs))
+
+  def test_frontend_url_available(self):
+    self.enter_context(
+        mock.patch.object(
+            shared,
+            'wait_for_frontend',
+            autospec=True,
+            return_value='https://secured.com'))
+    runner = testing.CliRunner()
+    result = runner.invoke(cloud.url, catch_exceptions=False)
+    self.assertEqual(result.exit_code, 0, msg=result.output)
+    self.assertIn('Secured url: https://secured.com', result.output)
 
 
 if __name__ == '__main__':

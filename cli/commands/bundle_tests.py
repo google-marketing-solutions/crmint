@@ -52,6 +52,8 @@ class BundleTest(absltest.TestCase):
         'migrate_sql_conn_name': {'value': 'project:region:db_instance'},
         'cloud_db_uri': {'value': 'mysql://db:3306/name'},
         'cloud_build_worker_pool': {'value': 'my_worker_pool'},
+        'secured_url': {'value': 'https://secured.com'},
+        'unsecured_url': {'value': 'https://temporary.com'},
     }
     self.enter_context(
         mock.patch.object(constants, 'STAGE_DIR', tmp_stage_dir.full_path))
@@ -73,6 +75,12 @@ class BundleTest(absltest.TestCase):
             'get_region',
             autospec=True,
             return_value='us-central1'))
+    self.enter_context(
+        mock.patch.object(
+            shared,
+            'wait_for_frontend',
+            autospec=True,
+            return_value='https://secured.com'))
     self.enter_context(
         mock.patch.object(
             cloud,
@@ -110,6 +118,7 @@ class BundleTest(absltest.TestCase):
     self.assertIn('>>>> Checklist', result.output)
     self.assertIn('>>>> Setup', result.output)
     self.assertIn('>>>> Sync database', result.output)
+    self.assertIn('>>>> CRMint UI', result.output)
 
   def test_cannot_run_update_without_stage_file(self):
     runner = testing.CliRunner()
@@ -134,6 +143,7 @@ class BundleTest(absltest.TestCase):
     self.assertRegex(result.output, 'Stage updated to version: 3.3')
     self.assertIn('>>>> Setup', result.output)
     self.assertIn('>>>> Sync database', result.output)
+    self.assertIn('>>>> CRMint UI', result.output)
 
   def test_can_allow_new_users_and_setup(self):
     shutil.copyfile(
@@ -148,6 +158,7 @@ class BundleTest(absltest.TestCase):
     self.assertIn('>>>> Allow new users', result.output)
     self.assertIn('>>>> Setup', result.output)
     self.assertNotIn('>>>> Sync database', result.output)
+    self.assertIn('>>>> CRMint UI', result.output)
 
 
 if __name__ == '__main__':
