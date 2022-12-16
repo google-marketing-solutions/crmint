@@ -131,6 +131,20 @@ def terraform_switch_workspace(stage: shared.StageContext,
         debug=debug)
 
 
+def patch_etc_hosts(debug: bool = False) -> None:
+  """Workaround to avoid Terraform to use IPv6 addresses."""
+  cmd = 'bash scripts/force_ipv4_addresses.sh'
+  shared.execute_command(
+      'Patch /etc/hosts to force IPv4', cmd, cwd='./cli', debug=debug)
+
+
+def unpatch_etc_hosts(debug: bool = False) -> None:
+  """Restores the `/etc/hosts` file."""
+  cmd = 'sudo cp /etc/hosts.backup /etc/hosts'
+  shared.execute_command(
+      'Restore /etc/hosts', cmd, cwd='./cli', debug=debug)
+
+
 def terraform_init(debug: bool = False) -> bool:
   """Runs the Terraform init command."""
   cmd = 'terraform init -upgrade'
@@ -352,6 +366,7 @@ def setup(stage_path: Union[None, str], debug: bool) -> None:
     sys.exit(1)
 
   # Switches workspace.
+  patch_etc_hosts(debug=debug)
   terraform_init(debug=debug)
   terraform_switch_workspace(stage, debug=debug)
 
@@ -363,6 +378,7 @@ def setup(stage_path: Union[None, str], debug: bool) -> None:
   terraform_plan(stage, debug=debug)
   configuration_summary_from_plan(debug=debug)
   terraform_apply(debug=debug)
+  unpatch_etc_hosts(debug=debug)
   click.echo(click.style('Done.', fg='magenta', bold=True))
 
 

@@ -1,2 +1,4 @@
 *.egg-info
 stages/*.py
+build/
+dist/

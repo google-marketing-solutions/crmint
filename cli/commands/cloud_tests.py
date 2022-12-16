@@ -201,6 +201,7 @@ class CloudSetupTest(CloudTestBase):
         textwrap.dedent("""\
             >>>> Setup
                  Project ID found: dummy_project_with_vpc
+            ---> Patch /etc/hosts to force IPv4 ✓
             ---> Initialize Terraform ✓
             ---> List Terraform workspaces ✓
             ---> Create new Terraform workspace: dummy_project_with_vpc ✓
@@ -215,6 +216,7 @@ class CloudSetupTest(CloudTestBase):
                  Cloud Run Service IAM Member \\(3\\)
                  (.|\\n)*
             ---> Apply Terraform plan \\(~10min\\) ✓
+            ---> Restore /etc/hosts ✓
             Done.
             """)
     )

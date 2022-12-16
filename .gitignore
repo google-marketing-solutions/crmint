@@ -2,6 +2,7 @@
 *.swp
 __pycache__
 *.pyc
+crmint.egg-info/
 
 # System Files
 .DS_Store
