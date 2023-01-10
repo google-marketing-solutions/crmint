@@ -15,31 +15,12 @@
 # limitations under the License.
 
 TARGET_BRANCH=$1
-RUN_COMMAND=$2
-COMMAND_OPTIONS=$3
 CURRENT_DIR=$(pwd)
-
-COMMAND=""
-if [[ ! -z "$RUN_COMMAND" ]]; then
-  case "${RUN_COMMAND}" in
-    --bundle)
-      COMMAND="crmint bundle install"
-      ;;
-    *)
-      echo "Unknown command: ${RUN_COMMAND}" >&2
-      exit 2
-      ;;
-  esac
-  if [[ ! -z "$COMMAND" ]]; then
-    echo "Will run the following command after installing the CRMint command line"
-    echo " ${COMMAND} ${COMMAND_OPTIONS}"
-  fi
-fi
 
 # Downloads the source code.
 if [ ! -d $HOME/crmint ]; then
   git clone https://github.com/google/crmint.git $HOME/crmint
-  echo "\\nCloned crmint repository to your home directory: $HOME."
+  echo -e "\nCloned crmint repository to your home directory: $HOME."
 fi
 cd $HOME/crmint
 
@@ -56,13 +37,16 @@ python -m venv --upgrade-deps .venv
 # Installs the command-line.
 . .venv/bin/activate
 cd ./cli
-pip install --require-hashes -r requirements.txt
-python setup.py develop
+python -m pip install --require-hashes -r requirements.txt
+sudo python -m pip install -e .
+deactivate
+
+# Restores initial directory.
+cd "$CURRENT_DIR"
 
 # Adds the wrapper function to the user `.bashrc` file.
-echo -e "\\nAdding a bash function to your $HOME/.bashrc file."
-cat <<EOF >>$HOME/.bashrc
-
+echo -e "\nAdding a bash function to your $HOME/.bashrc file."
+cat <<EOF >$HOME/.crmint
 # CRMint wrapper function.
 # Automatically activates the virtualenv and makes the command
 # accessible from all directories
@@ -74,18 +58,15 @@ function crmint {
   deactivate
   cd "\$CURRENT_DIR"
 }
+
 EOF
+echo -e "\n# CRMint helpers \nsource \$HOME/.crmint" >> $HOME/.bashrc
 
-# Runs the command line if configured for.
-if [[ ! -z "$COMMAND" ]]; then
-  cd $HOME/crmint
-  . .venv/bin/activate
-  eval "${COMMAND} ${COMMAND_OPTIONS}"
-else
-  echo -e "\nSuccessfully installed the CRMint command-line."
-  echo "You can use it now by typing: crmint --help"
-  exec bash
-fi
+# Export CRMint bash function.
+# NOTE: this must be used as `source scripts/install.sh master --bundle`
+#       in order to expose the added bash crmint function.
+source $HOME/.bashrc
 
-# Restores initial directory.
-cd "$CURRENT_DIR"
+# Notifies the user that the command-line is ready.
+echo -e "\nSuccessfully installed the CRMint command-line."
+echo -e "You can use it now by typing: crmint --help\n"

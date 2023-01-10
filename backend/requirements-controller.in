@@ -8,3 +8,7 @@ Flask-Migrate
 mysql-connector-python==8.0.28
 google-cloud-bigquery
 appengine-python-standard
+
+# Pins a loose requirement from "google-api-core".
+google-api-core[grpc]==2.11.0
+googleapis-common-protos[grpc]==1.58.0

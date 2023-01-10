@@ -13,5 +13,5 @@ Please run each of these commands in your CloudShell terminal.
 1.  Install `crmint` command-line:
 
     ```shell
-    USE_VPC=0 bash <(curl -Ls https://raw.githubusercontent.com/google/crmint/master/scripts/install.sh) master --bundle
+    source <(curl -Ls https://raw.githubusercontent.com/google/crmint/master/scripts/install.sh) master && USE_VPC=0 crmint bundle install
     ```

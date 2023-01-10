@@ -55,4 +55,7 @@ resource "google_monitoring_alert_policy" "notify_on_pipeline_status_failed" {
     }
   }
   notification_channels = [google_monitoring_notification_channel.email.id]
+  depends_on = [
+    google_logging_metric.pipeline_status_failed
+  ]
 }

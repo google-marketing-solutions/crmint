@@ -1,6 +1,9 @@
 resource "google_compute_global_address" "default" {
   name          = "global-crmint-default"
   address_type  = "EXTERNAL"
+
+  # Create a network only if the compute.googleapis.com API has been activated.
+  depends_on = [google_project_service.apis]
 }
 
 resource "google_compute_region_network_endpoint_group" "frontend_neg" {

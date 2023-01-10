@@ -4,3 +4,7 @@ google-api-python-client
 google-cloud-aiplatform
 google-cloud-bigquery
 google-cloud-storage
+
+# Pin a loose requirement from "google-api-core"
+google-api-core[grpc]==2.11.0
+googleapis-common-protos[grpc]==1.58.0

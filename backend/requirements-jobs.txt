@@ -8,13 +8,13 @@ cachecontrol==0.12.11 \
     --hash=sha256:2c75d6a8938cb1933c75c50184549ad42728a27e9f6b92fd677c3151aa72555b \
     --hash=sha256:a5b9fcc986b184db101aa280b42ecdcdfc524892596f606858e0b7a8b4d9e144
     # via -r backend/common/requirements.in
-cachetools==5.2.0 \
-    --hash=sha256:6a94c6402995a99c3970cc7e4884bb60b4a8639938157eeed436098bf9831757 \
-    --hash=sha256:f9f17d2aec496a9aa6b76f53e3b614c965223c061982d434d160f930c698a9db
+cachetools==5.2.1 \
+    --hash=sha256:5991bc0e08a1319bb618d3195ca5b6bc76646a49c21d55962977197b301cc1fe \
+    --hash=sha256:8462eebf3a6c15d25430a8c27c56ac61340b2ecf60c9ce57afc2b97e450e47da
     # via google-auth
-certifi==2022.9.24 \
-    --hash=sha256:0d9c601124e5a6ba9712dbc60d9c53c21e34f5f641fe83002317394311bdce14 \
-    --hash=sha256:90c1a32f1d68f940488354e36370f6cca89f0f106db09518524c88d6ed83f382
+certifi==2022.12.7 \
+    --hash=sha256:35824b4c3a97115964b408844d64aa14db1cc518f6562e8d7261699d1350a9e3 \
+    --hash=sha256:4ad3232f5e926d6718ec31cfc1fcadfde020920e278684144551c91769c7bc18
     # via requests
 charset-normalizer==2.1.1 \
     --hash=sha256:5a3d016c7c547f69d6f81fb0db9449ce888b418b5b9952cc5e6e66843e9dd845 \
@@ -28,14 +28,15 @@ flask==2.0.3 \
     --hash=sha256:59da8a3170004800a2837844bfa84d49b022550616070f7cb1a659682b2e7c9f \
     --hash=sha256:e1120c228ca2f553b470df4a5fa927ab66258467526069981b3eb0a91902687d
     # via -r backend/common/requirements.in
-google-analytics-admin==0.12.0 \
-    --hash=sha256:8915ee6a462e66f32f8ae2a80ba2c70f3d5e1b62f2dbc30892060c1513239a55 \
-    --hash=sha256:8ce511bad58a1e271b1037933d6e4e2b78bc977e130396c4eb174f4c1a5a28da
+google-analytics-admin==0.13.0 \
+    --hash=sha256:926c04beb22b5614f04b3b77ae18106e646e0d90cb46054da49de143d29c4a25 \
+    --hash=sha256:b5442c1f79234affd79c7ca74dac29fee3b6709a1f855e20dfe02e500efc4d6c
     # via -r backend/requirements-jobs.in
 google-api-core[grpc]==2.11.0 \
     --hash=sha256:4b9bb5d5a380a0befa0573b302651b8a9a89262c1730e37bf423cec511804c22 \
     --hash=sha256:ce222e27b0de0d7bc63eb043b956996d6dccab14cc3b690aaea91c9cc99dc16e
     # via
+    #   -r backend/requirements-jobs.in
     #   google-analytics-admin
     #   google-api-python-client
     #   google-cloud-aiplatform
@@ -46,13 +47,13 @@ google-api-core[grpc]==2.11.0 \
     #   google-cloud-pubsub
     #   google-cloud-resource-manager
     #   google-cloud-storage
-google-api-python-client==2.68.0 \
-    --hash=sha256:19177411b7dcf8fcd66bff085c6838ecea5fd6b598998d594be1f7290dfc34b4 \
-    --hash=sha256:d4d317ccd365118f96d8d4b6a61aaba8fd414cf1a8617cb229386f2094013cea
+google-api-python-client==2.71.0 \
+    --hash=sha256:9412ad3445518fa9d24d02c673a70b07c9d124990f44763cdf4f5304ca5b4d08 \
+    --hash=sha256:a4ea351db2bb2a9b1a7e96d8fa8de0fcbc31d9e237b724f4a07b243c2d63e9a4
     # via -r backend/requirements-jobs.in
-google-auth==2.15.0 \
-    --hash=sha256:6897b93556d8d807ad70701bb89f000183aea366ca7ed94680828b37437a4994 \
-    --hash=sha256:72f12a6cfc968d754d7bdab369c5c5c16032106e52d32c6dfd8484e4c01a6d1f
+google-auth==2.16.0 \
+    --hash=sha256:5045648c821fb72384cdc0e82cc326df195f113a33049d9b62b74589243d2acc \
+    --hash=sha256:ed7057a101af1146f0554a769930ac9de506aeca4fd5af6543ebe791851a9fbd
     # via
     #   google-api-core
     #   google-api-python-client
@@ -63,13 +64,13 @@ google-auth-httplib2==0.1.0 \
     --hash=sha256:31e49c36c6b5643b57e82617cb3e021e3e1d2df9da63af67252c02fa9c1f4a10 \
     --hash=sha256:a07c39fd632becacd3f07718dfd6021bf396978f03ad3ce4321d060015cc30ac
     # via google-api-python-client
-google-cloud-aiplatform==1.19.0 \
-    --hash=sha256:1514e051824f272999866ab672ef826d3d588d50597c13890c9ace172911bd99 \
-    --hash=sha256:d1e37853384435085830357fd48d05061f5c69c8e8a7142a9f56edd5f1855cf7
+google-cloud-aiplatform==1.20.0 \
+    --hash=sha256:e542ec645a40ee65ca4acd83b4e5d0928af5edded9065c8cbff39a7b5f3f3c6d \
+    --hash=sha256:e7f968631ed0f58dd283764e47af1589fd6382a53941c8ac38f8bfbf5861365c
     # via -r backend/requirements-jobs.in
-google-cloud-appengine-logging==1.1.6 \
-    --hash=sha256:37477ff25aaa2d3e085db834429c5c86d2783e604ebd7738c8692f361bc7c897 \
-    --hash=sha256:75091dc527c2ff3459f5327d6e699069f12d68ee8732c08dcdba894aa1f0faec
+google-cloud-appengine-logging==1.2.0 \
+    --hash=sha256:8257fe68d0c2f4eb1085fde875e2929196e4ded9cb522c3faaddf14307e8e588 \
+    --hash=sha256:a6f6a8e76d9d7e7471e8925ee28b11814faad4ba41bdd3933f85bd5155593626
     # via google-cloud-logging
 google-cloud-audit-log==0.2.4 \
     --hash=sha256:29ed77fe0b21eb2d5dfb998edb59ee2adc65fea5d5ac9fcf17828d60d25b58b3 \
@@ -88,21 +89,21 @@ google-cloud-core==2.3.2 \
     #   google-cloud-bigquery
     #   google-cloud-logging
     #   google-cloud-storage
-google-cloud-logging==3.3.0 \
-    --hash=sha256:aabd91888165d678ce3a1a1b96e6fdddfa0c43adf1a60a7d5a3e69d12a0ba07c \
-    --hash=sha256:b83aa78ec8de23dbc29a961d3d359fadb13aa76937cc2fe6f416c946512bced4
+google-cloud-logging==3.4.0 \
+    --hash=sha256:afe1d558346e4a6ff8203bfb4266cff8f5fb46816ad0930a9af0d3956a218838 \
+    --hash=sha256:cde0f59fadb917468746252baf4b11ea00f6d686ef02139183eaf921f3aee6b4
     # via -r backend/common/requirements.in
 google-cloud-pubsub==2.13.11 \
     --hash=sha256:085878ecfbb3991fea6af3a011aa2dd9f5415d19c760d0de9a58524d2aa1bade \
     --hash=sha256:eed338c3f4ec9cb162145188f4ff2561c7919d2e4106973eff893331d1ac5940
     # via -r backend/common/requirements.in
-google-cloud-resource-manager==1.6.3 \
-    --hash=sha256:6cf8a9a74e65a03857896967c79307b75805c752ade3bc41224e6167774bc9c9 \
-    --hash=sha256:e330883c53c5e3e38a651da85ae0bce201a736b5cd5f9df10941160c6a66ce6e
+google-cloud-resource-manager==1.7.0 \
+    --hash=sha256:39bbb9e8d2bc0194cfa1049a1296a9d7b668003a689a057643e9b0c9796e0583 \
+    --hash=sha256:9fae98977c52189371ca7d8b25518ef1fb97b422851cb45c09ea1686fc420a89
     # via google-cloud-aiplatform
-google-cloud-storage==2.6.0 \
-    --hash=sha256:104ca28ae61243b637f2f01455cc8a05e8f15a2a18ced96cb587241cdd3820f5 \
-    --hash=sha256:4ad0415ff61abdd8bb2ae81c1f8f7ec7d91a1011613f2db87c614c550f97bfe9
+google-cloud-storage==2.7.0 \
+    --hash=sha256:1ac2d58d2d693cb1341ebc48659a3527be778d9e2d8989697a2746025928ff17 \
+    --hash=sha256:f78a63525e72dd46406b255bbdf858a22c43d6bad8dc5bdeb7851a42967e95a1
     # via
     #   -r backend/requirements-jobs.in
     #   google-cloud-aiplatform
@@ -182,10 +183,11 @@ google-resumable-media==2.4.0 \
     # via
     #   google-cloud-bigquery
     #   google-cloud-storage
-googleapis-common-protos[grpc]==1.57.0 \
-    --hash=sha256:27a849d6205838fb6cc3c1c21cb9800707a661bb21c6ce7fb13e99eb1f8a0c46 \
-    --hash=sha256:a9f4a1d7f6d9809657b7f1316a1aa527f6664891531bcfcc13b6696e685f443c
+googleapis-common-protos[grpc]==1.58.0 \
+    --hash=sha256:c727251ec025947d545184ba17e3578840fc3a24a0516a020479edab660457df \
+    --hash=sha256:ca3befcd4580dab6ad49356b46bf165bb68ff4b32389f028f1abd7c10ab9519a
     # via
+    #   -r backend/requirements-jobs.in
     #   google-api-core
     #   google-cloud-audit-log
     #   grpc-google-iam-v1
@@ -380,9 +382,9 @@ packaging==21.3 \
     # via
     #   google-cloud-aiplatform
     #   google-cloud-bigquery
-proto-plus==1.22.1 \
-    --hash=sha256:6c7dfd122dfef8019ff654746be4f5b1d9c80bba787fe9611b508dd88be3a2fa \
-    --hash=sha256:ea8982669a23c379f74495bc48e3dcb47c822c484ce8ee1d1d7beb339d4e34c5
+proto-plus==1.22.2 \
+    --hash=sha256:0e8cda3d5a634d9895b75c573c9352c16486cb75deb0e078b5fda34db4243165 \
+    --hash=sha256:de34e52d6c9c6fcd704192f09767cb561bb4ee64e70eede20b0834d841f0be4d
     # via
     #   google-analytics-admin
     #   google-cloud-aiplatform
@@ -485,5 +487,4 @@ werkzeug==2.0.3 \
 setuptools==65.6.3 \
     --hash=sha256:57f6f22bde4e042978bcd50176fdb381d7c21a9efa4041202288d3737a0c6a54 \
     --hash=sha256:a7620757bf984b58deaf32fc8a4577a9bbc0850cf92c20e1ce41c38c19e5fb75
-    # via
-    #   gunicorn
+    # via gunicorn

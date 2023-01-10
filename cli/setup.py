@@ -37,7 +37,7 @@ setup(
     install_requires=[
         'Click==8.0.4',
         'pyyaml==6.0',
-        'requests==2.24.0',
+        'requests==2.28.1',
     ],
     tests_require=test_deps,
     extras_require=extras,
