@@ -24,19 +24,28 @@ information on using pull requests.
 
 ## Run local version of CRMint
 
-**Initialize the local database**
-
-```sh
-$ docker-compose run controller python -m flask db upgrade
-$ docker-compose run controller python -m flask db-seeds
-$ docker-compose run controller python -m python setup_pubsub.py
-```
-
 **Run all services and open the frontend**
 
 ```sh
+$ export GOOGLE_CLOUD_PROJECT=<PROJECT_ID>
 $ docker-compose up
-$ open http://localhost:4200
+
+# Open your browser at http://localhost:4200
+```
+
+**(Optional) If you need to reset the state of pipelines**
+
+```sh
+$ docker compose run controller python -m flask reset-pipelines
+```
+
+**(Optional) If you are adding a new model or updating an existing model**
+
+```sh
+# Creates a new migration.
+$ docker compose run controller python -m flask db migrate
+# Applies the schema migration to the database.
+$ docker compose run controller python -m flask db upgrade
 ```
 
 You can now edit files locally and the Flask services will reload appropriately.

@@ -196,7 +196,7 @@ resource "google_cloud_run_service" "jobs_run" {
     metadata {
       annotations = {
         "autoscaling.knative.dev/minScale" = "0"
-        "autoscaling.knative.dev/maxScale" = "20"
+        "autoscaling.knative.dev/maxScale" = "5"
       }
     }
     spec {
