@@ -73,4 +73,4 @@ ENV FLASK_APP jobs_app.py
 ENV FLASK_ENV production
 ENV PORT 5001
 
-CMD gunicorn -b :$PORT -w 3 jobs_app:app
+CMD gunicorn -b :$PORT -w 3 --timeout 600 jobs_app:app

@@ -226,6 +226,8 @@ resource "google_cloud_run_service" "jobs_run" {
           value = random_id.pubsub_verification_token.b64_url
         }
       }
+
+      timeout_seconds = 900  # 15min
     }
   }
 
