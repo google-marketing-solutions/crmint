@@ -14,7 +14,7 @@ COPY . /app
 # Development stage
 #
 FROM base AS dev
-CMD npm run start -- --watch --port $PORT
+CMD npm run start -- --watch --port $PORT --host 0.0.0.0
 
 ##
 # Builder stage
