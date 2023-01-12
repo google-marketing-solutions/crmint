@@ -1,5 +1,7 @@
 name: terraform-plan
 
+# NOTE: won't have access to secrets on PR from forks.
+
 on:
   push:
     branches:
@@ -8,7 +10,7 @@ on:
       - 'v*'
     paths-ignore:
       - 'README.md'
-  pull_request_target:
+  pull_request:
     branches:
       - 'master'
 
@@ -29,14 +31,6 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - uses: hashicorp/setup-terraform@v2
-
-      - id: auth
-        name: Authenticate to Google Cloud
-        uses: google-github-actions/auth@v1
-        with:
-          token_format: access_token
-          workload_identity_provider: ${{ secrets.WORKLOAD_IDENTITY_PROVIDER }}
-          service_account: ${{ secrets.CLOUD_BUILD_RUNNER_SA }}
 
       - name: Terraform Init
         id: init
@@ -59,60 +53,16 @@ jobs:
           TF_VAR_report_usage_id: abc123
           TF_VAR_use_vpc: "${{ matrix.use_vpc }}"
 
-      - uses: actions/github-script@v6
-        if: github.event_name == 'pull_request'
-        env:
-          PLAN: "terraform\n${{ steps.plan.outputs.stdout }}"
+      - name: Save Terraform Plan
+        run: |
+          mkdir -p ./pr/terraform
+          echo ${{ steps.init.outcome }} > ./pr/terraform/init_outcome
+          echo ${{ steps.validate.outcome }} > ./pr/terraform/validate_outcome
+          echo ${{ steps.plan.outcome }} > ./pr/terraform/plan_outcome
+          echo ${{ steps.validate.outputs.stdout }} > ./pr/terraform/validate_output
+          echo ${{ steps.plan.outputs.stdout }} > ./pr/terraform/plan_output
+
+      - uses: actions/upload-artifact@v3
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            // 1. Retrieve existing bot comments for the PR
-            const { data: comments } = await github.rest.issues.listComments({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
-            })
-            const botComment = comments.find(comment => {
-              return comment.user.type === 'Bot' && comment.body.includes('Terraform Format and Style')
-            })
-
-            // 2. Prepare format of the comment
-            const output = `#### Terraform Format and Style 🖌\`${{ steps.fmt.outcome }}\`
-            #### Terraform Initialization ⚙️\`${{ steps.init.outcome }}\`
-            #### Terraform Validation 🤖\`${{ steps.validate.outcome }}\`
-            <details><summary>Validation Output</summary>
-
-            \`\`\`\n
-            ${{ steps.validate.outputs.stdout }}
-            \`\`\`
-
-            </details>
-
-            #### Terraform Plan 📖\`${{ steps.plan.outcome }}\`
-
-            <details><summary>Show Plan</summary>
-
-            \`\`\`\n
-            ${process.env.PLAN}
-            \`\`\`
-
-            </details>
-
-            *Pusher: @${{ github.actor }}, Action: \`${{ github.event_name }}\`, Working Directory: \`${{ env.tf_actions_working_dir }}\`, Workflow: \`${{ github.workflow }}\`*`;
-
-            // 3. If we have a comment, update it, otherwise create a new one
-            if (botComment) {
-              github.rest.issues.updateComment({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                comment_id: botComment.id,
-                body: output
-              })
-            } else {
-              github.rest.issues.createComment({
-                issue_number: context.issue.number,
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                body: output
-              })
-            }
+          name: pr
+          path: pr/
