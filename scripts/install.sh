@@ -15,51 +15,42 @@
 # limitations under the License.
 
 TARGET_BRANCH=$1
-CURRENT_DIR=$(pwd)
 
 # Downloads the source code.
 if [ ! -d $HOME/crmint ]; then
   git clone https://github.com/google/crmint.git $HOME/crmint
   echo -e "\nCloned crmint repository to your home directory: $HOME."
 fi
-cd $HOME/crmint
 
 # Updates the targeted branch.
+CURRENT_DIR=$(pwd)
+cd $HOME/crmint
 git checkout $TARGET_BRANCH
 git pull --rebase
-
-# Resets the virtual environment.
-if [ -d .venv ]; then
-  rm -r .venv
-fi
-python -m venv --upgrade-deps .venv
-
-# Installs the command-line.
-. .venv/bin/activate
-cd ./cli
-python -m pip install --require-hashes -r requirements.txt
-sudo python -m pip install -e .
-deactivate
-
-# Restores initial directory.
 cd "$CURRENT_DIR"
 
-# Adds the wrapper function to the user `.bashrc` file.
+# Adds the wrapper function to our `.crmint` utility file.
 echo -e "\nAdding a bash function to your $HOME/.bashrc file."
 cat <<EOF >$HOME/.crmint
 # CRMint wrapper function.
-# Automatically activates the virtualenv and makes the command
-# accessible from all directories
 function crmint {
-  CURRENT_DIR=\$(pwd)
-  cd $HOME/crmint
-  . .venv/bin/activate
-  command crmint \$@ || return
-  deactivate
-  cd "\$CURRENT_DIR"
+  # CloudShell stores gcloud config in a tmp directory at `\$CLOUDSDK_CONFIG`.
+  # But to also work on local environments we default to the user home config.
+  GCLOUD_CONFIG_PATH="${CLOUDSDK_CONFIG:-\$HOME/.config/gcloud}"
+  echo "Using gcloud config: $GCLOUD_CONFIG_PATH"
+
+  # Runs the CLI with mounted volumes (to simplify local developement).
+  docker run --rm -it --net=host \
+    -v \$HOME/crmint/cli:/app/cli \
+    -v \$HOME/crmint/terraform:/app/terraform \
+    -v $GCLOUD_CONFIG_PATH/.config:/root/.config/gcloud \
+    europe-docker.pkg.dev/instant-bqml-demo-environment/crmint/cli:latest \
+    crmint $@
 }
 
 EOF
+
+# Sources our utility file in the user `.bashrc` file.
 echo -e "\n# CRMint helpers \nsource \$HOME/.crmint" >> $HOME/.bashrc
 
 # Export CRMint bash function.
