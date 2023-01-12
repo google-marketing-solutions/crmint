@@ -40,27 +40,12 @@ jobs:
         id: validate
         run: terraform validate -no-color
 
-      - name: Terraform Plan
-        id: plan
-        run: terraform plan -no-color -input=false
-        continue-on-error: false
-        env:
-          TF_VAR_app_title: Custom CRMint Title
-          TF_VAR_iap_allowed_users: '["user@example.com"]'
-          TF_VAR_iap_support_email: user@example.com
-          TF_VAR_notification_sender_email: user@example.com
-          TF_VAR_project_id: my-gcp-project
-          TF_VAR_report_usage_id: abc123
-          TF_VAR_use_vpc: "${{ matrix.use_vpc }}"
-
-      - name: Save Terraform Plan
+      - name: Save artifacts
         run: |
           mkdir -p ./pr/terraform
           echo ${{ steps.init.outcome }} > ./pr/terraform/init_outcome
           echo ${{ steps.validate.outcome }} > ./pr/terraform/validate_outcome
-          echo ${{ steps.plan.outcome }} > ./pr/terraform/plan_outcome
           echo ${{ steps.validate.outputs.stdout }} > ./pr/terraform/validate_output
-          echo ${{ steps.plan.outputs.stdout }} > ./pr/terraform/plan_output
 
       - uses: actions/upload-artifact@v3
         with:

@@ -40,17 +40,7 @@ jobs:
             <details><summary>Validation Output</summary>
 
             \`\`\`\n
-            ${{ fs.readFileSync('./pr/terraform/validate_outcome') }}
-            \`\`\`
-
-            </details>
-
-            #### Terraform Plan 📖\`${{ fs.readFileSync('./pr/terraform/plan_outcome') }}\`
-
-            <details><summary>Show Plan</summary>
-
-            \`\`\`\n
-            ${{ fs.readFileSync('./pr/terraform/plan_output') }}
+            ${{ fs.readFileSync('./pr/terraform/validate_output') }}
             \`\`\`
 
             </details>
