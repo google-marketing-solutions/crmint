@@ -3,9 +3,9 @@
 *.pyc
 *.pyo
 *.swp
-frontend/node_modules
-frontend/.DS_Store
-frontend/.editorconfig
+__pycache__
+.git/
+.venv/
 backends/lib
 backends/lib_dev
 backends/htmlcov/
@@ -16,3 +16,10 @@ backends/.flake8
 backends/.pylintrc
 backends/*.pyc
 backends/*.pyo
+cli/build
+cli/crmint.egg-info
+cli/dist
+frontend/node_modules
+frontend/.DS_Store
+frontend/.editorconfig
+terraform/.terraform
