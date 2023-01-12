@@ -55,7 +55,6 @@ RUN python -m venv $VIRTUAL_ENV
 ENV PATH="$VIRTUAL_ENV/bin:$PATH"
 
 # Installs CRMint CLI.
-COPY insight.py /app/
 COPY cli /app/cli/
 WORKDIR /app/cli
 RUN pip install --require-hashes -r requirements.txt
