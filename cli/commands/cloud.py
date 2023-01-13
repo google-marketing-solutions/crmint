@@ -140,7 +140,7 @@ def patch_etc_hosts(debug: bool = False) -> None:
 
 def unpatch_etc_hosts(debug: bool = False) -> None:
   """Restores the `/etc/hosts` file."""
-  cmd = 'sudo cp /etc/hosts.backup /etc/hosts'
+  cmd = 'cp /etc/hosts.backup /etc/hosts'
   shared.execute_command(
       'Restore /etc/hosts', cmd, cwd='./cli', debug=debug)
 
