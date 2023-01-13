@@ -54,11 +54,16 @@ ENV VIRTUAL_ENV=/opt/venv
 RUN python -m venv $VIRTUAL_ENV
 ENV PATH="$VIRTUAL_ENV/bin:$PATH"
 
-# Installs CRMint CLI.
+# Installs CRMint CLI dependencies.
 COPY cli /app/cli/
-WORKDIR /app/cli
-RUN pip install --require-hashes -r requirements.txt
-RUN pip install -e .
+RUN pip install --require-hashes -r /app/cli/requirements.txt
+
+# Installs CRMint CLI.
+# NOTE: put the python egg into another directory than CLI so that we can
+#       bind the local `cli` directory and do some local development.
+ENV PYTHONPATH /app/cli:$PYTHONPATH
+RUN mkdir -p /app/eggs
+RUN cd /app/eggs && python /app/cli/setup.py develop
 
 WORKDIR /app
 CMD /bin/bash
