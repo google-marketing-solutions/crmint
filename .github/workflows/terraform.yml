@@ -61,9 +61,13 @@ jobs:
           mkdir -p ./pr/terraform
           echo ${{ steps.init.outcome }} > ./pr/terraform/init_outcome
           echo ${{ steps.validate.outcome }} > ./pr/terraform/validate_outcome
-          echo ${{ steps.validate.outputs.stdout }} > ./pr/terraform/validate_output
+          cat << EOF > ./pr/terraform/validate_output
+          ${{ steps.validate.outputs.stdout }}
+          EOF
           echo ${{ steps.plan.outcome }} > ./pr/terraform/plan_outcome
-          echo ${{ steps.plan.outputs.stdout }} > ./pr/terraform/plan_output
+          cat << EOF > ./pr/terraform/plan_output
+          ${{ steps.plan.outputs.stdout }}
+          EOF
 
       - uses: actions/upload-artifact@v3
         with:
