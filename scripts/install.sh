@@ -20,7 +20,7 @@
 # if you want to expose the crmint bash function to the
 # parent shell session.
 
-TARGET_BRANCH=${1:-master}
+TARGET_BRANCH=$1
 
 # Downloads the source code.
 if [ ! -d $HOME/crmint ]; then
