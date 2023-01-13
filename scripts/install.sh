@@ -49,7 +49,7 @@ function crmint {
   docker run --rm -it --net=host \
     -v \$HOME/crmint/cli:/app/cli \
     -v \$HOME/crmint/terraform:/app/terraform \
-    -v \$GCLOUD_CONFIG_PATH/.config:/root/.config/gcloud \
+    -v \$GCLOUD_CONFIG_PATH:/root/.config/gcloud \
     europe-docker.pkg.dev/instant-bqml-demo-environment/crmint/cli:latest \
     crmint \$@
 }
