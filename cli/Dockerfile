@@ -2,7 +2,7 @@ FROM python:3.10-slim-bullseye
 
 # Installs building tools.
 RUN apt-get update \
-    && apt-get -y install curl unzip \
+    && apt-get -y install curl dnsutils unzip \
     # Clean up
     && apt-get autoremove -y \
     && apt-get clean -y \

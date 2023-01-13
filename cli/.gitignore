@@ -3,3 +3,4 @@ stages/*.py
 build/
 dist/
 insight.json
+.env

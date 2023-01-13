@@ -4,11 +4,15 @@
 # does not always comply with this setting and from time to time resolves to
 # an IPv6 address.
 #
+# NOTE: No need for `sudo` because we run this inside Docker `--net=bridge`.
+#
 # The following workaround as been described proposes, waiting for the Go team
 # to solve this properly (https://github.com/golang/go/issues/25321).
 #
 # See: https://github.com/hashicorp/terraform-provider-google/issues/6782
 #
+
+set -e
 
 # Checks that we run inside a Google VM.
 GMETADATA_ADDR=`dig +short metadata.google.internal`
@@ -19,10 +23,10 @@ fi
 
 # Backup existing /etc/hosts.
 if [ ! -f /etc/hosts.backup ]; then
-  sudo cp /etc/hosts /etc/hosts.backup
+  cp /etc/hosts /etc/hosts.backup
 fi
 
-read -r -d '' APIS << EOM
+APIS=`cat << EOF
 aiplatform.googleapis.com
 analytics.googleapis.com
 analyticsadmin.googleapis.com
@@ -44,16 +48,17 @@ storage-api.googleapis.com
 storage-component.googleapis.com
 storage.googleapis.com
 www.googleapis.com
-EOM
+EOF`
 
-# Restores the backup content.
-sudo sh -c "cat /etc/hosts.backup > /etc/hosts"
+# Restores the backup content (in case the file has been modified).
+cat /etc/hosts.backup > /etc/hosts
 
 # Adds IPv4 addresses for each Google Cloud API.
-sudo sh -c "echo -e '\n# Forcing IPv4 to workaround a Go issue: https://github.com/golang/go/issues/25321' >> /etc/hosts"
+echo -e '\n# Forcing IPv4 to workaround a Go issue: https://github.com/golang/go/issues/25321' >> /etc/hosts
 for name in $APIS
 do
+  echo "Reaching out to... $name"
   ipv4=$(getent ahostsv4 "$name" | head -n 1 | awk '{ print $1 }')
-  sudo sh -c "echo '$ipv4 $name' >> /etc/hosts"
+  echo "$ipv4 $name" >> /etc/hosts
   echo "Forced IPv4 for $name: $ipv4"
 done

@@ -20,7 +20,7 @@
 # if you want to expose the crmint bash function to the
 # parent shell session.
 
-TARGET_BRANCH=${1:-master}
+TARGET_BRANCH=$1
 
 # Downloads the source code.
 if [ ! -d $HOME/crmint ]; then
@@ -37,19 +37,47 @@ cd "$CURRENT_DIR"
 
 # Adds the wrapper function to our `.crmint` utility file.
 echo -e "\nAdding a bash function to your $HOME/.bashrc file."
-cat <<EOF >$HOME/.crmint
+cat <<EOF > $HOME/.crmint
+# Helpers.
+function dump_env_for_crmint_cli {
+  env_vars=(
+    "APP_TITLE"
+    "REGION"
+    "USE_VPC"
+    "DATABASE_TIER"
+    "DATABASE_HA_TYPE"
+    "FRONTEND_IMAGE"
+    "CONTROLLER_IMAGE"
+    "JOBS_IMAGE"
+  )
+
+  output_file="\$HOME/crmint/cli/.env"
+  touch \$output_file  # Ensures the file exists even if no variables are set.
+
+  for var in "\${env_vars[@]}"
+  do
+    if [ -n "\${!var}" ]; then
+      echo "\${var}=\${!var}" >> \$output_file
+    fi
+  done
+}
+
 # CRMint wrapper function.
 function crmint {
-  # CloudShell stores gcloud config in a tmp directory at `\$CLOUDSDK_CONFIG`.
+  # CloudShell stores gcloud config in a tmp directory at \`\$CLOUDSDK_CONFIG\`.
   # But to also work on local environments we default to the user home config.
   GCLOUD_CONFIG_PATH="\${CLOUDSDK_CONFIG:-\$HOME/.config/gcloud}"
   echo "Using gcloud config: \$GCLOUD_CONFIG_PATH"
 
+  # Updates the env file with current defined env variables.
+  dump_env_for_crmint_cli
+
   # Runs the CLI with mounted volumes (to simplify local developement).
   docker run --rm -it --net=host \
+    --env-file \$HOME/crmint/cli/.env \
     -v \$HOME/crmint/cli:/app/cli \
     -v \$HOME/crmint/terraform:/app/terraform \
-    -v \$GCLOUD_CONFIG_PATH/.config:/root/.config/gcloud \
+    -v \$GCLOUD_CONFIG_PATH:/root/.config/gcloud \
     europe-docker.pkg.dev/instant-bqml-demo-environment/crmint/cli:latest \
     crmint \$@
 }
