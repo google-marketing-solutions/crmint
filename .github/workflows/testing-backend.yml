@@ -5,6 +5,9 @@ on:
   push:
     paths-ignore:
       - 'README.md'
+  pull_request:
+    branches:
+      - 'master'
 jobs:
   run-controller-tests:
     runs-on: ubuntu-18.04
