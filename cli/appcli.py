@@ -23,7 +23,7 @@ PROJECT_DIR = os.path.dirname(os.path.dirname(__file__))
 PLUGIN_FOLDER = os.path.join(PROJECT_DIR, 'cli/commands')
 sys.path.insert(0, PROJECT_DIR)
 
-from cli import insight  # pylint: disable=g-import-not-at-top
+from cli.utils import insight
 from cli.utils import shared
 
 SEPARATOR = '='*74
