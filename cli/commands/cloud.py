@@ -265,7 +265,7 @@ def trigger_command(cmd: str,
   cmd = textwrap.dedent(f"""\
       {GCLOUD} builds submit \\
           --region {region} \\
-          --config ./backend/cloudbuild_run_command.yaml \\
+          --config ./cli/cloudbuild_run_command.yaml \\
           --no-source \\
           {pool_arg} \\
           --substitutions _COMMAND="{cmd}",_IMAGE_NAME="{image}",_INSTANCE_CONNECTION_NAME="{db_conn_name}",_CLOUD_DB_URI="{db_uri}"
