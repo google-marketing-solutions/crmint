@@ -14,7 +14,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-TARGET_BRANCH=$1
+# CRMint Install Script
+#
+# This install script must be used as `source scripts/install.sh`
+# if you want to expose the crmint bash function to the
+# parent shell session.
+
+TARGET_BRANCH=${1:-master}
 
 # Downloads the source code.
 if [ ! -d $HOME/crmint ]; then
@@ -36,16 +42,16 @@ cat <<EOF >$HOME/.crmint
 function crmint {
   # CloudShell stores gcloud config in a tmp directory at `\$CLOUDSDK_CONFIG`.
   # But to also work on local environments we default to the user home config.
-  GCLOUD_CONFIG_PATH="${CLOUDSDK_CONFIG:-\$HOME/.config/gcloud}"
-  echo "Using gcloud config: $GCLOUD_CONFIG_PATH"
+  GCLOUD_CONFIG_PATH="\${CLOUDSDK_CONFIG:-\$HOME/.config/gcloud}"
+  echo "Using gcloud config: \$GCLOUD_CONFIG_PATH"
 
   # Runs the CLI with mounted volumes (to simplify local developement).
   docker run --rm -it --net=host \
     -v \$HOME/crmint/cli:/app/cli \
     -v \$HOME/crmint/terraform:/app/terraform \
-    -v $GCLOUD_CONFIG_PATH/.config:/root/.config/gcloud \
+    -v \$GCLOUD_CONFIG_PATH/.config:/root/.config/gcloud \
     europe-docker.pkg.dev/instant-bqml-demo-environment/crmint/cli:latest \
-    crmint $@
+    crmint \$@
 }
 
 EOF
@@ -53,11 +59,10 @@ EOF
 # Sources our utility file in the user `.bashrc` file.
 echo -e "\n# CRMint helpers \nsource \$HOME/.crmint" >> $HOME/.bashrc
 
-# Export CRMint bash function.
-# NOTE: this must be used as `source scripts/install.sh master --bundle`
-#       in order to expose the added bash crmint function.
-source $HOME/.bashrc
+# Expose CRMint bash function.
+source $HOME/.crmint
 
 # Notifies the user that the command-line is ready.
 echo -e "\nSuccessfully installed the CRMint command-line."
-echo -e "You can use it now by typing: crmint --help\n"
+echo -e "You will now run for you: crmint --help\n"
+crmint --help
