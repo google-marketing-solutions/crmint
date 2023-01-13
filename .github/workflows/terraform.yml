@@ -42,12 +42,28 @@ jobs:
         id: validate
         run: terraform validate -no-color
 
+      - name: Terraform Plan
+        id: plan
+        run: |
+          terraform plan -no-color -input=false -refresh=false \
+              -var test_google_access_token="abcxyz" \
+              -var app_title="Custom CRMint Title" \
+              -var iap_allowed_users='["user@example.com"]' \
+              -var iap_support_email="user@example.com" \
+              -var notification_sender_email="user@example.com" \
+              -var project_id="my-gcp-project" \
+              -var report_usage_id="abc123" \
+              -var use_vpc="${{ matrix.use_vpc }}"
+        continue-on-error: false
+
       - name: Save artifacts
         run: |
           mkdir -p ./pr/terraform
           echo ${{ steps.init.outcome }} > ./pr/terraform/init_outcome
           echo ${{ steps.validate.outcome }} > ./pr/terraform/validate_outcome
           echo ${{ steps.validate.outputs.stdout }} > ./pr/terraform/validate_output
+          echo ${{ steps.plan.outcome }} > ./pr/terraform/plan_outcome
+          echo ${{ steps.plan.outputs.stdout }} > ./pr/terraform/plan_output
 
       - uses: actions/upload-artifact@v3
         with:

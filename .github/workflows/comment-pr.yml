@@ -45,6 +45,16 @@ jobs:
 
             </details>
 
+            #### Terraform Plan 📖\`${{ fs.readFileSync('./pr/terraform/plan_outcome') }}\`
+
+            <details><summary>Show Plan</summary>
+
+            \`\`\`\n
+            ${{ fs.readFileSync('./pr/terraform/plan_output') }}
+            \`\`\`
+
+            </details>
+
             *Pusher: @${{ github.actor }}, Action: \`${{ github.event_name }}\`, Working Directory: \`${{ env.tf_actions_working_dir }}\`, Workflow: \`${{ github.workflow }}\`*`;
 
             // 3. If we have a comment, update it, otherwise create a new one
