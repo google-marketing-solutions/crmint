@@ -135,3 +135,12 @@ variable "custom_domain" {
     EOF
   default = ""
 }
+
+
+##
+# Test utilities
+
+variable "test_google_access_token" {
+  type    = string
+  default = null
+}

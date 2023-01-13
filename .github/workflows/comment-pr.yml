@@ -1,0 +1,75 @@
+name: Comment on the pull request
+
+# NOTE: have access to secrets and artifacts.
+
+on:
+  workflow_run:
+    workflows: ["terraform-plan"]
+    types:
+      - completed
+
+jobs:
+  upload:
+    runs-on: ubuntu-latest
+    if: >
+      github.event.workflow_run.event == 'pull_request' &&
+      github.event.workflow_run.conclusion == 'success'
+    steps:
+      - uses: actions/download-artifact@v3
+        with:
+          name: pr
+      - name: Comment on PR with Terraform artifacts
+        uses: actions/github-script@v6
+        if: github.event_name == 'pull_request'
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            // 1. Retrieve existing bot comments for the PR
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            })
+            const botComment = comments.find(comment => {
+              return comment.user.type === 'Bot' && comment.body.includes('Terraform Format and Style')
+            })
+
+            // 2. Prepare format of the comment
+            const output = `#### Terraform Initialization ⚙️\`${{ fs.readFileSync('./pr/terraform/init_outcome') }}\`
+            #### Terraform Validation 🤖\`${{ fs.readFileSync('./pr/terraform/validate_outcome') }}\`
+            <details><summary>Validation Output</summary>
+
+            \`\`\`\n
+            ${{ fs.readFileSync('./pr/terraform/validate_output') }}
+            \`\`\`
+
+            </details>
+
+            #### Terraform Plan 📖\`${{ fs.readFileSync('./pr/terraform/plan_outcome') }}\`
+
+            <details><summary>Show Plan</summary>
+
+            \`\`\`\n
+            ${{ fs.readFileSync('./pr/terraform/plan_output') }}
+            \`\`\`
+
+            </details>
+
+            *Pusher: @${{ github.actor }}, Action: \`${{ github.event_name }}\`, Working Directory: \`${{ env.tf_actions_working_dir }}\`, Workflow: \`${{ github.workflow }}\`*`;
+
+            // 3. If we have a comment, update it, otherwise create a new one
+            if (botComment) {
+              github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: botComment.id,
+                body: output
+              })
+            } else {
+              github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: output
+              })
+            }

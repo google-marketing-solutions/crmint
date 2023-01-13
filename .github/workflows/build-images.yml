@@ -19,6 +19,9 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          - dockerfile: ./cli/Dockerfile
+            context: .
+            image: europe-docker.pkg.dev/instant-bqml-demo-environment/crmint/cli
           - dockerfile: ./frontend/Dockerfile
             context: ./frontend
             image: europe-docker.pkg.dev/instant-bqml-demo-environment/crmint/frontend

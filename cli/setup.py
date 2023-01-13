@@ -16,9 +16,7 @@ import os
 from setuptools import find_packages
 from setuptools import setup
 
-PROJECT_DIR = os.path.join(os.path.dirname(__file__), '../')
-version_filepath = os.path.join(PROJECT_DIR, 'backend/VERSION')
-version = open(version_filepath, 'r').read().strip()
+VERSION = '3.2.0'
 
 test_deps = [
     'absl-py==1.0.0',
@@ -31,7 +29,7 @@ extras = {
 
 setup(
     name='crmint',
-    version=version,
+    version=VERSION,
     packages=find_packages(),
     include_package_data=True,
     install_requires=[

@@ -1,5 +1,7 @@
 name: terraform-plan
 
+# NOTE: won't have access to secrets on PR from forks.
+
 on:
   push:
     branches:
@@ -29,14 +31,8 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - uses: hashicorp/setup-terraform@v2
-
-      - id: auth
-        name: Authenticate to Google Cloud
-        uses: google-github-actions/auth@v1
         with:
-          token_format: access_token
-          workload_identity_provider: ${{ secrets.WORKLOAD_IDENTITY_PROVIDER }}
-          service_account: ${{ secrets.CLOUD_BUILD_RUNNER_SA }}
+          terraform_version: 1.3.7
 
       - name: Terraform Init
         id: init
@@ -48,71 +44,32 @@ jobs:
 
       - name: Terraform Plan
         id: plan
-        run: terraform plan -no-color -input=false
+        run: |
+          terraform plan -no-color -input=false -refresh=false \
+              -var test_google_access_token="abcxyz" \
+              -var app_title="Custom CRMint Title" \
+              -var iap_allowed_users='["user@example.com"]' \
+              -var iap_support_email="user@example.com" \
+              -var notification_sender_email="user@example.com" \
+              -var project_id="my-gcp-project" \
+              -var report_usage_id="abc123" \
+              -var use_vpc="${{ matrix.use_vpc }}"
         continue-on-error: false
-        env:
-          TF_VAR_app_title: Custom CRMint Title
-          TF_VAR_iap_allowed_users: '["user@example.com"]'
-          TF_VAR_iap_support_email: user@example.com
-          TF_VAR_notification_sender_email: user@example.com
-          TF_VAR_project_id: my-gcp-project
-          TF_VAR_report_usage_id: abc123
-          TF_VAR_use_vpc: "${{ matrix.use_vpc }}"
 
-      - uses: actions/github-script@v6
-        if: github.event_name == 'pull_request'
-        env:
-          PLAN: "terraform\n${{ steps.plan.outputs.stdout }}"
+      - name: Save artifacts
+        run: |
+          mkdir -p ./pr/terraform
+          echo ${{ steps.init.outcome }} > ./pr/terraform/init_outcome
+          echo ${{ steps.validate.outcome }} > ./pr/terraform/validate_outcome
+          cat << EOF > ./pr/terraform/validate_output
+          ${{ steps.validate.outputs.stdout }}
+          EOF
+          echo ${{ steps.plan.outcome }} > ./pr/terraform/plan_outcome
+          cat << EOF > ./pr/terraform/plan_output
+          ${{ steps.plan.outputs.stdout }}
+          EOF
+
+      - uses: actions/upload-artifact@v3
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            // 1. Retrieve existing bot comments for the PR
-            const { data: comments } = await github.rest.issues.listComments({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
-            })
-            const botComment = comments.find(comment => {
-              return comment.user.type === 'Bot' && comment.body.includes('Terraform Format and Style')
-            })
-
-            // 2. Prepare format of the comment
-            const output = `#### Terraform Format and Style 🖌\`${{ steps.fmt.outcome }}\`
-            #### Terraform Initialization ⚙️\`${{ steps.init.outcome }}\`
-            #### Terraform Validation 🤖\`${{ steps.validate.outcome }}\`
-            <details><summary>Validation Output</summary>
-
-            \`\`\`\n
-            ${{ steps.validate.outputs.stdout }}
-            \`\`\`
-
-            </details>
-
-            #### Terraform Plan 📖\`${{ steps.plan.outcome }}\`
-
-            <details><summary>Show Plan</summary>
-
-            \`\`\`\n
-            ${process.env.PLAN}
-            \`\`\`
-
-            </details>
-
-            *Pusher: @${{ github.actor }}, Action: \`${{ github.event_name }}\`, Working Directory: \`${{ env.tf_actions_working_dir }}\`, Workflow: \`${{ github.workflow }}\`*`;
-
-            // 3. If we have a comment, update it, otherwise create a new one
-            if (botComment) {
-              github.rest.issues.updateComment({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                comment_id: botComment.id,
-                body: output
-              })
-            } else {
-              github.rest.issues.createComment({
-                issue_number: context.issue.number,
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                body: output
-              })
-            }
+          name: pr
+          path: pr/

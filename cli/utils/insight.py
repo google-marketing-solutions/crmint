@@ -15,7 +15,7 @@
 """
 Insight module
 
-Anonymously report backend usage.
+Anonymously report CLI usage.
 """
 
 from __future__ import print_function
@@ -30,6 +30,7 @@ import time
 import requests
 
 DEFAULT_TRACKING_ID = "UA-127959147-2"
+INSIGHT_CONF_FILEPATH = os.path.join(os.path.dirname(__file__), 'insight.json')
 
 
 def get_crmint_version() -> str:
@@ -37,15 +38,19 @@ def get_crmint_version() -> str:
 
 
 class GAProvider(object):
-  """Reports backend usage to Google Analytics."""
+  """Reports CLI usage to Google Analytics."""
   URL = 'https://www.google-analytics.com/collect'
 
-  def __init__(self):
+  def __init__(self, allow_new_client_id=False):
     self.tracking_id = DEFAULT_TRACKING_ID
     self.os_name = platform.system()
     self.python_version = platform.python_version()
     self.app_version = get_crmint_version()
-    self.config = self._load_insight_config()
+
+    conf = self._load_insight_config()
+    if allow_new_client_id:
+      conf = self._define_random_values(conf)
+    self.config = conf
 
   def _define_random_values(self, conf):
     if not conf.get('client_id', None):
@@ -53,12 +58,16 @@ class GAProvider(object):
     return conf
 
   def _load_insight_config(self):
-    if 'REPORT_USAGE_ID' in os.environ:
-      client_id = os.getenv('REPORT_USAGE_ID')
-      opt_out = not bool(client_id)
-      return {'client_id': client_id, 'opt_out': opt_out}
-    else:
+    if not os.path.exists(INSIGHT_CONF_FILEPATH):
       return {}
+    with open(INSIGHT_CONF_FILEPATH, 'r') as fp:
+      try:
+        conf = json.load(fp)
+        return conf
+      except ValueError:
+        # Ill-formatted value
+        pass
+    return {}
 
   @property
   def client_id(self):

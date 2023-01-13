@@ -20,12 +20,10 @@ import sys
 import click
 
 PROJECT_DIR = os.path.dirname(os.path.dirname(__file__))
-CLI_DIR = os.path.join(PROJECT_DIR, 'cli')
-PLUGIN_FOLDER = os.path.join(CLI_DIR, 'commands')
+PLUGIN_FOLDER = os.path.join(PROJECT_DIR, 'cli/commands')
 sys.path.insert(0, PROJECT_DIR)
-sys.path.insert(0, CLI_DIR)
 
-from backend.common import insight  # pylint: disable=g-import-not-at-top
+from cli.utils import insight
 from cli.utils import shared
 
 SEPARATOR = '='*74

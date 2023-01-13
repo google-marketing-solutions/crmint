@@ -24,7 +24,7 @@ from typing import Union
 
 import click
 
-from backend.common import insight
+from cli.utils import insight
 from cli.utils import shared
 from cli.utils.constants import GCLOUD
 
