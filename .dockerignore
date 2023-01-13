@@ -19,6 +19,7 @@ backends/*.pyo
 cli/build
 cli/crmint.egg-info
 cli/dist
+cli/Dockerfile
 frontend/node_modules
 frontend/.DS_Store
 frontend/.editorconfig
