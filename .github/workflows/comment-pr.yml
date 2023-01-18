@@ -36,22 +36,22 @@ jobs:
             })
 
             // 2. Prepare format of the comment
-            const output = `#### Terraform Initialization ⚙️\`${{ fs.readFileSync('./pr/terraform/init_outcome') }}\`
-            #### Terraform Validation 🤖\`${{ fs.readFileSync('./pr/terraform/validate_outcome') }}\`
+            const output = `#### Terraform Initialization ⚙️\`${ fs.readFileSync('./pr/terraform/init_outcome') }\`
+            #### Terraform Validation 🤖\`${ fs.readFileSync('./pr/terraform/validate_outcome') }\`
             <details><summary>Validation Output</summary>
 
             \`\`\`\n
-            ${{ fs.readFileSync('./pr/terraform/validate_output') }}
+            ${ fs.readFileSync('./pr/terraform/validate_output') }
             \`\`\`
 
             </details>
 
-            #### Terraform Plan 📖\`${{ fs.readFileSync('./pr/terraform/plan_outcome') }}\`
+            #### Terraform Plan 📖\`${ fs.readFileSync('./pr/terraform/plan_outcome') }\`
 
             <details><summary>Show Plan</summary>
 
             \`\`\`\n
-            ${{ fs.readFileSync('./pr/terraform/plan_output') }}
+            ${ fs.readFileSync('./pr/terraform/plan_output') }
             \`\`\`
 
             </details>
