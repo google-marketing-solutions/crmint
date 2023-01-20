@@ -30,18 +30,18 @@ TARGET_BRANCH=$1
 CRMINT_CLI_DOCKER_IMAGE=${CRMINT_CLI_DOCKER_IMAGE:-europe-docker.pkg.dev/instant-bqml-demo-environment/crmint/cli:latest}
 
 # Allows advanced users to change the home directory for crmint repository.
-# Defaults to `$HOME`.
-CRMINT_HOME=${CRMINT_HOME:-$HOME}
+# Defaults to `$HOME/crmint`.
+CRMINT_HOME=${CRMINT_HOME:-$HOME/crmint}
 
 # Downloads the source code.
-if [ ! -d $CRMINT_HOME/crmint ]; then
-  git clone https://github.com/google/crmint.git $CRMINT_HOME/crmint
-  echo -e "\nCloned crmint repository to your home directory: $CRMINT_HOME."
+if [ ! -d $CRMINT_HOME ]; then
+  git clone https://github.com/google/crmint.git $CRMINT_HOME
+  echo -e "\nCloned crmint repository to: $CRMINT_HOME."
 fi
 
 # Updates the targeted branch.
 CURRENT_DIR=$(pwd)
-cd $CRMINT_HOME/crmint
+cd $CRMINT_HOME
 git checkout $TARGET_BRANCH
 git pull --rebase
 cd "$CURRENT_DIR"
@@ -62,7 +62,7 @@ function dump_env_for_crmint_cli {
     "JOBS_IMAGE"
   )
 
-  output_file="$CRMINT_HOME/crmint/cli/.env"
+  output_file="$CRMINT_HOME/cli/.env"
   touch \$output_file  # Ensures the file exists even if no variables are set.
 
   for var in "\${env_vars[@]}"
@@ -85,9 +85,9 @@ function crmint {
 
   # Runs the CLI with mounted volumes (to simplify local developement).
   docker run --rm -it --net=host \
-    --env-file $CRMINT_HOME/crmint/cli/.env \
-    -v $CRMINT_HOME/crmint/cli:/app/cli \
-    -v $CRMINT_HOME/crmint/terraform:/app/terraform \
+    --env-file $CRMINT_HOME/cli/.env \
+    -v $CRMINT_HOME/cli:/app/cli \
+    -v $CRMINT_HOME/terraform:/app/terraform \
     -v \$GCLOUD_CONFIG_PATH:/root/.config/gcloud \
     $CRMINT_CLI_DOCKER_IMAGE \
     crmint \$@
