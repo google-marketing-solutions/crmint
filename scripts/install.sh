@@ -39,12 +39,14 @@ if [ ! -d $CRMINT_HOME ]; then
   echo -e "\nCloned crmint repository to: $CRMINT_HOME."
 fi
 
-# Updates the targeted branch.
-CURRENT_DIR=$(pwd)
-cd $CRMINT_HOME
-git checkout $TARGET_BRANCH
-git pull --rebase
-cd "$CURRENT_DIR"
+# Updates the targeted branch (if it's a git repository only).
+if [ ! -d $CRMINT_HOME/.git ]; then
+  CURRENT_DIR=$(pwd)
+  cd $CRMINT_HOME
+  git checkout $TARGET_BRANCH
+  git pull --rebase
+  cd "$CURRENT_DIR"
+fi
 
 # Adds the wrapper function to our `.crmint` utility file.
 echo -e "\nAdding a bash function to your $HOME/.bashrc file."
