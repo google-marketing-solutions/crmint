@@ -85,13 +85,8 @@ function crmint {
   # Updates the env file with current defined env variables.
   dump_env_for_crmint_cli
 
-  # Only include the interactive mode if the shell is attached to a TTY.
-  if [ -t 0 ] ; then
-    INTERACTIVE_OPTIONS="-it"
-  fi
-
   # Runs the CLI with mounted volumes (to simplify local developement).
-  docker run --rm \$INTERACTIVE_OPTIONS --net=host \
+  docker run --rm --interactive --net=host \
     --env-file $CRMINT_HOME/cli/.env \
     -v $CRMINT_HOME/cli:/app/cli \
     -v $CRMINT_HOME/terraform:/app/terraform \
