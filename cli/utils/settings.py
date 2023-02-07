@@ -19,18 +19,21 @@ import os
 APP_TITLE = os.getenv('APP_TITLE', None)
 REGION = os.getenv('REGION', None)
 USE_VPC = bool(int(os.getenv('USE_VPC', '1')))
+DATABASE_INSTANCE_NAME = os.getenv('DATABASE_INSTANCE_NAME', 'crmint-3-db')
 DATABASE_TIER = os.getenv('DATABASE_TIER', 'db-g1-small')
 DATABASE_HA_TYPE = os.getenv('DATABASE_HA_TYPE', 'ZONAL')
 
+CRMINT_VERSION = os.getenv('CRMINT_VERSION', 'master')
+
 FRONTEND_IMAGE = os.getenv(
     'FRONTEND_IMAGE',
-    'europe-docker.pkg.dev/instant-bqml-demo-environment/crmint/frontend:master'
+    f'europe-docker.pkg.dev/instant-bqml-demo-environment/crmint/frontend:{CRMINT_VERSION}'
 )
 CONTROLLER_IMAGE = os.getenv(
     'CONTROLLER_IMAGE',
-    'europe-docker.pkg.dev/instant-bqml-demo-environment/crmint/controller:master'
+    f'europe-docker.pkg.dev/instant-bqml-demo-environment/crmint/controller:{CRMINT_VERSION}'
 )
 JOBS_IMAGE = os.getenv(
     'JOBS_IMAGE',
-    'europe-docker.pkg.dev/instant-bqml-demo-environment/crmint/jobs:master'
+    f'europe-docker.pkg.dev/instant-bqml-demo-environment/crmint/jobs:{CRMINT_VERSION}'
 )
