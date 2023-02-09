@@ -53,7 +53,6 @@ class BundleTest(absltest.TestCase):
         'cloud_db_uri': {'value': 'mysql://db:3306/name'},
         'cloud_build_worker_pool': {'value': 'my_worker_pool'},
         'secured_url': {'value': 'https://secured.com'},
-        'unsecured_url': {'value': 'https://temporary.com'},
     }
     self.enter_context(
         mock.patch.object(constants, 'STAGE_DIR', tmp_stage_dir.full_path))
