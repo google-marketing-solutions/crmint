@@ -7,6 +7,7 @@ locals {
     "cloudbuild.googleapis.com",
     "cloudscheduler.googleapis.com",
     "compute.googleapis.com",
+    "iap.googleapis.com",
     "logging.googleapis.com",
     "pubsub.googleapis.com",
     "secretmanager.googleapis.com",
@@ -23,6 +24,7 @@ resource "google_project_service" "apis" {
   project = var.project_id
   service = each.key
 
+  disable_on_destroy = false
   disable_dependent_services = true
 }
 
@@ -33,5 +35,6 @@ resource "google_project_service" "vpcaccess" {
   project = var.network_project_id != null ? var.network_project_id : var.project_id
   service = "vpcaccess.googleapis.com"
 
+  disable_on_destroy = false
   disable_dependent_services = true
 }

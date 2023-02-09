@@ -245,7 +245,6 @@ class CloudUrlTest(CloudTestBase):
     tf_outputs = json.dumps(
         {
             'secured_url': {'value': 'https://secured.com'},
-            'unsecured_url': {'value': 'https://temporary.com'},
         })
     self.enter_context(
         mock.patch.object(
