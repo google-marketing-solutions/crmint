@@ -307,6 +307,7 @@ def default_stage_context(*,
   namespace = types.SimpleNamespace(
       app_title=app_title,
       notification_sender_email=gcloud_account_email,
+      iap_brand_id=None,
       iap_support_email=gcloud_account_email,
       iap_allowed_users=[f'user:{gcloud_account_email}'],
       project_id=project_id,
