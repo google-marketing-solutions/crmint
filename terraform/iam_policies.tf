@@ -34,6 +34,12 @@ resource "google_project_service_identity" "pubsub_managed_sa" {
   service  = "pubsub.googleapis.com"
 }
 
+resource "google_project_service_identity" "iap_managed_sa" {
+  provider = google-beta
+  project  = var.project_id
+  service  = "iap.googleapis.com"
+}
+
 resource "google_project_iam_member" "controller_sa--cloudsql-client" {
   member  = "serviceAccount:${google_service_account.controller_sa.email}"
   project = var.project_id
@@ -120,4 +126,63 @@ resource "google_project_iam_member" "pubsub_token-creator" {
   member  = "serviceAccount:${google_project_service_identity.pubsub_managed_sa.email}"
   project = var.project_id
   role    = "roles/iam.serviceAccountTokenCreator"
+}
+
+##
+# Cloud Run permissions
+#
+# NOTE: We delegate the authentication flow to IAP, so we need to give `allUsers` access
+#       to Cloud Run since it's not responsible anymore for authenticating the users.
+#
+
+data "google_iam_policy" "iap_users" {
+  binding {
+    role = "roles/iap.httpsResourceAccessor"
+    members = concat(
+      ["serviceAccount:${google_service_account.pubsub_sa.email}"],
+      var.iap_allowed_users
+    )
+  }
+}
+
+resource "google_iap_web_backend_service_iam_policy" "frontend" {
+  project = google_compute_backend_service.frontend_backend.project
+  web_backend_service = google_compute_backend_service.frontend_backend.name
+  policy_data = data.google_iam_policy.iap_users.policy_data
+}
+
+resource "google_iap_web_backend_service_iam_policy" "controller" {
+  project = google_compute_backend_service.controller_backend.project
+  web_backend_service = google_compute_backend_service.controller_backend.name
+  policy_data = data.google_iam_policy.iap_users.policy_data
+}
+
+resource "google_iap_web_backend_service_iam_policy" "jobs" {
+  project = google_compute_backend_service.jobs_backend.project
+  web_backend_service = google_compute_backend_service.jobs_backend.name
+  policy_data = data.google_iam_policy.iap_users.policy_data
+}
+
+resource "google_cloud_run_service_iam_binding" "frontend_run-invoker" {
+  location = google_cloud_run_service.frontend_run.location
+  project = google_cloud_run_service.frontend_run.project
+  service = google_cloud_run_service.frontend_run.name
+  role = "roles/run.invoker"
+  members = ["allUsers"]
+}
+
+resource "google_cloud_run_service_iam_binding" "controller_run-invoker" {
+  location = google_cloud_run_service.controller_run.location
+  project = google_cloud_run_service.controller_run.project
+  service = google_cloud_run_service.controller_run.name
+  role = "roles/run.invoker"
+  members = ["allUsers"]
+}
+
+resource "google_cloud_run_service_iam_binding" "jobs_run-invoker" {
+  location = google_cloud_run_service.jobs_run.location
+  project = google_cloud_run_service.jobs_run.project
+  service = google_cloud_run_service.jobs_run.name
+  role = "roles/run.invoker"
+  members = ["allUsers"]
 }

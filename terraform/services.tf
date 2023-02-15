@@ -41,14 +41,6 @@ resource "google_cloud_run_service" "frontend_run" {
   }
 }
 
-resource "google_cloud_run_service_iam_member" "frontend_run-public" {
-  location = google_cloud_run_service.frontend_run.location
-  project = google_cloud_run_service.frontend_run.project
-  service = google_cloud_run_service.frontend_run.name
-  role = "roles/run.invoker"
-  member = "allUsers"
-}
-
 locals {
   cloud_db_uri = var.use_vpc ? "mysql+mysqlconnector://${google_sql_user.crmint.name}:${google_sql_user.crmint.password}@${google_sql_database_instance.main.first_ip_address}/${google_sql_database.crmint.name}" : "mysql+mysqlconnector://${google_sql_user.crmint.name}:${google_sql_user.crmint.password}@/${google_sql_database.crmint.name}?unix_socket=/cloudsql/${google_sql_database_instance.main.connection_name}"
 }
@@ -170,14 +162,6 @@ resource "google_cloud_run_service" "controller_run" {
   depends_on = [google_secret_manager_secret_version.cloud_db_uri-latest]
 }
 
-resource "google_cloud_run_service_iam_member" "controller_run-public" {
-  location = google_cloud_run_service.controller_run.location
-  project = google_cloud_run_service.controller_run.project
-  service = google_cloud_run_service.controller_run.name
-  role = "roles/run.invoker"
-  member = "allUsers"
-}
-
 resource "google_cloud_run_service" "jobs_run" {
   provider = google-beta
   name     = "jobs"
@@ -237,14 +221,6 @@ resource "google_cloud_run_service" "jobs_run" {
     percent         = 100
     latest_revision = true
   }
-}
-
-resource "google_cloud_run_service_iam_member" "jobs_run-public" {
-  location = google_cloud_run_service.jobs_run.location
-  project = google_cloud_run_service.jobs_run.project
-  service = google_cloud_run_service.jobs_run.name
-  role = "roles/run.invoker"
-  member = "allUsers"
 }
 
 resource "google_cloudbuild_worker_pool" "private" {
