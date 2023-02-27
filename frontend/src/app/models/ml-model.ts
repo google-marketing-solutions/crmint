@@ -250,10 +250,26 @@ export class MlModel {
           };
         }
       }),
-      features: this.features,
-      label: this.label,
+      features: this.features.map(feature => {
+        return {
+          name: feature.name,
+          source: feature.source
+        };
+      }),
+      label: {
+        name: this.label.name,
+        key: this.label.key,
+        value_type: this.label.value_type,
+        source: this.label.source
+      },
       skew_factor: this.skew_factor,
-      timespans: this.timespans
+      timespans: this.timespans.map(timespan => {
+        return {
+          name: timespan.name,
+          value: timespan.value,
+          unit: timespan.unit
+        };
+      }),
     }
   }
 }

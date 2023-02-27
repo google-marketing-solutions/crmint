@@ -63,10 +63,11 @@ ml_model_structure = {
   })),
   'features': fields.List(fields.Nested({
     'name': fields.String,
-    'source': fields.String # need to work on adding this source field everywhere (including the database) and display the features/labels in the UI
+    'source': fields.String
   })),
   'label': fields.Nested({
     'name': fields.String,
+    'source': fields.String,
     'key': fields.String,
     'value_type': fields.String
   }),

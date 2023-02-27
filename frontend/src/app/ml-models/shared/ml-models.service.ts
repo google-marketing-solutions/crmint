@@ -36,6 +36,7 @@ export class MlModelsService extends ApiService {
   }
 
   create(model) {
+    console.log(JSON.stringify(model)); // TODO(robertmcmahan): remove after testing.
     this.addContentTypeHeader();
     return this.http.post(this.url, JSON.stringify(model), this.options)
                     .toPromise()
@@ -57,7 +58,8 @@ export class MlModelsService extends ApiService {
   }
 
   getVariables() {
-    return new Promise(resolve => resolve([
+    // TODO(robertmcmahan): Change to pull from backend after testing.
+    return new Promise(resolve => setTimeout(() => resolve([
       {
         name: 'purchase',
         source: 'GOOGLE_ANALYTICS',
@@ -99,9 +101,9 @@ export class MlModelsService extends ApiService {
           }
         ]
       }
-    ]));
+    ]), 1000));
     // this.removeContentTypeHeader();
-    // return this.http.get(this.url + '/ga4-events', this.options)
+    // return this.http.get(this.url + '/variables', this.options)
     //                 .toPromise()
     //                 .catch(this.handleError);
   }

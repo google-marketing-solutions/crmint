@@ -22,7 +22,6 @@ import { plainToClass } from 'class-transformer';
 
 import { MlModelsService } from '../shared/ml-models.service';
 import { MlModel, Type, UniqueId, HyperParameter, Feature, Label, Variable, BigQueryDataset, Timespan, Source } from 'app/models/ml-model';
-import { MatOption } from '@angular/material/core';
 
 @Component({
   selector: 'app-ml-model-form',
@@ -35,11 +34,12 @@ export class MlModelFormComponent implements OnInit {
   mlModel: MlModel = new MlModel();
   state: string = 'loading'; // state has one of values: loading, loaded or error
   title: string = '';
-  error_message: string = '';
+  errorMessage: string = '';
   uniqueIds: string[];
   types: string[];
   variables: Variable[] = [];
   optionDescriptions: boolean = false;
+  fetchingVariables: boolean = false;
 
   constructor(
     private _fb: UntypedFormBuilder,
@@ -69,6 +69,7 @@ export class MlModelFormComponent implements OnInit {
       features: this._fb.array([]),
       label: this._fb.group({
         name: ['', [Validators.required, Validators.pattern(/^[a-z][a-z0-9_-]*$/i)]],
+        source: ['', [Validators.required, Validators.pattern(/^[A-Z_]*$/i)]],
         key: ['', [Validators.required, Validators.pattern(/^[a-z][a-z0-9_-]*$/i)]],
         valueType: ['', Validators.pattern(/^[a-z]*$/i)]
       }),
@@ -124,6 +125,7 @@ export class MlModelFormComponent implements OnInit {
       usesFirstPartyData: this.mlModel.uses_first_party_data,
       label: {
         name: this.mlModel.label.name,
+        source: this.mlModel.label.source,
         key: this.mlModel.label.key,
         valueType: this.mlModel.label.value_type
       },
@@ -159,7 +161,7 @@ export class MlModelFormComponent implements OnInit {
   get labels() {
     const usesFirstPartyData = this.value('usesFirstPartyData');
     if (usesFirstPartyData) {
-       return this.variables.filter(variable => !this.featureSelected(variable));
+      return this.variables.filter(variable => !this.featureSelected(variable));
     } else {
       return this.variables.filter(variable => !this.featureSelected(variable) && variable.source !== Source.FIRST_PARTY);
     }
@@ -168,16 +170,16 @@ export class MlModelFormComponent implements OnInit {
   get label() {
     let label = this.mlModelForm.get('label').value;
     if (label.name) {
-      label.parameters = this.variables.find(variable => variable.name === label.name).parameters;
-      if (label.key) {
-        label.valueType = label.parameters.find(param => param.key === label.key).value_type;
-      }
+      const variable = this.variables.find(variable => variable.name === label.name);
 
-      // if there's only one option auto-select and disable the field.
-      if (label.parameters.length === 1) {
-        const keyField = this.mlModelForm.controls.label.get('key');
-        keyField.setValue(label.parameters[0].key);
-        keyField.disable();
+      label.parameters = variable.parameters;
+      label.source = variable.source;
+
+      if (label.key) {
+        const keyParameter = variable.parameters.find(param => param.key === label.key);
+        if (keyParameter) {
+          label.valueType = keyParameter.value_type;
+        }
       }
     }
     return label;
@@ -187,11 +189,13 @@ export class MlModelFormComponent implements OnInit {
    * Fetch variables (feature and label options) from GA4 Events and First Party tables in BigQuery.
    */
   fetchVariables() {
+    this.fetchingVariables = true;
     this.mlModelsService.getVariables()
       .then(variables => this.variables = plainToClass(Variable, variables as Variable[]))
       .catch(response => {
-        this.error_message = response || 'An error occurred';
-      });
+        this.errorMessage = response || 'An error occurred';
+      })
+      .finally(() => this.fetchingVariables = false);
   }
 
   /**
@@ -236,10 +240,40 @@ export class MlModelFormComponent implements OnInit {
   toggleFeature(feature: Feature, toggled: boolean) {
     if (toggled) {
       this.features.push(this._fb.control(feature as Feature));
+      this.refreshLabel();
     } else {
       const index = this.features.value.indexOf(feature);
       if (index !== -1) {
         this.features.removeAt(index);
+      }
+    }
+  }
+
+  /**
+   * Resets label name and key in the event an update to the available labels cases the currently
+   * selected label to no longer be available.
+   */
+  refreshLabel() {
+    const labels = this.labels;
+    const label = this.label;
+
+    const nameField = this.mlModelForm.get(['label', 'name']);
+    const keyField = this.mlModelForm.get(['label', 'key']);
+
+    if (!labels.find(label => label.name === nameField.value)) {
+      nameField.setValue('');
+      keyField.setValue('');
+    }
+
+    if (label.name) {
+      // if the selected key is not available anymore due to label change then unset it.
+      if (!label.parameters.find(param => param.key === label.key)) {
+        keyField.setValue('');
+      }
+
+      // if there's only one option auto-select and disable the field otherwise make sure the field is enabled.
+      if (label.parameters.length === 1) {
+        keyField.setValue(label.parameters[0].key);
       }
     }
   }
@@ -276,14 +310,24 @@ export class MlModelFormComponent implements OnInit {
   }
 
   /**
+   * Remove select-box option descriptions.
+   */
+  removeOptionDescriptions() {
+    this.optionDescriptions = false;
+  }
+
+  /**
+   * Add select-box option descriptions.
+   */
+  addOptionDescriptions() {
+    this.optionDescriptions = true;
+  }
+
+  /**
    * Translate the form data and update the ml model with these prepared values.
    */
   prepareSaveMlModel() {
     let formModel = this.mlModelForm.value;
-
-    // value type is implied based on event name and key selected
-    // this.label returns all selected and implied properties
-    formModel.label = this.label;
 
     this.mlModel.name = formModel.name as string;
     this.mlModel.bigquery_dataset = formModel.bigQueryDataset as BigQueryDataset;
@@ -291,14 +335,8 @@ export class MlModelFormComponent implements OnInit {
     this.mlModel.unique_id = formModel.uniqueId as UniqueId;
     this.mlModel.uses_first_party_data = formModel.usesFirstPartyData as boolean;
     this.mlModel.hyper_parameters = formModel.hyperParameters as HyperParameter[];
-    this.mlModel.features = formModel.features.map(feature => {
-      return {name: feature};
-    }) as Feature[];
-    this.mlModel.label = {
-      name: formModel.label.name as string,
-      key: !formModel.usesFirstPartyData ? formModel.label.key : '' as string,
-      value_type: !formModel.usesFirstPartyData ? formModel.label.valueType : '' as string
-    } as Label;
+    this.mlModel.features = formModel.features as Feature[];
+    this.mlModel.label = formModel.label as Label;
     this.mlModel.skew_factor = formModel.skewFactor as number;
     this.mlModel.timespans = formModel.timespans as Timespan[];
   }
@@ -313,9 +351,9 @@ export class MlModelFormComponent implements OnInit {
       this.mlModelsService.update(this.mlModel)
         .then(() => {
           this.router.navigate(['ml-models', this.mlModel.id]);
-          this.error_message = '';
+          this.errorMessage = '';
         }).catch(response => {
-          this.error_message = response || 'An error occurred';
+          this.errorMessage = response || 'An error occurred';
         });
     } else {
       this.mlModelsService.create(this.mlModel)

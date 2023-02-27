@@ -92,85 +92,89 @@
 
         <div *ngIf="variables.length" formArrayName="features" id="features" class="crmi-form-group">
           <label class="crmi-form-label">Features</label>
-          <table *ngIf="analyticsVariables.length">
-            <thead>
-              <tr>
-                <th colspan="2">Google Analytics</th>
-              </tr>
-              <tr>
-                <th></th>
-                <th>Name</th>
-                <th>Count</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr *ngFor="let variable of analyticsVariables; index as i">
-                <td>
-                  <mat-checkbox #checkbox
-                                [checked]="featureSelected(variable)"
-                                (change)="toggleFeature(variable, checkbox.checked)">
-                  </mat-checkbox>
-                </td>
-                <td>{{ variable.name }}</td>
-                <td>{{ variable.count }}</td>
-              </tr>
-            </tbody>
-          </table>
-          <table *ngIf="value('usesFirstPartyData') && firstPartyVariables.length">
-            <thead>
-              <tr>
-                <th colspan="2">First Party</th>
-              </tr>
-              <tr>
-                <th></th>
-                <th>Name</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr *ngFor="let variable of firstPartyVariables; index as i">
-                <td>
-                  <mat-checkbox #checkbox
-                                [checked]="featureSelected(variable)"
-                                (change)="toggleFeature(variable, checkbox.checked)">
-                  </mat-checkbox>
-                </td>
-                <td>{{ variable.name }}</td>
-              </tr>
-            </tbody>
-          </table>
+          <div>
+            <table *ngIf="analyticsVariables.length">
+              <thead>
+                <tr>
+                  <th colspan="2">Google Analytics</th>
+                </tr>
+                <tr>
+                  <th></th>
+                  <th>Name</th>
+                  <th>Count</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let variable of analyticsVariables; index as i">
+                  <td>
+                    <mat-checkbox #checkbox
+                                  [checked]="featureSelected(variable)"
+                                  (change)="toggleFeature(variable, checkbox.checked)">
+                    </mat-checkbox>
+                  </td>
+                  <td>{{ variable.name }}</td>
+                  <td>{{ variable.count }}</td>
+                </tr>
+              </tbody>
+            </table>
+            <table *ngIf="value('usesFirstPartyData') && firstPartyVariables.length">
+              <thead>
+                <tr>
+                  <th colspan="2">First Party</th>
+                </tr>
+                <tr>
+                  <th></th>
+                  <th>Name</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let variable of firstPartyVariables; index as i">
+                  <td>
+                    <mat-checkbox #checkbox
+                                  [checked]="featureSelected(variable)"
+                                  (change)="toggleFeature(variable, checkbox.checked)">
+                    </mat-checkbox>
+                  </td>
+                  <td>{{ variable.name }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </div>
 
         <div *ngIf="variables.length" formGroupName="label" class="crmi-form-group">
           <label class="crmi-form-label">Label</label>
-          <div>
-            <mat-select formControlName="name" placeholder="Label"
-                        (selectionChange)="optionDescriptions = false"
-                        (clickOutside)="optionDescriptions = false"
-                        (opened)="optionDescriptions = true">
-              <mat-option *ngFor="let label of labels" [value]="label.name">
-                {{ label.name }} <span *ngIf="optionDescriptions" class="option-description">{{ capitalize(label.source) }}</span>
-              </mat-option>
-            </mat-select>
-            <mat-select *ngIf="label && label.parameters" formControlName="key" placeholder="Key">
-              <mat-option *ngFor="let parameter of label.parameters" [value]="parameter.key">
-                {{ parameter.key }}
-              </mat-option>
-            </mat-select>
-          </div>
+          <mat-select formControlName="name" placeholder="Label"
+                      (selectionChange)="refreshLabel(); removeOptionDescriptions()"
+                      (clickOutside)="removeOptionDescriptions()"
+                      (opened)="addOptionDescriptions()">
+            <mat-option *ngFor="let label of labels" [value]="label.name">
+              {{ label.name }} <span *ngIf="optionDescriptions" class="option-description">{{ capitalize(label.source) }}</span>
+            </mat-option>
+          </mat-select>
+          <mat-select *ngIf="label && label.parameters" formControlName="key" placeholder="Key">
+            <mat-option *ngFor="let parameter of label.parameters" [value]="parameter.key">
+              {{ parameter.key }}
+            </mat-option>
+          </mat-select>
+          <input type="hidden" formControlName="valueType" [value]="label.valueType">
+          <input type="hidden" formControlName="source" [value]="label.source">
         </div>
 
         <div *ngIf="!variables.length" class="crmi-form-group">
           <label class="crmi-form-label">Features/Label</label>
-          <div class="notice">
-            Use the above <strong>BigQuery Dataset</strong> and <strong>Data Source</strong> to fetch feature and label options.
-            &nbsp;&nbsp;
+          <div *ngIf="value('bigQueryDataset', 'name') && value('usesFirstPartyData') !== null" class="notice green">
+            Use above <strong>BigQuery Dataset</strong> and <strong>Data Source</strong> to fetch feature and label options.
             <button mat-raised-button
                     (click)="fetchVariables()"
                     type="button"
-                    [disabled]="!value('bigQueryDataset', 'name') || value('usesFirstPartyData') === null"
+                    [disabled]="fetchingVariables"
                     color="alternate">
               Fetch
             </button>
+          </div>
+          <div *ngIf="!value('bigQueryDataset', 'name') || value('usesFirstPartyData') === null" class="notice">
+            Must first enter a <strong>BigQuery Dataset</strong> and <strong>Data Source</strong> to see available Features/Labels.
           </div>
         </div>
 
@@ -196,7 +200,7 @@
         </div>
 
         <div class="crmi-form-offset">
-          <div class="crmi-form-message crmi-form-message-error">{{ error_message }}</div>
+          <div class="crmi-form-message crmi-form-message-error">{{ errorMessage }}</div>
           <button mat-raised-button
                   type="submit"
                   [disabled]="!mlModelForm.valid"

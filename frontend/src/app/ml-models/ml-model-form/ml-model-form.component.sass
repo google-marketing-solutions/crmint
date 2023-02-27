@@ -4,6 +4,8 @@
   position: relative
   align-items: center
   margin-right: 90px
+  .crmi-form-label
+    padding-right: 20px
   .mat-form-label
     flex-grow: 0
   .mat-form-field, .mat-select, .mat-slider
@@ -17,7 +19,6 @@
     border: 2px solid #21cccb
     padding: 9px
   .mat-select + .mat-select
-    width: 330px
     margin-left: 28px
   .mat-form-field + .mat-form-field
     margin-left: 28px
@@ -37,6 +38,12 @@
   border-radius: 4px
   margin-top: 10px
   margin-bottom: 10px
+  button
+    margin-left: 14px
+.notice.green
+  background-color: #21cccb
+  button:disabled
+    cursor: progress
 
 .vertical-group
   margin: 20px 0px 20px 20px
@@ -79,6 +86,10 @@
       margin-left: -8px
 
 #features
+  > div
+    display: flex
+    align-items: stretch
+    flex-grow: 1
   table
     margin: 20px 10px
     padding: 20px
@@ -100,3 +111,6 @@
 
 button[type='submit']
   margin-top: 50px
+
+button:disabled
+  cursor: not-allowed
