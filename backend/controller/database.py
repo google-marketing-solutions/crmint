@@ -1,4 +1,4 @@
-# Copyright 2018 Google Inc
+# Copyright 2023 Google Inc
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -33,7 +33,9 @@ def load_fixtures(logger_func: Optional[Callable[[str], None]] = None) -> None:
   general_settings = [
       'client_id', 'client_secret',
       'google_ads_authentication_code', 'google_ads_refresh_token',
-      'developer_token', 'app_conversion_api_developer_token']
+      'developer_token', 'app_conversion_api_developer_token',
+      'google_analytics_4_bigquery_dataset', 'google_analytics_4_measurement_id',
+      'google_analytics_4_api_secret']
   for setting in general_settings:
     general_setting = models.GeneralSetting.where(name=setting).first()
     if not general_setting:

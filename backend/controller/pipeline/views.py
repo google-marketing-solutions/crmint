@@ -37,8 +37,6 @@ from common import crmint_logging
 from common import insight
 from controller import models
 
-
-_PROJECT_ID = os.getenv('GOOGLE_CLOUD_PROJECT')
 _LOGS_PAGE_SIZE = 20
 
 blueprint = flask.Blueprint('pipeline', __name__)
@@ -51,27 +49,27 @@ parser.add_argument('schedules', type=list, location='json')
 parser.add_argument('params', type=list, location='json')
 
 schedule_fields = {
-    'id': fields.Integer,
-    'pipeline_id': fields.Integer,
-    'cron': fields.String,
+  'id': fields.Integer,
+  'pipeline_id': fields.Integer,
+  'cron': fields.String
 }
 param_fields = {
-    'id': fields.Integer,
-    'name': fields.String,
-    'type': fields.String,
-    'value': fields.Raw(attribute='api_value'),
-    'label': fields.String
+  'id': fields.Integer,
+  'name': fields.String,
+  'type': fields.String,
+  'value': fields.Raw(attribute='api_value'),
+  'label': fields.String
 }
 pipeline_fields = {
-    'id': fields.Integer,
-    'name': fields.String,
-    'status': fields.String,
-    'updated_at': fields.String,
-    'run_on_schedule': fields.Boolean,
-    'schedules': fields.List(fields.Nested(schedule_fields)),
-    'params': fields.List(fields.Nested(param_fields)),
-    'message': fields.String,
-    'has_jobs': fields.Boolean,
+  'id': fields.Integer,
+  'name': fields.String,
+  'status': fields.String,
+  'updated_at': fields.String,
+  'run_on_schedule': fields.Boolean,
+  'schedules': fields.List(fields.Nested(schedule_fields)),
+  'params': fields.List(fields.Nested(param_fields)),
+  'message': fields.String,
+  'has_jobs': fields.Boolean
 }
 
 

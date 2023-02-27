@@ -1,0 +1,15 @@
+{
+  "clientId": "${client_id}",
+  "nonPersonalizedAds": false,
+  "events": [
+    {
+      "name": "${event_name}",
+      "params": {
+        "score": "${score}",
+        "value": "${score}",
+        "nscore": "${normalized_score}",
+        "type": "${type}"
+      }
+    }
+  ]
+}

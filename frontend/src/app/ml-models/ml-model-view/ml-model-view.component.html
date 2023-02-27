@@ -1,0 +1,75 @@
+<mat-card>
+  <div [ngSwitch]="state">
+    <!-- LOADING -->
+    <ng-template ngSwitchCase="loading">
+      <div class="crmi-loading-block">
+        <mat-progress-spinner
+          strokeWidth="10"
+          style="width:100px;height:100px;"
+          mode="indeterminate">
+        </mat-progress-spinner>
+        Loading Machine Learning Model Configuration...
+      </div>
+    </ng-template>
+    <!-- LOADED -->
+    <ng-template ngSwitchCase="loaded">
+      <mat-card-title>
+        {{ mlModel.name }}
+        <div class="crmi-card-title-buttons">
+          <button mat-raised-button color="warn" [routerLink]="['/ml-models', mlModel.id, 'edit']">
+            <mat-icon>edit</mat-icon>
+            Edit Model
+          </button>
+        </div>
+      </mat-card-title>
+
+      <mat-tab-group dynamicHeight disableRipple (selectedTabChange)="setTab($event.index)" class="crmi-card-tabs">
+        <mat-tab *ngFor="let pipeline of mlModel.pipelines">
+          <ng-template mat-tab-label>{{ pipeline.name.split(' - ')[1] }}</ng-template>
+          <div class="crmi-card-list">
+            <div class="crmi-card-list-header">
+              <div class="crmi-card-list-item">
+                <div class="crmi-card-list-item-col">Pipeline</div>
+              </div>
+            </div>
+            <div class="crmi-card-list-item">
+              <div class="crmi-card-list-item-col crmi-card-list-item-col-center">
+                <a class="crmi-card-list-item-name" [routerLink]="['/pipelines', pipeline.id]">{{pipeline.name}}</a>
+              </div>
+              <div class="crmi-card-list-item-col crmi-card-list-item-col-2 crmi-card-list-item-col-center">
+                <app-status [status]="pipeline.status"></app-status>
+              </div>
+              <div class="crmi-card-list-item-col crmi-card-list-item-col-1">
+                <a class="crmi-link" [routerLink]="['/pipelines', pipeline.id, 'edit']">
+                  <mat-icon>edit</mat-icon>
+                  Edit
+                </a>
+                <br/>
+                <button class="crmi-link" (click)="deletePipeline(pipeline)">
+                  <mat-icon>delete</mat-icon>
+                  Delete
+                </button>
+              </div>
+            </div>
+          </div>
+          <div class="crmi-card-list">
+            <div class="crmi-card-list-header">
+              <div class="crmi-card-list-item">
+                <div class="crmi-card-list-item-col">BQML Model SQL</div>
+              </div>
+            </div>
+            <div class="crmi-card-list-item">
+              <div class="crmi-card-list-item-col">
+                <pre>{{ extractSetupSql(pipeline) }}</pre>
+              </div>
+            </div>
+          </div>
+        </mat-tab>
+      </mat-tab-group>
+    </ng-template>
+    <!-- ERROR -->
+    <ng-template ngSwitchCase="error">
+      <div class="crmi-error-block">There was an error when loading data.</div>
+    </ng-template>
+  </div>
+</mat-card>

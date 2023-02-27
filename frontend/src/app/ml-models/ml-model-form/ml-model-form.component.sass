@@ -1,0 +1,102 @@
+.crmi-form-group
+  display: flex
+  flex-direction: row
+  position: relative
+  align-items: center
+  margin-right: 90px
+  .mat-form-label
+    flex-grow: 0
+  .mat-form-field, .mat-select, .mat-slider
+    flex-grow: 1
+  .mat-select
+    margin: 15px 0px
+    padding: 10px
+    border: 1px solid rgba(0, 0, 0, 0.3)
+    border-radius: 4px
+  .mat-select:focus
+    border: 2px solid #21cccb
+    padding: 9px
+  .mat-select + .mat-select
+    width: 330px
+    margin-left: 28px
+  .mat-form-field + .mat-form-field
+    margin-left: 28px
+
+.option-description
+  display: block
+  float: right
+  font-size: 11px
+  font-weight: 600
+
+.notice
+  background-color: #c51162
+  padding: 10px 20px
+  margin-left: 10px
+  color: #ffffff
+  text-align: center
+  border-radius: 4px
+  margin-top: 10px
+  margin-bottom: 10px
+
+.vertical-group
+  margin: 20px 0px 20px 20px
+  display: flex
+  flex-direction: column
+  .mat-radio-button
+    margin-bottom: 10px
+  .select-group, .slider-group
+    position: relative
+    padding-top: 20px
+    .label
+      position: absolute
+      left: 0px
+      top: 0px
+      font-size: 11px
+      color: rgba(0, 0, 0, 0.54)
+
+#hyper-parameters
+  > *
+    padding: 10px 0px
+  .mat-form-field
+    width: 620px
+  .mat-checkbox
+    margin-right: 20px
+  .mat-icon
+    margin: 0px 10px
+  .select-group
+    padding-top: 30px
+  .notice
+    padding: 10px 20px
+    margin-left: -10px
+
+#timespans
+  flex-grow: 1
+  .slider-group
+    display: flex
+    flex-grow: 1
+    align-items: center
+    .mat-slider
+      margin-left: -8px
+
+#features
+  table
+    margin: 20px 10px
+    padding: 20px
+    border: 1px solid rgba(0, 0, 0, 0.3)
+    border-radius: 4px
+    flex-grow: 1
+    height: auto
+  table thead tr th
+    font-size: 12px
+    text-align: left
+    text-transform: uppercase
+    color: rgba(0, 0, 0, 0.7)
+  table thead tr:first-of-type th
+    font-size: unset
+    font-weight: 500
+    padding-bottom: 30px
+    text-align: center
+    text-transform: unset
+
+button[type='submit']
+  margin-top: 50px

@@ -18,6 +18,7 @@ import * as moment from 'moment';
 
 import { Schedule } from './schedule';
 import { Param } from './param';
+import { Job } from './job';
 
 export class Pipeline {
   id: number;
@@ -26,6 +27,7 @@ export class Pipeline {
   updated_at: string;
   run_on_schedule: boolean;
   sid: string;
+  jobs: Job[];
   has_jobs: boolean;
 
   @Type(() => Schedule)
@@ -34,30 +36,31 @@ export class Pipeline {
   @Type(() => Param)
   params: Param[] = [];
 
-  blocked_running(): boolean {
+  public blocked_running(): boolean {
     return this.run_on_schedule;
   }
-  blocked_stopping(): boolean {
+
+  public blocked_stopping(): boolean {
     return this.status === 'stopping';
   }
 
-  showed_stopping(): boolean {
+  public showed_stopping(): boolean {
     return ['running', 'stopping'].includes(this.status);
   }
 
-  is_active(): boolean {
+  public is_active(): boolean {
     return ['running', 'stopping'].includes(this.status);
   }
 
-  showed_running(): boolean {
+  public showed_running(): boolean {
     return ['idle', 'finished', 'failed', 'succeeded'].includes(this.status);
   }
 
-  blocked_managing() {
+  public blocked_managing() {
     return this.run_on_schedule || ['running', 'stopping'].includes(this.status);
   }
 
-  run_on_schedule_next_date(showText = false) {
+  public run_on_schedule_next_date(showText = false) {
     let text = showText ? 'Run on schedule' : '';
     if (this.run_on_schedule) {
       const dates = [];

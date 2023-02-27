@@ -18,10 +18,12 @@ import { MatDatepickerModule } from '@angular/material/datepicker';
 import { MatNativeDateModule } from '@angular/material/core';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
+import { MatRadioModule } from '@angular/material/radio';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatIconModule } from '@angular/material/icon';
 import { MatCardModule } from '@angular/material/card';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
+import { MatSliderModule } from '@angular/material/slider';
 import { MatSelectModule } from '@angular/material/select';
 import { MatToolbarModule } from '@angular/material/toolbar';
 import { MatTabsModule } from '@angular/material/tabs';
@@ -40,10 +42,12 @@ import { StatusComponent } from './status/status.component';
     MatNativeDateModule,
     MatFormFieldModule,
     MatInputModule,
+    MatRadioModule,
     MatProgressSpinnerModule,
     MatIconModule,
     MatCardModule,
     MatSlideToggleModule,
+    MatSliderModule,
     MatSelectModule,
     BrowserAnimationsModule,
     MatToolbarModule,
@@ -61,10 +65,12 @@ import { StatusComponent } from './status/status.component';
     MatNativeDateModule,
     MatFormFieldModule,
     MatInputModule,
+    MatRadioModule,
     MatProgressSpinnerModule,
     MatIconModule,
     MatCardModule,
     MatSlideToggleModule,
+    MatSliderModule,
     MatSelectModule,
     BrowserAnimationsModule,
     MatToolbarModule,

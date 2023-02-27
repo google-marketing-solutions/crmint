@@ -12,13 +12,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+
+# Do the following to create a new revision of the schema:
+# Remove existing migration file (if any that you created during this update).
+# docker-compose down --volumes
+# docker-compose run controller python -m flask db upgrade
+# docker-compose run controller python -m flask db migrate
+# docker-compose run controller python -m flask db upgrade
+
 """Models definitions."""
 
 import datetime
 import enum
 import numbers
 import re
-from typing import Optional, Union
+from typing import Optional, Union, Any
 import uuid
 
 import jinja2
@@ -37,7 +45,6 @@ from controller import extensions
 from controller import inline
 from controller import shared
 
-
 def _str_to_number(x: str) -> numbers.Number:
   """Converts the input string into a number.
 
@@ -54,7 +61,6 @@ def _str_to_number(x: str) -> numbers.Number:
     return int(x)
   except ValueError:
     return float(x)
-
 
 @enum.unique
 class PipelineReadyStatus(enum.Enum):
@@ -76,7 +82,9 @@ class Pipeline(extensions.db.Model):
   status = Column(String(50), nullable=False, default='idle')
   status_changed_at = Column(DateTime)
   jobs = orm.relationship(
-      'Job', backref='pipeline', lazy='joined')
+      'Job',
+      backref='pipeline',
+      lazy='joined')
   run_on_schedule = Column(Boolean, nullable=False, default=False)
   schedules = orm.relationship(
       'Schedule',
@@ -87,6 +95,11 @@ class Pipeline(extensions.db.Model):
       'Param',
       lazy='joined',
       order_by='asc(Param.name)')
+  ml_model_id = Column(Integer, ForeignKey('ml_models.id'), nullable=True)
+  ml_model = orm.relationship(
+      'MlModel',
+      foreign_keys=[ml_model_id],
+      back_populates='pipelines')
 
   STATUS = shared.PipelineStatus
   INACTIVE_STATUSES = [
@@ -353,6 +366,214 @@ class Pipeline(extensions.db.Model):
     if param_ids:
       Param.destroy(*param_ids)
     self.delete()
+
+
+class MlModel(extensions.db.Model):
+  """Model definining an ml model."""
+  __tablename__ = 'ml_models'
+  __repr_attrs__ = ['name']
+
+  id = Column(Integer, primary_key=True, autoincrement=True)
+  name = Column(String(255), nullable=False)
+  bigquery_dataset = orm.relationship(
+    'MlModelBigQueryDataset',
+    uselist=False,
+    lazy='joined')
+  type = Column(String(255), nullable=False)
+  unique_id = Column(String(255), nullable=False)
+  uses_first_party_data = Column(Boolean, nullable=False, default=False)
+  hyper_parameters = orm.relationship(
+      'MlModelHyperParameter',
+      lazy='joined')
+  features = orm.relationship(
+      'MlModelFeature',
+      lazy='joined')
+  label = orm.relationship(
+      'MlModelLabel',
+      uselist=False,
+      lazy='joined')
+  skew_factor = Column(Integer, nullable=False, default=4)
+  timespans = orm.relationship(
+      'MlModelTimespan',
+      lazy='joined')
+  pipelines = orm.relationship(
+      'Pipeline',
+      lazy='joined',
+      order_by='asc(Pipeline.id)')
+
+  TYPES = [
+    'LOGISTIC_REG',
+    'BOOSTED_TREE_REGRESSOR'
+  ]
+
+  UNIQUE_IDS = [
+    'CLIENT_ID',
+    'USER_ID'
+  ]
+
+  def __init__(self, name=None):
+    super().__init__()
+    self.name = name
+
+  def assign_attributes(self, attributes):
+    available_attributes = [
+      'name', 'type', 'unique_id', 'uses_first_party_data', 'skew_factor'
+    ]
+
+    for key, value in attributes.items():
+      if key == 'type' and value not in self.TYPES:
+        continue
+      if key == 'unique_id' and value not in self.UNIQUE_IDS:
+        continue
+      if key in available_attributes:
+        self.__setattr__(key, value)
+
+  def save_relations(self, relations):
+    for key, value in relations.items():
+      if key == 'bigquery_dataset':
+        self.assign_bigquery_dataset(value)
+      elif key == 'features':
+        self.assign_features(value)
+      elif key == 'label':
+        self.assign_label(value)
+      elif key == 'hyper_parameters':
+        self.assign_hyper_parameters(value)
+      elif key == 'timespans':
+        self.assign_timespans(value)
+      elif key == 'pipelines':
+        self.assign_pipelines(value)
+
+  def assign_bigquery_dataset(self, dataset):
+    if self.bigquery_dataset:
+      self.bigquery_dataset.delete()
+
+    MlModelBigQueryDataset.create(ml_model_id=self.id, **dataset)
+
+  def assign_features(self, features):
+    for feature in self.features:
+      feature.delete()
+
+    for feature in features:
+      if type(feature) == dict:
+        MlModelFeature.create(ml_model_id=self.id, **feature)
+
+  def assign_label(self, label):
+    if self.label:
+      self.label.delete()
+
+    MlModelLabel.create(ml_model_id=self.id, **label)
+
+  def assign_hyper_parameters(self, hyper_parameters):
+    for param in self.hyper_parameters:
+      param.delete()
+
+    for param in hyper_parameters:
+      if type(param) == dict:
+        MlModelHyperParameter.create(ml_model_id=self.id, **param)
+
+  def assign_timespans(self, timespans):
+    for timespan in self.timespans:
+      timespan.delete()
+
+    for timespan in timespans:
+      if type(timespan) == dict:
+        MlModelTimespan.create(ml_model_id=self.id, **timespan)
+
+  def assign_pipelines(self, pipelines):
+    for pipeline in self.pipelines:
+      pipeline.destroy()
+
+    for pipeline in pipelines:
+      model_pipeline = Pipeline(name=pipeline['name'])
+      model_pipeline.assign_attributes({'ml_model_id': self.id})
+      model_pipeline.save()
+      model_pipeline.import_data(pipeline)
+
+  def destroy(self):
+    for pipeline in self.pipelines:
+      pipeline.destroy()
+
+    if self.bigquery_dataset:
+      self.bigquery_dataset.delete()
+
+    for feature in self.features:
+      feature.delete()
+
+    for param in self.hyper_parameters:
+      param.delete()
+
+    for timespan in self.timespans:
+      timespan.delete()
+
+    if self.label:
+      self.label.delete()
+
+    self.delete()
+
+class MlModelBigQueryDataset(extensions.db.Model):
+  """Model for ml model bigquery dataset info."""
+  __tablename__ = 'ml_model_bigquery_dataset'
+  __repr_attrs__ = ['name', 'location']
+
+  ml_model_id = Column(Integer, ForeignKey('ml_models.id'), primary_key=True)
+  name = Column(String(255), nullable=False)
+  location = Column(String(255), nullable=False, default='US')
+
+  ml_model = orm.relationship(
+    'MlModel', foreign_keys=[ml_model_id], back_populates='bigquery_dataset')
+
+class MlModelLabel(extensions.db.Model):
+  """Model for ml model label."""
+  __tablename__ = 'ml_model_labels'
+  __repr_attrs__ = ['name', 'key', 'value_type']
+
+  ml_model_id = Column(Integer, ForeignKey('ml_models.id'), primary_key=True)
+  name = Column(String(255), nullable=False)
+  source = Column(String(255), nullable=False)
+  key = Column(String(255), nullable=True)
+  value_type = Column(String(255), nullable=True)
+
+  ml_model = orm.relationship(
+    'MlModel', foreign_keys=[ml_model_id], back_populates='label')
+
+
+class MlModelFeature(extensions.db.Model):
+  """Model for ml model feature."""
+  __tablename__ = 'ml_model_features'
+
+  ml_model_id = Column(Integer, ForeignKey('ml_models.id'), primary_key=True)
+  name = Column(String(255), nullable=False, primary_key=True)
+  source = Column(String(255), nullable=False)
+
+  ml_model = orm.relationship(
+      'MlModel', foreign_keys=[ml_model_id], back_populates='features')
+
+
+class MlModelHyperParameter(extensions.db.Model):
+  """Model for ml model hyper_parameter."""
+  __tablename__ = 'ml_model_hyper_parameters'
+  __repr_attrs__ = ['name', 'value']
+
+  ml_model_id = Column(Integer, ForeignKey('ml_models.id'), primary_key=True)
+  name = Column(String(255), nullable=False, primary_key=True)
+  value = Column(String(255), nullable=False)
+
+  ml_model = orm.relationship(
+      'MlModel', foreign_keys=[ml_model_id], back_populates='hyper_parameters')
+
+
+class MlModelTimespan(extensions.db.Model):
+  """Model for ml model timespan."""
+  __tablename__ = 'ml_model_timespan'
+  __repr_attrs__ = ['name', 'value', 'unit']
+
+  ml_model_id = Column(Integer, ForeignKey('ml_models.id'), primary_key=True)
+  name = Column(String(255), nullable=False, primary_key=True)
+  value = Column(Integer, nullable=False)
+  unit = Column(String(255), nullable=False)
+
+  ml_model = orm.relationship(
+      'MlModel', foreign_keys=[ml_model_id], back_populates='timespans')
 
 
 class TaskEnqueued(extensions.db.Model):
@@ -628,7 +849,7 @@ class Job(extensions.db.Model):
 
   def enqueue(self,
               worker_class: str,
-              worker_params: dict[str, ...],
+              worker_params: dict[str, Any],
               delay: int = 0) -> Union[TaskEnqueued, None]:
     if self.status != Job.STATUS.RUNNING:
       return None
