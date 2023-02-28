@@ -68,9 +68,13 @@ class TestMlModelViews(controller_utils.ControllerAppTest):
         {"name": "DATA_SPLIT_METHOD", "value": "AUTO_SPLIT"},
         {"name": "EARLY_STOP", "value": "true"}
       ],
-      "features": [{"name": "scroll"}],
+      "features": [{
+        "name": "enrollment",
+        "source": "FIRST_PARTY"
+      }],
       "label": {
           "name": "purchase",
+          "source": "GOOGLE_ANALYTICS",
           "key": "value",
           "value_type": "int"
       },
@@ -146,17 +150,17 @@ class TestMlModelViews(controller_utils.ControllerAppTest):
     response = self.client.get('/api/ml-models/1')
     self.assertEqual(response.status_code, 200)
 
-  def test_retrieve_feature_and_label_options_without_dataset(self):
-    response = self.client.get('/api/ml-models/feature-and-label-options')
+  def test_retrieve_variables_without_dataset(self):
+    response = self.client.get('/api/ml-models/variables')
     self.assertEqual(response.status_code, 400)
 
-  @mock.patch('controller.ml_model.bigquery.Client.get_ga4_events')
-  @mock.patch('controller.ml_model.bigquery.Client.get_first_party_columns')
-  def test_retrieve_feature_and_label_options_with_dataset(self, fpd_method: mock.Mock, ga4_mock: mock.Mock):
+  @mock.patch('controller.ml_model.bigquery.Client.get_analytics_variables')
+  @mock.patch('controller.ml_model.bigquery.Client.get_first_party_variables')
+  def test_retrieve_variables_with_dataset(self, fpd_method: mock.Mock, ga4_mock: mock.Mock):
     dataset = {'bigquery_dataset': {'name': 'test-name'}}
     GeneralSetting.where(name='google_analytics_4_bigquery_dataset').first().update(value='test-ga4-dataset')
 
-    response = self.client.get('/api/ml-models/feature-and-label-options', json=dataset)
+    response = self.client.get('/api/ml-models/variables', json=dataset)
     self.assertEqual(response.status_code, 200)
     ga4_mock.assert_called_with('test-ga4-dataset')
     fpd_method.assert_called_with('test-name')
@@ -184,9 +188,13 @@ class TestMlModelViews(controller_utils.ControllerAppTest):
         {"name": "DATA_SPLIT_METHOD", "value": "AUTO_SPLIT"},
         {"name": "EARLY_STOP", "value": "false"}
       ],
-      "features": [{"name": "click"}],
+      "features": [{
+        "name": "click",
+        "source": "GOOGLE_ANALYTICS"
+      }],
       "label": {
           "name": "purchase",
+          "source": "FIRST_PARTY",
           "key": "",
           "value_type": ""
       },

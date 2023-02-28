@@ -435,8 +435,8 @@ class TestMlModel(ModelTestCase):
     self.assertRelationSaved(MlModelBigQueryDataset, dataset)
 
   @parameterized.named_parameters(
-    ('create', [{'name': 'click'}]),
-    ('update', [{'name': 'click'}, {'name': 'subscribe'}]),
+    ('create', [{'name': 'click', 'source': 'FIRST_PARTY'}]),
+    ('update', [{'name': 'click', 'source': 'GOOGLE_ANALYTICS'}, {'name': 'subscribe', 'source': 'FIRST_PARTY'}]),
     ('delete', [])
   )
   def test_save_relations_features(self, features):
@@ -445,8 +445,8 @@ class TestMlModel(ModelTestCase):
     self.assertRelationSaved(MlModelFeature, features)
 
   @parameterized.named_parameters(
-    ('create', {'name': 'CR-NAME', 'key': 'CR-KEY', 'value_type': 'CR-VT'}),
-    ('update', {'name': 'UP-NAME', 'key': 'UP-KEY', 'value_type': 'UP-VT'})
+    ('create', {'name': 'CR-NAME', 'source': 'FIRST_PARTY', 'key': 'CR-KEY', 'value_type': 'CR-VT'}),
+    ('update', {'name': 'UP-NAME', 'source': 'GOOGLE_ANALYTICS', 'key': 'UP-KEY', 'value_type': 'UP-VT'})
   )
   def test_save_relations_label(self, label):
     self.assertIsNone(self.ml_model.label)
@@ -515,8 +515,8 @@ class TestMlModel(ModelTestCase):
     self.ml_model.save_relations({
       'bigquery_dataset': {'name': 'CR-NAME', 'location': 'CR-LOC'},
       'hyper_parameters': [{'name': 'L1_REG', 'value': '1'}],
-      'features': [{'name': 'click'}, {'name': 'subscribe'}],
-      'label': {'name': 'CR-NAME', 'key': 'CR-KEY', 'value_type': 'CR-VT'},
+      'features': [{'name': 'click', 'source': 'GOOGLE_ANALYTICS'}, {'name': 'subscribe', 'source': 'FIRST_PARTY'}],
+      'label': {'name': 'CR-NAME', 'source': 'FIRST_PARTY', 'key': 'CR-KEY', 'value_type': 'CR-VT'},
       'pipelines': [{
         'name': 'Test Model - Training Pipeline',
         'params': [],
