@@ -4,13 +4,21 @@ import os
 from datetime import date
 from enum import Enum
 from uuid import uuid4 as uuid
-from typing import Union
+from jinja2 import Template, StrictUndefined
 
-class Template(Enum):
+class TemplateFile(Enum):
   TRAINING = 'training.sql'
   PREDICTIVE = 'predictive.sql'
   GA4_REQUEST = 'ga4_request.json'
   SCORES = 'scores.sql'
+
+class Timespan():
+  TRAINING: str = 'training'
+  PREDICTIVE: str = 'predictive'
+
+  training: int
+  predictive: int
+  unit: str
 
 def build_training_pipeline(ml_model, project_id: str, ga4_dataset: str) -> dict:
   """Builds the training pipeline configuration including the model SQL."""
@@ -26,7 +34,7 @@ def build_training_pipeline(ml_model, project_id: str, ga4_dataset: str) -> dict
         {
           'name': 'script',
           'type': 'sql',
-          'value': _compile_sql_template(ml_model, project_id, ga4_dataset, Template.TRAINING)
+          'value': _compile_sql_template(ml_model, project_id, ga4_dataset, TemplateFile.TRAINING)
         },
         {
           'name': 'bq_dataset_location',
@@ -58,7 +66,7 @@ def build_predictive_pipeline(ml_model, project_id: str, ga4_dataset: str, ga4_m
           {
             'name': 'script',
             'type': 'sql',
-            'value': _compile_sql_template(ml_model, project_id, ga4_dataset, Template.PREDICTIVE)
+            'value': _compile_sql_template(ml_model, project_id, ga4_dataset, TemplateFile.PREDICTIVE)
           },
           {
             'name': 'bq_dataset_location',
@@ -79,7 +87,7 @@ def build_predictive_pipeline(ml_model, project_id: str, ga4_dataset: str, ga4_m
           {
             'name': 'script',
             'type': 'sql',
-            'value': _compile_sql_template(ml_model, project_id, ga4_dataset, Template.SCORES),
+            'value': _compile_sql_template(ml_model, project_id, ga4_dataset, TemplateFile.SCORES),
           },
           {
             'name': 'bq_dataset_location',
@@ -130,7 +138,7 @@ def build_predictive_pipeline(ml_model, project_id: str, ga4_dataset: str, ga4_m
           {
             'name': 'template',
             'type': 'text',
-            'value': _get_template(Template.GA4_REQUEST)
+            'value': _get_template(TemplateFile.GA4_REQUEST)
           },
           {
             'name': 'mp_batch_size',
@@ -150,84 +158,53 @@ def build_predictive_pipeline(ml_model, project_id: str, ga4_dataset: str, ga4_m
     }]
   }
 
-def _compile_sql_template(ml_model, project_id: str, ga4_dataset: str, template: Template) -> str:
+def _compile_sql_template(ml_model, project_id: str, ga4_dataset: str, templateFile: TemplateFile) -> str:
   """Builds the BQML SQL using the base template and the provided data."""
   variables = {
-    '__PROJECT_ID__': project_id,
-    '__ML_MODEL_TYPE__': ml_model.type,
-    '__ML_MODEL_DATASET__': ml_model.bigquery_dataset.name,
-    '__GA4_DATASET__': ga4_dataset,
-    '__ML_MODEL_HYPER_PARAMTERS__': _compile_hyper_parameters(ml_model.hyper_parameters),
-    '__ML_MODEL_TIMESPAN_MONTHS__': _get_timespan(ml_model.timespans, 'month', template),
-    '__ML_MODEL_LABEL_NAME__': ml_model.label.name,
-    '__ML_MODEL_LABEL_KEY__': ml_model.label.key,
-    '__ML_MODEL_LABEL_VALUE_STATEMENT__': _compile_label_value_statement(ml_model.label.value_type),
-    '__ML_MODEL_FEATURES__': _compile_features(ml_model.features),
-    '__ML_MODEL_SKEW_FACTOR__': ml_model.skew_factor
+    'project_id': project_id,
+    'model_dataset': ml_model.bigquery_dataset.name,
+    'ga4_dataset': ga4_dataset,
+    'type': ml_model.type,
+    'uses_first_party_data': ml_model.uses_first_party_data,
+    'hyper_parameters': ml_model.hyper_parameters,
+    'timespan': _get_timespans(ml_model.timespans, 'month'),
+    'label': ml_model.label,
+    'features': ml_model.features,
+    'skew_factor': ml_model.skew_factor
   }
 
-  sql = _get_template(template)
-  sql = _remove_comments(sql)
-  return _replace(variables, sql)
+  functions = {
+    'is_number': _is_number,
+    'is_bool': _is_bool
+  }
 
-def _get_template(template: Template) -> str:
+  template = _get_template(templateFile)
+  return template.render(**functions, **variables)
+
+def _get_template(templateFile: TemplateFile) -> Template:
   """Pulls appropriate template text from file."""
-  with open(_absolute_path(template.value), 'r') as file:
-    return file.read()
-
-def _replace(replacements: dict, template: str) -> str:
-  """Uses the key for each of the replacements to find a string in the template
-     and replaces that string with the value associated to that key."""
-  compiled = template
-  for needle, replacement in replacements.items():
-    compiled = compiled.replace(needle, str(replacement))
-  return compiled
-
-def _remove_comments(sql: str) -> str:
-  """Removes comments from the sql provided."""
-  return re.sub(r'\-\-.*\n', '', str(sql))
-
-def _compile_hyper_parameters(params: list) -> str:
-  """Builds the SQL for the hyper parameters using the list provided."""
-  compiled = ''
-  suffix = ',\n  '
-  for param in params:
-    if _is_number(param.value):
-      compiled += f'{param.name} = {param.value}'
-    elif _is_bool(param.value):
-      compiled += f'{param.name} = {param.value.upper()}'
-    else:
-      compiled += f'{param.name} = "{param.value}"'
-    compiled += suffix
-  return compiled.removesuffix(suffix)
-
-def _compile_features(features: list) -> str:
-  """Builds the SQL for the features using the list provided."""
-  compiled = ''
-  suffix = ',\n    '
-  for feature in features:
-    compiled += f'SUM(IF(name = "{feature.name}", 1, 0)) AS cnt_{feature.name}{suffix}'
-  return compiled.removesuffix(suffix)
-
-def _compile_label_value_statement(type: str) -> str:
-  """Builds the SQL for the label value type based on the type provided."""
-  if 'string' in type:
-    return 'COALESCE(params.value.string_value, params.value.int_value) NOT IN ("", "0", 0, NULL)'
-  else:
-    return 'COALESCE(params.value.int_value, params.value.float_value, params.value.double_value) > 0'
-
-def _get_timespan(timespans: list, unit: str, template: str) -> Union[int, None]:
-  map = {
-    Template.TRAINING: 'training',
-    Template.PREDICTIVE: 'predictive'
+  options = {
+    'line_comment_prefix': '--',
+    'trim_blocks': True,
+    'lstrip_blocks': True
   }
+  with open(_absolute_path(templateFile.value), 'r') as file:
+    return Template(file.read(), **options, undefined=StrictUndefined)
 
-  if name := map.get(template, None):
-    for timespan in timespans:
-      if timespan.name == name and timespan.unit == unit:
-        return timespan.value
+def _get_timespans(timespans: list, unit: str) -> Timespan:
+  """Returns the appropriate timespan for the given template and unit (day/week/month/etc)."""
 
-  return None
+  ts = Timespan()
+  ts.unit = unit.upper()
+
+  for timespan in timespans:
+    if timespan.unit == unit:
+      if timespan.name == Timespan.TRAINING:
+        ts.training = timespan.value
+      elif timespan.name == Timespan.PREDICTIVE:
+        ts.predictive = timespan.value
+
+  return ts
 
 def _is_number(value: str) -> bool:
   """Checks a string value to determine if it's a number."""

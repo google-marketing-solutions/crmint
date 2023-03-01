@@ -24,7 +24,7 @@ from controller.ml_model.templates import compiler
 class TestCompiler(absltest.TestCase):
 
   @freeze_time("2023-02-06T00:00:00")
-  def test_build_training_pipeline(self):
+  def test_build_training_pipeline_first_party_and_google_analytics(self):
     test_model = self.convert_to_object({
       'name': 'Test Model',
       'bigquery_dataset': {
@@ -32,6 +32,7 @@ class TestCompiler(absltest.TestCase):
         'name': 'test-dataset'
       },
       'type': 'LOGISTIC_REG',
+      'uses_first_party_data': True,
       'hyper_parameters': [
         {'name': 'HP1-NAME', 'value': 'HP1-STRING'},
         {'name': 'HP2-NAME', 'value': '1'},
@@ -41,16 +42,18 @@ class TestCompiler(absltest.TestCase):
       ],
       'label': {
         'name': 'purchase',
+        'source': 'GOOGLE_ANALYTICS',
         'key': 'value',
         'value_type': 'int'
       },
       'features': [
-        {'name': 'click'},
-        {'name': 'subscribe'}
+        {'name': 'click', 'source': 'GOOGLE_ANALYTICS'},
+        {'name': 'subscribe', 'source': 'FIRST_PARTY'}
       ],
       'skew_factor': 4,
       'timespans': [
-        {"name": "training", "value": 17, "unit": "month"}
+        {"name": "training", "value": 17, "unit": "month"},
+        {"name": "predictive", "value": 1, "unit": "month"}
       ]
     })
 
@@ -102,18 +105,25 @@ class TestCompiler(absltest.TestCase):
       r'[\s\n]+'.join([
         'WHERE name = "purchase"',
         'AND params.key = "value"',
-        re.escape('AND COALESCE(params.value.int_value, params.value.float_value, params.value.double_value) > 0')
+        re.escape('AND COALESCE(params.value.int_value, params.value.float_value, params.value.double_value, 0) > 0')
       ]),
-      'Label check failed.')
+      'Google Analytics label pull check failed.')
+
+    self.assertRegex(
+      sql,
+      re.escape('IFNULL(av.label, 0) AS label'),
+      'Google Analytics label join check failed.')
 
     # feature check
     self.assertRegex(
       sql,
-      r',[\s\n]+'.join([
-        re.escape('SUM(IF(name = "click", 1, 0)) AS cnt_click'),
-        re.escape('SUM(IF(name = "subscribe", 1, 0)) AS cnt_subscribe')
-      ]),
-      'Feature check failed.')
+      re.escape('SUM(IF(name = "click", 1, 0)) AS cnt_click'),
+      'Google Analytics feature check failed.')
+
+    self.assertRegex(
+      sql,
+      re.escape('fp.subscribe'),
+      'First party feature check failed.')
 
     # skew-factor check
     self.assertIn(
@@ -123,9 +133,136 @@ class TestCompiler(absltest.TestCase):
 
     # timespan check
     self.assertIn(
-      'FORMAT_DATE("%Y%m%d", DATE_SUB(CURRENT_DATE(), INTERVAL 1 + 17 MONTH))',
+      'FORMAT_DATE("%Y%m%d", DATE_SUB(CURRENT_DATE(), INTERVAL 18 MONTH))',
       sql,
-      'Timespan check failed.')
+      'Timespan start check failed.')
+
+    self.assertIn(
+      'FORMAT_DATE("%Y%m%d", DATE_SUB(CURRENT_DATE(), INTERVAL 1 MONTH))',
+      sql,
+      'Timespan end check failed.')
+
+    # sql check end
+
+  @freeze_time("2023-02-06T00:00:00")
+  def test_build_training_pipeline_first_party(self):
+    test_model = self.convert_to_object({
+      'name': 'Test Model',
+      'bigquery_dataset': {
+        'location': 'US',
+        'name': 'test-dataset'
+      },
+      'type': 'LOGISTIC_REG',
+      'uses_first_party_data': True,
+      'hyper_parameters': [
+        {'name': 'HP1-NAME', 'value': 'HP1-STRING'},
+        {'name': 'HP2-NAME', 'value': '1'},
+        {'name': 'HP3-NAME', 'value': '13.7'},
+        {'name': 'HP4-NAME', 'value': 'true'},
+        {'name': 'HP5-NAME', 'value': 'false'}
+      ],
+      'label': {
+        'name': 'enroll',
+        'source': 'FIRST_PARTY',
+        'key': 'value',
+        'value_type': 'int'
+      },
+      'features': [
+        {'name': 'call', 'source': 'FIRST_PARTY'},
+        {'name': 'request_for_info', 'source': 'FIRST_PARTY'}
+      ],
+      'skew_factor': 4,
+      'timespans': [
+        {"name": "training", "value": 17, "unit": "month"},
+        {"name": "predictive", "value": 1, "unit": "month"}
+      ]
+    })
+
+    pipeline = compiler.build_training_pipeline(test_model, 'test-project-id-1234', 'test-ga4-dataset-loc')
+    params = pipeline['jobs'][0]['params']
+
+    # sql check start
+    sql_param = next(param for param in params if param["name"] == "script")
+    self.assertIsNotNone(sql_param)
+    sql = sql_param['value']
+
+    # label check
+    self.assertRegex(
+      sql,
+      re.escape('fp.enroll'),
+      'First party label check failed.')
+
+    # feature check
+    self.assertRegex(
+      sql,
+      r',[\s\n]+'.join([
+        re.escape('fp.call'),
+        re.escape('fp.request_for_info'),
+      ]),
+      'First party feature check failed.')
+
+    # sql check end
+
+  @freeze_time("2023-02-06T00:00:00")
+  def test_build_training_pipeline_google_analytics(self):
+    test_model = self.convert_to_object({
+      'name': 'Test Model',
+      'bigquery_dataset': {
+        'location': 'US',
+        'name': 'test-dataset'
+      },
+      'type': 'LOGISTIC_REG',
+      'uses_first_party_data': False,
+      'hyper_parameters': [
+        {'name': 'HP1-NAME', 'value': 'HP1-STRING'},
+        {'name': 'HP2-NAME', 'value': '1'},
+        {'name': 'HP3-NAME', 'value': '13.7'},
+        {'name': 'HP4-NAME', 'value': 'true'},
+        {'name': 'HP5-NAME', 'value': 'false'}
+      ],
+      'label': {
+        'name': 'purchase',
+        'source': 'GOOGLE_ANALYTICS',
+        'key': 'value',
+        'value_type': 'int'
+      },
+      'features': [
+        {'name': 'click', 'source': 'GOOGLE_ANALYTICS'},
+        {'name': 'subscribe', 'source': 'GOOGLE_ANALYTICS'}
+      ],
+      'skew_factor': 4,
+      'timespans': [
+        {"name": "training", "value": 17, "unit": "month"},
+        {"name": "predictive", "value": 1, "unit": "month"}
+      ]
+    })
+
+    pipeline = compiler.build_training_pipeline(test_model, 'test-project-id-1234', 'test-ga4-dataset-loc')
+    params = pipeline['jobs'][0]['params']
+
+    # sql check start
+    sql_param = next(param for param in params if param["name"] == "script")
+    self.assertIsNotNone(sql_param)
+    sql = sql_param['value']
+
+    # label check
+    self.assertRegex(
+      sql,
+      r'[\s\n]+'.join([
+        'WHERE name = "purchase"',
+        'AND params.key = "value"',
+        re.escape('AND COALESCE(params.value.int_value, params.value.float_value, params.value.double_value, 0) > 0')
+      ]),
+      'Google Analytics label check failed.')
+
+    # feature check
+    self.assertRegex(
+      sql,
+      r',[\s\n]+'.join([
+        re.escape('SUM(IF(name = "click", 1, 0)) AS cnt_click'),
+        re.escape('SUM(IF(name = "subscribe", 1, 0)) AS cnt_subscribe'),
+      ]),
+      'Google Analytics feature check failed.')
 
     # sql check end
 
@@ -147,16 +284,18 @@ class TestCompiler(absltest.TestCase):
       ],
       'label': {
         'name': 'subscription',
-        'key': 'package',
+        'source': 'FIRST_PARTY',
+        'key': 'value',
         'value_type': 'string,int'
       },
       'features': [
-        {'name': 'click'},
-        {'name': 'subscribe'}
+        {'name': 'click', 'source': 'GOOGLE_ANALYTICS'},
+        {'name': 'subscribe', 'source': 'FIRST_PARTY'}
       ],
       'skew_factor': 4,
       'timespans': [
-        {"name": "predictive", "value": 21, "unit": "month"}
+        {"name": "training", "value": 24, "unit": "month"},
+        {"name": "predictive", "value": 4, "unit": "month"}
       ]
     })
 
@@ -205,7 +344,7 @@ class TestCompiler(absltest.TestCase):
       r'[\s\n]+'.join([
         'WHERE name = "subscription"',
         'AND params.key = "package"',
-        re.escape('AND COALESCE(params.value.string_value, params.value.int_value) NOT IN ("", "0", 0, NULL)')
+        re.escape('AND COALESCE(params.value.string_value, params.value.int_value, 0) NOT IN ("", "0", 0, NULL)')
       ]),
       'Label check failed.')
 

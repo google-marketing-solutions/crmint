@@ -1,8 +1,17 @@
-CREATE OR REPLACE MODEL `__PROJECT_ID__.__ML_MODEL_DATASET__.model`
+CREATE OR REPLACE MODEL `{{project_id}}.{{model_dataset}}.model`
 OPTIONS (
-  MODEL_TYPE = "__ML_MODEL_TYPE__",
-  INPUT_LABEL_COLS = ['label'],
-  __ML_MODEL_HYPER_PARAMTERS__
+  MODEL_TYPE = "{{type}}",
+  -- inject the selected hyper parameters
+  {% for param in hyper_parameters %}
+  {% if is_number(param.value) %}
+  {{param.name}} = {{param.value}},
+  {% elif is_bool(param.value) %}
+  {{param.name}} = {{param.value.upper()}},
+  {% else %}
+  {{param.name}} = "{{param.value}}",
+  {% endif %}
+  {% endfor %}
+  INPUT_LABEL_COLS = ['label']
 ) AS
 WITH events AS (
   SELECT
@@ -20,16 +29,16 @@ WITH events AS (
     traffic_source.source AS traffic_source,
     traffic_source.medium AS traffic_medium,
     EXTRACT(HOUR FROM(TIMESTAMP_MICROS(user_first_touch_timestamp))) AS first_touch_hour
-    FROM `__PROJECT_ID__.__GA4_DATASET__.events_*`
-    WHERE _TABLE_SUFFIX BETWEEN
-      FORMAT_DATE("%Y%m%d", DATE_SUB(CURRENT_DATE(), INTERVAL 1 + __ML_MODEL_TIMESPAN_MONTHS__ MONTH)) AND
-      FORMAT_DATE("%Y%m%d", DATE_SUB(CURRENT_DATE(), INTERVAL 1 MONTH))
+  FROM `{{project_id}}.{{ga4_dataset}}.events_*`
+  WHERE _TABLE_SUFFIX BETWEEN
+    FORMAT_DATE("%Y%m%d", DATE_SUB(CURRENT_DATE(), INTERVAL {{timespan.training + timespan.predictive}} {{timespan.unit}})) AND
+    FORMAT_DATE("%Y%m%d", DATE_SUB(CURRENT_DATE(), INTERVAL {{timespan.predictive}} {{timespan.unit}}))
 ),
-first_values AS (
+-- pull together a list of first engagements and associated metadata that will be useful for the model
+first_engagement AS (
   SELECT * EXCEPT(row_num)
   FROM (
     SELECT
-      -- all of these first value features don't need to be organized (they can be freetext)?
       user_pseudo_id,
       country,
       city,
@@ -54,65 +63,92 @@ first_values AS (
   )
   WHERE row_num = 1
 ),
-__ML_MODEL_USER_LABELS__
--- ga4 event label values
-user_labels AS (
+-- if the selected label is a google analytics event then pull these per user
+{% if label.source == 'GOOGLE_ANALYTICS' %}
+analytics_variables AS (
   SELECT
-    user_pseudo_id,
-    IFNULL(label, 0) AS label,
-    date
-  FROM first_values
+    fe.user_pseudo_id,
+    IFNULL(l.label, 0) AS label,
+    l.date
+  FROM first_engagement fe
   LEFT JOIN (
     SELECT
       user_pseudo_id,
       1 AS label,
       MIN(date) AS date,
     FROM events AS e, UNNEST(params) AS params
-    WHERE name = "__ML_MODEL_LABEL_NAME__"
-    AND params.key = "__ML_MODEL_LABEL_KEY__"
-    AND __ML_MODEL_LABEL_VALUE_STATEMENT__
+    WHERE name = "{{label.name}}"
+    AND params.key = "{{label.key}}"
+    {% if 'string' in label.value_type %}
+    AND COALESCE(params.value.string_value, params.value.int_value) NOT IN ("", "0", 0, NULL)
+    {% else %}
+    AND COALESCE(params.value.int_value, params.value.float_value, params.value.double_value, 0) > 0
+    {% endif %}
     GROUP BY user_pseudo_id
-  ) labels
-  ON first_values.user_pseudo_id = labels.user_pseudo_id
+  ) l
+  ON fe.user_pseudo_id = l.user_pseudo_id
 ),
--- 1pd features and labels
-user_labels AS (
+{% endif %}
+{% if uses_first_party_data %}
+user_variables AS (
   SELECT
-    user_id,
-    user_pseudo_id,
-    event_name,
-    -- will need to have something in the UI to allow the user to select this "date" field for 1pd
-    __ML_MODEL_FIRST_PARTY_DATE__ AS date,
-    __ML_MODEL_FEATURES__
-    __ML_MODEL_LABEL_NAME__ AS label
-  FROM `__PROJECT_ID__.__ML_MODEL_DATASET__.first_party`
-)
+    fp.user_pseudo_id,
+    fp.event_name,
+    -- inject the selected first party features
+    {% for feature in features %}
+    {% if feature.source == 'FIRST_PARTY' %}
+    fp.{{feature.name}},
+    {% endif %}
+    {% endfor %}
+    -- inject the selected first party label
+    {% if label.source == 'FIRST_PARTY' %}
+    fp.{{label.name}} AS label,
+    fp.trigger_event_date
+    -- or inject the selected google analytics label
+    {% elif label.source == 'GOOGLE_ANALYTICS' %}
+    IFNULL(av.label, 0) AS label,
+    COALESCE(fp.trigger_event_date, av.date) AS trigger_event_date
+    {% endif %}
+  FROM `{{project_id}}.{{model_dataset}}.first_party` fp
+  {% if label.source == 'GOOGLE_ANALYTICS' %}
+  LEFT OUTER JOIN analytics_variables av
+  ON fp.user_pseudo_id = av.user_pseudo_id
+  {% endif %}
+),
+{% else %}
+user_variables AS (
+  SELECT * FROM analytics_variables
+),
+{% endif %}
 user_aggregate_behavior AS (
   SELECT
     user_pseudo_id,
     SUM((SELECT value.int_value FROM UNNEST(params) WHERE key = "engagement_time_msec")) AS engagement_time,
-    SUM(IF(name = "page_view", 1, 0)) AS cnt_page_view, -- what features should be defaulted here if any?
     SUM(IF(name = "user_engagement", 1, 0)) AS cnt_user_engagement,
-    __ML_MODEL_FEATURES__
+    -- inject the selected google analytics features
+    {% for feature in features %}
+    {% if feature.source == 'GOOGLE_ANALYTICS' %}
+    SUM(IF(name = "{{feature.name}}", 1, 0)) AS cnt_{{feature.name}},
+    {% endif %}
+    {% endfor %}
+    SUM(IF(name = "page_view", 1, 0)) AS cnt_page_view
   FROM events AS e
-  INNER JOIN user_labels AS ul
-    ON e.user_pseudo_id = ul.user_pseudo_id
-  -- does this logic apply always?
-  -- if not why does the label being 1 only apply to event data less than the min_date for just GA4 data?
-  WHERE (ul.label = 1 AND e.date <= ul.date)
-  OR ul.label = 0
+  INNER JOIN user_variables AS uv
+    ON e.user_pseudo_id = uv.user_pseudo_id
+  WHERE (uv.label = 1 AND e.date <= uv.trigger_event_date)
+  OR uv.label = 0
   GROUP BY user_pseudo_id
 ),
 training_dataset AS (
   SELECT
-    fv.*,
+    fe.*,
     uab.* EXCEPT(user_pseudo_id),
-    ul.* EXCEPT(user_pseudo_id, date)
-  FROM first_values AS fv
+    uv.* EXCEPT(user_pseudo_id, trigger_event_date)
+  FROM first_engagement AS fe
   INNER JOIN user_aggregate_behavior AS uab
-  ON fv.user_pseudo_id = uab.user_pseudo_id
-  INNER JOIN user_labels AS ul
-  ON fv.user_pseudo_id = ul.user_pseudo_id
+  ON fe.user_pseudo_id = uab.user_pseudo_id
+  INNER JOIN user_variables AS uv
+  ON fe.user_pseudo_id = uv.user_pseudo_id
 )
 SELECT * EXCEPT(user_pseudo_id)
 FROM training_dataset
@@ -121,5 +157,5 @@ UNION ALL
 SELECT * EXCEPT(user_pseudo_id)
 FROM training_dataset
 WHERE label = 0
--- randomly select a certain percentage of the 0 labels based on skew factor
-AND MOD(ABS(FARM_FINGERPRINT(user_pseudo_id)), __ML_MODEL_SKEW_FACTOR__) = IF(RAND() < 0.5, 0, 1)
+-- randomly select a certain percentage of the 0 labels based on skew factor selected
+AND MOD(ABS(FARM_FINGERPRINT(user_pseudo_id)), {{skew_factor}}) = IF(RAND() < 0.5, 0, 1)
