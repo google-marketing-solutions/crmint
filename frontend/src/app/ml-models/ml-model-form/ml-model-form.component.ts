@@ -48,7 +48,7 @@ export class MlModelFormComponent implements OnInit {
     private route: ActivatedRoute) {
       this.title = this.router.url.endsWith('new') ? 'New Machine-Learning Model' : 'Edit Machine-Learning Model';
       this.createForm();
-      this.types = Object.values(Type);
+      this.types = Object.values(Type).filter(type => type !== 'LOGISTIC_REG');
       this.uniqueIds = Object.values(UniqueId);
     }
 
