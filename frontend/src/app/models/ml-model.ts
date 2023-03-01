@@ -16,7 +16,8 @@ import { Pipeline } from './pipeline';
 
 export enum Type {
   LOGISTIC_REG = 'LOGISTIC_REG',
-  BOOSTED_TREE_REGRESSOR = 'BOOSTED_TREE_REGRESSOR'
+  BOOSTED_TREE_REGRESSOR = 'BOOSTED_TREE_REGRESSOR',
+  BOOSTED_TREE_CLASSIFIER = 'BOOSTED_TREE_CLASSIFIER'
 }
 
 export enum UniqueId {
@@ -179,6 +180,45 @@ export class MlModel {
             name: 'TREE_METHOD',
             value: 'HIST',
             options: ['AUTO','EXACT','APPROX','HIST']
+          },
+          {
+            name: 'ENABLE_GLOBAL_EXPLAIN',
+            value: true,
+            options: [true, false]
+          },
+          {
+            name: 'NUM_PARALLEL_TREE',
+            value: 2,
+            range: {min: 1, max: 10, step: 1}
+          },
+          {
+            name: 'DATA_SPLIT_METHOD',
+            value: 'AUTO_SPLIT',
+            options: ['AUTO_SPLIT','RANDOM','CUSTOM','SEQ','NO_SPLIT']
+          },
+          {
+            name: 'EARLY_STOP',
+            value: false,
+            options: [true, false]
+          }
+        ];
+        break;
+        case Type.BOOSTED_TREE_CLASSIFIER:
+        configs = [
+          {
+            name: 'AUTO_CLASS_WEIGHTS',
+            value: true,
+            options: [true, false]
+          },
+          {
+            name: 'MAX_ITERATIONS',
+            value: 50,
+            range: {min: 25, max: 100, step: 5}
+          },
+          {
+            name: 'SUBSAMPLE',
+            value: 0.80,
+            range: {min: 0.25, max: 1.0, step: 0.1}
           },
           {
             name: 'ENABLE_GLOBAL_EXPLAIN',
