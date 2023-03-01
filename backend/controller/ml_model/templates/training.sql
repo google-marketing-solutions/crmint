@@ -152,6 +152,7 @@ training_dataset AS (
 )
 SELECT * EXCEPT(user_pseudo_id)
 FROM training_dataset
+{% if skew_factor > 0 %}
 WHERE label = 1
 UNION ALL
 SELECT * EXCEPT(user_pseudo_id)
@@ -159,3 +160,4 @@ FROM training_dataset
 WHERE label = 0
 -- randomly select a certain percentage of the 0 labels based on skew factor selected
 AND MOD(ABS(FARM_FINGERPRINT(user_pseudo_id)), {{skew_factor}}) = IF(RAND() < 0.5, 0, 1)
+{% endif %}

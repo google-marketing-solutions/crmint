@@ -171,7 +171,7 @@ class TestCompiler(absltest.TestCase):
         {'name': 'call', 'source': 'FIRST_PARTY'},
         {'name': 'request_for_info', 'source': 'FIRST_PARTY'}
       ],
-      'skew_factor': 4,
+      'skew_factor': 0,
       'timespans': [
         {"name": "training", "value": 17, "unit": "month"},
         {"name": "predictive", "value": 1, "unit": "month"}
@@ -200,6 +200,12 @@ class TestCompiler(absltest.TestCase):
         re.escape('fp.request_for_info'),
       ]),
       'First party feature check failed.')
+
+    # skew-factor check
+    self.assertNotIn(
+      'MOD(ABS(FARM_FINGERPRINT(user_pseudo_id))',
+      sql,
+      'Skew-factor check failed. Should not exist when skew factor is set to 0.')
 
     # sql check end
 

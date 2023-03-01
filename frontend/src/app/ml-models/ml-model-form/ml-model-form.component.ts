@@ -73,7 +73,7 @@ export class MlModelFormComponent implements OnInit {
         key: ['', [Validators.required, Validators.pattern(/^[a-z][a-z0-9_-]*$/i)]],
         valueType: ['', Validators.pattern(/^[a-z]*$/i)]
       }),
-      skewFactor: [4, [Validators.required, Validators.min(1), Validators.max(10)]],
+      skewFactor: [4, [Validators.required, Validators.min(0), Validators.max(10)]],
       timespans: this._fb.array([])
     });
   }
