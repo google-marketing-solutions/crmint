@@ -1,6 +1,8 @@
 from google.cloud import bigquery
 from enum import Enum
 
+# TODO(robertmcmahan): write functional tests.
+
 # Data Classes
 class Parameter:
   """Model for a variable parameter."""
@@ -119,6 +121,3 @@ class Client(bigquery.Client):
       variables.append(variable)
 
     return variables
-
-  # TODO: write BigQuery functional tests and then
-  # update the frontend to only get feature/label lists after the dataset and data source options are set
