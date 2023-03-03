@@ -53,10 +53,27 @@ You can now edit files locally and the Flask services will reload appropriately.
 ## Running tests locally
 
 Install the [act](https://github.com/nektos/act) tool to run Github Actions
-locally.
+locally (more details on the job names [options available to be used with -j]
+can be found in the config files held within the .github/workflows directory).
 
+### Run CLI Tests
 ```sh
 $ act -j run-cli-tests --reuse --bind
+```
+
+### Run Backend Controller Tests
+```sh
+$ act -j run-controller-tests --reuse --bind
+```
+
+### Run Backend Jobs Tests
+```sh
+$ act -j run-jobs-tests --reuse --bind
+```
+
+### Run Frontend Tests
+```sh
+$ act -j run-frontend-tests --reuse --bind
 ```
 
 ## Community Guidelines

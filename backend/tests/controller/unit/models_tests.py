@@ -576,7 +576,8 @@ class TestMlModel(ModelTestCase):
         assertions.sort(key = lambda c : c['name'])
         rows.sort(key = lambda c : c.name)
         for index, assertion in enumerate(assertions):
-          self.assertDictContainsSubset(assertion, rows[index].__dict__)
+          row_dict = rows[index].__dict__
+          self.assertDictEqual(row_dict, row_dict | assertion)
 
 if __name__ == '__main__':
   absltest.main()

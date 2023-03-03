@@ -403,7 +403,8 @@ class MlModel(extensions.db.Model):
 
   TYPES = [
     'LOGISTIC_REG',
-    'BOOSTED_TREE_REGRESSOR'
+    'BOOSTED_TREE_REGRESSOR',
+    'BOOSTED_TREE_CLASSIFIER'
   ]
 
   UNIQUE_IDS = [
