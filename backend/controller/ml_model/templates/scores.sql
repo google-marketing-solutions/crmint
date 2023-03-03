@@ -1,7 +1,7 @@
-CREATE OR REPLACE TABLE `__PROJECT_ID__.__ML_MODEL_DATASET__.scores` AS (
+CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.scores` AS (
   WITH max_date AS (
     SELECT SUBSTR(MAX(table_id), LENGTH('events_') + 1) AS latest
-    FROM `__PROJECT_ID__.__GA4_DATASET__.__TABLES_SUMMARY__`
+    FROM `{{project_id}}.{{ga4_dataset}}.__TABLES_SUMMARY__`
     WHERE table_id LIKE 'events_%'
   ),
   events AS (
@@ -9,7 +9,7 @@ CREATE OR REPLACE TABLE `__PROJECT_ID__.__ML_MODEL_DATASET__.scores` AS (
       user_pseudo_id,
       event_name AS name,
       event_params AS params
-    FROM `__PROJECT_ID__.__GA4_DATASET__.events_*`
+    FROM `{{project_id}}.{{ga4_dataset}}.events_*`
     WHERE _TABLE_SUFFIX = FORMAT_DATE(
       '%Y%m%d',
       DATE_SUB(
@@ -36,7 +36,7 @@ CREATE OR REPLACE TABLE `__PROJECT_ID__.__ML_MODEL_DATASET__.scores` AS (
       predicted_label,
       predicted_label * 100 AS final_score,
       NTILE(10) OVER (ORDER BY MIN(predicted_label) ASC) AS normalized_score
-    FROM `__PROJECT_ID__.__ML_MODEL_DATASET__.predictions`
+    FROM `{{project_id}}.{{model_dataset}}.predictions`
     GROUP BY 1,2,3
   )
   SELECT

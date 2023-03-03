@@ -17,6 +17,7 @@
 
 from absl.testing import absltest
 from freezegun import freeze_time
+from typing import Union
 import re
 
 from controller.ml_model.templates import compiler
@@ -259,7 +260,12 @@ class TestCompiler(absltest.TestCase):
         'AND params.key = "value"',
         re.escape('AND COALESCE(params.value.int_value, params.value.float_value, params.value.double_value, 0) > 0')
       ]),
-      'Google Analytics label check failed.')
+      'Google Analytics label pull check failed.')
+
+    self.assertRegex(
+      sql,
+      re.escape('SELECT * FROM analytics_variables'),
+      'Google Analytics label join check failed.')
 
     # feature check
     self.assertRegex(
@@ -273,14 +279,15 @@ class TestCompiler(absltest.TestCase):
     # sql check end
 
   @freeze_time("2023-02-06T00:00:00")
-  def test_build_predictive_pipeline(self):
+  def test_build_predictive_pipeline_first_party_and_google_analytics(self):
     test_model = self.convert_to_object({
       'name': 'Test Model',
       'bigquery_dataset': {
         'location': 'US',
         'name': 'test-dataset'
       },
-      'type': 'LOGISTIC_REG',
+      'type': 'BOOSTED_TREE_REGRESSOR',
+      'uses_first_party_data': True,
       'hyper_parameters': [
         {'name': 'HP1-NAME', 'value': 'HP1-STRING'},
         {'name': 'HP2-NAME', 'value': '1'},
@@ -289,8 +296,8 @@ class TestCompiler(absltest.TestCase):
         {'name': 'HP5-NAME', 'value': 'false'}
       ],
       'label': {
-        'name': 'subscription',
-        'source': 'FIRST_PARTY',
+        'name': 'purchase',
+        'source': 'GOOGLE_ANALYTICS',
         'key': 'value',
         'value_type': 'string,int'
       },
@@ -348,26 +355,38 @@ class TestCompiler(absltest.TestCase):
     self.assertRegex(
       sql,
       r'[\s\n]+'.join([
-        'WHERE name = "subscription"',
-        'AND params.key = "package"',
-        re.escape('AND COALESCE(params.value.string_value, params.value.int_value, 0) NOT IN ("", "0", 0, NULL)')
+        'WHERE name = "purchase"',
+        'AND params.key = "value"',
+        re.escape('AND COALESCE(params.value.string_value, params.value.int_value) NOT IN ("", "0", 0, NULL)')
       ]),
-      'Label check failed.')
+      'Google Analytics label pull check failed.')
+
+    self.assertRegex(
+      sql,
+      re.escape('IFNULL(av.label, 0) AS label'),
+      'Google Analytics label join check failed.')
 
     # feature check
     self.assertRegex(
       sql,
-      r',[\s\n]+'.join([
-        re.escape('SUM(IF(name = "click", 1, 0)) AS cnt_click'),
-        re.escape('SUM(IF(name = "subscribe", 1, 0)) AS cnt_subscribe')
-      ]),
-      'Feature check failed.')
+      re.escape('SUM(IF(name = "click", 1, 0)) AS cnt_click'),
+      'Google Analytics feature check failed.')
+
+    self.assertRegex(
+      sql,
+      re.escape('fp.subscribe'),
+      'First party feature check failed.')
 
     # timespan check
     self.assertIn(
-      'FORMAT_DATE("%Y%m%d", DATE_SUB(CURRENT_DATE(), INTERVAL 1 + 21 MONTH))',
+      'FORMAT_DATE("%Y%m%d", DATE_SUB(CURRENT_DATE(), INTERVAL 4 MONTH))',
       sql,
-      'Timespan check failed.')
+      'Timespan start check failed.')
+
+    self.assertIn(
+      'FORMAT_DATE("%Y%m%d", DATE_SUB(CURRENT_DATE(), INTERVAL 1 DAY))',
+      sql,
+      'Timespan end check failed.')
 
     # sql check end
 
@@ -450,7 +469,144 @@ class TestCompiler(absltest.TestCase):
     template_param = next(param for param in params if param['name'] == 'template')
     self.assertIsNotNone(template_param)
 
-  def convert_to_object(self, collection: dict|list):
+  @freeze_time("2023-02-06T00:00:00")
+  def test_build_predictive_pipeline_first_party(self):
+    test_model = self.convert_to_object({
+      'name': 'Test Model',
+      'bigquery_dataset': {
+        'location': 'US',
+        'name': 'test-dataset'
+      },
+      'type': 'BOOSTED_TREE_CLASSIFIER',
+      'uses_first_party_data': True,
+      'hyper_parameters': [
+        {'name': 'HP1-NAME', 'value': 'HP1-STRING'},
+        {'name': 'HP2-NAME', 'value': '1'},
+        {'name': 'HP3-NAME', 'value': '13.7'},
+        {'name': 'HP4-NAME', 'value': 'true'},
+        {'name': 'HP5-NAME', 'value': 'false'}
+      ],
+      'label': {
+        'name': 'subscription',
+        'source': 'FIRST_PARTY',
+        'key': 'value',
+        'value_type': 'string'
+      },
+      'features': [
+        {'name': 'purchase', 'source': 'FIRST_PARTY'},
+        {'name': 'subscribe', 'source': 'FIRST_PARTY'}
+      ],
+      'skew_factor': 4,
+      'timespans': [
+        {"name": "training", "value": 24, "unit": "month"},
+        {"name": "predictive", "value": 2, "unit": "month"}
+      ]
+    })
+
+    pipeline = compiler.build_predictive_pipeline(
+      test_model, 'test-project-id-1234', 'test-ga4-dataset-loc', 'test-ga4-measurement-id', 'test-ga4-api-secret')
+    self.assertEqual(pipeline['name'], 'Test Model - Predictive')
+
+    setup_job = next(job for job in pipeline['jobs'] if job['name'] == 'Test Model - Predictive Setup')
+    self.assertIsNotNone(setup_job)
+    params = setup_job['params']
+
+    # sql check start
+    sql_param = next(param for param in params if param['name'] == 'script')
+    self.assertIsNotNone(sql_param)
+    sql = sql_param['value']
+
+    # label check
+    self.assertRegex(
+      sql,
+      re.escape('fp.subscription'),
+      'First party label check failed.')
+
+    # feature check
+    self.assertRegex(
+      sql,
+      r',[\s\n]+'.join([
+        re.escape('fp.purchase'),
+        re.escape('fp.subscribe'),
+      ]),
+      'First party feature check failed.')
+
+    # sql check end
+
+  @freeze_time("2023-02-06T00:00:00")
+  def test_build_predictive_pipeline_google_analytics(self):
+    test_model = self.convert_to_object({
+      'name': 'Test Model',
+      'bigquery_dataset': {
+        'location': 'US',
+        'name': 'test-dataset'
+      },
+      'type': 'BOOSTED_TREE_CLASSIFIER',
+      'uses_first_party_data': False,
+      'hyper_parameters': [
+        {'name': 'HP1-NAME', 'value': 'HP1-STRING'},
+        {'name': 'HP2-NAME', 'value': '1'},
+        {'name': 'HP3-NAME', 'value': '13.7'},
+        {'name': 'HP4-NAME', 'value': 'true'},
+        {'name': 'HP5-NAME', 'value': 'false'}
+      ],
+      'label': {
+        'name': 'subscription',
+        'source': 'GOOGLE_ANALYTICS',
+        'key': 'value',
+        'value_type': 'string'
+      },
+      'features': [
+        {'name': 'click', 'source': 'GOOGLE_ANALYTICS'},
+        {'name': 'scroll', 'source': 'GOOGLE_ANALYTICS'}
+      ],
+      'skew_factor': 4,
+      'timespans': [
+        {"name": "training", "value": 12, "unit": "month"},
+        {"name": "predictive", "value": 1, "unit": "month"}
+      ]
+    })
+
+    pipeline = compiler.build_predictive_pipeline(
+      test_model, 'test-project-id-1234', 'test-ga4-dataset-loc', 'test-ga4-measurement-id', 'test-ga4-api-secret')
+    self.assertEqual(pipeline['name'], 'Test Model - Predictive')
+
+    setup_job = next(job for job in pipeline['jobs'] if job['name'] == 'Test Model - Predictive Setup')
+    self.assertIsNotNone(setup_job)
+    params = setup_job['params']
+
+    # sql check start
+    sql_param = next(param for param in params if param['name'] == 'script')
+    self.assertIsNotNone(sql_param)
+    sql = sql_param['value']
+
+    # label check
+    self.assertRegex(
+      sql,
+      r'[\s\n]+'.join([
+        'WHERE name = "subscription"',
+        'AND params.key = "value"',
+        re.escape('AND COALESCE(params.value.string_value, params.value.int_value) NOT IN ("", "0", 0, NULL)')
+      ]),
+      'Google Analytics label pull check failed.')
+
+    self.assertRegex(
+      sql,
+      re.escape('SELECT * FROM analytics_variables'),
+      'Google Analytics label join check failed.')
+
+    # feature check
+    self.assertRegex(
+      sql,
+      r',[\s\n]+'.join([
+        re.escape('SUM(IF(name = "click", 1, 0)) AS cnt_click'),
+        re.escape('SUM(IF(name = "scroll", 1, 0)) AS cnt_scroll')
+      ]),
+      'Google Analytics feature check failed.')
+
+    # sql check end
+
+  def convert_to_object(self, collection: Union[dict,list]):
     class TempObject:
       pass
 
