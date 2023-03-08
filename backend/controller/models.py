@@ -388,9 +388,8 @@ class MlModel(extensions.db.Model):
   features = orm.relationship(
       'MlModelFeature',
       lazy='joined')
-  label = orm.relationship(
+  labels = orm.relationship(
       'MlModelLabel',
-      uselist=False,
       lazy='joined')
   skew_factor = Column(Integer, nullable=False, default=4)
   timespans = orm.relationship(
@@ -435,8 +434,8 @@ class MlModel(extensions.db.Model):
         self.assign_bigquery_dataset(value)
       elif key == 'features':
         self.assign_features(value)
-      elif key == 'label':
-        self.assign_label(value)
+      elif key == 'labels':
+        self.assign_labels(value)
       elif key == 'hyper_parameters':
         self.assign_hyper_parameters(value)
       elif key == 'timespans':
@@ -458,11 +457,13 @@ class MlModel(extensions.db.Model):
       if type(feature) == dict:
         MlModelFeature.create(ml_model_id=self.id, **feature)
 
-  def assign_label(self, label):
-    if self.label:
-      self.label.delete()
+  def assign_labels(self, labels):
+    for label in self.labels:
+      label.delete()
 
-    MlModelLabel.create(ml_model_id=self.id, **label)
+    for label in labels:
+      if type(label) == dict:
+        MlModelLabel.create(ml_model_id=self.id, **label)
 
   def assign_hyper_parameters(self, hyper_parameters):
     for param in self.hyper_parameters:
@@ -506,10 +507,11 @@ class MlModel(extensions.db.Model):
     for timespan in self.timespans:
       timespan.delete()
 
-    if self.label:
-      self.label.delete()
+    for label in self.labels:
+      label.delete()
 
     self.delete()
+
 
 class MlModelBigQueryDataset(extensions.db.Model):
   """Model for ml model bigquery dataset info."""
@@ -523,19 +525,22 @@ class MlModelBigQueryDataset(extensions.db.Model):
   ml_model = orm.relationship(
     'MlModel', foreign_keys=[ml_model_id], back_populates='bigquery_dataset')
 
+
 class MlModelLabel(extensions.db.Model):
   """Model for ml model label."""
   __tablename__ = 'ml_model_labels'
-  __repr_attrs__ = ['name', 'key', 'value_type']
+  __repr_attrs__ = ['type', 'name', 'source', 'key', 'value_type', 'output_type']
 
   ml_model_id = Column(Integer, ForeignKey('ml_models.id'), primary_key=True)
+  type = Column(String(255), nullable=False, primary_key=True)
   name = Column(String(255), nullable=False)
   source = Column(String(255), nullable=False)
   key = Column(String(255), nullable=True)
   value_type = Column(String(255), nullable=True)
+  output_type = Column(String(255), nullable=True)
 
   ml_model = orm.relationship(
-    'MlModel', foreign_keys=[ml_model_id], back_populates='label')
+    'MlModel', foreign_keys=[ml_model_id], back_populates='labels')
 
 
 class MlModelFeature(extensions.db.Model):
@@ -565,7 +570,7 @@ class MlModelHyperParameter(extensions.db.Model):
 
 class MlModelTimespan(extensions.db.Model):
   """Model for ml model timespan."""
-  __tablename__ = 'ml_model_timespan'
+  __tablename__ = 'ml_model_timespans'
   __repr_attrs__ = ['name', 'value', 'unit']
 
   ml_model_id = Column(Integer, ForeignKey('ml_models.id'), primary_key=True)

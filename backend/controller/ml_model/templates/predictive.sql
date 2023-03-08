@@ -1,6 +1,15 @@
 CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.predictions` AS (
   SELECT
+    {% if uses_first_party_data %}
+    user_id,
+    {% endif %}
     user_pseudo_id,
+    {% if is_classification(type) %}
+    (SELECT prob FROM UNNEST(predicted_label_probs) WHERE label = 1) AS probability,
+    {% if conversion_label %}
+    {{ conversion_label.name }},
+    {% endif %}
+    {% endif %}
     predicted_label
   FROM ML.PREDICT(MODEL `{{project_id}}.{{model_dataset}}.model`, (
     WITH events AS (
@@ -58,7 +67,7 @@ CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.predictions` AS (
         IFNULL(l.label, 0) AS label,
         l.date
       FROM first_engagement fe
-      LEFT JOIN (
+      LEFT OUTER JOIN (
         SELECT
           user_pseudo_id,
           1 AS label,
@@ -76,9 +85,34 @@ CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.predictions` AS (
       ON fe.user_pseudo_id = l.user_pseudo_id
     ),
     {% endif %}
+    {% if conversion_label and conversion_label.source == 'GOOGLE_ANALYTICS' %}
+    conversion_analytics_variables AS (
+      SELECT
+        fe.user_pseudo_id,
+        l.label,
+        l.date
+      FROM first_engagement fe
+      LEFT OUTER JOIN (
+        SELECT
+          user_pseudo_id,
+          1 AS label
+        FROM events AS e, UNNEST(params) AS params
+        WHERE name = "{{conversion_label.name}}"
+        AND params.key = "{{conversion_label.key}}"
+        {% if 'string' in conversion_label.value_type %}
+        AND COALESCE(params.value.string_value, params.value.int_value) NOT IN ("", "0", 0, NULL)
+        {% else %}
+        AND COALESCE(params.value.int_value, params.value.float_value, params.value.double_value, 0) > 0
+        {% endif %}
+        LIMIT 1
+      ) l
+      ON fe.user_pseudo_id = l.user_pseudo_id
+    ),
+    {% endif %}
     {% if uses_first_party_data %}
     user_variables AS (
       SELECT
+        fp.user_id,
         fp.user_pseudo_id,
         fp.event_name,
         -- inject the selected first party features
@@ -90,16 +124,29 @@ CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.predictions` AS (
         -- inject the selected first party label
         {% if label.source == 'FIRST_PARTY' %}
         fp.{{label.name}} AS label,
-        fp.trigger_event_date
+        fp.trigger_event_date,
         -- or inject the selected google analytics label
         {% elif label.source == 'GOOGLE_ANALYTICS' %}
         IFNULL(av.label, 0) AS label,
-        COALESCE(fp.trigger_event_date, av.date) AS trigger_event_date
+        COALESCE(fp.trigger_event_date, av.date) AS trigger_event_date,
+        {% endif %}
+        {% if conversion_label %}
+        -- inject the selected first party conversion label
+        {% if conversion_label.source == 'FIRST_PARTY' %}
+        fp.{{conversion_label.name}},
+        -- or inject the selected google analytics conversion label
+        {% elif conversion_label.source == 'GOOGLE_ANALYTICS' %}
+        IFNULL(cav.label, 0) AS {{conversion_label.name}}
+        {% endif %}
         {% endif %}
       FROM `{{project_id}}.{{model_dataset}}.first_party` fp
       {% if label.source == 'GOOGLE_ANALYTICS' %}
       LEFT OUTER JOIN analytics_variables av
       ON fp.user_pseudo_id = av.user_pseudo_id
+      {% endif %}
+      {% if conversion_label and conversion_label.source == 'GOOGLE_ANALYTICS' %}
+      LEFT OUTER JOIN conversion_analytics_variables cav
+      ON fp.user_pseudo_id = cav.user_pseudo_id
       {% endif %}
     ),
     {% else %}

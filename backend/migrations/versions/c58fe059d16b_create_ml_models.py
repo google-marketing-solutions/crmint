@@ -1,8 +1,8 @@
 """empty message
 
-Revision ID: fde809245c39
+Revision ID: c58fe059d16b
 Revises: 71caf3e9e2fb
-Create Date: 2023-02-27 23:34:28.614852
+Create Date: 2023-03-08 20:16:34.427360
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import mysql
 
 # revision identifiers, used by Alembic.
-revision = 'fde809245c39'
+revision = 'c58fe059d16b'
 down_revision = '71caf3e9e2fb'
 branch_labels = None
 depends_on = None
@@ -60,14 +60,16 @@ def upgrade():
     sa.Column('created_at', sa.DateTime(), nullable=False),
     sa.Column('updated_at', sa.DateTime(), nullable=False),
     sa.Column('ml_model_id', sa.Integer(), nullable=False),
+    sa.Column('type', sa.String(length=255), nullable=False),
     sa.Column('name', sa.String(length=255), nullable=False),
     sa.Column('source', sa.String(length=255), nullable=False),
     sa.Column('key', sa.String(length=255), nullable=True),
     sa.Column('value_type', sa.String(length=255), nullable=True),
+    sa.Column('output_type', sa.String(length=255), nullable=True),
     sa.ForeignKeyConstraint(['ml_model_id'], ['ml_models.id'], ),
-    sa.PrimaryKeyConstraint('ml_model_id')
+    sa.PrimaryKeyConstraint('ml_model_id', 'type')
     )
-    op.create_table('ml_model_timespan',
+    op.create_table('ml_model_timespans',
     sa.Column('created_at', sa.DateTime(), nullable=False),
     sa.Column('updated_at', sa.DateTime(), nullable=False),
     sa.Column('ml_model_id', sa.Integer(), nullable=False),
@@ -110,7 +112,7 @@ def downgrade():
                type_=mysql.VARCHAR(length=100),
                existing_nullable=True)
 
-    op.drop_table('ml_model_timespan')
+    op.drop_table('ml_model_timespans')
     op.drop_table('ml_model_labels')
     op.drop_table('ml_model_hyper_parameters')
     op.drop_table('ml_model_features')

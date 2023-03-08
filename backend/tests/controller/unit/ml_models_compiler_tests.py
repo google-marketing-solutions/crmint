@@ -25,38 +25,25 @@ from controller.ml_model.templates import compiler
 class TestCompiler(absltest.TestCase):
 
   @freeze_time("2023-02-06T00:00:00")
-  def test_build_training_pipeline_first_party_and_google_analytics(self):
-    test_model = self.convert_to_object({
-      'name': 'Test Model',
-      'bigquery_dataset': {
-        'location': 'US',
-        'name': 'test-dataset'
-      },
-      'type': 'LOGISTIC_REG',
-      'uses_first_party_data': True,
-      'hyper_parameters': [
-        {'name': 'HP1-NAME', 'value': 'HP1-STRING'},
-        {'name': 'HP2-NAME', 'value': '1'},
-        {'name': 'HP3-NAME', 'value': '13.7'},
-        {'name': 'HP4-NAME', 'value': 'true'},
-        {'name': 'HP5-NAME', 'value': 'false'}
+  def test_build_training_pipeline(self):
+    test_model = self.model_config(
+      type='LOGISTIC_REG',
+      uses_first_party_data=True,
+      labels=[
+        {
+          'type': 'PRIMARY',
+          'name': 'purchase',
+          'source': 'GOOGLE_ANALYTICS',
+          'key': 'value',
+          'value_type': 'int',
+          'output_type': 'SCORE_AS_DECIMAL'
+        }
       ],
-      'label': {
-        'name': 'purchase',
-        'source': 'GOOGLE_ANALYTICS',
-        'key': 'value',
-        'value_type': 'int'
-      },
-      'features': [
+      features=[
         {'name': 'click', 'source': 'GOOGLE_ANALYTICS'},
         {'name': 'subscribe', 'source': 'FIRST_PARTY'}
       ],
-      'skew_factor': 4,
-      'timespans': [
-        {"name": "training", "value": 17, "unit": "month"},
-        {"name": "predictive", "value": 1, "unit": "month"}
-      ]
-    })
+      skew_factor=4)
 
     pipeline = compiler.build_training_pipeline(test_model, 'test-project-id-1234', 'test-ga4-dataset-loc')
     self.assertEqual(pipeline['name'], 'Test Model - Training')
@@ -72,6 +59,34 @@ class TestCompiler(absltest.TestCase):
     self.assertEqual(pipeline['schedules'][0]['cron'], '0 0 6 2,5,8,11 *')
 
     # sql check start
+    sql_param = next(param for param in params if param["name"] == "script")
+    self.assertIsNotNone(sql_param)
+
+  def test_build_model_sql_first_party_and_google_analytics(self):
+    test_model = self.model_config(
+      type='LOGISTIC_REG',
+      uses_first_party_data=True,
+      labels=[
+        {
+          'type': 'PRIMARY',
+          'name': 'purchase',
+          'source': 'GOOGLE_ANALYTICS',
+          'key': 'value',
+          'value_type': 'int',
+          'output_type': 'SCORE_AS_DECIMAL'
+        }
+      ],
+      features=[
+        {'name': 'click', 'source': 'GOOGLE_ANALYTICS'},
+        {'name': 'subscribe', 'source': 'FIRST_PARTY'}
+      ],
+      skew_factor=4)
+
+    pipeline = compiler.build_training_pipeline(test_model, 'test-project-id-1234', 'test-ga4-dataset-loc')
+    self.assertEqual(pipeline['name'], 'Test Model - Training')
+    self.assertEqual(pipeline['jobs'][0]['name'], 'Test Model - Training Setup')
+    params = pipeline['jobs'][0]['params']
+
     sql_param = next(param for param in params if param["name"] == "script")
     self.assertIsNotNone(sql_param)
     sql = sql_param['value']
@@ -143,46 +158,29 @@ class TestCompiler(absltest.TestCase):
       sql,
       'Timespan end check failed.')
 
-    # sql check end
-
-  @freeze_time("2023-02-06T00:00:00")
-  def test_build_training_pipeline_first_party(self):
-    test_model = self.convert_to_object({
-      'name': 'Test Model',
-      'bigquery_dataset': {
-        'location': 'US',
-        'name': 'test-dataset'
-      },
-      'type': 'LOGISTIC_REG',
-      'uses_first_party_data': True,
-      'hyper_parameters': [
-        {'name': 'HP1-NAME', 'value': 'HP1-STRING'},
-        {'name': 'HP2-NAME', 'value': '1'},
-        {'name': 'HP3-NAME', 'value': '13.7'},
-        {'name': 'HP4-NAME', 'value': 'true'},
-        {'name': 'HP5-NAME', 'value': 'false'}
+  def test_build_model_sql_first_party(self):
+    test_model = self.model_config(
+      type='LOGISTIC_REG',
+      uses_first_party_data=True,
+      labels=[
+        {
+          'type': 'PRIMARY',
+          'name': 'enroll',
+          'source': 'FIRST_PARTY',
+          'key': 'value',
+          'value_type': 'int',
+          'output_type': 'SCORE_AS_DECIMAL'
+        }
       ],
-      'label': {
-        'name': 'enroll',
-        'source': 'FIRST_PARTY',
-        'key': 'value',
-        'value_type': 'int'
-      },
-      'features': [
+      features=[
         {'name': 'call', 'source': 'FIRST_PARTY'},
         {'name': 'request_for_info', 'source': 'FIRST_PARTY'}
       ],
-      'skew_factor': 0,
-      'timespans': [
-        {"name": "training", "value": 17, "unit": "month"},
-        {"name": "predictive", "value": 1, "unit": "month"}
-      ]
-    })
+      skew_factor=0)
 
     pipeline = compiler.build_training_pipeline(test_model, 'test-project-id-1234', 'test-ga4-dataset-loc')
     params = pipeline['jobs'][0]['params']
 
-    # sql check start
     sql_param = next(param for param in params if param["name"] == "script")
     self.assertIsNotNone(sql_param)
     sql = sql_param['value']
@@ -208,46 +206,29 @@ class TestCompiler(absltest.TestCase):
       sql,
       'Skew-factor check failed. Should not exist when skew factor is set to 0.')
 
-    # sql check end
-
-  @freeze_time("2023-02-06T00:00:00")
-  def test_build_training_pipeline_google_analytics(self):
-    test_model = self.convert_to_object({
-      'name': 'Test Model',
-      'bigquery_dataset': {
-        'location': 'US',
-        'name': 'test-dataset'
-      },
-      'type': 'LOGISTIC_REG',
-      'uses_first_party_data': False,
-      'hyper_parameters': [
-        {'name': 'HP1-NAME', 'value': 'HP1-STRING'},
-        {'name': 'HP2-NAME', 'value': '1'},
-        {'name': 'HP3-NAME', 'value': '13.7'},
-        {'name': 'HP4-NAME', 'value': 'true'},
-        {'name': 'HP5-NAME', 'value': 'false'}
+  def test_build_model_sql_google_analytics(self):
+    test_model = self.model_config(
+      type='LOGISTIC_REG',
+      uses_first_party_data=False,
+      labels=[
+        {
+          'type': 'PRIMARY',
+          'name': 'purchase',
+          'source': 'GOOGLE_ANALYTICS',
+          'key': 'value',
+          'value_type': 'int',
+          'output_type': 'SCORE_AS_DECIMAL'
+        }
       ],
-      'label': {
-        'name': 'purchase',
-        'source': 'GOOGLE_ANALYTICS',
-        'key': 'value',
-        'value_type': 'int'
-      },
-      'features': [
+      features=[
         {'name': 'click', 'source': 'GOOGLE_ANALYTICS'},
         {'name': 'subscribe', 'source': 'GOOGLE_ANALYTICS'}
       ],
-      'skew_factor': 4,
-      'timespans': [
-        {"name": "training", "value": 17, "unit": "month"},
-        {"name": "predictive", "value": 1, "unit": "month"}
-      ]
-    })
+      skew_factor=4)
 
     pipeline = compiler.build_training_pipeline(test_model, 'test-project-id-1234', 'test-ga4-dataset-loc')
     params = pipeline['jobs'][0]['params']
 
-    # sql check start
     sql_param = next(param for param in params if param["name"] == "script")
     self.assertIsNotNone(sql_param)
     sql = sql_param['value']
@@ -276,41 +257,26 @@ class TestCompiler(absltest.TestCase):
       ]),
       'Google Analytics feature check failed.')
 
-    # sql check end
-
   @freeze_time("2023-02-06T00:00:00")
-  def test_build_predictive_pipeline_first_party_and_google_analytics(self):
-    test_model = self.convert_to_object({
-      'name': 'Test Model',
-      'bigquery_dataset': {
-        'location': 'US',
-        'name': 'test-dataset'
-      },
-      'type': 'BOOSTED_TREE_REGRESSOR',
-      'uses_first_party_data': True,
-      'hyper_parameters': [
-        {'name': 'HP1-NAME', 'value': 'HP1-STRING'},
-        {'name': 'HP2-NAME', 'value': '1'},
-        {'name': 'HP3-NAME', 'value': '13.7'},
-        {'name': 'HP4-NAME', 'value': 'true'},
-        {'name': 'HP5-NAME', 'value': 'false'}
+  def test_build_predictive_pipeline(self):
+    test_model = self.model_config(
+      type='BOOSTED_TREE_REGRESSOR',
+      uses_first_party_data=True,
+      labels=[
+        {
+          'type': 'PRIMARY',
+          'name': 'purchase',
+          'source': 'GOOGLE_ANALYTICS',
+          'key': 'value',
+          'value_type': 'string,int',
+          'output_type': 'SCORE_AS_DECIMAL'
+        }
       ],
-      'label': {
-        'name': 'purchase',
-        'source': 'GOOGLE_ANALYTICS',
-        'key': 'value',
-        'value_type': 'string,int'
-      },
-      'features': [
+      features=[
         {'name': 'click', 'source': 'GOOGLE_ANALYTICS'},
         {'name': 'subscribe', 'source': 'FIRST_PARTY'}
       ],
-      'skew_factor': 4,
-      'timespans': [
-        {"name": "training", "value": 24, "unit": "month"},
-        {"name": "predictive", "value": 4, "unit": "month"}
-      ]
-    })
+      skew_factor=4)
 
     pipeline = compiler.build_predictive_pipeline(
       test_model, 'test-project-id-1234', 'test-ga4-dataset-loc', 'test-ga4-measurement-id', 'test-ga4-api-secret')
@@ -329,6 +295,96 @@ class TestCompiler(absltest.TestCase):
     self.assertEqual(pipeline['schedules'][0]['cron'], '0 0 * * *')
 
     # sql check start
+    sql_param = next(param for param in params if param['name'] == 'script')
+    self.assertIsNotNone(sql_param)
+
+    output_job = next(job for job in pipeline['jobs'] if job['name'] == 'Test Model - Predictive Output')
+    self.assertIsNotNone(output_job)
+
+    # check job start conditions
+    self.assertEqual(output_job['hash_start_conditions'][0]['preceding_job_id'], setup_job['id'])
+
+    params = output_job['params']
+
+    # big-query dataset location check
+    dataset_loc_param = next(param for param in params if param['name'] == 'bq_dataset_location')
+    self.assertIsNotNone(dataset_loc_param)
+    self.assertEqual(dataset_loc_param['value'], 'US')
+
+    # sql check start
+    sql_param = next(param for param in params if param['name'] == 'script')
+    self.assertIsNotNone(sql_param)
+
+    ga4_upload_job = next(job for job in pipeline['jobs'] if job['name'] == 'Test Model - Predictive GA4 Upload')
+    self.assertIsNotNone(ga4_upload_job)
+
+    # check job start conditions
+    self.assertEqual(ga4_upload_job['hash_start_conditions'][0]['preceding_job_id'], output_job['id'])
+
+    params = ga4_upload_job['params']
+
+    # project id check
+    bq_project_id_param = next(param for param in params if param['name'] == 'bq_project_id')
+    self.assertIsNotNone(bq_project_id_param)
+    self.assertEqual(bq_project_id_param['value'], 'test-project-id-1234')
+
+    # big-query dataset name check
+    dataset_name_param = next(param for param in params if param['name'] == 'bq_dataset_id')
+    self.assertIsNotNone(dataset_name_param)
+    self.assertEqual(dataset_name_param['value'], 'test-dataset')
+
+    # big-query dataset location check
+    dataset_loc_param = next(param for param in params if param['name'] == 'bq_dataset_location')
+    self.assertIsNotNone(dataset_loc_param)
+    self.assertEqual(dataset_loc_param['value'], 'US')
+
+    # measurement id check
+    measurement_id_param = next(param for param in params if param['name'] == 'measurement_id')
+    self.assertIsNotNone(measurement_id_param)
+    self.assertEqual(measurement_id_param['value'], 'test-ga4-measurement-id')
+
+    # api secret check
+    api_secret_param = next(param for param in params if param['name'] == 'api_secret')
+    self.assertIsNotNone(api_secret_param)
+    self.assertEqual(api_secret_param['value'], 'test-ga4-api-secret')
+
+    # template check
+    template_param = next(param for param in params if param['name'] == 'template')
+    self.assertIsNotNone(template_param)
+
+  def test_build_predictive_sql_first_party_and_google_analytics(self):
+    test_model = self.model_config(
+      type='BOOSTED_TREE_REGRESSOR',
+      uses_first_party_data=True,
+      labels=[
+        {
+          'type': 'PRIMARY',
+          'name': 'purchase',
+          'source': 'GOOGLE_ANALYTICS',
+          'key': 'value',
+          'value_type': 'string,int',
+          'output_type': 'SCORE_AS_DECIMAL'
+        },
+        {
+          'type': 'CONVERSION',
+          'name': 'subscribe',
+          'source': 'FIRST_PARTY'
+        }
+      ],
+      features=[
+        {'name': 'click', 'source': 'GOOGLE_ANALYTICS'},
+        {'name': 'subscribe', 'source': 'FIRST_PARTY'}
+      ],
+      skew_factor=4)
+
+    pipeline = compiler.build_predictive_pipeline(
+      test_model, 'test-project-id-1234', 'test-ga4-dataset-loc', 'test-ga4-measurement-id', 'test-ga4-api-secret')
+    self.assertEqual(pipeline['name'], 'Test Model - Predictive')
+
+    setup_job = next(job for job in pipeline['jobs'] if job['name'] == 'Test Model - Predictive Setup')
+    self.assertIsNotNone(setup_job)
+    params = setup_job['params']
+
     sql_param = next(param for param in params if param['name'] == 'script')
     self.assertIsNotNone(sql_param)
     sql = sql_param['value']
@@ -379,7 +435,7 @@ class TestCompiler(absltest.TestCase):
 
     # timespan check
     self.assertIn(
-      'FORMAT_DATE("%Y%m%d", DATE_SUB(CURRENT_DATE(), INTERVAL 4 MONTH))',
+      'FORMAT_DATE("%Y%m%d", DATE_SUB(CURRENT_DATE(), INTERVAL 1 MONTH))',
       sql,
       'Timespan start check failed.')
 
@@ -388,120 +444,30 @@ class TestCompiler(absltest.TestCase):
       sql,
       'Timespan end check failed.')
 
-    # sql check end
-
-    scores_job = next(job for job in pipeline['jobs'] if job['name'] == 'Test Model - Predictive Scores')
-    self.assertIsNotNone(scores_job)
-
-    # check job start conditions
-    self.assertEqual(scores_job['hash_start_conditions'][0]['preceding_job_id'], setup_job['id'])
-
-    params = scores_job['params']
-
-    # big-query dataset location check
-    dataset_loc_param = next(param for param in params if param['name'] == 'bq_dataset_location')
-    self.assertIsNotNone(dataset_loc_param)
-    self.assertEqual(dataset_loc_param['value'], 'US')
-
-    # sql check start
-    sql_param = next(param for param in params if param['name'] == 'script')
-    self.assertIsNotNone(sql_param)
-    sql = sql_param['value']
-
-    # name check
-    self.assertIn(
-      'CREATE OR REPLACE TABLE `test-project-id-1234.test-dataset.scores`',
-      sql,
-      'Scores table name check failed.')
-
-    # predictions table name check
-    self.assertIn(
-      'FROM `test-project-id-1234.test-dataset.predictions`',
-      sql,
-      'Predictions table name check failed.')
-
-    # events table name check
-    self.assertIn(
-      'FROM `test-project-id-1234.test-ga4-dataset-loc.events_*`',
-      sql,
-      'Events table name check failed.')
-
-    # summary table check
-    self.assertIn(
-      'FROM `test-project-id-1234.test-ga4-dataset-loc.__TABLES_SUMMARY__`',
-      sql,
-      'Summary table name check failed.')
-
-    ga4_upload_job = next(job for job in pipeline['jobs'] if job['name'] == 'Test Model - Predictive GA4 Upload')
-    self.assertIsNotNone(ga4_upload_job)
-
-    # check job start conditions
-    self.assertEqual(ga4_upload_job['hash_start_conditions'][0]['preceding_job_id'], scores_job['id'])
-
-    params = ga4_upload_job['params']
-
-    # project id check
-    bq_project_id_param = next(param for param in params if param['name'] == 'bq_project_id')
-    self.assertIsNotNone(bq_project_id_param)
-    self.assertEqual(bq_project_id_param['value'], 'test-project-id-1234')
-
-    # big-query dataset name check
-    dataset_name_param = next(param for param in params if param['name'] == 'bq_dataset_id')
-    self.assertIsNotNone(dataset_name_param)
-    self.assertEqual(dataset_name_param['value'], 'test-dataset')
-
-    # big-query dataset location check
-    dataset_loc_param = next(param for param in params if param['name'] == 'bq_dataset_location')
-    self.assertIsNotNone(dataset_loc_param)
-    self.assertEqual(dataset_loc_param['value'], 'US')
-
-    # measurement id check
-    measurement_id_param = next(param for param in params if param['name'] == 'measurement_id')
-    self.assertIsNotNone(measurement_id_param)
-    self.assertEqual(measurement_id_param['value'], 'test-ga4-measurement-id')
-
-    # api secret check
-    api_secret_param = next(param for param in params if param['name'] == 'api_secret')
-    self.assertIsNotNone(api_secret_param)
-    self.assertEqual(api_secret_param['value'], 'test-ga4-api-secret')
-
-    # template check
-    template_param = next(param for param in params if param['name'] == 'template')
-    self.assertIsNotNone(template_param)
-
-  @freeze_time("2023-02-06T00:00:00")
-  def test_build_predictive_pipeline_first_party(self):
-    test_model = self.convert_to_object({
-      'name': 'Test Model',
-      'bigquery_dataset': {
-        'location': 'US',
-        'name': 'test-dataset'
-      },
-      'type': 'BOOSTED_TREE_CLASSIFIER',
-      'uses_first_party_data': True,
-      'hyper_parameters': [
-        {'name': 'HP1-NAME', 'value': 'HP1-STRING'},
-        {'name': 'HP2-NAME', 'value': '1'},
-        {'name': 'HP3-NAME', 'value': '13.7'},
-        {'name': 'HP4-NAME', 'value': 'true'},
-        {'name': 'HP5-NAME', 'value': 'false'}
+  def test_build_predictive_sql_first_party(self):
+    test_model = self.model_config(
+      type='BOOSTED_TREE_CLASSIFIER',
+      uses_first_party_data=True,
+      labels=[
+        {
+          'type': 'PRIMARY',
+          'name': 'subscription',
+          'source': 'FIRST_PARTY',
+          'key': 'value',
+          'value_type': 'string',
+          'output_type': 'SCORE_AS_DECIMAL'
+        },
+        {
+          'type': 'CONVERSION',
+          'name': 'premium_subscription',
+          'source': 'FIRST_PARTY'
+        }
       ],
-      'label': {
-        'name': 'subscription',
-        'source': 'FIRST_PARTY',
-        'key': 'value',
-        'value_type': 'string'
-      },
-      'features': [
+      features=[
         {'name': 'purchase', 'source': 'FIRST_PARTY'},
-        {'name': 'subscribe', 'source': 'FIRST_PARTY'}
+        {'name': 'request_for_info', 'source': 'FIRST_PARTY'}
       ],
-      'skew_factor': 4,
-      'timespans': [
-        {"name": "training", "value": 24, "unit": "month"},
-        {"name": "predictive", "value": 2, "unit": "month"}
-      ]
-    })
+      skew_factor=4)
 
     pipeline = compiler.build_predictive_pipeline(
       test_model, 'test-project-id-1234', 'test-ga4-dataset-loc', 'test-ga4-measurement-id', 'test-ga4-api-secret')
@@ -511,15 +477,40 @@ class TestCompiler(absltest.TestCase):
     self.assertIsNotNone(setup_job)
     params = setup_job['params']
 
-    # sql check start
     sql_param = next(param for param in params if param['name'] == 'script')
     self.assertIsNotNone(sql_param)
     sql = sql_param['value']
 
-    # label check
+    # Probability check
+    self.assertIn(
+      '(SELECT prob FROM UNNEST(predicted_label_probs) WHERE label = 1) AS probability,',
+      sql,
+      'Probability not found in select when selecting from ML.PREDICT.'
+    )
+
+    # conversion label check
     self.assertRegex(
       sql,
-      re.escape('fp.subscription'),
+      r',[\s\S]+'.join([
+        'premium_subscription',
+        re.escape('ML.PREDICT'),
+      ]),
+      'Conversion label check failed.')
+
+    # user id check
+    self.assertRegex(
+      sql,
+      r'[\s\S]+'.join([
+        'SELECT',
+        'user_id,',
+        re.escape('ML.PREDICT')
+      ]),
+      'User id check failed.')
+
+    # label check
+    self.assertIn(
+      'fp.subscription AS label,',
+      sql,
       'First party label check failed.')
 
     # feature check
@@ -527,45 +518,29 @@ class TestCompiler(absltest.TestCase):
       sql,
       r',[\s\n]+'.join([
         re.escape('fp.purchase'),
-        re.escape('fp.subscribe'),
+        re.escape('fp.request_for_info'),
       ]),
       'First party feature check failed.')
 
-    # sql check end
-
-  @freeze_time("2023-02-06T00:00:00")
-  def test_build_predictive_pipeline_google_analytics(self):
-    test_model = self.convert_to_object({
-      'name': 'Test Model',
-      'bigquery_dataset': {
-        'location': 'US',
-        'name': 'test-dataset'
-      },
-      'type': 'BOOSTED_TREE_CLASSIFIER',
-      'uses_first_party_data': False,
-      'hyper_parameters': [
-        {'name': 'HP1-NAME', 'value': 'HP1-STRING'},
-        {'name': 'HP2-NAME', 'value': '1'},
-        {'name': 'HP3-NAME', 'value': '13.7'},
-        {'name': 'HP4-NAME', 'value': 'true'},
-        {'name': 'HP5-NAME', 'value': 'false'}
+  def test_build_predictive_sql_google_analytics(self):
+    test_model = self.model_config(
+      type='BOOSTED_TREE_CLASSIFIER',
+      uses_first_party_data=False,
+      labels=[
+        {
+          'type': 'PRIMARY',
+          'name': 'subscription',
+          'source': 'GOOGLE_ANALYTICS',
+          'key': 'value',
+          'value_type': 'string',
+          'output_type': 'SCORE_AS_DECIMAL'
+        }
       ],
-      'label': {
-        'name': 'subscription',
-        'source': 'GOOGLE_ANALYTICS',
-        'key': 'value',
-        'value_type': 'string'
-      },
-      'features': [
+      features=[
         {'name': 'click', 'source': 'GOOGLE_ANALYTICS'},
         {'name': 'scroll', 'source': 'GOOGLE_ANALYTICS'}
       ],
-      'skew_factor': 4,
-      'timespans': [
-        {"name": "training", "value": 12, "unit": "month"},
-        {"name": "predictive", "value": 1, "unit": "month"}
-      ]
-    })
+      skew_factor=4)
 
     pipeline = compiler.build_predictive_pipeline(
       test_model, 'test-project-id-1234', 'test-ga4-dataset-loc', 'test-ga4-measurement-id', 'test-ga4-api-secret')
@@ -575,7 +550,6 @@ class TestCompiler(absltest.TestCase):
     self.assertIsNotNone(setup_job)
     params = setup_job['params']
 
-    # sql check start
     sql_param = next(param for param in params if param['name'] == 'script')
     self.assertIsNotNone(sql_param)
     sql = sql_param['value']
@@ -604,7 +578,268 @@ class TestCompiler(absltest.TestCase):
       ]),
       'Google Analytics feature check failed.')
 
-    # sql check end
+  def test_build_output_sql_score(self):
+    test_model = self.model_config(
+      type='BOOSTED_TREE_REGRESSOR',
+      uses_first_party_data=True,
+      labels=[
+        {
+          'type': 'PRIMARY',
+          'name': 'purchase',
+          'source': 'GOOGLE_ANALYTICS',
+          'key': 'value',
+          'value_type': 'string,int',
+          'output_type': 'SCORE_AS_PERCENTAGE'
+        },
+        {
+          'type': 'CONVERSION',
+          'name': 'subscribe',
+          'source': 'FIRST_PARTY'
+        }
+      ],
+      features=[
+        {'name': 'click', 'source': 'GOOGLE_ANALYTICS'},
+        {'name': 'subscribe', 'source': 'FIRST_PARTY'}
+      ],
+      skew_factor=4)
+
+    pipeline = compiler.build_predictive_pipeline(
+      test_model, 'test-project-id-1234', 'test-ga4-dataset-loc', 'test-ga4-measurement-id', 'test-ga4-api-secret')
+    self.assertEqual(pipeline['name'], 'Test Model - Predictive')
+
+    output_job = next(job for job in pipeline['jobs'] if job['name'] == 'Test Model - Predictive Output')
+    self.assertIsNotNone(output_job)
+    params = output_job['params']
+
+    sql_param = next(param for param in params if param['name'] == 'script')
+    self.assertIsNotNone(sql_param)
+    sql = sql_param['value']
+
+    # name check
+    self.assertIn(
+      'CREATE OR REPLACE TABLE `test-project-id-1234.test-dataset.output`',
+      sql,
+      'Scores table name check failed.')
+
+    # predictions table name check
+    self.assertIn(
+      'FROM `test-project-id-1234.test-dataset.predictions`',
+      sql,
+      'Predictions table name check failed.')
+
+    # events table name check
+    self.assertIn(
+      'FROM `test-project-id-1234.test-ga4-dataset-loc.events_*`',
+      sql,
+      'Events table name check failed.')
+
+    # summary table check
+    self.assertIn(
+      'FROM `test-project-id-1234.test-ga4-dataset-loc.__TABLES_SUMMARY__`',
+      sql,
+      'Summary table name check failed.')
+
+    # conversion label check
+    self.assertRegex(
+      sql,
+      re.escape('(SUM(subscribe) / COUNT(1)) * 1000 AS value'),
+      'Failed conversion label check within conversion rate calculation step.')
+
+    self.assertRegex(
+      sql,
+      r'[\s\S]+'.join([
+        re.escape('p.subscribe,'),
+        re.escape('FROM `test-project-id-1234.test-dataset.predictions`')
+      ]),
+      'Failed conversion label check within prediction preparation step.')
+
+    self.assertRegex(
+      sql,
+      r'[\s\S]+'.join([
+        re.escape('cr.value,'),
+        re.escape('LEFT OUTER JOIN conversion_rate cr')
+      ]),
+      'Failed conversion rate check within ouput consolidation step.')
+
+    # user id check
+    self.assertIn(
+      'p.user_id,',
+      sql,
+      'Failed user id check within prediction preparation step.')
+
+  def test_build_output_sql_score_as_percentage(self):
+    test_model = self.model_config(
+      type='BOOSTED_TREE_REGRESSOR',
+      uses_first_party_data=True,
+      labels=[
+        {
+          'type': 'PRIMARY',
+          'name': 'purchase',
+          'source': 'GOOGLE_ANALYTICS',
+          'key': 'value',
+          'value_type': 'int',
+          'output_type': 'SCORE_AS_PERCENTAGE'
+        }
+      ],
+      features=[
+        {'name': 'click', 'source': 'GOOGLE_ANALYTICS'},
+        {'name': 'subscribe', 'source': 'FIRST_PARTY'}
+      ],
+      skew_factor=4)
+
+    pipeline = compiler.build_predictive_pipeline(
+      test_model, 'test-project-id-1234', 'test-ga4-dataset-loc', 'test-ga4-measurement-id', 'test-ga4-api-secret')
+    self.assertEqual(pipeline['name'], 'Test Model - Predictive')
+
+    output_job = next(job for job in pipeline['jobs'] if job['name'] == 'Test Model - Predictive Output')
+    self.assertIsNotNone(output_job)
+    params = output_job['params']
+
+    sql_param = next(param for param in params if param['name'] == 'script')
+    self.assertIsNotNone(sql_param)
+    sql = sql_param['value']
+
+    # label type check
+    self.assertRegex(
+      sql,
+      r'[\n\s]+'.join([
+        re.escape('p.predicted_label * 100 AS value,'),
+        re.escape('p.predicted_label * 100 AS score,')
+      ]),
+      'Failed label type check within prediction preparation step. Expected percentage multiplier (100).')
+
+  def test_build_output_sql_score_as_decimal(self):
+    test_model = self.model_config(
+      type='BOOSTED_TREE_REGRESSOR',
+      uses_first_party_data=True,
+      labels=[
+        {
+          'type': 'PRIMARY',
+          'name': 'purchase',
+          'source': 'GOOGLE_ANALYTICS',
+          'key': 'value',
+          'value_type': 'int',
+          'output_type': 'SCORE_AS_DECIMAL'
+        }
+      ],
+      features=[
+        {'name': 'click', 'source': 'GOOGLE_ANALYTICS'},
+        {'name': 'subscribe', 'source': 'FIRST_PARTY'}
+      ],
+      skew_factor=4)
+
+    pipeline = compiler.build_predictive_pipeline(
+      test_model, 'test-project-id-1234', 'test-ga4-dataset-loc', 'test-ga4-measurement-id', 'test-ga4-api-secret')
+    self.assertEqual(pipeline['name'], 'Test Model - Predictive')
+
+    output_job = next(job for job in pipeline['jobs'] if job['name'] == 'Test Model - Predictive Output')
+    self.assertIsNotNone(output_job)
+    params = output_job['params']
+
+    sql_param = next(param for param in params if param['name'] == 'script')
+    self.assertIsNotNone(sql_param)
+    sql = sql_param['value']
+
+    # label type check
+    self.assertRegex(
+      sql,
+      r'[\n\s]+'.join([
+        re.escape('p.predicted_label * 1 AS value,'),
+        re.escape('p.predicted_label * 1 AS score,')
+      ]),
+      'Failed label type check within prediction preparation step. Expected no multiplier (1).')
+
+  def test_build_output_sql_revenue(self):
+    test_model = self.model_config(
+      type='BOOSTED_TREE_REGRESSOR',
+      uses_first_party_data=True,
+      labels=[{
+        'type': 'PRIMARY',
+        'name': 'purchase',
+        'source': 'GOOGLE_ANALYTICS',
+        'key': 'value',
+        'value_type': 'string,int',
+        'output_type': 'REVENUE'
+      }],
+      features=[
+        {'name': 'click', 'source': 'GOOGLE_ANALYTICS'},
+        {'name': 'subscribe', 'source': 'FIRST_PARTY'}
+      ],
+      skew_factor=4)
+
+    pipeline = compiler.build_predictive_pipeline(
+      test_model, 'test-project-id-1234', 'test-ga4-dataset-loc', 'test-ga4-measurement-id', 'test-ga4-api-secret')
+    self.assertEqual(pipeline['name'], 'Test Model - Predictive')
+
+    output_job = next(job for job in pipeline['jobs'] if job['name'] == 'Test Model - Predictive Output')
+    self.assertIsNotNone(output_job)
+    params = output_job['params']
+
+    sql_param = next(param for param in params if param['name'] == 'script')
+    self.assertIsNotNone(sql_param)
+    sql = sql_param['value']
+
+    # name check
+    self.assertIn(
+      'CREATE OR REPLACE TABLE `test-project-id-1234.test-dataset.output`',
+      sql,
+      'Scores table name check failed.')
+
+    # predictions table name check
+    self.assertIn(
+      'FROM `test-project-id-1234.test-dataset.predictions`',
+      sql,
+      'Predictions table name check failed.')
+
+    # events table name check
+    self.assertIn(
+      'FROM `test-project-id-1234.test-ga4-dataset-loc.events_*`',
+      sql,
+      'Events table name check failed.')
+
+    # summary table check
+    self.assertIn(
+      'FROM `test-project-id-1234.test-ga4-dataset-loc.__TABLES_SUMMARY__`',
+      sql,
+      'Summary table name check failed.')
+
+    # label output type check
+    self.assertIn(
+      'p.predicted_label AS revenue',
+      sql,
+      'Failed label output type check within prediction preparation step.')
+
+    # user id check
+    self.assertIn(
+      'p.user_id,',
+      sql,
+      'Failed user id check within prediction preparation step.')
+
+  def model_config(self, type: str, uses_first_party_data: bool, labels: list[dict],
+                   features: list[dict], skew_factor: int):
+    return self.convert_to_object({
+      'name': 'Test Model',
+      'bigquery_dataset': {
+        'location': 'US',
+        'name': 'test-dataset'
+      },
+      'type': type,
+      'uses_first_party_data': uses_first_party_data,
+      'hyper_parameters': [
+        {'name': 'HP1-NAME', 'value': 'HP1-STRING'},
+        {'name': 'HP2-NAME', 'value': '1'},
+        {'name': 'HP3-NAME', 'value': '13.7'},
+        {'name': 'HP4-NAME', 'value': 'true'},
+        {'name': 'HP5-NAME', 'value': 'false'}
+      ],
+      'labels': labels,
+      'features': features,
+      'skew_factor': skew_factor,
+      'timespans': [
+        {"name": "training", "value": 17, "unit": "month"},
+        {"name": "predictive", "value": 1, "unit": "month"}
+      ]
+    })
 
   def convert_to_object(self, collection: Union[dict,list]):
     class TempObject:

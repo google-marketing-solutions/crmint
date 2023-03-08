@@ -43,56 +43,70 @@ parser.add_argument('unique_id', type=str, required=False)
 parser.add_argument('uses_first_party_data', type=bool, required=False)
 parser.add_argument('hyper_parameters', type=list, location='json', required=False)
 parser.add_argument('features', type=list, location='json', required=False)
-parser.add_argument('label', type=dict, required=False)
+parser.add_argument('labels', type=list, location='json', required=False)
 parser.add_argument('skew_factor', type=int, required=False)
 parser.add_argument('timespans', type=list, location='json', required=False)
+
+bigquery_dataset_structure = fields.Nested({
+  'name': fields.String,
+  'location': fields.String
+})
+
+hyper_parameters_structure = fields.List(fields.Nested({
+  'name': fields.String,
+  'value': fields.String
+}))
+
+features_structure = fields.List(fields.Nested({
+  'name': fields.String,
+  'source': fields.String
+}))
+
+labels_structure = fields.List(fields.Nested({
+  'type': fields.String,
+  'name': fields.String,
+  'source': fields.String,
+  'key': fields.String,
+  'value_type': fields.String,
+  'output_type': fields.String
+}))
+
+timespans_structure = fields.List(fields.Nested({
+  'name': fields.String,
+  'value': fields.Integer,
+  'unit': fields.String
+}))
+
+pipelines_structure = fields.List(fields.Nested({
+  'id': fields.Integer,
+  'name': fields.String,
+  'status': fields.String,
+  'updated_at': fields.String,
+  'schedules': fields.List(fields.Nested({
+    'cron': fields.String
+  })),
+  'jobs': fields.List(fields.Nested({
+    'name': fields.String,
+    'params': fields.List(fields.Nested({
+      'name': fields.String,
+      'value': fields.String
+    }))
+  }))
+}))
 
 ml_model_structure = {
   'id': fields.Integer,
   'name': fields.String,
-  'bigquery_dataset': fields.Nested({
-    'name': fields.String,
-    'location': fields.String
-  }),
+  'bigquery_dataset': bigquery_dataset_structure,
   'type': fields.String,
   'unique_id': fields.String,
   'uses_first_party_data': fields.Boolean,
-  'hyper_parameters': fields.List(fields.Nested({
-    'name': fields.String,
-    'value': fields.String
-  })),
-  'features': fields.List(fields.Nested({
-    'name': fields.String,
-    'source': fields.String
-  })),
-  'label': fields.Nested({
-    'name': fields.String,
-    'source': fields.String,
-    'key': fields.String,
-    'value_type': fields.String
-  }),
+  'hyper_parameters': hyper_parameters_structure,
+  'features': features_structure,
+  'labels': labels_structure,
   'skew_factor': fields.Integer,
-  'timespans': fields.List(fields.Nested({
-    'name': fields.String,
-    'value': fields.Integer,
-    'unit': fields.String
-  })),
-  'pipelines': fields.List(fields.Nested({
-    'id': fields.Integer,
-    'name': fields.String,
-    'status': fields.String,
-    'updated_at': fields.String,
-    'schedules': fields.List(fields.Nested({
-      'cron': fields.String
-    })),
-    'jobs': fields.List(fields.Nested({
-      'name': fields.String,
-      'params': fields.List(fields.Nested({
-        'name': fields.String,
-        'value': fields.String
-      }))
-    }))
-  })),
+  'timespans': timespans_structure,
+  'pipelines': pipelines_structure,
   'updated_at': fields.String
 }
 

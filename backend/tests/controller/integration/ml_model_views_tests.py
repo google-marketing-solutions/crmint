@@ -72,12 +72,14 @@ class TestMlModelViews(controller_utils.ControllerAppTest):
         "name": "enrollment",
         "source": "FIRST_PARTY"
       }],
-      "label": {
+      "labels": [{
+          "type": "PRIMARY",
           "name": "purchase",
           "source": "GOOGLE_ANALYTICS",
           "key": "value",
-          "value_type": "int"
-      },
+          "value_type": "int",
+          "output_type": "SCORE"
+      }],
       "skew_factor": 5,
       "timespans": [
         {"name": "training", "value": 14, "unit": "month"},
@@ -192,12 +194,14 @@ class TestMlModelViews(controller_utils.ControllerAppTest):
         "name": "click",
         "source": "GOOGLE_ANALYTICS"
       }],
-      "label": {
-          "name": "purchase",
-          "source": "FIRST_PARTY",
-          "key": "",
-          "value_type": ""
-      },
+      "labels": [{
+        "type": "PRIMARY",
+        "name": "purchase",
+        "key": "",
+        "value_type": "",
+        "source": "FIRST_PARTY",
+        "output_type": "SCORE"
+      }],
       "skew_factor": 7,
       "timespans": [
         {"name": "training", "value": 20, "unit": "month"},

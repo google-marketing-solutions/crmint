@@ -445,12 +445,24 @@ class TestMlModel(ModelTestCase):
     self.assertRelationSaved(MlModelFeature, features)
 
   @parameterized.named_parameters(
-    ('create', {'name': 'CR-NAME', 'source': 'FIRST_PARTY', 'key': 'CR-KEY', 'value_type': 'CR-VT'}),
-    ('update', {'name': 'UP-NAME', 'source': 'GOOGLE_ANALYTICS', 'key': 'UP-KEY', 'value_type': 'UP-VT'})
+    ('create', {
+      'type': 'PRIMARY',
+      'name': 'CR-NAME',
+      'source': 'FIRST_PARTY',
+      'key': 'CR-KEY',
+      'value_type': 'CR-VT',
+      'output_type': 'SCORE_AS_PERCENTAGE'}),
+    ('update', {
+      'type': 'CONVERSION',
+      'name': 'UP-NAME',
+      'source': 'GOOGLE_ANALYTICS',
+      'key': 'UP-KEY',
+      'value_type': 'UP-VT',
+      'output_type': 'REVENUE'})
   )
   def test_save_relations_label(self, label):
-    self.assertIsNone(self.ml_model.label)
-    self.ml_model.save_relations({'label': label})
+    self.assertEmpty(self.ml_model.labels)
+    self.ml_model.save_relations({'labels': [label]})
     self.assertRelationSaved(MlModelLabel, label)
 
   @parameterized.named_parameters(

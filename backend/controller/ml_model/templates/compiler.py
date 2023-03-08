@@ -1,16 +1,32 @@
-import re
 import os
 
 from datetime import date
 from enum import Enum
 from uuid import uuid4 as uuid
 from jinja2 import Template, StrictUndefined
+from typing import Union
 
 class TemplateFile(Enum):
   TRAINING = 'training.sql'
   PREDICTIVE = 'predictive.sql'
   GA4_REQUEST = 'ga4_request.json'
-  SCORES = 'scores.sql'
+  OUTPUT = 'output.sql'
+
+class RegressionType(Enum):
+  BOOSTED_TREE_REGRESSOR = 'BOOSTED_TREE_REGRESSOR'
+  DNN_REGRESSOR = 'DNN_REGRESSOR'
+  RANDOM_FOREST_REGRESSOR = 'RANDOM_FOREST_REGRESSOR'
+  LINEAR_REG = 'LINEAR_REG'
+
+class ClassificationType(Enum):
+  BOOSTED_TREE_CLASSIFIER = 'BOOSTED_TREE_CLASSIFIER'
+  DNN_CLASSIFIER = 'DNN_CLASSIFIER'
+  RANDOM_FOREST_CLASSIFIER = 'RANDOM_FOREST_CLASSIFIER'
+  LOGISTIC_REG = 'LOGISTIC_REG'
+
+class LabelType(Enum):
+  PRIMARY = 'PRIMARY'
+  CONVERSION = 'CONVERSION'
 
 class Timespan():
   TRAINING: str = 'training'
@@ -34,7 +50,7 @@ def build_training_pipeline(ml_model, project_id: str, ga4_dataset: str) -> dict
         {
           'name': 'script',
           'type': 'sql',
-          'value': _compile_sql_template(ml_model, project_id, ga4_dataset, TemplateFile.TRAINING)
+          'value': _compile_template(ml_model, project_id, ga4_dataset, TemplateFile.TRAINING)
         },
         {
           'name': 'bq_dataset_location',
@@ -50,7 +66,7 @@ def build_training_pipeline(ml_model, project_id: str, ga4_dataset: str) -> dict
 
 def build_predictive_pipeline(ml_model, project_id: str, ga4_dataset: str, ga4_measurement_id: str, ga4_api_secret: str) -> dict:
   setup_job_id = uuid()
-  scores_job_id = uuid()
+  output_job_id = uuid()
   ga4_upload_job_id = uuid()
 
   return {
@@ -66,7 +82,7 @@ def build_predictive_pipeline(ml_model, project_id: str, ga4_dataset: str, ga4_m
           {
             'name': 'script',
             'type': 'sql',
-            'value': _compile_sql_template(ml_model, project_id, ga4_dataset, TemplateFile.PREDICTIVE)
+            'value': _compile_template(ml_model, project_id, ga4_dataset, TemplateFile.PREDICTIVE)
           },
           {
             'name': 'bq_dataset_location',
@@ -76,8 +92,8 @@ def build_predictive_pipeline(ml_model, project_id: str, ga4_dataset: str, ga4_m
         ]
       },
       {
-        'id': scores_job_id,
-        'name': f'{ml_model.name} - Predictive Scores',
+        'id': output_job_id,
+        'name': f'{ml_model.name} - Predictive Output',
         'hash_start_conditions': [{
           'preceding_job_id': setup_job_id,
           'condition': 'success'
@@ -87,7 +103,7 @@ def build_predictive_pipeline(ml_model, project_id: str, ga4_dataset: str, ga4_m
           {
             'name': 'script',
             'type': 'sql',
-            'value': _compile_sql_template(ml_model, project_id, ga4_dataset, TemplateFile.SCORES),
+            'value': _compile_template(ml_model, project_id, ga4_dataset, TemplateFile.OUTPUT),
           },
           {
             'name': 'bq_dataset_location',
@@ -100,7 +116,7 @@ def build_predictive_pipeline(ml_model, project_id: str, ga4_dataset: str, ga4_m
         'id': ga4_upload_job_id,
         'name': f'{ml_model.name} - Predictive GA4 Upload',
         'hash_start_conditions': [{
-          'preceding_job_id': scores_job_id,
+          'preceding_job_id': output_job_id,
           'condition': 'success'
         }],
         'worker_class': 'BQToMeasurementProtocolGA4',
@@ -123,7 +139,7 @@ def build_predictive_pipeline(ml_model, project_id: str, ga4_dataset: str, ga4_m
           {
             'name': 'bq_table_id',
             'type': 'string',
-            'value': 'scores'
+            'value': 'output'
           },
           {
             'name': 'measurement_id',
@@ -138,7 +154,7 @@ def build_predictive_pipeline(ml_model, project_id: str, ga4_dataset: str, ga4_m
           {
             'name': 'template',
             'type': 'text',
-            'value': _get_template(TemplateFile.GA4_REQUEST)
+            'value': _compile_template(ml_model, project_id, ga4_dataset, TemplateFile.GA4_REQUEST)
           },
           {
             'name': 'mp_batch_size',
@@ -158,7 +174,7 @@ def build_predictive_pipeline(ml_model, project_id: str, ga4_dataset: str, ga4_m
     }]
   }
 
-def _compile_sql_template(ml_model, project_id: str, ga4_dataset: str, templateFile: TemplateFile) -> str:
+def _compile_template(ml_model, project_id: str, ga4_dataset: str, templateFile: TemplateFile) -> str:
   """Builds the BQML SQL using the base template and the provided data."""
   variables = {
     'project_id': project_id,
@@ -167,15 +183,18 @@ def _compile_sql_template(ml_model, project_id: str, ga4_dataset: str, templateF
     'type': ml_model.type,
     'uses_first_party_data': ml_model.uses_first_party_data,
     'hyper_parameters': ml_model.hyper_parameters,
-    'timespan': _get_timespans(ml_model.timespans, 'month'),
-    'label': ml_model.label,
+    'timespan': _get_timespan(ml_model.timespans, 'month'),
+    'label': _get_label(ml_model.labels, LabelType.PRIMARY),
     'features': ml_model.features,
-    'skew_factor': ml_model.skew_factor
+    'skew_factor': ml_model.skew_factor,
+    'conversion_label': _get_label(ml_model.labels, LabelType.CONVERSION)
   }
 
   functions = {
     'is_number': _is_number,
-    'is_bool': _is_bool
+    'is_bool': _is_bool,
+    'is_regression': _is_regression,
+    'is_classification': _is_classification
   }
 
   template = _get_template(templateFile)
@@ -191,8 +210,9 @@ def _get_template(templateFile: TemplateFile) -> Template:
   with open(_absolute_path(templateFile.value), 'r') as file:
     return Template(file.read(), **options, undefined=StrictUndefined)
 
-def _get_timespans(timespans: list, unit: str) -> Timespan:
-  """Returns the appropriate timespan for the given template and unit (day/week/month/etc)."""
+def _get_timespan(timespans: list, unit: str) -> Timespan:
+  """Returns the appropriate timespan (both training and predictive)
+     for the given template and unit (day/week/month/etc)."""
 
   ts = Timespan()
   ts.unit = unit.upper()
@@ -206,6 +226,9 @@ def _get_timespans(timespans: list, unit: str) -> Timespan:
 
   return ts
 
+def _get_label(labels: list, type: LabelType) -> Union[dict, None]:
+  return next((label for label in labels if label.type == type.value), None)
+
 def _is_number(value: str) -> bool:
   """Checks a string value to determine if it's a number."""
   try:
@@ -218,13 +241,22 @@ def _is_bool(value: str) -> bool:
   """Checks a string value to determine if it's a boolean."""
   return value.lower() in ['true', 'false']
 
+def _is_regression(type: str) -> bool:
+  """Checks whether or not the model is a regression type model."""
+  return type in RegressionType._member_names_
+
+def _is_classification(type: str) -> bool:
+  """Checks whether or not the model is a classification type model."""
+  return type in ClassificationType._member_names_
+
 def _safe_day() -> str:
   """Returns the current day if safe to schedule and otherwise returns 28."""
   day = date.today().day
   return f'{day}' if day < 28 else '28'
 
 def _quarterly_months() -> str:
-  """Returns the months of the year that occur quarterly (every 3 months) from the current month."""
+  """Returns the months of the year that occur quarterly (every 3 months)
+     from the current month."""
   currentMonth = date.today().month
   months = ''
   for month in range(currentMonth, currentMonth + 11, 3):
@@ -232,7 +264,8 @@ def _quarterly_months() -> str:
   return months.removesuffix(',')
 
 def _absolute_path(file: str) -> str:
-  """Returns the absolute path of the file assuming the file provided is in the current directory."""
+  """Returns the absolute path of the file assuming the file provided
+     is in the current directory."""
   running_dir = os.getcwd()
   current_dir_relative = os.path.dirname(__file__)
   current_dir_full = os.path.join(running_dir, current_dir_relative)

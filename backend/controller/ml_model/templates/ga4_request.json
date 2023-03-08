@@ -1,14 +1,21 @@
 {
   "clientId": "${client_id}",
+  {% if uses_first_party_data %}
+  "userId": "${user_id}",
+  {% endif %}
   "nonPersonalizedAds": false,
   "events": [
     {
       "name": "${event_name}",
       "params": {
+        "type": "${type}",
+        {% if label.output_type.startswith('SCORE') %}
+        "value": "${value}",
         "score": "${score}",
-        "value": "${score}",
-        "nscore": "${normalized_score}",
-        "type": "${type}"
+        "nscore": "${normalized_score}"
+        {% elif label.output_type == 'REVENUE' %}
+        "revenue": "${revenue}"
+        {% endif %}
       }
     }
   ]
