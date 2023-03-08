@@ -21,7 +21,7 @@ variable "notification_sender_email" {
 ##
 # Security (IAP configuration)
 
-variable "iap_band_id" {
+variable "iap_brand_id" {
   description = "Existing IAP Brand ID - only INTERNAL TYPE (you can obtain it using this command: `$ gcloud iap oauth-brands list --format='value(name)' | sed 's:.*/::'`)."
   default = null
 }
