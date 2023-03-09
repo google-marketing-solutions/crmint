@@ -28,19 +28,19 @@ CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.output` AS (
     WHERE user_pseudo_id NOT IN (
       SELECT user_pseudo_id FROM users_with_score)
   ),
-  {% if label.output_type.startswith('SCORE') %}
+  {% if label.is_score %}
   prepared_predictions AS (
     SELECT DISTINCT
       {% if uses_first_party_data %}
       p.user_id,
       {% endif %}
       p.user_pseudo_id AS client_id,
-      {% if conversion_label %}
-      p.{{ conversion_label.name }},
+      {% if label.is_conversion %}
+      p.{{label.name}},
       {% else %}
-      p.predicted_label * {{ 100 if label.output_type == 'SCORE_AS_PERCENTAGE' else 1 }} AS value,
+      p.predicted_label * {{ 100 if label.is_percentage else 1 }} AS value,
       {% endif %}
-      p.predicted_label * {{ 100 if label.output_type == 'SCORE_AS_PERCENTAGE' else 1 }} AS score,
+      p.predicted_label * {{ 100 if label.is_percentage else 1 }} AS score,
       NTILE(10) OVER (ORDER BY p.predicted_label ASC) AS normalized_score
     FROM `{{project_id}}.{{model_dataset}}.predictions` p
     INNER JOIN users_without_score ws
@@ -48,22 +48,23 @@ CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.output` AS (
     GROUP BY 1,2,3{% if uses_first_party_data %},4{% endif %}
     ORDER BY score DESC
   ),
-  {% if conversion_label %}
+  {% if label.is_conversion %}
   conversion_rate AS (
     SELECT
       normalized_score,
-      (SUM({{ conversion_label.name }}) / COUNT(1)) * 1000 AS value
+      (SUM({{label.name}}) / COUNT(normalized_score)) * {{label.average_value}} AS value
     FROM prepared_predictions
     GROUP BY 1
   ),
   {% endif %}
-  {% elif label.output_type == 'REVENUE' %}
+  {% elif label.is_revenue %}
   prepared_predictions AS (
     SELECT DISTINCT
       {% if uses_first_party_data %}
       p.user_id,
       {% endif %}
       p.user_pseudo_id AS client_id,
+      p.predicted_label AS value,
       p.predicted_label AS revenue
     FROM `{{project_id}}.{{model_dataset}}.predictions` p
     INNER JOIN users_without_score ws
@@ -74,13 +75,13 @@ CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.output` AS (
   consolidated_output AS (
     SELECT
       p.*,
-      {% if conversion_label %}
+      {% if label.is_conversion %}
       cr.value,
       {% endif %}
       'prop_score' AS event_name,
       'Predicted_Value' AS type
     FROM prepared_predictions p
-    {% if conversion_label %}
+    {% if label.is_conversion %}
     LEFT OUTER JOIN conversion_rate cr
     ON p.normalized_score = cr.normalized_score
     {% endif %}

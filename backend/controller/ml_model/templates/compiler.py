@@ -24,10 +24,6 @@ class ClassificationType(Enum):
   RANDOM_FOREST_CLASSIFIER = 'RANDOM_FOREST_CLASSIFIER'
   LOGISTIC_REG = 'LOGISTIC_REG'
 
-class LabelType(Enum):
-  PRIMARY = 'PRIMARY'
-  CONVERSION = 'CONVERSION'
-
 class Timespan():
   TRAINING: str = 'training'
   PREDICTIVE: str = 'predictive'
@@ -184,10 +180,9 @@ def _compile_template(ml_model, project_id: str, ga4_dataset: str, templateFile:
     'uses_first_party_data': ml_model.uses_first_party_data,
     'hyper_parameters': ml_model.hyper_parameters,
     'timespan': _get_timespan(ml_model.timespans, 'month'),
-    'label': _get_label(ml_model.labels, LabelType.PRIMARY),
+    'label': ml_model.label,
     'features': ml_model.features,
-    'skew_factor': ml_model.skew_factor,
-    'conversion_label': _get_label(ml_model.labels, LabelType.CONVERSION)
+    'skew_factor': ml_model.skew_factor
   }
 
   functions = {
@@ -225,9 +220,6 @@ def _get_timespan(timespans: list, unit: str) -> Timespan:
         ts.predictive = timespan.value
 
   return ts
-
-def _get_label(labels: list, type: LabelType) -> Union[dict, None]:
-  return next((label for label in labels if label.type == type.value), None)
 
 def _is_number(value: str) -> bool:
   """Checks a string value to determine if it's a number."""

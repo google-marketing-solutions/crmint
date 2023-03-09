@@ -9,11 +9,11 @@
       "name": "${event_name}",
       "params": {
         "type": "${type}",
-        {% if label.output_type.startswith('SCORE') %}
         "value": "${value}",
+        {% if label.is_score %}
         "score": "${score}",
         "nscore": "${normalized_score}"
-        {% elif label.output_type == 'REVENUE' %}
+        {% elif label.is_revenue %}
         "revenue": "${revenue}"
         {% endif %}
       }

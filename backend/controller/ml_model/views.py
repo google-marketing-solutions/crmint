@@ -43,7 +43,7 @@ parser.add_argument('unique_id', type=str, required=False)
 parser.add_argument('uses_first_party_data', type=bool, required=False)
 parser.add_argument('hyper_parameters', type=list, location='json', required=False)
 parser.add_argument('features', type=list, location='json', required=False)
-parser.add_argument('labels', type=list, location='json', required=False)
+parser.add_argument('label', type=dict, required=False)
 parser.add_argument('skew_factor', type=int, required=False)
 parser.add_argument('timespans', type=list, location='json', required=False)
 
@@ -62,14 +62,17 @@ features_structure = fields.List(fields.Nested({
   'source': fields.String
 }))
 
-labels_structure = fields.List(fields.Nested({
-  'type': fields.String,
+label_structure = fields.Nested({
   'name': fields.String,
   'source': fields.String,
   'key': fields.String,
   'value_type': fields.String,
-  'output_type': fields.String
-}))
+  'is_revenue': fields.Boolean,
+  'is_score': fields.Boolean,
+  'is_percentage': fields.Boolean,
+  'is_conversion': fields.Boolean,
+  'average_value': fields.Float
+})
 
 timespans_structure = fields.List(fields.Nested({
   'name': fields.String,
@@ -103,7 +106,7 @@ ml_model_structure = {
   'uses_first_party_data': fields.Boolean,
   'hyper_parameters': hyper_parameters_structure,
   'features': features_structure,
-  'labels': labels_structure,
+  'label': label_structure,
   'skew_factor': fields.Integer,
   'timespans': timespans_structure,
   'pipelines': pipelines_structure,

@@ -446,23 +446,24 @@ class TestMlModel(ModelTestCase):
 
   @parameterized.named_parameters(
     ('create', {
-      'type': 'PRIMARY',
       'name': 'CR-NAME',
       'source': 'FIRST_PARTY',
       'key': 'CR-KEY',
       'value_type': 'CR-VT',
-      'output_type': 'SCORE_AS_PERCENTAGE'}),
+      'is_score': True,
+      'is_percentage': True,
+      'is_conversion': True,
+      'average_value': 1234}),
     ('update', {
-      'type': 'CONVERSION',
       'name': 'UP-NAME',
       'source': 'GOOGLE_ANALYTICS',
       'key': 'UP-KEY',
       'value_type': 'UP-VT',
-      'output_type': 'REVENUE'})
+      'is_revenue': True})
   )
   def test_save_relations_label(self, label):
-    self.assertEmpty(self.ml_model.labels)
-    self.ml_model.save_relations({'labels': [label]})
+    self.assertIsNone(self.ml_model.label)
+    self.ml_model.save_relations({'label': label})
     self.assertRelationSaved(MlModelLabel, label)
 
   @parameterized.named_parameters(

@@ -35,6 +35,7 @@ from sqlalchemy import Column
 from sqlalchemy import DateTime
 from sqlalchemy import ForeignKey
 from sqlalchemy import Integer
+from sqlalchemy import Float
 from sqlalchemy import orm
 from sqlalchemy import String
 from sqlalchemy import Text
@@ -388,8 +389,9 @@ class MlModel(extensions.db.Model):
   features = orm.relationship(
       'MlModelFeature',
       lazy='joined')
-  labels = orm.relationship(
+  label = orm.relationship(
       'MlModelLabel',
+      uselist=False,
       lazy='joined')
   skew_factor = Column(Integer, nullable=False, default=4)
   timespans = orm.relationship(
@@ -434,8 +436,8 @@ class MlModel(extensions.db.Model):
         self.assign_bigquery_dataset(value)
       elif key == 'features':
         self.assign_features(value)
-      elif key == 'labels':
-        self.assign_labels(value)
+      elif key == 'label':
+        self.assign_label(value)
       elif key == 'hyper_parameters':
         self.assign_hyper_parameters(value)
       elif key == 'timespans':
@@ -457,13 +459,11 @@ class MlModel(extensions.db.Model):
       if type(feature) == dict:
         MlModelFeature.create(ml_model_id=self.id, **feature)
 
-  def assign_labels(self, labels):
-    for label in self.labels:
-      label.delete()
+  def assign_label(self, label):
+    if self.label:
+      self.label.delete()
 
-    for label in labels:
-      if type(label) == dict:
-        MlModelLabel.create(ml_model_id=self.id, **label)
+    MlModelLabel.create(ml_model_id=self.id, **label)
 
   def assign_hyper_parameters(self, hyper_parameters):
     for param in self.hyper_parameters:
@@ -501,14 +501,14 @@ class MlModel(extensions.db.Model):
     for feature in self.features:
       feature.delete()
 
+    if self.label:
+      self.label.delete()
+
     for param in self.hyper_parameters:
       param.delete()
 
     for timespan in self.timespans:
       timespan.delete()
-
-    for label in self.labels:
-      label.delete()
 
     self.delete()
 
@@ -528,19 +528,22 @@ class MlModelBigQueryDataset(extensions.db.Model):
 
 class MlModelLabel(extensions.db.Model):
   """Model for ml model label."""
-  __tablename__ = 'ml_model_labels'
-  __repr_attrs__ = ['type', 'name', 'source', 'key', 'value_type', 'output_type']
+  __tablename__ = 'ml_model_label'
+  __repr_attrs__ = ['name', 'source', 'key']
 
   ml_model_id = Column(Integer, ForeignKey('ml_models.id'), primary_key=True)
-  type = Column(String(255), nullable=False, primary_key=True)
   name = Column(String(255), nullable=False)
   source = Column(String(255), nullable=False)
   key = Column(String(255), nullable=True)
   value_type = Column(String(255), nullable=True)
-  output_type = Column(String(255), nullable=True)
+  is_revenue = Column(Boolean, nullable=True, default=False)
+  is_score = Column(Boolean, nullable=True, default=False)
+  is_percentage = Column(Boolean, nullable=True, default=False)
+  is_conversion = Column(Boolean, nullable=True, default=False)
+  average_value = Column(Float, nullable=True, default=0.0)
 
   ml_model = orm.relationship(
-    'MlModel', foreign_keys=[ml_model_id], back_populates='labels')
+    'MlModel', foreign_keys=[ml_model_id], back_populates='label')
 
 
 class MlModelFeature(extensions.db.Model):

@@ -29,16 +29,14 @@ class TestCompiler(absltest.TestCase):
     test_model = self.model_config(
       type='LOGISTIC_REG',
       uses_first_party_data=True,
-      labels=[
-        {
-          'type': 'PRIMARY',
-          'name': 'purchase',
-          'source': 'GOOGLE_ANALYTICS',
-          'key': 'value',
-          'value_type': 'int',
-          'output_type': 'SCORE_AS_DECIMAL'
-        }
-      ],
+      label={
+        'name': 'purchase',
+        'source': 'GOOGLE_ANALYTICS',
+        'key': 'value',
+        'value_type': 'int',
+        'is_score': True,
+        'is_percentage': False
+      },
       features=[
         {'name': 'click', 'source': 'GOOGLE_ANALYTICS'},
         {'name': 'subscribe', 'source': 'FIRST_PARTY'}
@@ -66,16 +64,14 @@ class TestCompiler(absltest.TestCase):
     test_model = self.model_config(
       type='LOGISTIC_REG',
       uses_first_party_data=True,
-      labels=[
-        {
-          'type': 'PRIMARY',
-          'name': 'purchase',
-          'source': 'GOOGLE_ANALYTICS',
-          'key': 'value',
-          'value_type': 'int',
-          'output_type': 'SCORE_AS_DECIMAL'
-        }
-      ],
+      label={
+        'name': 'purchase',
+        'source': 'GOOGLE_ANALYTICS',
+        'key': 'value',
+        'value_type': 'int',
+        'is_score': True,
+        'is_percentage': False
+      },
       features=[
         {'name': 'click', 'source': 'GOOGLE_ANALYTICS'},
         {'name': 'subscribe', 'source': 'FIRST_PARTY'}
@@ -162,16 +158,14 @@ class TestCompiler(absltest.TestCase):
     test_model = self.model_config(
       type='LOGISTIC_REG',
       uses_first_party_data=True,
-      labels=[
-        {
-          'type': 'PRIMARY',
-          'name': 'enroll',
-          'source': 'FIRST_PARTY',
-          'key': 'value',
-          'value_type': 'int',
-          'output_type': 'SCORE_AS_DECIMAL'
-        }
-      ],
+      label={
+        'name': 'enroll',
+        'source': 'FIRST_PARTY',
+        'key': 'value',
+        'value_type': 'int',
+        'is_score': True,
+        'is_percentage': False
+      },
       features=[
         {'name': 'call', 'source': 'FIRST_PARTY'},
         {'name': 'request_for_info', 'source': 'FIRST_PARTY'}
@@ -210,16 +204,14 @@ class TestCompiler(absltest.TestCase):
     test_model = self.model_config(
       type='LOGISTIC_REG',
       uses_first_party_data=False,
-      labels=[
-        {
-          'type': 'PRIMARY',
-          'name': 'purchase',
-          'source': 'GOOGLE_ANALYTICS',
-          'key': 'value',
-          'value_type': 'int',
-          'output_type': 'SCORE_AS_DECIMAL'
-        }
-      ],
+      label={
+        'name': 'purchase',
+        'source': 'GOOGLE_ANALYTICS',
+        'key': 'value',
+        'value_type': 'int',
+        'is_score': True,
+        'is_percentage': False
+      },
       features=[
         {'name': 'click', 'source': 'GOOGLE_ANALYTICS'},
         {'name': 'subscribe', 'source': 'GOOGLE_ANALYTICS'}
@@ -262,16 +254,15 @@ class TestCompiler(absltest.TestCase):
     test_model = self.model_config(
       type='BOOSTED_TREE_REGRESSOR',
       uses_first_party_data=True,
-      labels=[
-        {
-          'type': 'PRIMARY',
-          'name': 'purchase',
-          'source': 'GOOGLE_ANALYTICS',
-          'key': 'value',
-          'value_type': 'string,int',
-          'output_type': 'SCORE_AS_DECIMAL'
-        }
-      ],
+      label={
+        'name': 'purchase',
+        'source': 'GOOGLE_ANALYTICS',
+        'key': 'value',
+        'value_type': 'string,int',
+        'is_score': True,
+        'is_percentage': False,
+        'is_conversion': False
+      },
       features=[
         {'name': 'click', 'source': 'GOOGLE_ANALYTICS'},
         {'name': 'subscribe', 'source': 'FIRST_PARTY'}
@@ -356,21 +347,16 @@ class TestCompiler(absltest.TestCase):
     test_model = self.model_config(
       type='BOOSTED_TREE_REGRESSOR',
       uses_first_party_data=True,
-      labels=[
-        {
-          'type': 'PRIMARY',
-          'name': 'purchase',
-          'source': 'GOOGLE_ANALYTICS',
-          'key': 'value',
-          'value_type': 'string,int',
-          'output_type': 'SCORE_AS_DECIMAL'
-        },
-        {
-          'type': 'CONVERSION',
-          'name': 'subscribe',
-          'source': 'FIRST_PARTY'
-        }
-      ],
+      label={
+        'name': 'purchase',
+        'source': 'GOOGLE_ANALYTICS',
+        'key': 'value',
+        'value_type': 'string,int',
+        'is_score': True,
+        'is_percentage': False,
+        'is_conversion': True,
+        'average_value': 1234
+      },
       features=[
         {'name': 'click', 'source': 'GOOGLE_ANALYTICS'},
         {'name': 'subscribe', 'source': 'FIRST_PARTY'}
@@ -448,21 +434,16 @@ class TestCompiler(absltest.TestCase):
     test_model = self.model_config(
       type='BOOSTED_TREE_CLASSIFIER',
       uses_first_party_data=True,
-      labels=[
-        {
-          'type': 'PRIMARY',
-          'name': 'subscription',
-          'source': 'FIRST_PARTY',
-          'key': 'value',
-          'value_type': 'string',
-          'output_type': 'SCORE_AS_DECIMAL'
-        },
-        {
-          'type': 'CONVERSION',
-          'name': 'premium_subscription',
-          'source': 'FIRST_PARTY'
-        }
-      ],
+      label={
+        'name': 'premium_subscription',
+        'source': 'FIRST_PARTY',
+        'key': 'value',
+        'value_type': 'int',
+        'is_score': True,
+        'is_percentage': False,
+        'is_conversion': True,
+        'average_value': 1234
+      },
       features=[
         {'name': 'purchase', 'source': 'FIRST_PARTY'},
         {'name': 'request_for_info', 'source': 'FIRST_PARTY'}
@@ -483,7 +464,7 @@ class TestCompiler(absltest.TestCase):
 
     # Probability check
     self.assertIn(
-      '(SELECT prob FROM UNNEST(predicted_label_probs) WHERE label = 1) AS probability,',
+      '(SELECT prob FROM UNNEST(predicted_label_probs)) AS probability,',
       sql,
       'Probability not found in select when selecting from ML.PREDICT.'
     )
@@ -509,7 +490,7 @@ class TestCompiler(absltest.TestCase):
 
     # label check
     self.assertIn(
-      'fp.subscription AS label,',
+      'fp.premium_subscription AS label,',
       sql,
       'First party label check failed.')
 
@@ -526,16 +507,15 @@ class TestCompiler(absltest.TestCase):
     test_model = self.model_config(
       type='BOOSTED_TREE_CLASSIFIER',
       uses_first_party_data=False,
-      labels=[
-        {
-          'type': 'PRIMARY',
-          'name': 'subscription',
-          'source': 'GOOGLE_ANALYTICS',
-          'key': 'value',
-          'value_type': 'string',
-          'output_type': 'SCORE_AS_DECIMAL'
-        }
-      ],
+      label={
+        'name': 'subscription',
+        'source': 'GOOGLE_ANALYTICS',
+        'key': 'value',
+        'value_type': 'string',
+        'is_score': True,
+        'is_percentage': False,
+        'is_conversion': False
+      },
       features=[
         {'name': 'click', 'source': 'GOOGLE_ANALYTICS'},
         {'name': 'scroll', 'source': 'GOOGLE_ANALYTICS'}
@@ -582,21 +562,16 @@ class TestCompiler(absltest.TestCase):
     test_model = self.model_config(
       type='BOOSTED_TREE_REGRESSOR',
       uses_first_party_data=True,
-      labels=[
-        {
-          'type': 'PRIMARY',
-          'name': 'purchase',
-          'source': 'GOOGLE_ANALYTICS',
-          'key': 'value',
-          'value_type': 'string,int',
-          'output_type': 'SCORE_AS_PERCENTAGE'
-        },
-        {
-          'type': 'CONVERSION',
-          'name': 'subscribe',
-          'source': 'FIRST_PARTY'
-        }
-      ],
+      label={
+        'name': 'purchase',
+        'source': 'GOOGLE_ANALYTICS',
+        'key': 'value',
+        'value_type': 'string,int',
+        'is_score': True,
+        'is_percentage': True,
+        'is_conversion': True,
+        'average_value': 1234
+      },
       features=[
         {'name': 'click', 'source': 'GOOGLE_ANALYTICS'},
         {'name': 'subscribe', 'source': 'FIRST_PARTY'}
@@ -642,13 +617,13 @@ class TestCompiler(absltest.TestCase):
     # conversion label check
     self.assertRegex(
       sql,
-      re.escape('(SUM(subscribe) / COUNT(1)) * 1000 AS value'),
+      re.escape('(SUM(purchase) / COUNT(normalized_score)) * 1234 AS value'),
       'Failed conversion label check within conversion rate calculation step.')
 
     self.assertRegex(
       sql,
       r'[\s\S]+'.join([
-        re.escape('p.subscribe,'),
+        re.escape('p.purchase,'),
         re.escape('FROM `test-project-id-1234.test-dataset.predictions`')
       ]),
       'Failed conversion label check within prediction preparation step.')
@@ -671,16 +646,15 @@ class TestCompiler(absltest.TestCase):
     test_model = self.model_config(
       type='BOOSTED_TREE_REGRESSOR',
       uses_first_party_data=True,
-      labels=[
-        {
-          'type': 'PRIMARY',
-          'name': 'purchase',
-          'source': 'GOOGLE_ANALYTICS',
-          'key': 'value',
-          'value_type': 'int',
-          'output_type': 'SCORE_AS_PERCENTAGE'
-        }
-      ],
+      label={
+        'name': 'purchase',
+        'source': 'GOOGLE_ANALYTICS',
+        'key': 'value',
+        'value_type': 'int',
+        'is_score': True,
+        'is_percentage': True,
+        'is_conversion': False
+      },
       features=[
         {'name': 'click', 'source': 'GOOGLE_ANALYTICS'},
         {'name': 'subscribe', 'source': 'FIRST_PARTY'}
@@ -712,16 +686,15 @@ class TestCompiler(absltest.TestCase):
     test_model = self.model_config(
       type='BOOSTED_TREE_REGRESSOR',
       uses_first_party_data=True,
-      labels=[
-        {
-          'type': 'PRIMARY',
-          'name': 'purchase',
-          'source': 'GOOGLE_ANALYTICS',
-          'key': 'value',
-          'value_type': 'int',
-          'output_type': 'SCORE_AS_DECIMAL'
-        }
-      ],
+      label={
+        'name': 'purchase',
+        'source': 'GOOGLE_ANALYTICS',
+        'key': 'value',
+        'value_type': 'int',
+        'is_score': True,
+        'is_percentage': False,
+        'is_conversion': False
+      },
       features=[
         {'name': 'click', 'source': 'GOOGLE_ANALYTICS'},
         {'name': 'subscribe', 'source': 'FIRST_PARTY'}
@@ -753,14 +726,15 @@ class TestCompiler(absltest.TestCase):
     test_model = self.model_config(
       type='BOOSTED_TREE_REGRESSOR',
       uses_first_party_data=True,
-      labels=[{
-        'type': 'PRIMARY',
+      label={
         'name': 'purchase',
         'source': 'GOOGLE_ANALYTICS',
         'key': 'value',
-        'value_type': 'string,int',
-        'output_type': 'REVENUE'
-      }],
+        'value_type': 'float',
+        'is_score': False,
+        'is_revenue': True,
+        'is_conversion': False
+      },
       features=[
         {'name': 'click', 'source': 'GOOGLE_ANALYTICS'},
         {'name': 'subscribe', 'source': 'FIRST_PARTY'}
@@ -819,14 +793,15 @@ class TestCompiler(absltest.TestCase):
     test_model = self.model_config(
       type='BOOSTED_TREE_REGRESSOR',
       uses_first_party_data=False,
-      labels=[{
-        'type': 'PRIMARY',
+      label={
         'name': 'purchase',
         'source': 'GOOGLE_ANALYTICS',
         'key': 'value',
-        'value_type': 'string,int',
-        'output_type': 'REVENUE'
-      }],
+        'value_type': 'float',
+        'is_score': False,
+        'is_revenue': True,
+        'is_conversion': False
+      },
       features=[],
       skew_factor=0)
 
@@ -862,14 +837,15 @@ class TestCompiler(absltest.TestCase):
     test_model = self.model_config(
       type='BOOSTED_TREE_REGRESSOR',
       uses_first_party_data=True,
-      labels=[{
-        'type': 'PRIMARY',
+      label={
         'name': 'purchase',
-        'source': 'FIRST_PARTY',
+        'source': 'GOOGLE_ANALYTICS',
         'key': 'value',
-        'value_type': 'string,int',
-        'output_type': 'SCORE_AS_PERCENTAGE'
-      }],
+        'value_type': 'float',
+        'is_score': True,
+        'is_percentage': True,
+        'is_conversion': False
+      },
       features=[],
       skew_factor=0)
 
@@ -911,14 +887,15 @@ class TestCompiler(absltest.TestCase):
     test_model = self.model_config(
       type='BOOSTED_TREE_REGRESSOR',
       uses_first_party_data=True,
-      labels=[{
-        'type': 'PRIMARY',
-        'name': 'purchase_price',
-        'source': 'FIRST_PARTY',
+      label={
+        'name': 'purchase',
+        'source': 'GOOGLE_ANALYTICS',
         'key': 'value',
-        'value_type': 'string,int',
-        'output_type': 'REVENUE'
-      }],
+        'value_type': 'float',
+        'is_score': False,
+        'is_revenue': True,
+        'is_conversion': False
+      },
       features=[],
       skew_factor=0)
 
@@ -946,6 +923,7 @@ class TestCompiler(absltest.TestCase):
               "name": "${event_name}",
               "params": {
                 "type": "${type}",
+                "value": "${value}",
                 "revenue": "${revenue}"
               }
             }
@@ -954,7 +932,7 @@ class TestCompiler(absltest.TestCase):
       """,
       'Failed template check.')
 
-  def model_config(self, type: str, uses_first_party_data: bool, labels: list[dict],
+  def model_config(self, type: str, uses_first_party_data: bool, label: dict,
                    features: list[dict], skew_factor: int):
     return self.convert_to_object({
       'name': 'Test Model',
@@ -971,7 +949,7 @@ class TestCompiler(absltest.TestCase):
         {'name': 'HP4-NAME', 'value': 'true'},
         {'name': 'HP5-NAME', 'value': 'false'}
       ],
-      'labels': labels,
+      'label': label,
       'features': features,
       'skew_factor': skew_factor,
       'timespans': [
