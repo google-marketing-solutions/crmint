@@ -815,6 +815,145 @@ class TestCompiler(absltest.TestCase):
       sql,
       'Failed user id check within prediction preparation step.')
 
+  def test_build_ga4_request(self):
+    test_model = self.model_config(
+      type='BOOSTED_TREE_REGRESSOR',
+      uses_first_party_data=False,
+      labels=[{
+        'type': 'PRIMARY',
+        'name': 'purchase',
+        'source': 'GOOGLE_ANALYTICS',
+        'key': 'value',
+        'value_type': 'string,int',
+        'output_type': 'REVENUE'
+      }],
+      features=[],
+      skew_factor=0)
+
+    pipeline = compiler.build_predictive_pipeline(
+      test_model, 'test-project-id-1234', 'test-ga4-dataset-loc', 'test-ga4-measurement-id', 'test-ga4-api-secret')
+    self.assertEqual(pipeline['name'], 'Test Model - Predictive')
+
+    upload_job = next(job for job in pipeline['jobs'] if job['name'] == 'Test Model - Predictive GA4 Upload')
+    self.assertIsNotNone(upload_job)
+    params = upload_job['params']
+
+    # big-query dataset id check
+    dataset_id_param = next(param for param in params if param['name'] == 'bq_dataset_id')
+    self.assertIsNotNone(dataset_id_param)
+    self.assertEqual(dataset_id_param['value'], 'test-dataset')
+
+    # big-query dataset location check
+    dataset_loc_param = next(param for param in params if param['name'] == 'bq_dataset_location')
+    self.assertIsNotNone(dataset_loc_param)
+    self.assertEqual(dataset_loc_param['value'], 'US')
+
+    # ga4 measurement id check
+    measurement_id_param = next(param for param in params if param['name'] == 'measurement_id')
+    self.assertIsNotNone(measurement_id_param)
+    self.assertEqual(measurement_id_param['value'], 'test-ga4-measurement-id')
+
+    # ga4 api secret check
+    api_secret_param = next(param for param in params if param['name'] == 'api_secret')
+    self.assertIsNotNone(api_secret_param)
+    self.assertEqual(api_secret_param['value'], 'test-ga4-api-secret')
+
+  def test_build_ga4_request_score(self):
+    test_model = self.model_config(
+      type='BOOSTED_TREE_REGRESSOR',
+      uses_first_party_data=True,
+      labels=[{
+        'type': 'PRIMARY',
+        'name': 'purchase',
+        'source': 'FIRST_PARTY',
+        'key': 'value',
+        'value_type': 'string,int',
+        'output_type': 'SCORE_AS_PERCENTAGE'
+      }],
+      features=[],
+      skew_factor=0)
+
+    pipeline = compiler.build_predictive_pipeline(
+      test_model, 'test-project-id-1234', 'test-ga4-dataset-loc', 'test-ga4-measurement-id', 'test-ga4-api-secret')
+    self.assertEqual(pipeline['name'], 'Test Model - Predictive')
+
+    upload_job = next(job for job in pipeline['jobs'] if job['name'] == 'Test Model - Predictive GA4 Upload')
+    self.assertIsNotNone(upload_job)
+    params = upload_job['params']
+
+    # template check
+    template_param = next(param for param in params if param['name'] == 'template')
+    self.assertIsNotNone(template_param)
+
+    self.assertJsonEqual(
+      template_param['value'],
+      r"""
+        {
+          "clientId": "${client_id}",
+          "userId": "${user_id}",
+          "nonPersonalizedAds": false,
+          "events": [
+            {
+              "name": "${event_name}",
+              "params": {
+                "type": "${type}",
+                "value": "${value}",
+                "score": "${score}",
+                "nscore": "${normalized_score}"
+              }
+            }
+          ]
+        }
+      """,
+      'Failed template check.')
+
+  def test_build_ga4_request_revenue(self):
+    test_model = self.model_config(
+      type='BOOSTED_TREE_REGRESSOR',
+      uses_first_party_data=True,
+      labels=[{
+        'type': 'PRIMARY',
+        'name': 'purchase_price',
+        'source': 'FIRST_PARTY',
+        'key': 'value',
+        'value_type': 'string,int',
+        'output_type': 'REVENUE'
+      }],
+      features=[],
+      skew_factor=0)
+
+    pipeline = compiler.build_predictive_pipeline(
+      test_model, 'test-project-id-1234', 'test-ga4-dataset-loc', 'test-ga4-measurement-id', 'test-ga4-api-secret')
+    self.assertEqual(pipeline['name'], 'Test Model - Predictive')
+
+    upload_job = next(job for job in pipeline['jobs'] if job['name'] == 'Test Model - Predictive GA4 Upload')
+    self.assertIsNotNone(upload_job)
+    params = upload_job['params']
+
+    # template check
+    template_param = next(param for param in params if param['name'] == 'template')
+    self.assertIsNotNone(template_param)
+
+    self.assertJsonEqual(
+      template_param['value'],
+      r"""
+        {
+          "clientId": "${client_id}",
+          "userId": "${user_id}",
+          "nonPersonalizedAds": false,
+          "events": [
+            {
+              "name": "${event_name}",
+              "params": {
+                "type": "${type}",
+                "revenue": "${revenue}"
+              }
+            }
+          ]
+        }
+      """,
+      'Failed template check.')
+
   def model_config(self, type: str, uses_first_party_data: bool, labels: list[dict],
                    features: list[dict], skew_factor: int):
     return self.convert_to_object({
