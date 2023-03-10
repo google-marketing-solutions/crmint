@@ -4,7 +4,6 @@ from datetime import date
 from enum import Enum
 from uuid import uuid4 as uuid
 from jinja2 import Template, StrictUndefined
-from typing import Union
 
 class TemplateFile(Enum):
   TRAINING = 'training.sql'
@@ -23,6 +22,10 @@ class ClassificationType(Enum):
   DNN_CLASSIFIER = 'DNN_CLASSIFIER'
   RANDOM_FOREST_CLASSIFIER = 'RANDOM_FOREST_CLASSIFIER'
   LOGISTIC_REG = 'LOGISTIC_REG'
+
+class UniqueId(str, Enum):
+  USER_ID = 'USER_ID'
+  CLIENT_ID = 'CLIENT_ID'
 
 class Timespan():
   TRAINING: str = 'training'
@@ -176,8 +179,13 @@ def _compile_template(ml_model, project_id: str, ga4_dataset: str, templateFile:
     'project_id': project_id,
     'model_dataset': ml_model.bigquery_dataset.name,
     'ga4_dataset': ga4_dataset,
-    'type': ml_model.type,
+    'type': {
+      'name': ml_model.type,
+      'regression': _is_regression(ml_model.type),
+      'classification': _is_classification(ml_model.type),
+    },
     'uses_first_party_data': ml_model.uses_first_party_data,
+    'unique_id': _get_unique_id(ml_model.unique_id),
     'hyper_parameters': ml_model.hyper_parameters,
     'timespan': _get_timespan(ml_model.timespans, 'month'),
     'label': ml_model.label,
@@ -187,9 +195,7 @@ def _compile_template(ml_model, project_id: str, ga4_dataset: str, templateFile:
 
   functions = {
     'is_number': _is_number,
-    'is_bool': _is_bool,
-    'is_regression': _is_regression,
-    'is_classification': _is_classification
+    'is_bool': _is_bool
   }
 
   template = _get_template(templateFile)
@@ -220,6 +226,13 @@ def _get_timespan(timespans: list, unit: str) -> Timespan:
         ts.predictive = timespan.value
 
   return ts
+
+def _get_unique_id(type: UniqueId) -> str:
+  """Get the actual unique identifier column name based on unique id type."""
+  if type == UniqueId.USER_ID:
+    return 'user_id'
+  if type == UniqueId.CLIENT_ID:
+    return 'user_pseudo_id'
 
 def _is_number(value: str) -> bool:
   """Checks a string value to determine if it's a number."""

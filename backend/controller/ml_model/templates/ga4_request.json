@@ -1,6 +1,6 @@
 {
   "clientId": "${client_id}",
-  {% if uses_first_party_data %}
+  {% if unique_id == 'user_id' %}
   "userId": "${user_id}",
   {% endif %}
   "nonPersonalizedAds": false,

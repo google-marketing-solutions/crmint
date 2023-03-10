@@ -8,7 +8,7 @@ CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.output` AS (
   ),
   events AS (
     SELECT DISTINCT
-      user_pseudo_id,
+      {{unique_id}},
       event_name AS name
       event_params AS params
     FROM `{{project_id}}.{{ga4_dataset}}.events_*`
@@ -16,22 +16,22 @@ CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.output` AS (
   ),
   users_with_score AS (
     SELECT DISTINCT
-      user_pseudo_id
+      {{unique_id}}
     FROM events, UNNEST(params) AS params
     WHERE name = 'prop_score'
     AND params.value.string_value = 'Predicted_Value'
   ),
   users_without_score AS (
     SELECT DISTINCT
-      user_pseudo_id
+      {{unique_id}}
     FROM events
-    WHERE user_pseudo_id NOT IN (
-      SELECT user_pseudo_id FROM users_with_score)
+    WHERE {{unique_id}} NOT IN (
+      SELECT {{unique_id}} FROM users_with_score)
   ),
   {% if label.is_score %}
   prepared_predictions AS (
     SELECT DISTINCT
-      {% if uses_first_party_data %}
+      {% if unique_id == 'user_id' %}
       p.user_id,
       {% endif %}
       p.user_pseudo_id AS client_id,
@@ -43,9 +43,9 @@ CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.output` AS (
       p.predicted_label * {{ 100 if label.is_percentage else 1 }} AS score,
       NTILE(10) OVER (ORDER BY p.predicted_label ASC) AS normalized_score
     FROM `{{project_id}}.{{model_dataset}}.predictions` p
-    INNER JOIN users_without_score ws
-    ON p.user_pseudo_id = ws.user_pseudo_id
-    GROUP BY 1,2,3{% if uses_first_party_data %},4{% endif %}
+    INNER JOIN users_without_score wos
+    ON p.{{unique_id}} = wos.{{unique_id}}
+    GROUP BY 1,2,3{% if unique_id == 'user_id' %},4{% endif %}
     ORDER BY score DESC
   ),
   {% if label.is_conversion %}
@@ -60,15 +60,15 @@ CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.output` AS (
   {% elif label.is_revenue %}
   prepared_predictions AS (
     SELECT DISTINCT
-      {% if uses_first_party_data %}
+      {% if unique_id == 'user_id' %}
       p.user_id,
       {% endif %}
       p.user_pseudo_id AS client_id,
       p.predicted_label AS value,
       p.predicted_label AS revenue
     FROM `{{project_id}}.{{model_dataset}}.predictions` p
-    INNER JOIN users_without_score ws
-    ON p.user_pseudo_id = ws.user_pseudo_id
+    INNER JOIN users_without_score wos
+    ON p.{{unique_id}} = wos.{{unique_id}}
     ORDER BY revenue DESC
   ),
   {% endif %}

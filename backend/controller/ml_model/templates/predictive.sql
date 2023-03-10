@@ -1,10 +1,10 @@
 CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.predictions` AS (
   SELECT
-    {% if uses_first_party_data %}
+    {% if unique_id == 'user_id' %}
     user_id,
     {% endif %}
     user_pseudo_id,
-    {% if is_classification(type) %}
+    {% if type.classification %}
     (SELECT prob FROM UNNEST(predicted_label_probs)) AS probability,
     {% if label.is_conversion %}
     {{label.name}},
@@ -17,6 +17,7 @@ CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.predictions` AS (
         event_timestamp AS timestamp,
         event_name AS name,
         event_params AS params,
+        user_id,
         user_pseudo_id,
         geo.country AS country,
         geo.city AS city,
@@ -35,6 +36,9 @@ CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.predictions` AS (
       SELECT * EXCEPT(row_num)
       FROM (
         SELECT
+          {% if unique_id == 'user_id' %}
+          user_id,
+          {% endif %}
           user_pseudo_id,
           country,
           city,
@@ -53,7 +57,7 @@ CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.predictions` AS (
             WHEN first_touch_hour >= 19 AND first_touch_hour < 22 THEN "evening_19_23"
             WHEN first_touch_hour >= 22 OR first_touch_hour = 0 THEN "latenight_23_1"
           END AS daypart,
-          ROW_NUMBER() OVER (PARTITION BY user_pseudo_id ORDER BY timestamp ASC) AS row_num
+          ROW_NUMBER() OVER (PARTITION BY {{unique_id}} ORDER BY timestamp ASC) AS row_num
         FROM events
         WHERE name = "user_engagement"
       )
@@ -63,13 +67,13 @@ CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.predictions` AS (
     {% if label.source == 'GOOGLE_ANALYTICS' %}
     analytics_variables AS (
       SELECT
-        fe.user_pseudo_id,
+        fe.{{unique_id}},
         IFNULL(l.label, 0) AS label,
         l.date
       FROM first_engagement fe
       LEFT OUTER JOIN (
         SELECT
-          user_pseudo_id,
+          {{unique_id}},
           1 AS label,
           MIN(date) AS date,
         FROM events AS e, UNNEST(params) AS params
@@ -80,16 +84,15 @@ CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.predictions` AS (
         {% else %}
         AND COALESCE(params.value.int_value, params.value.float_value, params.value.double_value, 0) > 0
         {% endif %}
-        GROUP BY user_pseudo_id
+        GROUP BY 1
       ) l
-      ON fe.user_pseudo_id = l.user_pseudo_id
+      ON fe.{{unique_id}} = l.{{unique_id}}
     ),
     {% endif %}
     {% if uses_first_party_data %}
     user_variables AS (
       SELECT
-        fp.user_id,
-        fp.user_pseudo_id,
+        fp.{{unique_id}},
         fp.event_name,
         -- inject the selected first party features
         {% for feature in features %}
@@ -109,7 +112,7 @@ CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.predictions` AS (
       FROM `{{project_id}}.{{model_dataset}}.first_party` fp
       {% if label.source == 'GOOGLE_ANALYTICS' %}
       LEFT OUTER JOIN analytics_variables av
-      ON fp.user_pseudo_id = av.user_pseudo_id
+      ON fp.{{unique_id}} = av.{{unique_id}}
       {% endif %}
     ),
     {% else %}
@@ -119,7 +122,7 @@ CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.predictions` AS (
     {% endif %}
     user_aggregate_behavior AS (
       SELECT
-        user_pseudo_id,
+        {{unique_id}},
         SUM((SELECT value.int_value FROM UNNEST(params) WHERE key = "engagement_time_msec")) AS engagement_time,
         SUM(IF(name = "user_engagement", 1, 0)) AS cnt_user_engagement,
         -- inject the selected google analytics features
@@ -131,24 +134,24 @@ CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.predictions` AS (
         SUM(IF(name = "page_view", 1, 0)) AS cnt_page_view
       FROM events AS e
       INNER JOIN user_variables AS uv
-        ON e.user_pseudo_id = uv.user_pseudo_id
+        ON e.{{unique_id}} = uv.{{unique_id}}
       WHERE (uv.label = 1 AND e.date <= uv.trigger_event_date)
       OR uv.label = 0
-      GROUP BY user_pseudo_id
+      GROUP BY 1
     ),
     SELECT
       fv.*,
       {% if label.is_conversion %}
       uv.label AS {{label.name}},
       {% endif %}
-      uab.* EXCEPT (user_pseudo_id),
-      uv.* EXCEPT(user_pseudo_id, trigger_event_date)
+      uab.* EXCEPT ({{unique_id}}),
+      uv.* EXCEPT({{unique_id}}, trigger_event_date)
     FROM first_values AS fv
     INNER JOIN user_aggregate_behavior AS uab
-    ON fv.user_pseudo_id = uab.user_pseudo_id
+    ON fv.{{unique_id}} = uab.{{unique_id}}
     INNER JOIN user_variables AS uv
-    ON fv.user_pseudo_id = uv.user_pseudo_id
-    {% if is_classification(type) %}
+    ON fv.{{unique_id}} = uv.{{unique_id}}
+    {% if type.classification %}
     WHERE label = 1
     {% endif %}
   ))

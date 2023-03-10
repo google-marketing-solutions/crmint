@@ -434,6 +434,7 @@ class TestCompiler(absltest.TestCase):
     test_model = self.model_config(
       type='BOOSTED_TREE_CLASSIFIER',
       uses_first_party_data=True,
+      unique_id='USER_ID',
       label={
         'name': 'premium_subscription',
         'source': 'FIRST_PARTY',
@@ -478,15 +479,16 @@ class TestCompiler(absltest.TestCase):
       ]),
       'Conversion label check failed.')
 
-    # user id check
+    # user ids check
     self.assertRegex(
       sql,
       r'[\s\S]+'.join([
         'SELECT',
         'user_id,',
+        'user_pseudo_id,',
         re.escape('ML.PREDICT')
       ]),
-      'User id check failed.')
+      'User ids check failed.')
 
     # label check
     self.assertIn(
@@ -562,6 +564,7 @@ class TestCompiler(absltest.TestCase):
     test_model = self.model_config(
       type='BOOSTED_TREE_REGRESSOR',
       uses_first_party_data=True,
+      unique_id='USER_ID',
       label={
         'name': 'purchase',
         'source': 'GOOGLE_ANALYTICS',
@@ -726,6 +729,7 @@ class TestCompiler(absltest.TestCase):
     test_model = self.model_config(
       type='BOOSTED_TREE_REGRESSOR',
       uses_first_party_data=True,
+      unique_id='USER_ID',
       label={
         'name': 'purchase',
         'source': 'GOOGLE_ANALYTICS',
@@ -837,6 +841,7 @@ class TestCompiler(absltest.TestCase):
     test_model = self.model_config(
       type='BOOSTED_TREE_REGRESSOR',
       uses_first_party_data=True,
+      unique_id='USER_ID',
       label={
         'name': 'purchase',
         'source': 'GOOGLE_ANALYTICS',
@@ -887,6 +892,7 @@ class TestCompiler(absltest.TestCase):
     test_model = self.model_config(
       type='BOOSTED_TREE_REGRESSOR',
       uses_first_party_data=True,
+      unique_id='USER_ID',
       label={
         'name': 'purchase',
         'source': 'GOOGLE_ANALYTICS',
@@ -933,7 +939,7 @@ class TestCompiler(absltest.TestCase):
       'Failed template check.')
 
   def model_config(self, type: str, uses_first_party_data: bool, label: dict,
-                   features: list[dict], skew_factor: int):
+                   features: list[dict], skew_factor: int, unique_id: str = 'CLIENT_ID'):
     return self.convert_to_object({
       'name': 'Test Model',
       'bigquery_dataset': {
@@ -942,6 +948,7 @@ class TestCompiler(absltest.TestCase):
       },
       'type': type,
       'uses_first_party_data': uses_first_party_data,
+      'unique_id': unique_id,
       'hyper_parameters': [
         {'name': 'HP1-NAME', 'value': 'HP1-STRING'},
         {'name': 'HP2-NAME', 'value': '1'},
