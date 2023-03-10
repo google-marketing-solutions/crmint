@@ -15,7 +15,7 @@
 import { Component, OnInit } from '@angular/core';
 import {
   UntypedFormGroup, UntypedFormBuilder, UntypedFormArray,
-  Validators, ValidatorFn, ValidationErrors, AbstractControl
+  Validators, ValidatorFn, ValidationErrors, AbstractControl, UntypedFormControl
 } from '@angular/forms';
 import { Router, ActivatedRoute } from '@angular/router';
 import { plainToClass } from 'class-transformer';
@@ -40,6 +40,8 @@ export class MlModelFormComponent implements OnInit {
   variables: Variable[] = [];
   optionDescriptions: boolean = false;
   fetchingVariables: boolean = false;
+
+  // TODO: Why is it not valid when the entire form is filled out?
 
   constructor(
     private _fb: UntypedFormBuilder,
@@ -71,7 +73,12 @@ export class MlModelFormComponent implements OnInit {
         name: ['', [Validators.required, Validators.pattern(/^[a-z][a-z0-9_-]*$/i)]],
         source: ['', [Validators.required, Validators.pattern(/^[A-Z_]*$/i)]],
         key: ['', [Validators.required, Validators.pattern(/^[a-z][a-z0-9_-]*$/i)]],
-        valueType: ['', Validators.pattern(/^[a-z]*$/i)]
+        valueType: ['', Validators.pattern(/^[a-z]*$/i)],
+        isRevenue: [null, Validators.required],
+        isScore: [null, Validators.required],
+        isPercentage: [false, Validators.required],
+        isConversion: [false, Validators.required],
+        averageValue: [0.0, Validators.required]
       }),
       skewFactor: [4, [Validators.required, Validators.min(0), Validators.max(10)]],
       timespans: this._fb.array([])
@@ -127,7 +134,12 @@ export class MlModelFormComponent implements OnInit {
         name: this.mlModel.label.name,
         source: this.mlModel.label.source,
         key: this.mlModel.label.key,
-        valueType: this.mlModel.label.value_type
+        valueType: this.mlModel.label.value_type,
+        isRevenue: this.mlModel.label.is_revenue,
+        isScore: this.mlModel.label.is_score,
+        isPercentage: this.mlModel.label.is_percentage,
+        isConversion: this.mlModel.label.is_conversion,
+        averageValue: this.mlModel.label.average_value
       },
       skewFactor: this.mlModel.skew_factor
     });
@@ -174,6 +186,7 @@ export class MlModelFormComponent implements OnInit {
 
       label.parameters = variable.parameters;
       label.source = variable.source;
+      label.isFirstParty = variable.source === Source.FIRST_PARTY;
 
       if (label.key) {
         const keyParameter = variable.parameters.find(param => param.key === label.key);
@@ -213,12 +226,12 @@ export class MlModelFormComponent implements OnInit {
   /**
    * Helper to quickly identify whether or not a feature has been selected/checked.
    *
-   * @param {Feature} feature The feature to verify if selected.
+   * @param {Variable} variable The variable to check if selected as a feature.
    * @returns {boolean} Whether or not the feature provided was selected/checked.
    */
-  featureSelected(feature: Feature): boolean {
+  featureSelected(variable: Variable): boolean {
     const features: Feature[] = this.features.value;
-    const exists = features.find(f => f.name === feature.name && f.source === feature.source);
+    const exists = features.find(f => f.name === variable.name && f.source === variable.source);
     return exists ? true : false;
   }
 
@@ -251,7 +264,8 @@ export class MlModelFormComponent implements OnInit {
 
   /**
    * Resets label name and key in the event an update to the available labels cases the currently
-   * selected label to no longer be available.
+   * selected label to no longer be available. Also resets output settings based on whether the
+   * label is considered a score or revenue.
    */
   refreshLabel() {
     const labels = this.labels;
@@ -259,6 +273,12 @@ export class MlModelFormComponent implements OnInit {
 
     const nameField = this.mlModelForm.get(['label', 'name']);
     const keyField = this.mlModelForm.get(['label', 'key']);
+    const sourceField = this.mlModelForm.get(['label', 'source']);
+    const valueTypeField = this.mlModelForm.get(['label', 'valueType']);
+    const isRevenueField = this.mlModelForm.get(['label', 'isRevenue']);
+    const isPercentageField = this.mlModelForm.get(['label', 'isPercentage']);
+    const isConversionField = this.mlModelForm.get(['label', 'isConversion']);
+    const averageValueField = this.mlModelForm.get(['label', 'averageValue']);
 
     if (!labels.find(label => label.name === nameField.value)) {
       nameField.setValue('');
@@ -266,6 +286,9 @@ export class MlModelFormComponent implements OnInit {
     }
 
     if (label.name) {
+      // set source automatically in the form based on label selected.
+      sourceField.setValue(label.source);
+
       // if the selected key is not available anymore due to label change then unset it.
       if (!label.parameters.find(param => param.key === label.key)) {
         keyField.setValue('');
@@ -274,6 +297,21 @@ export class MlModelFormComponent implements OnInit {
       // if there's only one option auto-select and disable the field otherwise make sure the field is enabled.
       if (label.parameters.length === 1) {
         keyField.setValue(label.parameters[0].key);
+      }
+
+      // most option fields are related to the ouput being a score so update accordingly.
+      if (label.isScore) {
+        isRevenueField.setValue(false);
+      } else {
+        isRevenueField.setValue(true);
+        isPercentageField.setValue(false);
+        isConversionField.setValue(false);
+        averageValueField.setValue(0.0);
+      }
+
+      // set value type automatically in the form based on label and key selected.
+      if (label.key) {
+        valueTypeField.setValue(label.valueType);
       }
     }
   }
@@ -335,8 +373,23 @@ export class MlModelFormComponent implements OnInit {
     this.mlModel.unique_id = formModel.uniqueId as UniqueId;
     this.mlModel.uses_first_party_data = formModel.usesFirstPartyData as boolean;
     this.mlModel.hyper_parameters = formModel.hyperParameters as HyperParameter[];
-    this.mlModel.features = formModel.features as Feature[];
-    this.mlModel.label = formModel.label as Label;
+    this.mlModel.features = formModel.features.map(feature => {
+      return {
+        name: feature.name,
+        source: feature.source
+      }
+    });
+    this.mlModel.label = {
+      name: formModel.label.name as string,
+      source: formModel.label.source as Source,
+      key: formModel.label.key as string,
+      value_type: formModel.label.valueType as string,
+      is_revenue: formModel.label.isRevenue as boolean,
+      is_score: formModel.label.isScore as boolean,
+      is_percentage: formModel.label.isPercentage as boolean,
+      is_conversion: formModel.label.isConversion as boolean,
+      average_value: parseFloat(formModel.label.averageValue)
+    } as Label;
     this.mlModel.skew_factor = formModel.skewFactor as number;
     this.mlModel.timespans = formModel.timespans as Timespan[];
   }

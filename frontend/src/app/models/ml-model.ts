@@ -75,14 +75,19 @@ export class HyperParameter {
 
 export class Feature {
   name: string
-  source: string
+  source: Source
 }
 
 export class Label {
   name: string
-  source: string
+  source: Source
   key: string
   value_type: string
+  is_revenue: boolean
+  is_score: boolean
+  is_percentage: boolean
+  is_conversion: boolean
+  average_value: number
 }
 
 class Parameter {
@@ -290,18 +295,8 @@ export class MlModel {
           };
         }
       }),
-      features: this.features.map(feature => {
-        return {
-          name: feature.name,
-          source: feature.source
-        };
-      }),
-      label: {
-        name: this.label.name,
-        key: this.label.key,
-        value_type: this.label.value_type,
-        source: this.label.source
-      },
+      features: this.features,
+      label: this.label,
       skew_factor: this.skew_factor,
       timespans: this.timespans.map(timespan => {
         return {

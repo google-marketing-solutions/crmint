@@ -38,7 +38,6 @@
           <label class="crmi-form-label">Data Source</label>
           <mat-select formControlName="usesFirstPartyData"
                       placeholder="Source"
-                      class="vertical-group"
                       (change)="updateLabelKeyValidator()">
             <mat-option [value]="false">Google Analytics 4</mat-option>
             <mat-option [value]="true">Google Analytics 4 <strong>and</strong> First-Party Data</mat-option>
@@ -142,23 +141,46 @@
           </div>
         </div>
 
-        <div *ngIf="variables.length" formGroupName="label" class="crmi-form-group">
+        <div *ngIf="variables.length" formGroupName="label" id='label' class="crmi-form-group">
           <label class="crmi-form-label">Label</label>
-          <mat-select formControlName="name" placeholder="Label"
-                      (selectionChange)="refreshLabel(); removeOptionDescriptions()"
-                      (clickOutside)="removeOptionDescriptions()"
-                      (opened)="addOptionDescriptions()">
-            <mat-option *ngFor="let label of labels" [value]="label.name">
-              {{ label.name }} <span *ngIf="optionDescriptions" class="option-description">{{ capitalize(label.source) }}</span>
-            </mat-option>
-          </mat-select>
-          <mat-select *ngIf="label && label.parameters" formControlName="key" placeholder="Key">
-            <mat-option *ngFor="let parameter of label.parameters" [value]="parameter.key">
-              {{ parameter.key }}
-            </mat-option>
-          </mat-select>
-          <input type="hidden" formControlName="valueType" [value]="label.valueType">
-          <input type="hidden" formControlName="source" [value]="label.source">
+          <div class="vertical-group">
+            <div class="horizontal-group">
+              <mat-select formControlName="name" placeholder="Label"
+                          (selectionChange)="refreshLabel(); removeOptionDescriptions()"
+                          (clickOutside)="removeOptionDescriptions()"
+                          (opened)="addOptionDescriptions()">
+                <mat-option *ngFor="let label of labels" [value]="label.name">
+                  {{ label.name }} <span *ngIf="optionDescriptions" class="option-description">{{ capitalize(label.source) }}</span>
+                </mat-option>
+              </mat-select>
+              <mat-select *ngIf="label && label.parameters" formControlName="key" placeholder="Key"
+                          [class]="{hidden: label.isFirstParty}">
+                <mat-option *ngFor="let parameter of label.parameters" [value]="parameter.key">
+                  {{ parameter.key }}
+                </mat-option>
+              </mat-select>
+            </div>
+            <div *ngIf="label && label.name" class="vertical-group">
+              <strong>Output As</strong>
+              <mat-select placeholder="Type" formControlName="isScore" (selectionChange)="refreshLabel()">
+                <mat-option [value]="true">Score</mat-option>
+                <mat-option [value]="false">Revenue</mat-option>
+              </mat-select>
+              <div *ngIf="label.isScore" class="checkbox-group">
+                <mat-checkbox #checkbox formControlName="isPercentage"></mat-checkbox>
+                <span class="label">As Percentage</span>
+              </div>
+              <div *ngIf="label.isScore" class="checkbox-group">
+                <mat-checkbox #checkbox formControlName="isConversion"></mat-checkbox>
+                <span class="label">Include Conversion Rate</span>
+              </div>
+              <div *ngIf="label.isScore && label.isConversion" class="input-group">
+                <mat-form-field>
+                  <input matInput placeholder="Average Value" formControlName="averageValue">
+                </mat-form-field>
+              </div>
+            </div>
+          </div>
         </div>
 
         <div *ngIf="!variables.length" class="crmi-form-group">
@@ -180,7 +202,7 @@
 
         <div class="crmi-form-group">
           <label class="crmi-form-label">Skew Factor</label>
-          <mat-slider formControlName="skewFactor" [min]="1" [max]="10" [step]="1" [thumbLabel]="value('skewFactor')"></mat-slider>
+          <mat-slider formControlName="skewFactor" [min]="0" [max]="10" [step]="1" [thumbLabel]="value('skewFactor')"></mat-slider>
           <span>Reduce {{ value('skewFactor') }}x</span>
         </div>
 

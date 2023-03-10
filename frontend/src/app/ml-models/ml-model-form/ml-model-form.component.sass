@@ -51,6 +51,16 @@
   flex-direction: column
   .mat-radio-button
     margin-bottom: 10px
+  .checkbox-group
+    > *
+      display: inline-block
+      padding: 10px 10px 10px 0px
+    .label
+      text-transform: uppercase
+      font-size: 11px
+      color: rgba(0, 0, 0, 0.54)
+  .input-group
+    padding-top: 10px
   .select-group, .slider-group
     position: relative
     padding-top: 20px
@@ -84,6 +94,8 @@
     align-items: center
     .mat-slider
       margin-left: -8px
+    .label
+      top: 7px
 
 #features
   > div
@@ -108,6 +120,25 @@
     padding-bottom: 30px
     text-align: center
     text-transform: unset
+
+#label
+  .hidden
+    visibility: hidden
+    flex-grow: 0
+    width: 0px
+    margin: 0px
+    padding: 0px
+  .vertical-group
+    margin: 0px
+    width: 742px
+    max-width: 742px
+    strong
+      color: rgba(0, 0, 0, 0.7)
+      text-transform: uppercase
+      font-size: 11px
+      padding-left: 10px
+  .horizontal-group
+    display: flex
 
 button[type='submit']
   margin-top: 50px
