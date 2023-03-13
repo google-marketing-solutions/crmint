@@ -36,7 +36,6 @@ export class MlModelsService extends ApiService {
   }
 
   create(model) {
-    console.log(JSON.stringify(model)); // TODO(robertmcmahan): remove after testing.
     this.addContentTypeHeader();
     return this.http.post(this.url, JSON.stringify(model), this.options)
                     .toPromise()
@@ -57,7 +56,7 @@ export class MlModelsService extends ApiService {
                     .catch(this.handleError);
   }
 
-  getVariables() {
+  getVariables(model) {
     // TODO(robertmcmahan): Change to pull from backend after testing.
     return new Promise(resolve => setTimeout(() => resolve([
       {

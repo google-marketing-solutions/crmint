@@ -91,29 +91,27 @@ export class MlModelFormComponent implements OnInit {
    */
   ngOnInit() {
     this.route.params.subscribe(params => {
-      let requests = [];
-
       const id = params['id'];
       if (id) {
-        const mlModelRequest = this.mlModelsService.get(id)
+        this.mlModelsService.get(id)
           .then(mlModel => {
             this.mlModel = plainToClass(MlModel, mlModel as MlModel);
+            return this.fetchVariables();
+          })
+          .then(() => {
             this.assignMlModelToForm();
+            this.state = 'loaded';
+          })
+          .catch(response => {
+            if (response.status === 404) {
+              this.router.navigate(['ml-models']);
+            } else {
+              this.state = 'error';
+            }
           });
-          requests.push(mlModelRequest);
       } else {
         this.setTimespans();
       }
-
-      Promise.all(requests)
-        .then(() => this.state = 'loaded')
-        .catch(response => {
-          if (response.status === 404) {
-            this.router.navigate(['ml-models']);
-          } else {
-            this.state = 'error';
-          }
-        });
     });
   }
 
@@ -203,7 +201,7 @@ export class MlModelFormComponent implements OnInit {
    */
   fetchVariables() {
     this.fetchingVariables = true;
-    this.mlModelsService.getVariables()
+    return this.mlModelsService.getVariables(this.mlModel)
       .then(variables => this.variables = plainToClass(Variable, variables as Variable[]))
       .catch(response => {
         this.errorMessage = response || 'An error occurred';
