@@ -111,6 +111,7 @@ export class MlModelFormComponent implements OnInit {
           });
       } else {
         this.setTimespans();
+        this.state = 'loaded';
       }
     });
   }
