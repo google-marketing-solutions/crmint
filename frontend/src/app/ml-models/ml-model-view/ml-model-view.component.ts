@@ -45,7 +45,6 @@ export class MlModelViewComponent implements OnInit {
 
       this.mlModelsService.get(id)
         .then(mlModel => {
-          console.log(mlModel)
           this.mlModel = plainToClass(MlModel, mlModel as MlModel);
           if (this.mlModel.pipelines.length > 0) {
             this.mlModel.pipelines = plainToClass(Pipeline, mlModel.pipelines as Pipeline[])
@@ -61,20 +60,32 @@ export class MlModelViewComponent implements OnInit {
     });
   }
 
-  extractSetupSql(pipeline: Pipeline) {
+  /**
+   * Extract a parameter value from a pipeline job.
+   *
+   * @param pipeline The pipeline configuration to pull from.
+   * @param jobNameSuffix The last word or words in the job to identify which job to pull from.
+   * @param paramName The name of the parameter to pull.
+   * @returns The value of the parameter found or empty string if it could not find a match.
+   */
+  extract(pipeline: Pipeline, jobNameSuffix: string, paramName: string) {
     if (pipeline) {
-      const job = pipeline.jobs.find(job => job.name.endsWith('Setup'));
-      const param = job.params.find(param => param.name === 'script');
-      return param.value;
-    } else {
-      return '';
+      const job = pipeline.jobs.find(job => job.name.endsWith(jobNameSuffix));
+      if (job) {
+        const param = job.params.find(param => param.name === paramName);
+        if (param) {
+          return param.value;
+        }
+      }
     }
+    return '';
   }
 
-  deletePipeline(pipeline: Pipeline) {
-
-  }
-
+  /**
+   * Tab switch helper.
+   *
+   * @param index The tab index to switch to.
+   */
   setTab(index: number) {
     this.tab = index;
   }
