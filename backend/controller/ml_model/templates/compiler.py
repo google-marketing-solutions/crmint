@@ -204,9 +204,11 @@ def _compile_template(ml_model, project_id: str, ga4_dataset: str, templateFile:
 def _get_template(templateFile: TemplateFile) -> Template:
   """Pulls appropriate template text from file."""
   options = {
-    'line_comment_prefix': '--',
+    'comment_start_string': '--',
+    'comment_end_string': '\n',
     'trim_blocks': True,
-    'lstrip_blocks': True
+    'lstrip_blocks': True,
+    'newline_sequence': '\n'
   }
   with open(_absolute_path(templateFile.value), 'r') as file:
     return Template(file.read(), **options, undefined=StrictUndefined)
