@@ -18,7 +18,6 @@ import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { ReactiveFormsModule, FormsModule } from '@angular/forms';
 
-import { ClickOutsideModule } from 'ng-click-outside';
 import { PrettycronPipe } from 'app/pipes/prettycron.pipe';
 
 import { PipelinesComponent } from './pipelines.component';
@@ -36,8 +35,7 @@ import { PipelineLogsComponent } from './pipeline-logs/pipeline-logs.component';
     CommonModule,
     FormsModule,
     ReactiveFormsModule,
-    RouterModule,
-    ClickOutsideModule
+    RouterModule
   ],
   declarations: [
     PipelinesComponent,

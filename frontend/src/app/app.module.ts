@@ -20,6 +20,7 @@ import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { HttpClientModule } from '@angular/common/http';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import { ClipboardModule } from 'ngx-clipboard';
+import { ClickOutsideModule } from 'ng-click-outside';
 
 import { AppRoutingModule } from './app-routing.module';
 import { AppComponent } from './app.component';
@@ -61,6 +62,7 @@ import { DashboardPipelinesComponent } from 'app/dashboard/dashboard-pipelines/d
     JobsRoutingModule,
     AppRoutingModule,
     BrowserAnimationsModule,
+    ClickOutsideModule,
     ClipboardModule,
     SharedModule
   ],

@@ -18,8 +18,6 @@ import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { ReactiveFormsModule, FormsModule } from '@angular/forms';
 
-import { ClickOutsideModule } from 'ng-click-outside';
-
 import { MlModelsComponent } from './ml-models.component';
 import { MlModelsService } from './shared/ml-models.service';
 import { MlModelFormComponent } from './ml-model-form/ml-model-form.component';
@@ -31,8 +29,7 @@ import { MlModelViewComponent } from './ml-model-view/ml-model-view.component';
     CommonModule,
     FormsModule,
     ReactiveFormsModule,
-    RouterModule,
-    ClickOutsideModule
+    RouterModule
   ],
   declarations: [
     MlModelsComponent,

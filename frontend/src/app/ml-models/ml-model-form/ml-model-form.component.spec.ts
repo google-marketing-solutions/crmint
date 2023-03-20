@@ -19,6 +19,7 @@ import { HttpClientModule } from '@angular/common/http';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { MlModelsService } from '../shared/ml-models.service';
 import { MlModelFormComponent } from './ml-model-form.component';
+import { SharedModule } from '../../shared/shared.module'
 
 describe('MlModelFormComponent', () => {
   let component: MlModelFormComponent;
@@ -27,6 +28,7 @@ describe('MlModelFormComponent', () => {
   beforeEach(waitForAsync(() => {
     TestBed.configureTestingModule({
       imports: [
+        SharedModule,
         FormsModule,
         HttpClientModule,
         ReactiveFormsModule,
