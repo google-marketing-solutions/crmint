@@ -41,8 +41,6 @@ export class MlModelFormComponent implements OnInit {
   optionDescriptions: boolean = false;
   fetchingVariables: boolean = false;
 
-  // TODO: Why is it not valid when the entire form is filled out?
-
   constructor(
     private _fb: UntypedFormBuilder,
     private mlModelsService: MlModelsService,
@@ -202,7 +200,7 @@ export class MlModelFormComponent implements OnInit {
    */
   fetchVariables() {
     this.fetchingVariables = true;
-    return this.mlModelsService.getVariables(this.mlModel)
+    return this.mlModelsService.getVariables(this.value('bigQueryDataset'))
       .then(variables => this.variables = plainToClass(Variable, variables as Variable[]))
       .catch(response => {
         this.errorMessage = response || 'An error occurred';

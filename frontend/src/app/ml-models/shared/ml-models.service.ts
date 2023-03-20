@@ -56,54 +56,14 @@ export class MlModelsService extends ApiService {
                     .catch(this.handleError);
   }
 
-  getVariables(model) {
-    // TODO(robertmcmahan): Change to pull from backend after testing.
-    return new Promise(resolve => setTimeout(() => resolve([
-      {
-        name: 'purchase',
-        source: 'GOOGLE_ANALYTICS',
-        count: 100,
-        parameters: [
-          {
-            key: 'coupon',
-            value_type: 'string'
-          },
-          {
-            key: 'value',
-            value_type: 'int'
-          }
-        ]
-      },
-      {
-        name: 'click',
-        source: 'GOOGLE_ANALYTICS',
-        count: 100,
-        parameters: [
-          {
-            key: 'link_url',
-            value_type: 'string'
-          },
-          {
-            key: 'outbound',
-            value_type: 'string'
-          }
-        ]
-      },
-      {
-        name: 'enrolled',
-        source: 'FIRST_PARTY',
-        count: 100,
-        parameters: [
-          {
-            key: 'value',
-            value_type: 'int'
-          }
-        ]
-      }
-    ]), 1000));
-    // this.removeContentTypeHeader();
-    // return this.http.get(this.url + '/variables', this.options)
-    //                 .toPromise()
-    //                 .catch(this.handleError);
+  getVariables(bigquery_dataset) {
+    this.removeContentTypeHeader();
+    this.options.params = {
+      dataset_name: bigquery_dataset.name,
+      dataset_location: bigquery_dataset.location
+    };
+    return this.http.get(this.url + '/variables', this.options)
+                    .toPromise()
+                    .catch(this.handleError);
   }
 }

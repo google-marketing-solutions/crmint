@@ -113,17 +113,6 @@ ml_model_structure = {
   'updated_at': fields.String
 }
 
-ml_variables_structure = fields.List(fields.Nested({
-  'name': fields.String,
-  'count': fields.Integer,
-  'parameters': fields.List(fields.Nested({
-    'key': fields.String,
-    'value_type': fields.String
-  }))
-}))
-
-bigquery_client = bigquery.Client()
-
 class MlModelSingle(Resource):
   """Shows a single ml model item and lets you delete a ml model item."""
 
@@ -205,36 +194,54 @@ class MlModelList(Resource):
 
     return ml_model, 201
 
+
+variables_parser = reqparse.RequestParser()
+variables_parser.add_argument('dataset_name', type=str, required=True)
+variables_parser.add_argument('dataset_location', type=str, required=True)
+
+ml_variable_structure = {
+  'name': fields.String,
+  'count': fields.Integer,
+  'source': fields.String,
+  'parameters': fields.List(fields.Nested({
+    'key': fields.String,
+    'value_type': fields.String
+  }))
+}
+
 class MlModelVariables(Resource):
   """Shows a list of all GA4 events and their counts as well as first party data columns
      and types that can be used to pick features and label for the model."""
 
-  @marshal_with(ml_variables_structure)
+  @marshal_with(ml_variable_structure)
   def get(self):
     tracker = insight.GAProvider()
     tracker.track_event(category='ml-models', action='variables')
 
-    args = parser.parse_args()
+    args = variables_parser.parse_args()
+    bigquery_client = bigquery.Client(args['dataset_location'])
+    try:
+      variables = []
 
-    if not args['bigquery_dataset']:
-      abort(400, message='Required parameter missing "bigquery_dataset".')
+      ga4_dataset = setting('google_analytics_4_bigquery_dataset')
+      variables.extend(bigquery_client.get_analytics_variables(ga4_dataset))
 
-    variables = []
+      if len(variables) == 0:
+        abort(400, message='GA4 dataset does not include expected events tables. Update settings entry and try again.')
 
-    dataset = setting('google_analytics_4_bigquery_dataset')
-    variables.extend(bigquery_client.get_analytics_variables(dataset))
+      first_party_columns = bigquery_client.get_first_party_variables(args['dataset_name'])
+      if len(first_party_columns) > 0:
+        variables.extend(first_party_columns)
 
-    first_party_columns = bigquery_client.get_first_party_variables(args['bigquery_dataset']['name'])
-    if len(first_party_columns) > 0:
-      variables.extend(first_party_columns)
-
-    return variables
+      return variables
+    finally:
+      bigquery_client.close()
 
 
 # helper functions for commonly used behavior
 def abort_when_not_found(ml_model, id):
   if ml_model is None:
-    abort(404, message="MlModel {} doesn't exist".format(id))
+    abort(404, message=f'MlModel {id} doesn\'t exist')
 
 def abort_when_pipeline_active(ml_model):
     for pipeline in ml_model.pipelines:

@@ -1,7 +1,7 @@
 from google.cloud import bigquery
+from google.cloud.exceptions import NotFound
 from enum import Enum
-
-# TODO(robertmcmahan): write functional tests.
+from datetime import date, timedelta
 
 # Data Classes
 class Parameter:
@@ -12,7 +12,7 @@ class Parameter:
 
   def __init__(self, key: str, value_type: str) -> None:
     self.key = key
-    self.value_type = value_type
+    self.value_type = value_type.lower()
 
 class Variable:
   """Model for a single variable (used for feature/label selection)."""
@@ -26,8 +26,9 @@ class Variable:
     self.name = name
     self.source = source
     self.count = count
+    self.parameters = []
 
-class Source(Enum):
+class Source(str, Enum):
   GOOGLE_ANALYTICS = 'GOOGLE_ANALYTICS'
   FIRST_PARTY = 'FIRST_PARTY'
 
@@ -36,12 +37,17 @@ class Source(Enum):
 class Client(bigquery.Client):
   """BigQuery client wrapper that adds custom methods for easy access to necessary data."""
 
-  def __init__(self) -> None:
-    super().__init__(project='bigquery-public-data')
+  def __init__(self, location: str) -> None:
+    super().__init__(location=location)
 
-  def get_analytics_variables(self, dataset: str) -> list[Variable]:
+  def get_analytics_variables(self, dataset_name: str) -> list[Variable]:
     """Get approximate counts, keys, and value_types for all GA4 events that happened in the last year."""
+
     variables: list[Variable] = []
+
+    suffix = (date.today() - timedelta(days=7)).strftime('%Y%m%d')
+    if not self.table_exists(dataset_name, f'events_{suffix}'):
+      return variables
 
     query = f"""
       WITH event AS (
@@ -50,7 +56,7 @@ class Client(bigquery.Client):
           event.count
         FROM (
           SELECT APPROX_TOP_COUNT(event_name, 100) AS event_counts
-          FROM `{self.project}.{dataset}.events_*`
+          FROM `{self.project}.{dataset_name}.events_*`
           WHERE _TABLE_SUFFIX BETWEEN
             FORMAT_DATE("%Y%m%d", DATE_SUB(CURRENT_DATE(), INTERVAL 13 MONTH)) AND
             FORMAT_DATE("%Y%m%d", DATE_SUB(CURRENT_DATE(), INTERVAL 1 MONTH))
@@ -70,7 +76,7 @@ class Client(bigquery.Client):
             ELSE NULL
           END
         ) AS parameter_value_type
-      FROM `{self.project}.{dataset}.events_*`,
+      FROM `{self.project}.{dataset_name}.events_*`,
             UNNEST(event_params) AS params
       JOIN event ON event.name = event_name
       WHERE params.key NOT IN (
@@ -79,45 +85,52 @@ class Client(bigquery.Client):
       GROUP BY 1,2,3
       HAVING parameter_value_type IS NOT NULL
       ORDER BY
-        count ASC, # reversed to speed up processing
+        count ASC, # reversed to speed up data transformation step
         name ASC,
         parameter_key ASC;
     """
-    job = self.query(query)
+    job = self.query(query=query)
+    rows = job.result()
 
-    for row in job:
-      variable = next((v for v in variables if v.name == row['name']), None)
-      parameter = Parameter(row['parameter_key'], row['parameter_value_type'])
+    for row in rows:
+      existing_variable = next((v for v in variables if v.name == row.name), None)
+      parameter = Parameter(row.parameter_key, row.parameter_value_type)
 
-      if not variable:
-        variable = Variable(row['name'], Source.GOOGLE_ANALYTICS , row['count'])
+      if not existing_variable:
+        variable = Variable(row.name, Source.GOOGLE_ANALYTICS, row.count)
         variable.parameters.append(parameter)
         # since rows are ordered, event data for a single event name is grouped
         # together and as such it's faster to insert new events at the beginning
         # so the loop on the next row finds the matching event name immediately
         # which saves cycles and because it's sortecd asc and basically flipping
         # the events as it processes them they will come out in descending order.
-        variable.insert(0, variable)
+        variables.insert(0, variable)
       else:
-        variable.parameters.append(parameter)
+        existing_variable.parameters.append(parameter)
 
-    return variable
+    return variables
 
-  def get_first_party_variables(self, dataset: str) -> list[Variable]:
+  def get_first_party_variables(self, dataset_name: str) -> list[Variable]:
     """Look up and return the column/field names and their types for use in feature/label selection."""
 
     variables: list[Variable] = []
 
-    query = f"""
-      SELECT column, type
-      FROM `{self.project}.{dataset}.INFORMATION_SCHEMA.COLUMNS`
-      WHERE table_name = 'first_party';
-    """
-    job = self.query(query)
+    if not self.table_exists(dataset_name, 'first_party'):
+      return variables
 
-    for row in job:
-      variable = Variable(row['column'], Source.FIRST_PARTY)
-      variable.parameters.append(Parameter('value', row['type']))
+    table = self.get_table(f'{dataset_name}.first_party')
+
+    for column in table.schema:
+      variable = Variable(column.name, Source.FIRST_PARTY)
+      variable.parameters.append(Parameter('value', column.field_type))
       variables.append(variable)
 
     return variables
+
+  def table_exists(self, dataset_name: str, table_name: str) -> bool:
+    """Returns whether or not a table exists in this project under the provided dataset."""
+    try:
+      self.get_table(f'{dataset_name}.{table_name}')
+      return True
+    except NotFound:
+      return False
