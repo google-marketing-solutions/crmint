@@ -160,9 +160,8 @@ class TestMlModelViews(controller_utils.ControllerAppTest):
     response = self.client.get('/api/ml-models/variables')
     self.assertEqual(response.status_code, 400)
 
-  @mock.patch('controller.ml_model.bigquery.Client.get_analytics_variables')
-  @mock.patch('controller.ml_model.bigquery.Client.get_first_party_variables')
-  def test_retrieve_variables_with_dataset(self, fpd_mock: mock.Mock, ga4_mock: mock.Mock):
+  @mock.patch('controller.ml_model.bigquery.Client')
+  def test_retrieve_variables_with_dataset(self, client_mock: mock.Mock):
     dataset = {'dataset_name': 'test-dataset', 'dataset_location': 'US'}
     GeneralSetting.where(name='google_analytics_4_bigquery_dataset').first().update(value='test-ga4-dataset')
 
@@ -171,21 +170,19 @@ class TestMlModelViews(controller_utils.ControllerAppTest):
     variable = Variable('test-name', 'GOOGLE_ANALYTICS', 1)
     variable.parameters.append(Parameter('test-key', 'test-value-type'))
     variables.append(variable)
-    ga4_mock.return_value = variables
+    client_mock.return_value.get_analytics_variables.return_value = variables
 
     response = self.client.get('/api/ml-models/variables', query_string=dataset)
     self.assertEqual(response.status_code, 200)
-    ga4_mock.assert_called_with('test-ga4-dataset')
-    fpd_mock.assert_called_with('test-dataset')
 
-  @mock.patch('controller.ml_model.bigquery.Client.get_analytics_variables')
-  def test_retrieve_variables_with_dataset_events_not_found(self, ga4_mock: mock.Mock):
+  @mock.patch('controller.ml_model.bigquery.Client')
+  def test_retrieve_variables_with_dataset_events_not_found(self, client_mock: mock.Mock):
     dataset = {'dataset_name': 'test-dataset', 'dataset_location': 'US'}
     GeneralSetting.where(name='google_analytics_4_bigquery_dataset').first().update(value='test-ga4-dataset')
 
     # required due to uncertainty around how to do actual integration test with big query locally
     variables: list[Variable] = []
-    ga4_mock.return_value = variables
+    client_mock.return_value.get_analytics_variables.return_value = variables
 
     response = self.client.get('/api/ml-models/variables', query_string=dataset)
     self.assertEqual(response.status_code, 400)
