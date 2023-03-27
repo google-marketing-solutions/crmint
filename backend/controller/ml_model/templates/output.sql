@@ -45,7 +45,11 @@ CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.output` AS (
     FROM `{{project_id}}.{{model_dataset}}.predictions` p
     INNER JOIN users_without_score wos
     ON p.{{unique_id}} = wos.{{unique_id}}
-    GROUP BY 1,2,3{% if unique_id == 'user_id' %},4{% endif %}
+    {% if unique_id == 'user_id' %}
+    GROUP BY 1,2,3,4
+    {% else %}
+    GROUP BY 1,2,3
+    {% endif %}
     ORDER BY score DESC
   ),
   {% if label.is_conversion %}

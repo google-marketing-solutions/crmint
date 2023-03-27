@@ -25,7 +25,7 @@
 
       <mat-tab-group dynamicHeight disableRipple (selectedTabChange)="setTab($event.index)" class="crmi-card-tabs">
         <mat-tab *ngFor="let pipeline of mlModel.pipelines">
-          <ng-template mat-tab-label>{{ pipeline.name.split(' - ')[1] }}</ng-template>
+          <ng-template mat-tab-label>{{ pipeline.name.split(' - ').pop() }}</ng-template>
           <div class="crmi-card-list">
             <div class="crmi-card-list-header">
               <div class="crmi-card-list-item">

@@ -28,9 +28,15 @@ class Variable:
     self.count = count
     self.parameters = []
 
-class Source(str, Enum):
+class Source(Enum):
   GOOGLE_ANALYTICS = 'GOOGLE_ANALYTICS'
   FIRST_PARTY = 'FIRST_PARTY'
+
+  def __str__(self) -> str:
+    return str(self.value)
+
+  def __eq__(self, other) -> bool:
+    return other == str(self.value)
 
 
 # BigQuery Client Wrapper

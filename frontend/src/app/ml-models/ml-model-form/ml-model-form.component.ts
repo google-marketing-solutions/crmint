@@ -40,6 +40,7 @@ export class MlModelFormComponent implements OnInit {
   variables: Variable[] = [];
   optionDescriptions: boolean = false;
   fetchingVariables: boolean = false;
+  submitting: boolean = false;
 
   constructor(
     private _fb: UntypedFormBuilder,
@@ -198,14 +199,17 @@ export class MlModelFormComponent implements OnInit {
   /**
    * Fetch variables (feature and label options) from GA4 Events and First Party tables in BigQuery.
    */
-  fetchVariables() {
+  async fetchVariables() {
     this.fetchingVariables = true;
-    return this.mlModelsService.getVariables(this.value('bigQueryDataset'))
-      .then(variables => this.variables = plainToClass(Variable, variables as Variable[]))
-      .catch(response => {
-        this.errorMessage = response || 'An error occurred';
-      })
-      .finally(() => this.fetchingVariables = false);
+    try {
+      const dataset = this.value('bigQueryDataset');
+      let variables = await this.mlModelsService.getVariables(dataset);
+      this.variables = plainToClass(Variable, variables as Variable[]);
+    } catch (error) {
+      this.errorMessage = error || 'An error occurred';
+    } finally {
+      this.fetchingVariables = false;
+    }
   }
 
   /**
@@ -250,13 +254,17 @@ export class MlModelFormComponent implements OnInit {
   toggleFeature(feature: Feature, toggled: boolean) {
     if (toggled) {
       this.features.push(this._fb.control(feature as Feature));
-      this.refreshLabel();
     } else {
-      const index = this.features.value.indexOf(feature);
-      if (index !== -1) {
-        this.features.removeAt(index);
+      const features = this.features.value as Feature[];
+      for (const index of features.keys()) {
+        const f = features[index];
+        if (f.name === feature.name) {
+          this.features.removeAt(index);
+          break;
+        }
       }
     }
+    this.refreshLabel();
   }
 
   /**
@@ -345,17 +353,25 @@ export class MlModelFormComponent implements OnInit {
   }
 
   /**
-   * Remove select-box option descriptions.
+   * Add/Remove select-box option descriptions.
+   *
+   * @param toggled Whether or not to show the option descriptions.
    */
-  removeOptionDescriptions() {
-    this.optionDescriptions = false;
+  toggleOptionDescriptions(toggled: boolean) {
+    this.optionDescriptions = toggled;
   }
 
   /**
-   * Add select-box option descriptions.
+   * Enforces option description visibility while also formatting the description appropriately.
+   *
+   * @param description The description to show.
+   * @returns The formatted description if option descriptions are enabled.
    */
-  addOptionDescriptions() {
-    this.optionDescriptions = true;
+  optionDescription(description: string): string {
+    if (this.optionDescriptions) {
+      return this.capitalize(description);
+    }
+    return '';
   }
 
   /**
@@ -394,21 +410,24 @@ export class MlModelFormComponent implements OnInit {
   /**
    * Update the ml model object using the form data and send it to the backend to persist.
    */
-  save() {
+  async save() {
+    this.submitting = true;
     this.prepareSaveMlModel();
 
     if (this.mlModel.id) {
-      this.mlModelsService.update(this.mlModel)
-        .then(() => {
-          this.router.navigate(['ml-models', this.mlModel.id]);
-          this.errorMessage = '';
-        }).catch(response => {
-          this.errorMessage = response || 'An error occurred';
-        });
+      try {
+        await this.mlModelsService.update(this.mlModel);
+        this.router.navigate(['ml-models', this.mlModel.id]);
+        this.errorMessage = '';
+      } catch (error) {
+        this.errorMessage = error || 'An error occurred';
+      }
     } else {
-      this.mlModelsService.create(this.mlModel)
-        .then((mlModel) => this.router.navigate(['ml-models', mlModel.id]));
+      const mlModel = await this.mlModelsService.create(this.mlModel)
+      this.router.navigate(['ml-models', mlModel.id]);
     }
+
+    this.submitting = false;
   }
 
   /**

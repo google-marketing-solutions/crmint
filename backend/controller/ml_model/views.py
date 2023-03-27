@@ -220,22 +220,19 @@ class MlModelVariables(Resource):
 
     args = variables_parser.parse_args()
     bigquery_client = bigquery.Client(args['dataset_location'])
-    try:
-      variables = []
+    variables = []
 
-      ga4_dataset = setting('google_analytics_4_bigquery_dataset')
-      variables.extend(bigquery_client.get_analytics_variables(ga4_dataset))
+    ga4_dataset = setting('google_analytics_4_bigquery_dataset')
+    variables.extend(bigquery_client.get_analytics_variables(ga4_dataset))
 
-      if len(variables) == 0:
-        abort(400, message='GA4 dataset does not include expected events tables. Update settings entry and try again.')
+    if len(variables) == 0:
+      abort(400, message='GA4 dataset does not include expected events tables. Update settings entry and try again.')
 
-      first_party_columns = bigquery_client.get_first_party_variables(args['dataset_name'])
-      if len(first_party_columns) > 0:
-        variables.extend(first_party_columns)
+    first_party_columns = bigquery_client.get_first_party_variables(args['dataset_name'])
+    if len(first_party_columns) > 0:
+      variables.extend(first_party_columns)
 
-      return variables
-    finally:
-      bigquery_client.close()
+    return variables
 
 
 # helper functions for commonly used behavior

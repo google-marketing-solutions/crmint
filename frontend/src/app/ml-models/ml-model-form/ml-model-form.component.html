@@ -146,11 +146,10 @@
           <div class="vertical-group">
             <div class="horizontal-group">
               <mat-select formControlName="name" placeholder="Label"
-                          (selectionChange)="refreshLabel(); removeOptionDescriptions()"
-                          (clickOutside)="removeOptionDescriptions()"
-                          (opened)="addOptionDescriptions()">
+                          (selectionChange)="refreshLabel()"
+                          (openedChange)="toggleOptionDescriptions($event)">
                 <mat-option *ngFor="let label of labels" [value]="label.name">
-                  {{ label.name }} <span *ngIf="optionDescriptions" class="option-description">{{ capitalize(label.source) }}</span>
+                  {{ label.name }} <span class="option-description">{{ optionDescription(label.source) }}</span>
                 </mat-option>
               </mat-select>
               <mat-select *ngIf="label && label.parameters" formControlName="key" placeholder="Key"
@@ -225,7 +224,7 @@
           <div class="crmi-form-message crmi-form-message-error">{{ errorMessage }}</div>
           <button mat-raised-button
                   type="submit"
-                  [disabled]="!mlModelForm.valid"
+                  [disabled]="!mlModelForm.valid || submitting"
                   color="primary">
             {{ mlModel.id ? 'Save' : 'Create' }}
           </button>
