@@ -93,7 +93,6 @@ CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.predictions` AS (
     user_variables AS (
       SELECT
         fp.{{unique_id}},
-        fp.event_name,
         -- inject the selected first party features
         {% for feature in features %}
         {% if feature.source == 'FIRST_PARTY' %}
@@ -125,6 +124,9 @@ CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.predictions` AS (
         {{unique_id}},
         SUM((SELECT value.int_value FROM UNNEST(params) WHERE key = "engagement_time_msec")) AS engagement_time,
         SUM(IF(name = "user_engagement", 1, 0)) AS cnt_user_engagement,
+        SUM(IF(name = "scroll", 1, 0)) AS cnt_scroll,
+        SUM(IF(name = "session_start", 1, 0)) AS cnt_session_start,
+        SUM(IF(name = "first_visit", 1, 0)) AS cnt_first_visit,
         -- inject the selected google analytics features
         {% for feature in features %}
         {% if feature.source == 'GOOGLE_ANALYTICS' %}

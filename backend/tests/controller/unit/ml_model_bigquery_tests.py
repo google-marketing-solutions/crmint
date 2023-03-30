@@ -38,10 +38,16 @@ class TestClient(absltest.TestCase):
     query_mock.return_value.result.return_value = self.convert_to_object([
       {'name': 'nm_1', 'count': 77, 'parameter_key': 'pk_1', 'parameter_value_type': 'pvt_1,pvt_2'},
       {'name': 'nm_1', 'count': 77, 'parameter_key': 'pk_2', 'parameter_value_type': 'pvt_3'},
+      {'name': 'nm_1', 'count': 77, 'parameter_key': 'debug_mode', 'parameter_value_type': '1'},
+      {'name': 'nm_1', 'count': 77, 'parameter_key': 'ga_session_id', 'parameter_value_type': '1'},
+      {'name': 'nm_1', 'count': 77, 'parameter_key': 'ga_session_number', 'parameter_value_type': '1'},
+      {'name': 'nm_1', 'count': 77, 'parameter_key': 'transaction_id', 'parameter_value_type': '1'},
       {'name': 'nm_2', 'count': 201, 'parameter_key': 'pk_1', 'parameter_value_type': 'pvt_1'},
       {'name': 'nm_3', 'count': 784, 'parameter_key': 'pk_1', 'parameter_value_type': 'pvt_1'},
+      {'name': 'user_engagement', 'count': 4578, 'parameter_key': 'pk_1', 'parameter_value_type': 'pvt_1'},
       {'name': 'nm_4', 'count': 10938, 'parameter_key': 'pk_1', 'parameter_value_type': 'pvt_1'},
-      {'name': 'nm_5', 'count': 22034, 'parameter_key': 'pk_1', 'parameter_value_type': 'pvt_1'}
+      {'name': 'nm_5', 'count': 22034, 'parameter_key': 'pk_1', 'parameter_value_type': 'pvt_1'},
+      {'name': 'page_view', 'count': 478458, 'parameter_key': 'pk_1', 'parameter_value_type': 'pvt_1'}
     ])
 
     variables = self.client.get_analytics_variables('test-ga4-dataset')
@@ -85,6 +91,9 @@ class TestClient(absltest.TestCase):
   @mock.patch('google.cloud.bigquery.Client.get_table')
   def test_get_first_party_variables(self, get_table_mock: mock.Mock):
     get_table_mock.return_value.schema = self.convert_to_object([
+      {'name': 'user_id', 'field_type': 'type_1'},
+      {'name': 'user_pseudo_id', 'field_type': 'type_1'},
+      {'name': 'trigger_event_date', 'field_type': 'type_1'},
       {'name': 'col_1', 'field_type': 'type_1'},
       {'name': 'col_2', 'field_type': 'type_2'}
     ])

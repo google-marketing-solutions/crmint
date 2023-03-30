@@ -49,6 +49,15 @@ class Client(bigquery.Client):
   def get_analytics_variables(self, dataset_name: str) -> list[Variable]:
     """Get approximate counts, keys, and value_types for all GA4 events that happened in the last year."""
 
+    event_exclude_list = [
+        'user_engagement', 'scroll', 'session_start', 'first_visit', 'page_view'
+    ]
+
+    key_exclude_list = [
+      'debug_mode', 'ga_session_id', 'ga_session_number', 'transaction_id', 'page_location', 'page_referrer',
+      'session_engaged', 'engaged_session_event', 'content_group', 'engagement_time_msec'
+    ]
+
     variables: list[Variable] = []
 
     suffix = (date.today() - timedelta(days=7)).strftime('%Y%m%d')
@@ -85,9 +94,6 @@ class Client(bigquery.Client):
       FROM `{self.project}.{dataset_name}.events_*`,
             UNNEST(event_params) AS params
       JOIN event ON event.name = event_name
-      WHERE params.key NOT IN (
-        'debug_mode', 'ga_session_id', 'ga_session_number', 'transaction_id'
-      )
       GROUP BY 1,2,3
       HAVING parameter_value_type IS NOT NULL
       ORDER BY
@@ -96,28 +102,34 @@ class Client(bigquery.Client):
         parameter_key ASC;
     """
     job = self.query(query=query)
-    rows = job.result()
+    events = job.result()
 
-    for row in rows:
-      existing_variable = next((v for v in variables if v.name == row.name), None)
-      parameter = Parameter(row.parameter_key, row.parameter_value_type)
+    for event in events:
+      if event.name not in event_exclude_list:
+        existing_variable = next((v for v in variables if v.name == event.name), None)
+        parameter = Parameter(event.parameter_key, event.parameter_value_type)
 
-      if not existing_variable:
-        variable = Variable(row.name, Source.GOOGLE_ANALYTICS, row.count)
-        variable.parameters.append(parameter)
-        # since rows are ordered, event data for a single event name is grouped
-        # together and as such it's faster to insert new events at the beginning
-        # so the loop on the next row finds the matching event name immediately
-        # which saves cycles and because it's sortecd asc and basically flipping
-        # the events as it processes them they will come out in descending order.
-        variables.insert(0, variable)
-      else:
-        existing_variable.parameters.append(parameter)
+        if not existing_variable:
+          variable = Variable(event.name, Source.GOOGLE_ANALYTICS, event.count)
+          if parameter.key not in key_exclude_list:
+            variable.parameters.append(parameter)
+          # since rows are ordered, event data for a single event name is grouped
+          # together and as such it's faster to insert new events at the beginning
+          # so the loop on the next row finds the matching event name immediately
+          # which saves cycles and because it's sortecd asc and basically flipping
+          # the events as it processes them they will come out in descending order.
+          variables.insert(0, variable)
+        elif parameter.key not in key_exclude_list:
+          existing_variable.parameters.append(parameter)
 
     return variables
 
   def get_first_party_variables(self, dataset_name: str) -> list[Variable]:
     """Look up and return the column/field names and their types for use in feature/label selection."""
+
+    exclude_list = [
+      'user_id', 'user_pseudo_id', 'trigger_event_date'
+    ]
 
     variables: list[Variable] = []
 
@@ -127,9 +139,10 @@ class Client(bigquery.Client):
     table = self.get_table(f'{dataset_name}.first_party')
 
     for column in table.schema:
-      variable = Variable(column.name, Source.FIRST_PARTY)
-      variable.parameters.append(Parameter('value', column.field_type))
-      variables.append(variable)
+      if column.name not in exclude_list:
+        variable = Variable(column.name, Source.FIRST_PARTY)
+        variable.parameters.append(Parameter('value', column.field_type))
+        variables.append(variable)
 
     return variables
 
