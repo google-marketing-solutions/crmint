@@ -236,5 +236,8 @@
         </div>
       </form>
     </ng-template>
+    <ng-template ngSwitchCase="error">
+      <div class="crmi-form-message crmi-form-message-error">{{ errorMessage }}</div>
+    </ng-template>
   </div>
 </mat-card>

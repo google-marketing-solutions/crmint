@@ -85,26 +85,20 @@ export class MlModelFormComponent implements OnInit {
   }
 
   /**
-   * Get the user's GA4 event list and if an id was provided as a URL parameter
-   * get the associated ml model data for that id.
+   * If an id param exists pull and load the configuration associated with it.
+   * Otherwise load any necessary data required to configure a new model.
    */
   ngOnInit() {
     this.route.params.subscribe(params => {
       const id = params['id'];
       if (id) {
-        this.mlModelsService.get(id)
-          .then(mlModel => {
-            this.mlModel = plainToClass(MlModel, mlModel as MlModel);
-            return this.fetchVariables();
-          })
-          .then(() => {
-            this.assignMlModelToForm();
-            this.state = 'loaded';
-          })
-          .catch(response => {
-            if (response.status === 404) {
+        this.loadConfiguration(id)
+          .then(() => this.state = 'loaded')
+          .catch(error => {
+            if (error === 'model-not-found') {
               this.router.navigate(['ml-models']);
             } else {
+              this.errorMessage = error.toString();
               this.state = 'error';
             }
           });
@@ -113,6 +107,26 @@ export class MlModelFormComponent implements OnInit {
         this.state = 'loaded';
       }
     });
+  }
+
+  /**
+   * Pull configuration and load the values into the form.
+   *
+   * @param id The id of the ml model.
+   */
+  async loadConfiguration(id: number) {
+    try {
+      const mlModel = await this.mlModelsService.get(id);
+      this.mlModel = plainToClass(MlModel, mlModel as MlModel);
+      await this.fetchVariables(this.mlModel.bigquery_dataset);
+      this.assignMlModelToForm();
+    } catch (error) {
+      if (error && error.status === 404) {
+        throw 'model-not-found';
+      } else {
+        throw error;
+      }
+    }
   }
 
   /**
@@ -198,11 +212,14 @@ export class MlModelFormComponent implements OnInit {
 
   /**
    * Fetch variables (feature and label options) from GA4 Events and First Party tables in BigQuery.
+   *
+   * @param bigQueryDataset The dataset to use when fetching first party variables
+   *                        (only required for loading an existing model).
    */
-  async fetchVariables() {
+  async fetchVariables(bigQueryDataset: Object = null) {
     this.fetchingVariables = true;
     try {
-      const dataset = this.value('bigQueryDataset');
+      const dataset = bigQueryDataset || this.value('bigQueryDataset');
       let variables = await this.mlModelsService.getVariables(dataset);
       this.variables = plainToClass(Variable, variables as Variable[]);
     } catch (error) {

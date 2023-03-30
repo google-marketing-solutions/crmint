@@ -52,6 +52,12 @@ resource "google_project_iam_member" "controller_sa--bigquery-jobuser" {
   role    = "roles/bigquery.jobUser"
 }
 
+resource "google_project_iam_member" "controller_sa--bigquery-dataviewer" {
+  member  = "serviceAccount:${google_service_account.controller_sa.email}"
+  project = var.project_id
+  role    = "roles/bigquery.dataViewer"
+}
+
 resource "google_project_iam_member" "controller_sa--pubsub-publisher" {
   member  = "serviceAccount:${google_service_account.controller_sa.email}"
   project = var.project_id
