@@ -13,20 +13,20 @@
 // limitations under the License.
 
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
-import { MatButtonModule } from '@angular/material/button';
+import { MatLegacyButtonModule } from '@angular/material/button';
 import { MatDatepickerModule } from '@angular/material/datepicker';
-import { MatNativeDateModule } from '@angular/material/core';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatInputModule } from '@angular/material/input';
-import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatLegacyNativeDateModule } from '@angular/material/core';
+import { MatLegacyFormFieldModule } from '@angular/material/form-field';
+import { MatLegacyInputModule } from '@angular/material/input';
+import { MatLegacyProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatIconModule } from '@angular/material/icon';
-import { MatCardModule } from '@angular/material/card';
-import { MatSlideToggleModule } from '@angular/material/slide-toggle';
-import { MatSelectModule } from '@angular/material/select';
+import { MatLegacyCardModule } from '@angular/material/card';
+import { MatLegacySlideToggleModule } from '@angular/material/slide-toggle';
+import { MatLegacySelectModule } from '@angular/material/select';
 import { MatToolbarModule } from '@angular/material/toolbar';
-import { MatTabsModule } from '@angular/material/tabs';
-import { MatCheckboxModule } from '@angular/material/checkbox';
-import { MatMenuModule } from '@angular/material/menu';
+import { MatLegacyTabsModule } from '@angular/material/tabs';
+import { MatLegacyCheckboxModule } from '@angular/material/checkbox';
+import { MatLegacyMenuModule } from '@angular/material/menu';
 import { NgModule, CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
 import { CommonModule } from '@angular/common';
 
@@ -35,42 +35,42 @@ import { StatusComponent } from './status/status.component';
 @NgModule({
   imports: [
     CommonModule,
-    MatButtonModule,
+    MatLegacyButtonModule,
     MatDatepickerModule,
-    MatNativeDateModule,
-    MatFormFieldModule,
-    MatInputModule,
-    MatProgressSpinnerModule,
+    MatLegacyNativeDateModule,
+    MatLegacyFormFieldModule,
+    MatLegacyInputModule,
+    MatLegacyProgressSpinnerModule,
     MatIconModule,
-    MatCardModule,
-    MatSlideToggleModule,
-    MatSelectModule,
+    MatLegacyCardModule,
+    MatLegacySlideToggleModule,
+    MatLegacySelectModule,
     BrowserAnimationsModule,
     MatToolbarModule,
-    MatTabsModule,
-    MatCheckboxModule,
-    MatMenuModule
+    MatLegacyTabsModule,
+    MatLegacyCheckboxModule,
+    MatLegacyMenuModule
   ],
   declarations: [
     StatusComponent,
   ],
   exports: [
     StatusComponent,
-    MatButtonModule,
+    MatLegacyButtonModule,
     MatDatepickerModule,
-    MatNativeDateModule,
-    MatFormFieldModule,
-    MatInputModule,
-    MatProgressSpinnerModule,
+    MatLegacyNativeDateModule,
+    MatLegacyFormFieldModule,
+    MatLegacyInputModule,
+    MatLegacyProgressSpinnerModule,
     MatIconModule,
-    MatCardModule,
-    MatSlideToggleModule,
-    MatSelectModule,
+    MatLegacyCardModule,
+    MatLegacySlideToggleModule,
+    MatLegacySelectModule,
     BrowserAnimationsModule,
     MatToolbarModule,
-    MatTabsModule,
-    MatCheckboxModule,
-    MatMenuModule
+    MatLegacyTabsModule,
+    MatLegacyCheckboxModule,
+    MatLegacyMenuModule
   ],
   schemas: [CUSTOM_ELEMENTS_SCHEMA]
 })
