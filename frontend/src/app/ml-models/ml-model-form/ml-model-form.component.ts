@@ -222,6 +222,7 @@ export class MlModelFormComponent implements OnInit {
       const dataset = bigQueryDataset || this.value('bigQueryDataset');
       let variables = await this.mlModelsService.getVariables(dataset);
       this.variables = plainToClass(Variable, variables as Variable[]);
+      this.errorMessage = '';
     } catch (error) {
       this.errorMessage = error || 'An error occurred';
     } finally {
