@@ -33,6 +33,7 @@ import { NgModule, CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
 import { CommonModule } from '@angular/common';
 
 import { StatusComponent } from './status/status.component';
+import { LabelcasePipe } from 'app/pipes/labelcase.pipe';
 
 @NgModule({
   imports: [
@@ -57,6 +58,7 @@ import { StatusComponent } from './status/status.component';
   ],
   declarations: [
     StatusComponent,
+    LabelcasePipe
   ],
   exports: [
     StatusComponent,
@@ -76,7 +78,8 @@ import { StatusComponent } from './status/status.component';
     MatToolbarModule,
     MatTabsModule,
     MatCheckboxModule,
-    MatMenuModule
+    MatMenuModule,
+    LabelcasePipe
   ],
   schemas: [CUSTOM_ELEMENTS_SCHEMA]
 })

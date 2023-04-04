@@ -47,7 +47,7 @@
         <div class="crmi-form-group">
           <label class="crmi-form-label">User Identifier</label>
           <mat-select placeholder="Unique ID" formControlName="uniqueId">
-            <mat-option *ngFor="let uniqueId of uniqueIds" [value]="uniqueId">{{ capitalize(uniqueId) }}</mat-option>
+            <mat-option *ngFor="let uniqueId of uniqueIds" [value]="uniqueId">{{ uniqueId | labelcase }}</mat-option>
           </mat-select>
         </div>
 
@@ -55,7 +55,7 @@
           <label class="crmi-form-label">Type</label>
           <mat-select #select placeholder="Type" formControlName="type"
                       (selectionChange)="updateHyperParameters(select.value)">
-            <mat-option *ngFor="let type of types" [value]="type">{{ capitalize(type) }}</mat-option>
+            <mat-option *ngFor="let type of types" [value]="type">{{ type | labelcase }}</mat-option>
           </mat-select>
         </div>
 
@@ -149,7 +149,7 @@
                           (selectionChange)="refreshLabel()"
                           (openedChange)="toggleOptionDescriptions($event)">
                 <mat-option *ngFor="let label of labels" [value]="label.name">
-                  {{ label.name }} <span class="option-description">{{ optionDescription(label.source) }}</span>
+                  {{ label.name }} <span class="option-description">{{ optionDescription(label.source) | labelcase }}</span>
                 </mat-option>
               </mat-select>
               <mat-select *ngIf="label && label.parameters" formControlName="key" placeholder="Key"
@@ -214,7 +214,7 @@
                 <mat-slider formControlName="value" [min]="range.min" [max]="range.max"
                             [step]="range.step" [thumbLabel]="value(timespan, 'value')">
                 </mat-slider>
-                <span>{{ value(timespan, 'value') }} {{ capitalize(value(timespan, 'unit')) }}s</span>
+                <span>{{ value(timespan, 'value') }} {{ value(timespan, 'unit') | labelcase }}s</span>
               </span>
             </div>
           </div>

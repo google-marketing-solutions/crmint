@@ -34,7 +34,7 @@ import { MlModelViewComponent } from './ml-model-view/ml-model-view.component';
   declarations: [
     MlModelsComponent,
     MlModelFormComponent,
-    MlModelViewComponent,
+    MlModelViewComponent
 ],
   exports: [
     MlModelsComponent

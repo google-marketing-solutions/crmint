@@ -33,7 +33,6 @@ import { JobsModule } from './jobs/jobs.module';
 import { JobsRoutingModule } from './jobs/jobs-routing.module';
 import { NavBarComponent } from './nav-bar/nav-bar.component';
 import { TopBarComponent } from './top-bar/top-bar.component';
-import { LabelcasePipe } from './pipes/labelcase.pipe';
 import { StagesService } from './dashboard/shared/stages.service';
 import { DashboardPipelinesComponent } from 'app/dashboard/dashboard-pipelines/dashboard-pipelines.component';
 
@@ -45,8 +44,7 @@ import { DashboardPipelinesComponent } from 'app/dashboard/dashboard-pipelines/d
     SettingsComponent,
     NavBarComponent,
     TopBarComponent,
-    StagesComponent,
-    LabelcasePipe,
+    StagesComponent
   ],
   imports: [
     BrowserModule,
