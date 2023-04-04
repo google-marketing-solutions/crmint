@@ -113,8 +113,8 @@ export class SettingsComponent implements OnInit {
 
     let formattedParts = [];
     for (const part of word.split('_')) {
-      if (Object.keys(specialCaseMap).includes(part)) {
-        formattedParts.push(specialCaseMap[part]);
+      if (Object.keys(specialCaseMap).includes(part.toLowerCase())) {
+        formattedParts.push(specialCaseMap[part.toLowerCase()]);
       } else {
         formattedParts.push(part.charAt(0).toUpperCase() + part.slice(1).toLowerCase());
       }

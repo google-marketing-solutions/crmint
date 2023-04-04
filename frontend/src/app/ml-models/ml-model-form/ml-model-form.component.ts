@@ -357,14 +357,25 @@ export class MlModelFormComponent implements OnInit {
 
   /**
    * Uppercase the first character in the word(s) provided (word split into multiple words on underscore).
+   * Handles special cases like id, api, etc according to an internal mapping.
    *
    * @param word The word(s) you want to capitalize.
-   * @returns The capitalized word.
+   * @returns The capitalized word(s).
    */
   capitalize(word: string): string {
+    const specialCaseMap = {
+      api: 'API',
+      id: 'ID',
+      bigquery: 'BigQuery'
+    };
+
     let formattedParts = [];
     for (const part of word.split('_')) {
-      formattedParts.push(part.charAt(0).toUpperCase() + part.slice(1).toLowerCase());
+      if (Object.keys(specialCaseMap).includes(part.toLowerCase())) {
+        formattedParts.push(specialCaseMap[part.toLowerCase()]);
+      } else {
+        formattedParts.push(part.charAt(0).toUpperCase() + part.slice(1).toLowerCase());
+      }
     }
 
     return formattedParts.join(' ');
