@@ -10,7 +10,7 @@
       <div formArrayName="settingsLairs">
         <div *ngFor="let setting of settingsLairs.controls; let i=index" [formGroupName]="i">
           <mat-form-field>
-            <textarea matInput cdkTextareaAutosize [placeholder]="setting.controls.name.value | labelcase" formControlName="value"></textarea>
+            <textarea matInput cdkTextareaAutosize [placeholder]="capitalize(setting.controls.name.value)" formControlName="value"></textarea>
           </mat-form-field>
         </div>
       </div>
