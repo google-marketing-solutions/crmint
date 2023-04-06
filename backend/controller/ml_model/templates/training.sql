@@ -74,7 +74,11 @@ analytics_variables AS (
   LEFT JOIN (
     SELECT
       {{unique_id}},
+      {% if label.is_score %}
       1 AS label,
+      {% elif label.is_revenue %}
+      SUM(COALESCE(params.value.int_value, params.value.float_value, params.value.double_value, 0)) AS label,
+      {% endif %}
       MIN(date) AS date,
     FROM events AS e, UNNEST(params) AS params
     WHERE name = "{{label.name}}"
@@ -137,7 +141,7 @@ user_aggregate_behavior AS (
   FROM events AS e
   INNER JOIN user_variables AS uv
   ON e.{{unique_id}} = uv.{{unique_id}}
-  WHERE (uv.label = 1 AND e.date <= uv.trigger_event_date)
+  WHERE (uv.label > 0 AND e.date <= uv.trigger_event_date)
   OR uv.label = 0
   GROUP BY 1
 ),
@@ -155,7 +159,7 @@ training_dataset AS (
 SELECT * EXCEPT({{unique_id}})
 FROM training_dataset
 {% if skew_factor > 0 %}
-WHERE label = 1
+WHERE label > 0
 UNION ALL
 SELECT * EXCEPT({{unique_id}})
 FROM training_dataset
