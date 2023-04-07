@@ -181,8 +181,8 @@ def _compile_template(ml_model, project_id: str, ga4_dataset: str, templateFile:
     'ga4_dataset': ga4_dataset,
     'type': {
       'name': ml_model.type,
-      'regression': _is_regression(ml_model.type),
-      'classification': _is_classification(ml_model.type),
+      'is_regression': _is_regression(ml_model.type),
+      'is_classification': _is_classification(ml_model.type),
     },
     'uses_first_party_data': ml_model.uses_first_party_data,
     'unique_id': _get_unique_id(ml_model.unique_id),

@@ -5,7 +5,7 @@ from datetime import date, timedelta
 
 # Data Classes
 class Parameter:
-  """Model for a variable parameter."""
+  """Represents a variable parameter."""
 
   key: str
   value_type: str
@@ -15,7 +15,7 @@ class Parameter:
     self.value_type = value_type.lower()
 
 class Variable:
-  """Model for a single variable (used for feature/label selection)."""
+  """Represents a single variable (used for feature/label selection)."""
 
   name: str
   source: str
@@ -47,7 +47,15 @@ class Client(bigquery.Client):
     super().__init__(location=location)
 
   def get_analytics_variables(self, dataset_name: str) -> list[Variable]:
-    """Get approximate counts, keys, and value_types for all GA4 events that happened in the last year."""
+    """
+    Get approximate counts, keys, and value_types for all GA4 events that happened in the last year.
+
+    Args:
+      dataset_name: The dataset where the GA4 events tables are located.
+
+    Returns:
+      A list of variables to be used for feature and label selection.
+    """
 
     event_exclude_list = [
         'user_engagement', 'scroll', 'session_start', 'first_visit', 'page_view'
@@ -125,7 +133,15 @@ class Client(bigquery.Client):
     return variables
 
   def get_first_party_variables(self, dataset_name: str) -> list[Variable]:
-    """Look up and return the column/field names and their types for use in feature/label selection."""
+    """
+    Look up and return the column/field names and their types for use in feature/label selection.
+
+    Args:
+      dataset_name: The dataset where the first party table is located.
+
+    Returns:
+      A list of variables to be used for feature and label selection.
+    """
 
     exclude_list = [
       'user_id', 'user_pseudo_id', 'trigger_event_date'

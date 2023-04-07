@@ -4,8 +4,8 @@ CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.predictions` AS (
     user_id,
     {% endif %}
     user_pseudo_id,
-    {% if type.classification %}
-    (SELECT prob FROM UNNEST(predicted_label_probs)) AS probability,
+    {% if type.is_classification %}
+    plp.prob AS probability,
     {% if label.is_conversion %}
     {{label.name}},
     {% endif %}
@@ -20,7 +20,7 @@ CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.predictions` AS (
         user_id,
         user_pseudo_id,
         geo.country AS country,
-        geo.city AS city,
+        geo.state AS state,
         device.language AS language,
         device.category AS device_type,
         device.web_info.browser AS device_browser,
@@ -41,7 +41,7 @@ CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.predictions` AS (
           {% endif %}
           user_pseudo_id,
           country,
-          city,
+          state,
           language,
           traffic_source,
           traffic_medium,
@@ -157,8 +157,8 @@ CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.predictions` AS (
     ON fv.{{unique_id}} = uab.{{unique_id}}
     INNER JOIN user_variables AS uv
     ON fv.{{unique_id}} = uv.{{unique_id}}
-    {% if type.classification %}
-    WHERE label = 1
-    {% endif %}
-  ))
+  )){% if type.is_classification %},
+  UNNEST(predicted_label_probs) AS plp
+  WHERE plp.label = predicted_label
+  {% endif %}
 )
