@@ -68,18 +68,21 @@ first_engagement AS (
 analytics_variables AS (
   SELECT
     fe.{{unique_id}},
+    {% if label.is_revenue %}
+    IFNULL(fv.value, 0) AS first_value,
+    {% endif %}
     IFNULL(l.label, 0) AS label,
-    l.date
+    l.date AS trigger_event_date
   FROM first_engagement fe
-  LEFT JOIN (
+  LEFT OUTER JOIN (
     SELECT
-      {{unique_id}},
+      e.{{unique_id}},
       {% if label.is_score %}
       1 AS label,
       {% elif label.is_revenue %}
       SUM(COALESCE(params.value.int_value, params.value.float_value, params.value.double_value, 0)) AS label,
       {% endif %}
-      MIN(date) AS date,
+      MIN(e.date) AS date,
     FROM events AS e, UNNEST(params) AS params
     WHERE name = "{{label.name}}"
     AND params.key = "{{label.key}}"
@@ -91,6 +94,21 @@ analytics_variables AS (
     GROUP BY 1
   ) l
   ON fe.{{unique_id}} = l.{{unique_id}}
+  -- add the first value in as a feature (first purchase/etc)
+  {% if label.is_revenue %}
+  LEFT OUTER JOIN (
+    SELECT
+      e.{{unique_id}},
+      COALESCE(params.value.int_value, params.value.float_value, params.value.double_value, 0) AS value,
+    ROW_NUMBER() OVER (PARTITION BY {{unique_id}} ORDER BY timestamp ASC) AS row_num
+    FROM events AS e, UNNEST(params) AS params
+    WHERE name = "{{label.name}}"
+    AND params.key = "{{label.key}}"
+    AND COALESCE(params.value.int_value, params.value.float_value, params.value.double_value, 0) > 0
+  ) fv
+  ON fe.{{unique_id}} = fv.{{unique_id}}
+  AND fv.row_num = 1
+  {% endif %}
 ),
 {% endif %}
 {% if uses_first_party_data %}
@@ -110,7 +128,7 @@ user_variables AS (
     -- or inject the selected google analytics label
     {% elif label.source == 'GOOGLE_ANALYTICS' %}
     IFNULL(av.label, 0) AS label,
-    COALESCE(fp.trigger_event_date, av.date) AS trigger_event_date
+    COALESCE(fp.trigger_event_date, av.trigger_event_date) AS trigger_event_date
     {% endif %}
   FROM `{{project_id}}.{{model_dataset}}.first_party` fp
   {% if label.source == 'GOOGLE_ANALYTICS' %}
@@ -125,19 +143,19 @@ user_variables AS (
 {% endif %}
 user_aggregate_behavior AS (
   SELECT
-    {{unique_id}},
-    SUM((SELECT value.int_value FROM UNNEST(params) WHERE key = "engagement_time_msec")) AS engagement_time,
-    SUM(IF(name = "user_engagement", 1, 0)) AS cnt_user_engagement,
-    SUM(IF(name = "scroll", 1, 0)) AS cnt_scroll,
-    SUM(IF(name = "session_start", 1, 0)) AS cnt_session_start,
-    SUM(IF(name = "first_visit", 1, 0)) AS cnt_first_visit,
+    e.{{unique_id}},
+    SUM((SELECT value.int_value FROM UNNEST(e.params) WHERE key = "engagement_time_msec")) AS engagement_time,
+    SUM(IF(e.name = "user_engagement", 1, 0)) AS cnt_user_engagement,
+    SUM(IF(e.name = "scroll", 1, 0)) AS cnt_scroll,
+    SUM(IF(e.name = "session_start", 1, 0)) AS cnt_session_start,
+    SUM(IF(e.name = "first_visit", 1, 0)) AS cnt_first_visit,
     -- inject the selected google analytics features
     {% for feature in features %}
     {% if feature.source == 'GOOGLE_ANALYTICS' %}
-    SUM(IF(name = "{{feature.name}}", 1, 0)) AS cnt_{{feature.name}},
+    SUM(IF(e.name = "{{feature.name}}", 1, 0)) AS cnt_{{feature.name}},
     {% endif %}
     {% endfor %}
-    SUM(IF(name = "page_view", 1, 0)) AS cnt_page_view
+    SUM(IF(e.name = "page_view", 1, 0)) AS cnt_page_view
   FROM events AS e
   INNER JOIN user_variables AS uv
   ON e.{{unique_id}} = uv.{{unique_id}}
@@ -164,6 +182,5 @@ UNION ALL
 SELECT * EXCEPT({{unique_id}})
 FROM training_dataset
 WHERE label = 0
--- randomly select a certain percentage of the 0 labels based on skew factor selected
-AND MOD(ABS(FARM_FINGERPRINT({{unique_id}})), {{skew_factor}}) = IF(RAND() < 0.5, 0, 1)
+AND MOD(ABS(FARM_FINGERPRINT({{unique_id}})), {{skew_factor}}) = 1
 {% endif %}

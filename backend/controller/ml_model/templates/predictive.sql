@@ -15,6 +15,7 @@ CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.predictions` AS (
     WITH events AS (
       SELECT
         event_timestamp AS timestamp,
+        event_date AS date,
         event_name AS name,
         event_params AS params,
         user_id,
@@ -23,16 +24,17 @@ CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.predictions` AS (
         geo.state AS state,
         device.language AS language,
         device.category AS device_type,
-        device.web_info.browser AS device_browser,
         device.operating_system AS device_os,
-        traffic_source.medium AS taffic_source_medium,
+        device.web_info.browser AS device_browser,
+        traffic_source.source AS traffic_source,
+        traffic_source.medium AS traffic_medium,
         EXTRACT(HOUR FROM(TIMESTAMP_MICROS(user_first_touch_timestamp))) AS first_touch_hour
         FROM `{{project_id}}.{{ga4_dataset}}.events_*`
         WHERE _TABLE_SUFFIX BETWEEN
           FORMAT_DATE("%Y%m%d", DATE_SUB(CURRENT_DATE(), INTERVAL {{timespan.predictive}} {{timespan.unit}})) AND
           FORMAT_DATE("%Y%m%d", DATE_SUB(CURRENT_DATE(), INTERVAL 1 DAY))
     ),
-    first_values AS (
+    first_engagement AS (
       SELECT * EXCEPT(row_num)
       FROM (
         SELECT
@@ -68,18 +70,21 @@ CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.predictions` AS (
     analytics_variables AS (
       SELECT
         fe.{{unique_id}},
+        {% if label.is_revenue %}
+        IFNULL(fv.value, 0) AS first_value,
+        {% endif %}
         IFNULL(l.label, 0) AS label,
-        l.date
+        l.date AS trigger_event_date
       FROM first_engagement fe
       LEFT OUTER JOIN (
         SELECT
-          {{unique_id}},
+          e.{{unique_id}},
           {% if label.is_score %}
           1 AS label,
           {% elif label.is_revenue %}
           SUM(COALESCE(params.value.int_value, params.value.float_value, params.value.double_value, 0)) AS label,
           {% endif %}
-          MIN(date) AS date,
+          MIN(e.date) AS date,
         FROM events AS e, UNNEST(params) AS params
         WHERE name = "{{label.name}}"
         AND params.key = "{{label.key}}"
@@ -91,6 +96,21 @@ CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.predictions` AS (
         GROUP BY 1
       ) l
       ON fe.{{unique_id}} = l.{{unique_id}}
+      -- add the first value in as a feature (first purchase/etc)
+      {% if label.is_revenue %}
+      LEFT OUTER JOIN (
+        SELECT
+          e.{{unique_id}},
+          COALESCE(params.value.int_value, params.value.float_value, params.value.double_value, 0) AS value,
+        ROW_NUMBER() OVER (PARTITION BY {{unique_id}} ORDER BY timestamp ASC) AS row_num
+        FROM events AS e, UNNEST(params) AS params
+        WHERE name = "{{label.name}}"
+        AND params.key = "{{label.key}}"
+        AND COALESCE(params.value.int_value, params.value.float_value, params.value.double_value, 0) > 0
+      ) fv
+      ON fe.{{unique_id}} = fv.{{unique_id}}
+      AND fv.row_num = 1
+      {% endif %}
     ),
     {% endif %}
     {% if uses_first_party_data %}
@@ -110,7 +130,7 @@ CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.predictions` AS (
         -- or inject the selected google analytics label
         {% elif label.source == 'GOOGLE_ANALYTICS' %}
         IFNULL(av.label, 0) AS label,
-        COALESCE(fp.trigger_event_date, av.date) AS trigger_event_date,
+        COALESCE(fp.trigger_event_date, av.trigger_event_date) AS trigger_event_date,
         {% endif %}
       FROM `{{project_id}}.{{model_dataset}}.first_party` fp
       {% if label.source == 'GOOGLE_ANALYTICS' %}
@@ -125,19 +145,19 @@ CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.predictions` AS (
     {% endif %}
     user_aggregate_behavior AS (
       SELECT
-        {{unique_id}},
-        SUM((SELECT value.int_value FROM UNNEST(params) WHERE key = "engagement_time_msec")) AS engagement_time,
-        SUM(IF(name = "user_engagement", 1, 0)) AS cnt_user_engagement,
-        SUM(IF(name = "scroll", 1, 0)) AS cnt_scroll,
-        SUM(IF(name = "session_start", 1, 0)) AS cnt_session_start,
-        SUM(IF(name = "first_visit", 1, 0)) AS cnt_first_visit,
+        e.{{unique_id}},
+        SUM((SELECT value.int_value FROM UNNEST(e.params) WHERE key = "engagement_time_msec")) AS engagement_time,
+        SUM(IF(e.name = "user_engagement", 1, 0)) AS cnt_user_engagement,
+        SUM(IF(e.name = "scroll", 1, 0)) AS cnt_scroll,
+        SUM(IF(e.name = "session_start", 1, 0)) AS cnt_session_start,
+        SUM(IF(e.name = "first_visit", 1, 0)) AS cnt_first_visit,
         -- inject the selected google analytics features
         {% for feature in features %}
         {% if feature.source == 'GOOGLE_ANALYTICS' %}
-        SUM(IF(name = "{{feature.name}}", 1, 0)) AS cnt_{{feature.name}},
+        SUM(IF(e.name = "{{feature.name}}", 1, 0)) AS cnt_{{feature.name}},
         {% endif %}
         {% endfor %}
-        SUM(IF(name = "page_view", 1, 0)) AS cnt_page_view
+        SUM(IF(e.name = "page_view", 1, 0)) AS cnt_page_view
       FROM events AS e
       INNER JOIN user_variables AS uv
         ON e.{{unique_id}} = uv.{{unique_id}}
@@ -146,17 +166,17 @@ CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.predictions` AS (
       GROUP BY 1
     ),
     SELECT
-      fv.*,
+      fe.*,
       {% if label.is_conversion %}
       uv.label AS {{label.name}},
       {% endif %}
       uab.* EXCEPT ({{unique_id}}),
       uv.* EXCEPT({{unique_id}}, trigger_event_date)
-    FROM first_values AS fv
+    FROM first_engagement AS fe
     INNER JOIN user_aggregate_behavior AS uab
-    ON fv.{{unique_id}} = uab.{{unique_id}}
+    ON fe.{{unique_id}} = uab.{{unique_id}}
     INNER JOIN user_variables AS uv
-    ON fv.{{unique_id}} = uv.{{unique_id}}
+    ON fe.{{unique_id}} = uv.{{unique_id}}
   )){% if type.is_classification %},
   UNNEST(predicted_label_probs) AS plp
   WHERE plp.label = predicted_label
