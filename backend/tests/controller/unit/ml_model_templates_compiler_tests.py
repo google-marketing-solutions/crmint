@@ -34,6 +34,7 @@ class TestCompiler(absltest.TestCase):
         'source': 'GOOGLE_ANALYTICS',
         'key': 'value',
         'value_type': 'int',
+        'is_revenue': False,
         'is_score': True,
         'is_percentage': False
       },
@@ -69,6 +70,7 @@ class TestCompiler(absltest.TestCase):
         'source': 'GOOGLE_ANALYTICS',
         'key': 'value',
         'value_type': 'int',
+        'is_revenue': False,
         'is_score': True,
         'is_percentage': False
       },
@@ -129,7 +131,7 @@ class TestCompiler(absltest.TestCase):
     # feature check
     self.assertRegex(
       sql,
-      re.escape('SUM(IF(name = "click", 1, 0)) AS cnt_click'),
+      re.escape('SUM(IF(e.name = "click", 1, 0)) AS cnt_click'),
       'Google Analytics feature check failed.')
 
     self.assertRegex(
@@ -163,6 +165,7 @@ class TestCompiler(absltest.TestCase):
         'source': 'FIRST_PARTY',
         'key': 'value',
         'value_type': 'int',
+        'is_revenue': False,
         'is_score': True,
         'is_percentage': False
       },
@@ -209,6 +212,7 @@ class TestCompiler(absltest.TestCase):
         'source': 'GOOGLE_ANALYTICS',
         'key': 'value',
         'value_type': 'int',
+        'is_revenue': False,
         'is_score': True,
         'is_percentage': False
       },
@@ -244,8 +248,8 @@ class TestCompiler(absltest.TestCase):
     self.assertRegex(
       sql,
       r',[\s\n]+'.join([
-        re.escape('SUM(IF(name = "click", 1, 0)) AS cnt_click'),
-        re.escape('SUM(IF(name = "subscribe", 1, 0)) AS cnt_subscribe'),
+        re.escape('SUM(IF(e.name = "click", 1, 0)) AS cnt_click'),
+        re.escape('SUM(IF(e.name = "subscribe", 1, 0)) AS cnt_subscribe'),
       ]),
       'Google Analytics feature check failed.')
 
@@ -259,6 +263,7 @@ class TestCompiler(absltest.TestCase):
         'source': 'GOOGLE_ANALYTICS',
         'key': 'value',
         'value_type': 'string,int',
+        'is_revenue': False,
         'is_score': True,
         'is_percentage': False,
         'is_conversion': False
@@ -352,6 +357,7 @@ class TestCompiler(absltest.TestCase):
         'source': 'GOOGLE_ANALYTICS',
         'key': 'value',
         'value_type': 'string,int',
+        'is_revenue': False,
         'is_score': True,
         'is_percentage': False,
         'is_conversion': True,
@@ -411,7 +417,7 @@ class TestCompiler(absltest.TestCase):
     # feature check
     self.assertRegex(
       sql,
-      re.escape('SUM(IF(name = "click", 1, 0)) AS cnt_click'),
+      re.escape('SUM(IF(e.name = "click", 1, 0)) AS cnt_click'),
       'Google Analytics feature check failed.')
 
     self.assertRegex(
@@ -440,6 +446,7 @@ class TestCompiler(absltest.TestCase):
         'source': 'FIRST_PARTY',
         'key': 'value',
         'value_type': 'int',
+        'is_revenue': False,
         'is_score': True,
         'is_percentage': False,
         'is_conversion': True,
@@ -465,7 +472,7 @@ class TestCompiler(absltest.TestCase):
 
     # Probability check
     self.assertIn(
-      '(SELECT prob FROM UNNEST(predicted_label_probs)) AS probability,',
+      'plp.prob AS probability,',
       sql,
       'Probability not found in select when selecting from ML.PREDICT.'
     )
@@ -514,6 +521,7 @@ class TestCompiler(absltest.TestCase):
         'source': 'GOOGLE_ANALYTICS',
         'key': 'value',
         'value_type': 'string',
+        'is_revenue': False,
         'is_score': True,
         'is_percentage': False,
         'is_conversion': False
@@ -555,8 +563,8 @@ class TestCompiler(absltest.TestCase):
     self.assertRegex(
       sql,
       r',[\s\n]+'.join([
-        re.escape('SUM(IF(name = "click", 1, 0)) AS cnt_click'),
-        re.escape('SUM(IF(name = "scroll", 1, 0)) AS cnt_scroll')
+        re.escape('SUM(IF(e.name = "click", 1, 0)) AS cnt_click'),
+        re.escape('SUM(IF(e.name = "scroll", 1, 0)) AS cnt_scroll')
       ]),
       'Google Analytics feature check failed.')
 
@@ -570,6 +578,7 @@ class TestCompiler(absltest.TestCase):
         'source': 'GOOGLE_ANALYTICS',
         'key': 'value',
         'value_type': 'string,int',
+        'is_revenue': False,
         'is_score': True,
         'is_percentage': True,
         'is_conversion': True,
@@ -654,6 +663,7 @@ class TestCompiler(absltest.TestCase):
         'source': 'GOOGLE_ANALYTICS',
         'key': 'value',
         'value_type': 'int',
+        'is_revenue': False,
         'is_score': True,
         'is_percentage': True,
         'is_conversion': False
@@ -694,6 +704,7 @@ class TestCompiler(absltest.TestCase):
         'source': 'GOOGLE_ANALYTICS',
         'key': 'value',
         'value_type': 'int',
+        'is_revenue': False,
         'is_score': True,
         'is_percentage': False,
         'is_conversion': False
@@ -847,6 +858,7 @@ class TestCompiler(absltest.TestCase):
         'source': 'GOOGLE_ANALYTICS',
         'key': 'value',
         'value_type': 'float',
+        'is_revenue': False,
         'is_score': True,
         'is_percentage': True,
         'is_conversion': False

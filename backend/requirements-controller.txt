@@ -86,6 +86,15 @@ frozendict==2.3.4 \
     --hash=sha256:dae686722c144b333c4dbdc16323a5de11406d26b76d2be1cc175f90afacb5ba \
     --hash=sha256:dbbe1339ac2646523e0bb00d1896085d1f70de23780e4927ca82b36ab8a044d3
     # via appengine-python-standard
+googleapis-common-protos[grpc]==1.58.0 \
+    --hash=sha256:c727251ec025947d545184ba17e3578840fc3a24a0516a020479edab660457df \
+    --hash=sha256:ca3befcd4580dab6ad49356b46bf165bb68ff4b32389f028f1abd7c10ab9519a
+    # via
+    #   -r backend/requirements-controller.in
+    #   google-api-core
+    #   google-cloud-audit-log
+    #   grpc-google-iam-v1
+    #   grpcio-status
 google-api-core[grpc]==2.11.0 \
     --hash=sha256:4b9bb5d5a380a0befa0573b302651b8a9a89262c1730e37bf423cec511804c22 \
     --hash=sha256:ce222e27b0de0d7bc63eb043b956996d6dccab14cc3b690aaea91c9cc99dc16e
@@ -203,15 +212,6 @@ google-resumable-media==2.4.0 \
     --hash=sha256:2aa004c16d295c8f6c33b2b4788ba59d366677c0a25ae7382436cb30f776deaa \
     --hash=sha256:8d5518502f92b9ecc84ac46779bd4f09694ecb3ba38a3e7ca737a86d15cbca1f
     # via google-cloud-bigquery
-googleapis-common-protos[grpc]==1.58.0 \
-    --hash=sha256:c727251ec025947d545184ba17e3578840fc3a24a0516a020479edab660457df \
-    --hash=sha256:ca3befcd4580dab6ad49356b46bf165bb68ff4b32389f028f1abd7c10ab9519a
-    # via
-    #   -r backend/requirements-controller.in
-    #   google-api-core
-    #   google-cloud-audit-log
-    #   grpc-google-iam-v1
-    #   grpcio-status
 greenlet==2.0.1 \
     --hash=sha256:0109af1138afbfb8ae647e31a2b1ab030f58b21dd8528c27beaeb0093b7938a9 \
     --hash=sha256:0459d94f73265744fee4c2d5ec44c6f34aa8a31017e6e9de770f7bcf29710be9 \

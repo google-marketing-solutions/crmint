@@ -210,7 +210,7 @@ def _get_template(templateFile: TemplateFile) -> Template:
     'lstrip_blocks': True,
     'newline_sequence': '\n'
   }
-  with open(_absolute_path(templateFile.value), 'r') as file:
+  with open(_absolute_path('templates/' + templateFile.value), 'r') as file:
     return Template(file.read(), **options, undefined=StrictUndefined)
 
 def _get_timespan(timespans: list, unit: str) -> Timespan:
