@@ -28,7 +28,7 @@ from common import insight
 from controller.models import MlModel, GeneralSetting
 
 from controller.ml_model import bigquery
-from controller.ml_model.templates import compiler
+from backend.controller.ml_model import compiler
 
 project_id = os.getenv('GOOGLE_CLOUD_PROJECT')
 

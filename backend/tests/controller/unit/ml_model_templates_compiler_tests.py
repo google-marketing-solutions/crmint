@@ -20,7 +20,7 @@ from freezegun import freeze_time
 from typing import Union
 import re
 
-from controller.ml_model.templates import compiler
+from backend.controller.ml_model import compiler
 
 class TestCompiler(absltest.TestCase):
 
