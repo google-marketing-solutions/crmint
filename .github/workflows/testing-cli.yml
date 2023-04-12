@@ -32,7 +32,7 @@ jobs:
           fail_ci_if_error: false
           flags: cli
   install-cli-test:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-latest
     env:
       CRMINT_CLI_DOCKER_IMAGE: crmint/cli:latest
       CRMINT_HOME: ${{ github.workspace }}
