@@ -253,6 +253,43 @@ class TestCompiler(absltest.TestCase):
       ]),
       'Google Analytics feature check failed.')
 
+  def test_build_model_sql_google_analytics_revenue(self):
+    test_model = self.model_config(
+      type='LOGISTIC_REG',
+      uses_first_party_data=False,
+      label={
+        'name': 'purchase',
+        'source': 'GOOGLE_ANALYTICS',
+        'key': 'value',
+        'value_type': 'int',
+        'is_revenue': True,
+        'is_score': False,
+        'is_percentage': False
+      },
+      features=[
+        {'name': 'click', 'source': 'GOOGLE_ANALYTICS'},
+        {'name': 'subscribe', 'source': 'GOOGLE_ANALYTICS'}
+      ],
+      skew_factor=4)
+
+    pipeline = compiler.build_training_pipeline(test_model, 'test-project-id-1234', 'test-ga4-dataset-loc')
+    params = pipeline['jobs'][0]['params']
+
+    sql_param = next(param for param in params if param["name"] == "script")
+    self.assertIsNotNone(sql_param)
+    sql = sql_param['value']
+
+    # first value join check
+    self.assertRegex(
+      sql,
+      r'[\s\S]*'.join([
+        re.escape('analytics_variables AS ('),
+        re.escape('LEFT OUTER JOIN ('),
+        re.escape('COALESCE(params.value.int_value, params.value.float_value, params.value.double_value, 0) AS value'),
+        re.escape(') fv')
+      ]),
+      'Google Analytics first value join check failed.')
+
   @freeze_time("2023-02-06T00:00:00")
   def test_build_predictive_pipeline(self):
     test_model = self.model_config(
@@ -567,6 +604,49 @@ class TestCompiler(absltest.TestCase):
         re.escape('SUM(IF(e.name = "scroll", 1, 0)) AS cnt_scroll')
       ]),
       'Google Analytics feature check failed.')
+
+  def test_build_predictive_sql_google_analytics_revenue(self):
+    test_model = self.model_config(
+      type='BOOSTED_TREE_CLASSIFIER',
+      uses_first_party_data=False,
+      label={
+        'name': 'subscription',
+        'source': 'GOOGLE_ANALYTICS',
+        'key': 'value',
+        'value_type': 'string',
+        'is_revenue': True,
+        'is_score': False,
+        'is_percentage': False,
+        'is_conversion': False
+      },
+      features=[
+        {'name': 'click', 'source': 'GOOGLE_ANALYTICS'},
+        {'name': 'scroll', 'source': 'GOOGLE_ANALYTICS'}
+      ],
+      skew_factor=4)
+
+    pipeline = compiler.build_predictive_pipeline(
+      test_model, 'test-project-id-1234', 'test-ga4-dataset-loc', 'test-ga4-measurement-id', 'test-ga4-api-secret')
+    self.assertEqual(pipeline['name'], 'Test Model - Predictive')
+
+    setup_job = next(job for job in pipeline['jobs'] if job['name'] == 'Test Model - Predictive Setup')
+    self.assertIsNotNone(setup_job)
+    params = setup_job['params']
+
+    sql_param = next(param for param in params if param['name'] == 'script')
+    self.assertIsNotNone(sql_param)
+    sql = sql_param['value']
+
+    # first value join check
+    self.assertRegex(
+      sql,
+      r'[\s\S]*'.join([
+        re.escape('analytics_variables AS ('),
+        re.escape('LEFT OUTER JOIN ('),
+        re.escape('COALESCE(params.value.int_value, params.value.float_value, params.value.double_value, 0) AS value'),
+        re.escape(') fv')
+      ]),
+      'Google Analytics first value join check failed.')
 
   def test_build_output_sql_score(self):
     test_model = self.model_config(

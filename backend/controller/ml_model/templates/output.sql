@@ -7,7 +7,7 @@ CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.output` AS (
       SELECT MAX(table_id) FROM `{{project_id}}.{{ga4_dataset}}.__TABLES_SUMMARY__`)
   ),
   events AS (
-    SELECT DISTINCT
+    SELECT
       {{unique_id}},
       event_name AS name
       event_params AS params
