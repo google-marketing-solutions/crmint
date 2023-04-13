@@ -1,6 +1,7 @@
 -r common/requirements.in
 jinja2
 Flask-SQLAlchemy
+sqlalchemy<2.0.0
 Flask-RESTful
 oauthlib
 Flask-Cors
@@ -11,4 +12,4 @@ appengine-python-standard
 
 # Pins a loose requirement from "google-api-core".
 google-api-core[grpc]==2.11.0
-googleapis-common-protos[grpc]==1.58.0
+googleapis-common-protos[grpc]==1.59.0

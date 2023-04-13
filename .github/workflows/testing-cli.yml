@@ -10,12 +10,12 @@ on:
       - 'master'
 jobs:
   run-cli-tests:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-latest
     steps:
       # Checkout repository code
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       # Configure python
-      - uses: actions/setup-python@v2
+      - uses: actions/setup-python@v4
         with:
           python-version: '3.x'
       # Setup the CRMint test environment
@@ -28,11 +28,11 @@ jobs:
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3
         with:
-          working-directory: cli
+          directory: cli
           fail_ci_if_error: false
           flags: cli
   install-cli-test:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-latest
     env:
       CRMINT_CLI_DOCKER_IMAGE: crmint/cli:latest
       CRMINT_HOME: ${{ github.workspace }}
