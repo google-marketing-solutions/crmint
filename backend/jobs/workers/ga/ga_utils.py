@@ -496,6 +496,38 @@ def create_custom_dimension_ga4(
                         'No changes made.')
 
 
+def create_conversion_event_ga4(
+    ga_client: discovery.Resource,
+    ga_property_id: str,
+    event_name: str,
+    progress_callback: Optional[Callable[[str], None]] = None) -> None:
+  """Creates a conversion event using the Google Analytics API.
+
+  Args:
+    ga_client: Google Analytics API client.
+    ga_property_id: Identifier for the Google Analytics Property in which
+      to create conversion event.
+    event_name: The name of the event to create into a conversion event.
+    progress_callback: Callback to send progress messages.
+  Raises:
+    ValueError: if input values do not meet API conditions.
+  """
+  progress_callback = progress_callback or _null_progress_callback
+  if len(event_name) > 40:
+    raise ValueError('Event names must be 40 characters or fewer.')
+  fields = {'eventName': event_name}
+  try:
+    request = ga_client.properties().conversionEvents().create(
+        parent=f'properties/{ga_property_id}',
+        body=fields)
+    progress_callback(f'Creating new conversion event named {event_name}.')
+    retry.Retry()(request.execute)()
+  except errors.HttpError as e:
+    if e.resp.status == 409:
+      progress_callback('Requested conversion event already exists. '
+                        'No changes made.')
+
+
 def get_url_param_by_id(measurement_id: str) -> str:
   """Selects the URL parameter for GA4 measurement protocol based on ID.
 
