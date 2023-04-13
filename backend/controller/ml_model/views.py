@@ -27,8 +27,7 @@ from flask_restful import Resource
 from common import insight
 from controller.models import MlModel, GeneralSetting
 
-from controller.ml_model import bigquery
-from backend.controller.ml_model import compiler
+from controller.ml_model import bigquery, compiler
 
 project_id = os.getenv('GOOGLE_CLOUD_PROJECT')
 

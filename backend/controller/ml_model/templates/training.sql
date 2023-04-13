@@ -100,7 +100,7 @@ analytics_variables AS (
     SELECT
       e.{{unique_id}},
       COALESCE(params.value.int_value, params.value.float_value, params.value.double_value, 0) AS value,
-    ROW_NUMBER() OVER (PARTITION BY {{unique_id}} ORDER BY timestamp ASC) AS row_num
+    ROW_NUMBER() OVER (PARTITION BY e.{{unique_id}} ORDER BY e.timestamp ASC) AS row_num
     FROM events AS e, UNNEST(params) AS params
     WHERE name = "{{label.name}}"
     AND params.key = "{{label.key}}"
