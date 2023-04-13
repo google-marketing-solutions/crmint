@@ -168,7 +168,7 @@ resource "google_cloud_run_service_iam_binding" "frontend_run-invoker" {
   project = google_cloud_run_service.frontend_run.project
   service = google_cloud_run_service.frontend_run.name
   role = "roles/run.invoker"
-  members = ["allUsers"]
+  members = ["serviceAccount:${google_project_service_identity.iap_sa.email}"]
 }
 
 resource "google_cloud_run_service_iam_binding" "controller_run-invoker" {
@@ -176,7 +176,7 @@ resource "google_cloud_run_service_iam_binding" "controller_run-invoker" {
   project = google_cloud_run_service.controller_run.project
   service = google_cloud_run_service.controller_run.name
   role = "roles/run.invoker"
-  members = ["allUsers"]
+  members = ["serviceAccount:${google_project_service_identity.iap_sa.email}"]
 }
 
 resource "google_cloud_run_service_iam_binding" "jobs_run-invoker" {
@@ -184,5 +184,5 @@ resource "google_cloud_run_service_iam_binding" "jobs_run-invoker" {
   project = google_cloud_run_service.jobs_run.project
   service = google_cloud_run_service.jobs_run.name
   role = "roles/run.invoker"
-  members = ["allUsers"]
+  members = ["serviceAccount:${google_project_service_identity.iap_sa.email}"]
 }
