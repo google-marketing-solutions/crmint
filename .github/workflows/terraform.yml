@@ -58,18 +58,24 @@ jobs:
 
       - name: Save artifacts
         run: |
-          mkdir -p ./pr/terraform
-          echo ${{ steps.init.outcome }} > ./pr/terraform/init_outcome
-          echo ${{ steps.validate.outcome }} > ./pr/terraform/validate_outcome
-          cat << EOF > ./pr/terraform/validate_output
+          EOF=$(dd if=/dev/urandom bs=15 count=1 status=none | base64)
+          mkdir -p ~/pr/terraform
+          echo ${{ steps.init.outcome }} > ~/pr/terraform/init_outcome
+          echo "Saved init outcome"
+          echo ${{ steps.validate.outcome }} > ~/pr/terraform/validate_outcome
+          echo "Saved validate outcome"
+          cat <<$EOF > ~/pr/terraform/validate_output
           ${{ steps.validate.outputs.stdout }}
-          EOF
-          echo ${{ steps.plan.outcome }} > ./pr/terraform/plan_outcome
-          cat << EOF > ./pr/terraform/plan_output
+          $EOF
+          echo "Saved validate output"
+          echo ${{ steps.plan.outcome }} > ~/pr/terraform/plan_outcome
+          cat <<$EOF > ~/pr/terraform/plan_output
           ${{ steps.plan.outputs.stdout }}
-          EOF
+          $EOF
+          echo "Saved plan output"
+        shell: bash
 
       - uses: actions/upload-artifact@v3
         with:
           name: pr
-          path: pr/
+          path: ~/pr/terraform/

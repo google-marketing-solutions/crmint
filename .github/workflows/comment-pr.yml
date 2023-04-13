@@ -15,8 +15,9 @@ jobs:
       github.event.workflow_run.event == 'pull_request' &&
       github.event.workflow_run.conclusion == 'success'
     steps:
-      - uses: actions/download-artifact@v3
+      - uses: dawidd6/action-download-artifact@v2
         with:
+          workflow: terraform.yml
           name: pr
       - name: Comment on PR with Terraform artifacts
         uses: actions/github-script@v6
