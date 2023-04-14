@@ -24,7 +24,7 @@
     "@angular/platform-browser-dynamic": "^15.2.7",
     "@angular/platform-server": "^15.2.7",
     "@angular/router": "^15.2.7",
-    "@ctrl/ngx-codemirror": "^5.1.1",
+    "@ctrl/ngx-codemirror": "^6.1.0",
     "class-transformer": "~0.3.1",
     "codemirror": "^5.65.6",
     "core-js": "~2.6.11",
