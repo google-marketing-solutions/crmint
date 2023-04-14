@@ -30,6 +30,11 @@ export enum Source {
   FIRST_PARTY = 'FIRST_PARTY'
 }
 
+export enum Destination {
+  GOOGLE_ANALYTICS_CUSTOM_EVENT = 'GOOGLE_ANALYTICS_CUSTOM_EVENT',
+  GOOGLE_ADS_CONVERSION_EVENT = 'GOOGLE_ADS_CONVERSION_EVENT'
+}
+
 export class Range {
   min: number
   max: number
@@ -133,6 +138,7 @@ export class MlModel {
   label: Label;
   skew_factor: number;
   timespans: Timespan[];
+  destination: Destination;
   pipelines: Pipeline[];
   updated_at: string;
 
@@ -305,6 +311,7 @@ export class MlModel {
           unit: timespan.unit
         };
       }),
+      destination: this.destination
     }
   }
 }

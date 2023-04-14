@@ -220,6 +220,13 @@
           </div>
         </div>
 
+        <div class="crmi-form-group">
+          <label class="crmi-form-label">Destination</label>
+          <mat-select placeholder="Destination" formControlName="destination">
+            <mat-option *ngFor="let destination of destinations" [value]="destination">{{ destination | labelcase }}</mat-option>
+          </mat-select>
+        </div>
+
         <div class="crmi-form-offset">
           <div class="crmi-form-message crmi-form-message-error">{{ errorMessage }}</div>
           <button mat-raised-button

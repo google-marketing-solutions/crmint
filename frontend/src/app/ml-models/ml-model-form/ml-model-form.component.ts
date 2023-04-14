@@ -21,7 +21,7 @@ import { Router, ActivatedRoute } from '@angular/router';
 import { plainToClass } from 'class-transformer';
 
 import { MlModelsService } from '../shared/ml-models.service';
-import { MlModel, Type, UniqueId, HyperParameter, Feature, Label, Variable, BigQueryDataset, Timespan, Source } from 'app/models/ml-model';
+import { MlModel, Type, UniqueId, HyperParameter, Feature, Label, Variable, BigQueryDataset, Timespan, Source, Destination } from 'app/models/ml-model';
 
 @Component({
   selector: 'app-ml-model-form',
@@ -37,6 +37,7 @@ export class MlModelFormComponent implements OnInit {
   errorMessage: string = '';
   uniqueIds: string[];
   types: string[];
+  destinations: string[];
   variables: Variable[] = [];
   optionDescriptions: boolean = false;
   fetchingVariables: boolean = false;
@@ -51,6 +52,7 @@ export class MlModelFormComponent implements OnInit {
       this.createForm();
       this.types = Object.values(Type).filter(type => type !== 'LOGISTIC_REG');
       this.uniqueIds = Object.values(UniqueId);
+      this.destinations = Object.values(Destination);
     }
 
   /**
@@ -80,7 +82,8 @@ export class MlModelFormComponent implements OnInit {
         averageValue: [0.0, Validators.required]
       }),
       skewFactor: [4, [Validators.required, Validators.min(0), Validators.max(10)]],
-      timespans: this._fb.array([])
+      timespans: this._fb.array([]),
+      destination: [null, [Validators.required, this.enumValidator(Destination)]]
     });
   }
 
@@ -153,7 +156,8 @@ export class MlModelFormComponent implements OnInit {
         isConversion: this.mlModel.label.is_conversion,
         averageValue: this.mlModel.label.average_value
       },
-      skewFactor: this.mlModel.skew_factor
+      skewFactor: this.mlModel.skew_factor,
+      destination: this.mlModel.destination
     });
 
     this.setHyperParameters(this.mlModel.hyper_parameters, this.mlModel.type);
@@ -405,6 +409,7 @@ export class MlModelFormComponent implements OnInit {
     } as Label;
     this.mlModel.skew_factor = formModel.skewFactor as number;
     this.mlModel.timespans = formModel.timespans as Timespan[];
+    this.mlModel.destination = formModel.destination as Destination;
   }
 
   /**
