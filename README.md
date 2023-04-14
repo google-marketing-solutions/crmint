@@ -1,4 +1,6 @@
-# CRMint
+<div align="center">
+<img src="https://google.github.io/crmint/img/crmint-logo-noborder.png"><h1 align="center">CRMint</h1>
+</div>
 
 **Make reliable data integration and data processing with Google easy for
 advertisers.**
