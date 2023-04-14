@@ -30,7 +30,7 @@ describe('PipelineFormComponent', () => {
         FormsModule,
         HttpClientModule,
         ReactiveFormsModule,
-        RouterModule.forRoot([], { relativeLinkResolution: 'legacy' })
+        RouterModule.forRoot([], {})
       ],
       providers: [
         PipelinesService
