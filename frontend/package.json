@@ -2,6 +2,9 @@
   "name": "frontend",
   "version": "0.0.0",
   "license": "MIT",
+  "engines": {
+    "node": "^14.20.0 || ^16.13.0 || >=18.10.0"
+  },
   "scripts": {
     "ng": "ng",
     "start": "ng serve",
@@ -59,6 +62,6 @@
     "protractor": "~7.0.0",
     "ts-node": "~8.4.1",
     "tslint": "~6.1.0",
-    "typescript": "~4.9.5"
+    "typescript": ">=4.8.2 <5.0"
   }
 }
