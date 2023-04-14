@@ -20,7 +20,7 @@ from freezegun import freeze_time
 from typing import Union
 import re
 
-from backend.controller.ml_model import compiler
+from backend.controller.ml_model.compiler import Compiler
 
 class TestCompiler(absltest.TestCase):
 
@@ -44,7 +44,7 @@ class TestCompiler(absltest.TestCase):
       ],
       skew_factor=4)
 
-    pipeline = compiler.build_training_pipeline(test_model, 'test-project-id-1234', 'test-ga4-dataset-loc')
+    pipeline = self.compiler(test_model).build_training_pipeline()
     self.assertEqual(pipeline['name'], 'Test Model - Training')
     self.assertEqual(pipeline['jobs'][0]['name'], 'Test Model - Training Setup')
     params = pipeline['jobs'][0]['params']
@@ -80,7 +80,7 @@ class TestCompiler(absltest.TestCase):
       ],
       skew_factor=4)
 
-    pipeline = compiler.build_training_pipeline(test_model, 'test-project-id-1234', 'test-ga4-dataset-loc')
+    pipeline = self.compiler(test_model).build_training_pipeline()
     self.assertEqual(pipeline['name'], 'Test Model - Training')
     self.assertEqual(pipeline['jobs'][0]['name'], 'Test Model - Training Setup')
     params = pipeline['jobs'][0]['params']
@@ -175,7 +175,7 @@ class TestCompiler(absltest.TestCase):
       ],
       skew_factor=0)
 
-    pipeline = compiler.build_training_pipeline(test_model, 'test-project-id-1234', 'test-ga4-dataset-loc')
+    pipeline = self.compiler(test_model).build_training_pipeline()
     params = pipeline['jobs'][0]['params']
 
     sql_param = next(param for param in params if param["name"] == "script")
@@ -222,7 +222,7 @@ class TestCompiler(absltest.TestCase):
       ],
       skew_factor=4)
 
-    pipeline = compiler.build_training_pipeline(test_model, 'test-project-id-1234', 'test-ga4-dataset-loc')
+    pipeline = self.compiler(test_model).build_training_pipeline()
     params = pipeline['jobs'][0]['params']
 
     sql_param = next(param for param in params if param["name"] == "script")
@@ -272,7 +272,7 @@ class TestCompiler(absltest.TestCase):
       ],
       skew_factor=4)
 
-    pipeline = compiler.build_training_pipeline(test_model, 'test-project-id-1234', 'test-ga4-dataset-loc')
+    pipeline = self.compiler(test_model).build_training_pipeline()
     params = pipeline['jobs'][0]['params']
 
     sql_param = next(param for param in params if param["name"] == "script")
@@ -311,8 +311,7 @@ class TestCompiler(absltest.TestCase):
       ],
       skew_factor=4)
 
-    pipeline = compiler.build_predictive_pipeline(
-      test_model, 'test-project-id-1234', 'test-ga4-dataset-loc', 'test-ga4-measurement-id', 'test-ga4-api-secret')
+    pipeline = self.compiler(test_model).build_predictive_pipeline()
     self.assertEqual(pipeline['name'], 'Test Model - Predictive')
 
     setup_job = next(job for job in pipeline['jobs'] if job['name'] == 'Test Model - Predictive Setup')
@@ -348,7 +347,7 @@ class TestCompiler(absltest.TestCase):
     sql_param = next(param for param in params if param['name'] == 'script')
     self.assertIsNotNone(sql_param)
 
-    ga4_upload_job = next(job for job in pipeline['jobs'] if job['name'] == 'Test Model - Predictive GA4 Upload')
+    ga4_upload_job = next(job for job in pipeline['jobs'] if job['name'] == 'Test Model - Predictive Upload')
     self.assertIsNotNone(ga4_upload_job)
 
     # check job start conditions
@@ -406,8 +405,7 @@ class TestCompiler(absltest.TestCase):
       ],
       skew_factor=4)
 
-    pipeline = compiler.build_predictive_pipeline(
-      test_model, 'test-project-id-1234', 'test-ga4-dataset-loc', 'test-ga4-measurement-id', 'test-ga4-api-secret')
+    pipeline = self.compiler(test_model).build_predictive_pipeline()
     self.assertEqual(pipeline['name'], 'Test Model - Predictive')
 
     setup_job = next(job for job in pipeline['jobs'] if job['name'] == 'Test Model - Predictive Setup')
@@ -495,8 +493,7 @@ class TestCompiler(absltest.TestCase):
       ],
       skew_factor=4)
 
-    pipeline = compiler.build_predictive_pipeline(
-      test_model, 'test-project-id-1234', 'test-ga4-dataset-loc', 'test-ga4-measurement-id', 'test-ga4-api-secret')
+    pipeline = self.compiler(test_model).build_predictive_pipeline()
     self.assertEqual(pipeline['name'], 'Test Model - Predictive')
 
     setup_job = next(job for job in pipeline['jobs'] if job['name'] == 'Test Model - Predictive Setup')
@@ -569,8 +566,7 @@ class TestCompiler(absltest.TestCase):
       ],
       skew_factor=4)
 
-    pipeline = compiler.build_predictive_pipeline(
-      test_model, 'test-project-id-1234', 'test-ga4-dataset-loc', 'test-ga4-measurement-id', 'test-ga4-api-secret')
+    pipeline = self.compiler(test_model).build_predictive_pipeline()
     self.assertEqual(pipeline['name'], 'Test Model - Predictive')
 
     setup_job = next(job for job in pipeline['jobs'] if job['name'] == 'Test Model - Predictive Setup')
@@ -625,8 +621,7 @@ class TestCompiler(absltest.TestCase):
       ],
       skew_factor=4)
 
-    pipeline = compiler.build_predictive_pipeline(
-      test_model, 'test-project-id-1234', 'test-ga4-dataset-loc', 'test-ga4-measurement-id', 'test-ga4-api-secret')
+    pipeline = self.compiler(test_model).build_predictive_pipeline()
     self.assertEqual(pipeline['name'], 'Test Model - Predictive')
 
     setup_job = next(job for job in pipeline['jobs'] if job['name'] == 'Test Model - Predictive Setup')
@@ -670,8 +665,7 @@ class TestCompiler(absltest.TestCase):
       ],
       skew_factor=4)
 
-    pipeline = compiler.build_predictive_pipeline(
-      test_model, 'test-project-id-1234', 'test-ga4-dataset-loc', 'test-ga4-measurement-id', 'test-ga4-api-secret')
+    pipeline = self.compiler(test_model).build_predictive_pipeline()
     self.assertEqual(pipeline['name'], 'Test Model - Predictive')
 
     output_job = next(job for job in pipeline['jobs'] if job['name'] == 'Test Model - Predictive Output')
@@ -754,8 +748,7 @@ class TestCompiler(absltest.TestCase):
       ],
       skew_factor=4)
 
-    pipeline = compiler.build_predictive_pipeline(
-      test_model, 'test-project-id-1234', 'test-ga4-dataset-loc', 'test-ga4-measurement-id', 'test-ga4-api-secret')
+    pipeline = self.compiler(test_model).build_predictive_pipeline()
     self.assertEqual(pipeline['name'], 'Test Model - Predictive')
 
     output_job = next(job for job in pipeline['jobs'] if job['name'] == 'Test Model - Predictive Output')
@@ -795,8 +788,7 @@ class TestCompiler(absltest.TestCase):
       ],
       skew_factor=4)
 
-    pipeline = compiler.build_predictive_pipeline(
-      test_model, 'test-project-id-1234', 'test-ga4-dataset-loc', 'test-ga4-measurement-id', 'test-ga4-api-secret')
+    pipeline = self.compiler(test_model).build_predictive_pipeline()
     self.assertEqual(pipeline['name'], 'Test Model - Predictive')
 
     output_job = next(job for job in pipeline['jobs'] if job['name'] == 'Test Model - Predictive Output')
@@ -836,8 +828,7 @@ class TestCompiler(absltest.TestCase):
       ],
       skew_factor=4)
 
-    pipeline = compiler.build_predictive_pipeline(
-      test_model, 'test-project-id-1234', 'test-ga4-dataset-loc', 'test-ga4-measurement-id', 'test-ga4-api-secret')
+    pipeline = self.compiler(test_model).build_predictive_pipeline()
     self.assertEqual(pipeline['name'], 'Test Model - Predictive')
 
     output_job = next(job for job in pipeline['jobs'] if job['name'] == 'Test Model - Predictive Output')
@@ -900,11 +891,10 @@ class TestCompiler(absltest.TestCase):
       features=[],
       skew_factor=0)
 
-    pipeline = compiler.build_predictive_pipeline(
-      test_model, 'test-project-id-1234', 'test-ga4-dataset-loc', 'test-ga4-measurement-id', 'test-ga4-api-secret')
+    pipeline = self.compiler(test_model).build_predictive_pipeline()
     self.assertEqual(pipeline['name'], 'Test Model - Predictive')
 
-    upload_job = next(job for job in pipeline['jobs'] if job['name'] == 'Test Model - Predictive GA4 Upload')
+    upload_job = next(job for job in pipeline['jobs'] if job['name'] == 'Test Model - Predictive Upload')
     self.assertIsNotNone(upload_job)
     params = upload_job['params']
 
@@ -946,11 +936,10 @@ class TestCompiler(absltest.TestCase):
       features=[],
       skew_factor=0)
 
-    pipeline = compiler.build_predictive_pipeline(
-      test_model, 'test-project-id-1234', 'test-ga4-dataset-loc', 'test-ga4-measurement-id', 'test-ga4-api-secret')
+    pipeline = self.compiler(test_model).build_predictive_pipeline()
     self.assertEqual(pipeline['name'], 'Test Model - Predictive')
 
-    upload_job = next(job for job in pipeline['jobs'] if job['name'] == 'Test Model - Predictive GA4 Upload')
+    upload_job = next(job for job in pipeline['jobs'] if job['name'] == 'Test Model - Predictive Upload')
     self.assertIsNotNone(upload_job)
     params = upload_job['params']
 
@@ -997,11 +986,10 @@ class TestCompiler(absltest.TestCase):
       features=[],
       skew_factor=0)
 
-    pipeline = compiler.build_predictive_pipeline(
-      test_model, 'test-project-id-1234', 'test-ga4-dataset-loc', 'test-ga4-measurement-id', 'test-ga4-api-secret')
+    pipeline = self.compiler(test_model).build_predictive_pipeline()
     self.assertEqual(pipeline['name'], 'Test Model - Predictive')
 
-    upload_job = next(job for job in pipeline['jobs'] if job['name'] == 'Test Model - Predictive GA4 Upload')
+    upload_job = next(job for job in pipeline['jobs'] if job['name'] == 'Test Model - Predictive Upload')
     self.assertIsNotNone(upload_job)
     params = upload_job['params']
 
@@ -1054,8 +1042,18 @@ class TestCompiler(absltest.TestCase):
       'timespans': [
         {"name": "training", "value": 17, "unit": "month"},
         {"name": "predictive", "value": 1, "unit": "month"}
-      ]
+      ],
+      'destination': 'GOOGLE_ANALYTICS_CUSTOM_EVENT'
     })
+
+  def compiler(self, ml_model):
+    return Compiler(
+      project_id='test-project-id-1234',
+      ga4_dataset='test-ga4-dataset-loc',
+      ga4_measurement_id='test-ga4-measurement-id',
+      ga4_api_secret='test-ga4-api-secret',
+      ml_model=ml_model
+    )
 
   def convert_to_object(self, collection: Union[dict,list]):
     class TempObject:

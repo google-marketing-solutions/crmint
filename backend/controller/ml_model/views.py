@@ -27,7 +27,8 @@ from flask_restful import Resource
 from common import insight
 from controller.models import MlModel, GeneralSetting
 
-from controller.ml_model import bigquery, compiler
+from controller.ml_model import bigquery
+from controller.ml_model.compiler import Compiler
 
 project_id = os.getenv('GOOGLE_CLOUD_PROJECT')
 
@@ -249,12 +250,16 @@ def setting(name: str) -> str:
   return setting.value if setting else ''
 
 def build_pipelines(ml_model) -> list[dict]:
-  ga4_dataset = setting('google_analytics_4_bigquery_dataset')
-  ga4_measurement_id = setting('google_analytics_4_measurement_id')
-  ga4_api_secret = setting('google_analytics_4_api_secret')
+  compiler = Compiler(
+    project_id=project_id,
+    ga4_dataset=setting('google_analytics_4_bigquery_dataset'),
+    ga4_measurement_id=setting('google_analytics_4_measurement_id'),
+    ga4_api_secret=setting('google_analytics_4_api_secret'),
+    ml_model=ml_model
+  )
 
-  training_pipeline = compiler.build_training_pipeline(ml_model, project_id, ga4_dataset)
-  predictive_pipeline = compiler.build_predictive_pipeline(ml_model, project_id, ga4_dataset, ga4_measurement_id, ga4_api_secret)
+  training_pipeline = compiler.build_training_pipeline()
+  predictive_pipeline = compiler.build_predictive_pipeline()
 
   return [training_pipeline, predictive_pipeline]
 

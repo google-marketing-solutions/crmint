@@ -1,0 +1,29 @@
+{
+  "name": "{{name}} - Training",
+  "params": [],
+  "jobs": [
+    {
+      "id": "{{uuid()}}",
+      "name": "{{name}} - Training Setup",
+      "worker_class": "{{Worker.BQ_SCRIPT_EXECUTOR}}",
+      "hash_start_conditions": [],
+      "params": [
+        {
+          "name": "script",
+          "type": "{{ParamType.SQL}}",
+          "value": "{{compile_template(TemplateFile.TRAINING_BQML, Encoding.JSON)}}"
+        },
+        {
+          "name": "bq_dataset_location",
+          "type": "{{ParamType.STRING}}",
+          "value": "{{dataset_location}}"
+        }
+      ]
+    }
+  ],
+  "schedules": [
+    {
+      "cron": "0 0 {{safe_day()}} {{quarterly_months()}} *"
+    }
+  ]
+}

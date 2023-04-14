@@ -18,8 +18,8 @@ CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.output` AS (
     SELECT DISTINCT
       {{unique_id}}
     FROM events, UNNEST(params) AS params
-    WHERE name = 'prop_score'
-    AND params.value.string_value = 'Predicted_Value'
+    WHERE name = "prop_score"
+    AND params.value.string_value = "Predicted_Value"
   ),
   users_without_score AS (
     SELECT DISTINCT
@@ -82,8 +82,8 @@ CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.output` AS (
       {% if label.is_conversion %}
       cr.value,
       {% endif %}
-      'prop_score' AS event_name,
-      'Predicted_Value' AS type
+      "prop_score" AS event_name,
+      "Predicted_Value" AS type
     FROM prepared_predictions p
     {% if label.is_conversion %}
     LEFT OUTER JOIN conversion_rate cr

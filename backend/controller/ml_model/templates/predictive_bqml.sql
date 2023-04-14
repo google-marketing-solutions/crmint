@@ -177,7 +177,8 @@ CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.predictions` AS (
     ON fe.{{unique_id}} = uab.{{unique_id}}
     INNER JOIN user_variables AS uv
     ON fe.{{unique_id}} = uv.{{unique_id}}
-  )){% if type.is_classification %},
+  ))
+  {% if type.is_classification %},
   UNNEST(predicted_label_probs) AS plp
   WHERE plp.label = predicted_label
   {% endif %}
