@@ -11,7 +11,7 @@ OPTIONS (
   {{param.name}} = "{{param.value}}",
   {% endif %}
   {% endfor %}
-  INPUT_LABEL_COLS = ['label']
+  INPUT_LABEL_COLS = ["label"]
 ) AS
 WITH events AS (
   SELECT
@@ -30,9 +30,22 @@ WITH events AS (
     traffic_source.medium AS traffic_medium,
     EXTRACT(HOUR FROM(TIMESTAMP_MICROS(user_first_touch_timestamp))) AS first_touch_hour
   FROM `{{project_id}}.{{ga4_dataset}}.events_*`
-  WHERE _TABLE_SUFFIX BETWEEN
-    FORMAT_DATE("%Y%m%d", DATE_SUB(CURRENT_DATE(), INTERVAL {{timespan.training + timespan.predictive}} {{timespan.unit}})) AND
-    FORMAT_DATE("%Y%m%d", DATE_SUB(CURRENT_DATE(), INTERVAL {{timespan.predictive}} {{timespan.unit}}))
+  WHERE
+    {% if label.is_conversion %}
+    SUBSTR(_TABLE_SUFFIX, 1, 6) IN (
+      {% for number in timespan.random_training_set %}
+      FORMAT_DATE("%Y%m", DATE_SUB(CURRENT_DATE(), INTERVAL {{number}} MONTH)){% if number != timespan.random_training_set[-1] %},{% endif %}
+
+      {% endfor %}
+    )
+    AND _TABLE_SUFFIX BETWEEN
+      FORMAT_DATE("%Y%m%d", DATE_SUB(CURRENT_DATE(), INTERVAL {{timespan.training + timespan.predictive}} MONTH)) AND
+      FORMAT_DATE("%Y%m%d", DATE_SUB(CURRENT_DATE(), INTERVAL 2 DAY))
+    {% else %}
+    _TABLE_SUFFIX BETWEEN
+      FORMAT_DATE("%Y%m%d", DATE_SUB(CURRENT_DATE(), INTERVAL {{timespan.training + timespan.predictive}} MONTH)) AND
+      FORMAT_DATE("%Y%m%d", DATE_SUB(CURRENT_DATE(), INTERVAL {{timespan.predictive}} MONTH))
+    {% endif %}
 ),
 -- pull together a list of first engagements and associated metadata that will be useful for the model
 first_engagement AS (

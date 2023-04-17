@@ -1,6 +1,7 @@
 import os
 
 from datetime import date
+from random import randint
 from enum import Enum
 from uuid import uuid4 as uuid
 from jinja2 import Template, StrictUndefined
@@ -33,7 +34,42 @@ class Timespan():
 
   training: int
   predictive: int
-  unit: str
+  random_training_set: list[int]
+  random_predictive_set: list[int]
+
+  def __init__(self) -> None:
+    self.random_training_set = []
+    self.random_predictive_set = []
+
+  def generate_random_sets(self):
+    """
+    Generate a random training and predictive set to be used in the event standard date ranges are not sufficient.
+    """
+    MAX = self.training + self.predictive
+
+    self.random_training_set = self._generate_random_set(size=self.training, max=MAX)
+    self.random_predictive_set = [n for n in range(MAX + 1) if n not in self.random_training_set]
+
+  def _generate_random_set(self, size: int, max: int) -> list[int]:
+    FIRST_MONTH = self.training + self.predictive
+    LAST_MONTH = 0
+
+    set = []
+    while True:
+      n = randint(0, max)
+      if n not in set:
+        set.append(n)
+
+        # since the first and last months in the timespan are partial then select both if one is selected.
+        if n == FIRST_MONTH:
+          set.append(LAST_MONTH)
+          size += 1
+        elif n == LAST_MONTH:
+          set.append(FIRST_MONTH)
+          size += 1
+
+        if len(set) == size:
+          return set
 
 def build_training_pipeline(ml_model, project_id: str, ga4_dataset: str) -> dict:
   """Builds the training pipeline configuration including the model SQL."""
@@ -187,7 +223,7 @@ def _compile_template(ml_model, project_id: str, ga4_dataset: str, templateFile:
     'uses_first_party_data': ml_model.uses_first_party_data,
     'unique_id': _get_unique_id(ml_model.unique_id),
     'hyper_parameters': ml_model.hyper_parameters,
-    'timespan': _get_timespan(ml_model.timespans, 'month'),
+    'timespan': _get_timespan(ml_model.timespans),
     'label': ml_model.label,
     'features': ml_model.features,
     'skew_factor': ml_model.skew_factor
@@ -213,20 +249,18 @@ def _get_template(templateFile: TemplateFile) -> Template:
   with open(_absolute_path('templates/' + templateFile.value), 'r') as file:
     return Template(file.read(), **options, undefined=StrictUndefined)
 
-def _get_timespan(timespans: list, unit: str) -> Timespan:
-  """Returns the appropriate timespan (both training and predictive)
-     for the given template and unit (day/week/month/etc)."""
+def _get_timespan(timespans: list) -> Timespan:
+  """Returns the appropriate timespan (both training and predictive) pulled from the list provided."""
 
   ts = Timespan()
-  ts.unit = unit.upper()
 
   for timespan in timespans:
-    if timespan.unit == unit:
-      if timespan.name == Timespan.TRAINING:
-        ts.training = timespan.value
-      elif timespan.name == Timespan.PREDICTIVE:
-        ts.predictive = timespan.value
+    if timespan.name == Timespan.TRAINING:
+      ts.training = timespan.value
+    elif timespan.name == Timespan.PREDICTIVE:
+      ts.predictive = timespan.value
 
+  ts.generate_random_sets()
   return ts
 
 def _get_unique_id(type: UniqueId) -> str:
