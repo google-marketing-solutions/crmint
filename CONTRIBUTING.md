@@ -59,6 +59,20 @@ locally.
 $ act -j run-cli-tests --reuse --bind
 ```
 
+## Deploy custom build on GCP
+
+```sh
+# Clones the repo
+$ git clone https://github.com/google/crmint
+# Installs the CRMint CLI (if not already available)
+$ bash crmint/scripts/install.sh
+# Checkouts your desired branch (if needed)
+$ cd crmint
+$ git checkout <your_branch>
+# Builds and deploys everything
+$ ./scripts/build_and_deploy.sh
+```
+
 ## Community Guidelines
 
 This project follows [Google's Open Source Community
