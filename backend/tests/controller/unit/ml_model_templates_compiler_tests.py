@@ -1096,7 +1096,7 @@ class TestCompiler(absltest.TestCase):
       'skew_factor': skew_factor,
       'timespans': [
         {"name": "training", "value": 17, "unit": "month"},
-        {"name": "predictive", "value": 3, "unit": "month"}
+        {"name": "predictive", "value": 1, "unit": "month"}
       ]
     })
 
