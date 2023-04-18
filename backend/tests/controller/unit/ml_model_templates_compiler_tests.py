@@ -58,9 +58,14 @@ class TestCompiler(absltest.TestCase):
     # schedule check
     self.assertEqual(pipeline['schedules'][0]['cron'], '0 0 6 2,5,8,11 *')
 
-    # sql check start
+    # worker check
+    self.assertEqual(pipeline['jobs'][0]['worker_class'], 'BQScriptExecutor')
+
+    # sql check
     sql_param = next(param for param in params if param["name"] == "script")
     self.assertIsNotNone(sql_param)
+    self.assertEqual(sql_param['type'], 'sql')
+    self.assertNotEmpty(sql_param['value'])
 
   def test_build_model_sql_first_party_and_google_analytics(self):
     test_model = self.model_config(
@@ -315,7 +320,7 @@ class TestCompiler(absltest.TestCase):
       ],
       skew_factor=4)
 
-    pipeline = compiler.build_training_pipeline(test_model, 'test-project-id-1234', 'test-ga4-dataset-loc')
+    pipeline = self.compiler(test_model).build_training_pipeline()
     params = pipeline['jobs'][0]['params']
 
     sql_param = next(param for param in params if param["name"] == "script")

@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from enum import Enum
+
 """Shared definitions."""
 
 
@@ -30,3 +32,12 @@ class JobStatus:
   RUNNING = 'running'
   WAITING = 'waiting'
   STOPPING = 'stopping'
+
+
+# TODO: Leverage StrEnum in core lib once available in a later version (3.11) of python.
+class StrEnum(str, Enum):
+  def __str__(self) -> str:
+    return str(self.value)
+
+  def __eq__(self, other) -> bool:
+    return other == str(self.value)

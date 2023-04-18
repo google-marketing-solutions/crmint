@@ -3,9 +3,10 @@ import json
 
 from datetime import date
 from random import randint
-from enum import Enum
+from enum import Enum, auto
 from uuid import uuid4 as uuid
 from jinja2 import Template, StrictUndefined
+from controller.shared import StrEnum
 from controller.models import MlModel
 
 
@@ -19,47 +20,40 @@ class TemplateFile(Enum):
 
 
 class Encoding(Enum):
-  NONE = 'none'
-  JSON = 'json'
+  NONE = auto()
+  JSON = auto()
 
 
-class RegressionType(Enum):
-  BOOSTED_TREE_REGRESSOR = 'BOOSTED_TREE_REGRESSOR'
-  DNN_REGRESSOR = 'DNN_REGRESSOR'
-  RANDOM_FOREST_REGRESSOR = 'RANDOM_FOREST_REGRESSOR'
-  LINEAR_REG = 'LINEAR_REG'
+class ModelTypes:
+  REGRESSION: list[str] = [
+    'BOOSTED_TREE_REGRESSOR',
+    'DNN_REGRESSOR',
+    'RANDOM_FOREST_REGRESSOR',
+    'LINEAR_REG'
+  ]
+  CLASSIFICATION: list[str] = [
+    'BOOSTED_TREE_CLASSIFIER',
+    'DNN_CLASSIFIER',
+    'RANDOM_FOREST_CLASSIFIER',
+    'LOGISTIC_REG'
+  ]
 
 
-class ClassificationType(Enum):
-  BOOSTED_TREE_CLASSIFIER = 'BOOSTED_TREE_CLASSIFIER'
-  DNN_CLASSIFIER = 'DNN_CLASSIFIER'
-  RANDOM_FOREST_CLASSIFIER = 'RANDOM_FOREST_CLASSIFIER'
-  LOGISTIC_REG = 'LOGISTIC_REG'
-
-
-# TODO: Leverage StrEnum once available in a later version (3.11) of python.
-class ParamType(Enum):
+class ParamType(StrEnum):
   SQL = 'sql'
   TEXT = 'text'
   STRING = 'string'
   BOOLEAN = 'boolean'
   NUMBER = 'number'
 
-  def __str__(self) -> str:
-    return str(self.value)
 
-
-# TODO: Leverage StrEnum once available in a later version (3.11) of python.
-class Worker(Enum):
+class Worker(StrEnum):
   BQ_SCRIPT_EXECUTOR = 'BQScriptExecutor'
   BQ_TO_MEASUREMENT_PROTOCOL_GA4 = 'BQToMeasurementProtocolGA4'
   BQ_TO_GOOGLE_ADS = 'BQToGoogleAds'
 
-  def __str__(self) -> str:
-    return str(self.value)
 
-
-class UniqueId(str, Enum):
+class UniqueId(StrEnum):
   USER_ID = 'USER_ID'
   CLIENT_ID = 'CLIENT_ID'
 
@@ -110,7 +104,7 @@ class Timespan():
           return set
 
 
-class Destination(str, Enum):
+class Destination(StrEnum):
   GOOGLE_ANALYTICS_CUSTOM_EVENT = 'GOOGLE_ANALYTICS_CUSTOM_EVENT',
   GOOGLE_ADS_CONVERSION_EVENT = 'GOOGLE_ADS_CONVERSION_EVENT'
 
@@ -162,13 +156,13 @@ class Compiler():
       'dataset_location': self.ml_model.bigquery_dataset.location,
       'type': {
         'name': self.ml_model.type,
-        'is_regression': self._is_regression(self.ml_model.type),
-        'is_classification': self._is_classification(self.ml_model.type),
+        'is_regression': self.ml_model.type in ModelTypes.REGRESSION,
+        'is_classification': self.ml_model.type in ModelTypes.CLASSIFICATION,
       },
       'uses_first_party_data': self.ml_model.uses_first_party_data,
       'unique_id': self._get_unique_id(self.ml_model.unique_id),
       'hyper_parameters': self.ml_model.hyper_parameters,
-      'timespan': self._get_timespan(self.ml_model.timespans, 'month'),
+      'timespan': self._get_timespan(self.ml_model.timespans),
       'label': self.ml_model.label,
       'features': self.ml_model.features,
       'skew_factor': self.ml_model.skew_factor,
@@ -250,14 +244,6 @@ class Compiler():
   def _is_bool(self, value: str) -> bool:
     """Checks a string value to determine if it's a boolean."""
     return value.lower() in ['true', 'false']
-
-  def _is_regression(self, type: str) -> bool:
-    """Checks whether or not the model is a regression type model."""
-    return type in RegressionType._member_names_
-
-  def _is_classification(self, type: str) -> bool:
-    """Checks whether or not the model is a classification type model."""
-    return type in ClassificationType._member_names_
 
   def _safe_day(self) -> str:
     """Returns the current day if safe to schedule and otherwise returns 28."""

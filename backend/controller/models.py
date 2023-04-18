@@ -397,21 +397,11 @@ class MlModel(extensions.db.Model):
   timespans = orm.relationship(
       'MlModelTimespan',
       lazy='joined')
+  destination = Column(String(255), nullable=False)
   pipelines = orm.relationship(
       'Pipeline',
       lazy='joined',
       order_by='asc(Pipeline.id)')
-
-  TYPES = [
-    'LOGISTIC_REG',
-    'BOOSTED_TREE_REGRESSOR',
-    'BOOSTED_TREE_CLASSIFIER'
-  ]
-
-  UNIQUE_IDS = [
-    'CLIENT_ID',
-    'USER_ID'
-  ]
 
   def __init__(self, name=None):
     super().__init__()
@@ -419,14 +409,29 @@ class MlModel(extensions.db.Model):
 
   def assign_attributes(self, attributes):
     available_attributes = [
-      'name', 'type', 'unique_id', 'uses_first_party_data', 'skew_factor'
+      'name', 'type', 'unique_id', 'uses_first_party_data',
+      'skew_factor', 'destination'
     ]
 
+    enum_attribute_options = {
+      'type': [
+        'LOGISTIC_REG',
+        'BOOSTED_TREE_REGRESSOR',
+        'BOOSTED_TREE_CLASSIFIER'
+      ],
+      'unique_id': [
+        'CLIENT_ID',
+        'USER_ID'
+      ],
+      'destination': [
+        'GOOGLE_ANALYTICS_CUSTOM_EVENT',
+        'GOOGLE_ADS_CONVERSION_EVENT'
+      ]
+    }
+
     for key, value in attributes.items():
-      if key == 'type' and value not in self.TYPES:
-        continue
-      if key == 'unique_id' and value not in self.UNIQUE_IDS:
-        continue
+      if key in enum_attribute_options.keys() and value not in enum_attribute_options[key]:
+          continue
       if key in available_attributes:
         self.__setattr__(key, value)
 

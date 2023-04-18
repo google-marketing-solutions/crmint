@@ -1,6 +1,6 @@
 from google.cloud import bigquery
 from google.cloud.exceptions import NotFound
-from enum import Enum
+from controller.shared import StrEnum
 from datetime import date, timedelta
 from dataclasses import dataclass
 
@@ -24,16 +24,9 @@ class Variable:
   parameters: list[Parameter]
 
 
-# TODO: Leverage StrEnum once available in a later version (3.11) of python.
-class Source(Enum):
+class Source(StrEnum):
   GOOGLE_ANALYTICS = 'GOOGLE_ANALYTICS'
   FIRST_PARTY = 'FIRST_PARTY'
-
-  def __str__(self) -> str:
-    return str(self.value)
-
-  def __eq__(self, other) -> bool:
-    return other == str(self.value)
 
 
 class CustomClient(bigquery.Client):
@@ -53,6 +46,8 @@ class CustomClient(bigquery.Client):
       A list of variables to be used for feature and label selection.
     """
 
+    variables: list[Variable] = []
+
     event_exclude_list = [
         'user_engagement', 'scroll', 'session_start', 'first_visit', 'page_view'
     ]
@@ -61,8 +56,6 @@ class CustomClient(bigquery.Client):
       'debug_mode', 'ga_session_id', 'ga_session_number', 'transaction_id', 'page_location', 'page_referrer',
       'session_engaged', 'engaged_session_event', 'content_group', 'engagement_time_msec'
     ]
-
-    variables: list[Variable] = []
 
     suffix = (date.today() - timedelta(days=7)).strftime('%Y%m%d')
     if not self.table_exists(dataset_name, f'events_{suffix}'):
@@ -139,11 +132,11 @@ class CustomClient(bigquery.Client):
       A list of variables to be used for feature and label selection.
     """
 
+    variables: list[Variable] = []
+
     exclude_list = [
       'user_id', 'user_pseudo_id', 'trigger_event_date'
     ]
-
-    variables: list[Variable] = []
 
     if not self.table_exists(dataset_name, 'first_party'):
       return variables

@@ -109,6 +109,7 @@ ml_model_structure = {
   'label': label_structure,
   'skew_factor': fields.Integer,
   'timespans': timespans_structure,
+  'destination': fields.String,
   'pipelines': pipelines_structure,
   'updated_at': fields.String
 }

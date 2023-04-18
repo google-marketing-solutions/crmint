@@ -25,7 +25,7 @@ class TestMlModelViews(controller_utils.ControllerAppTest):
     self.assertEqual(response.status_code, 200)
 
   def test_list_with_one_ml_model(self):
-    MlModel.create(name='Test Model', type='LOGISTIC_REG', unique_id='CLIENT_ID')
+    MlModel.create(name='Test Model', type='LOGISTIC_REG', unique_id='CLIENT_ID', destination='GOOGLE_ANALYTICS_CUSTOM_EVENT')
     response = self.client.get('/api/ml-models')
     self.assertEqual(response.status_code, 200)
 
@@ -38,7 +38,7 @@ class TestMlModelViews(controller_utils.ControllerAppTest):
     self.assertEqual(response.status_code, 404)
 
   def test_put_active_ml_model(self):
-    model = MlModel.create(name='Test Model', type='LOGISTIC_REG', unique_id='CLIENT_ID')
+    model = MlModel.create(name='Test Model', type='LOGISTIC_REG', unique_id='CLIENT_ID', destination='GOOGLE_ANALYTICS_CUSTOM_EVENT')
     pipeline = Pipeline.create(ml_model_id=model.id)
     pipeline.status = Pipeline.STATUS.RUNNING
     pipeline.save()
@@ -88,7 +88,8 @@ class TestMlModelViews(controller_utils.ControllerAppTest):
       "timespans": [
         {"name": "training", "value": 14, "unit": "month"},
         {"name": "predictive", "value": 2, "unit": "month"}
-      ]
+      ],
+      "destination": "GOOGLE_ADS_CONVERSION_EVENT"
     }
 
     response = self.client.put('/api/ml-models/1', json=request)
@@ -108,7 +109,7 @@ class TestMlModelViews(controller_utils.ControllerAppTest):
     self.assertEqual(response.status_code, 404)
 
   def test_delete_active_ml_model(self):
-    model = MlModel.create(name='Test Model', type='LOGISTIC_REG', unique_id='CLIENT_ID')
+    model = MlModel.create(name='Test Model', type='LOGISTIC_REG', unique_id='CLIENT_ID', destination='GOOGLE_ANALYTICS_CUSTOM_EVENT')
     pipeline = Pipeline.create(ml_model_id=model.id)
     pipeline.status = Pipeline.STATUS.RUNNING
     pipeline.save()
@@ -116,7 +117,7 @@ class TestMlModelViews(controller_utils.ControllerAppTest):
     self.assertEqual(response.status_code, 422)
 
   def test_delete_ml_model(self):
-    MlModel.create(name='Test Model', type='LOGISTIC_REG', unique_id='CLIENT_ID')
+    MlModel.create(name='Test Model', type='LOGISTIC_REG', unique_id='CLIENT_ID', destination='GOOGLE_ANALYTICS_CUSTOM_EVENT')
 
     response = self.client.get('/api/ml-models/1')
     self.assertEqual(response.status_code, 200)
@@ -151,7 +152,7 @@ class TestMlModelViews(controller_utils.ControllerAppTest):
     self.assertEqual(response.status_code, 404)
 
   def test_retrieve_ml_model(self):
-    model = MlModel.create(name='Test Model', type='LOGISTIC_REG', unique_id='CLIENT_ID')
+    model = MlModel.create(name='Test Model', type='LOGISTIC_REG', unique_id='CLIENT_ID', destination='GOOGLE_ANALYTICS_CUSTOM_EVENT')
     Pipeline.create(ml_model_id=model.id)
     response = self.client.get('/api/ml-models/1')
     self.assertEqual(response.status_code, 200)
@@ -229,7 +230,8 @@ class TestMlModelViews(controller_utils.ControllerAppTest):
       "timespans": [
         {"name": "training", "value": 20, "unit": "month"},
         {"name": "predictive", "value": 1, "unit": "month"}
-      ]
+      ],
+      "destination": "GOOGLE_ANALYTICS_CUSTOM_EVENT"
     }
 
     response = self.client.post('/api/ml-models', json=request)
