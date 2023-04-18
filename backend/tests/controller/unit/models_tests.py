@@ -403,7 +403,7 @@ class TestMlModel(ModelTestCase):
 
   def setUp(self):
     setup = super().setUp()
-    self.ml_model = MlModel.create(name='Test Model', type='LOGISTIC_REG', unique_id='CLIENT_ID')
+    self.ml_model = MlModel.create(name='Test Model', type='LOGISTIC_REG', unique_id='CLIENT_ID', destination='GOOGLE_ANALYTICS_CUSTOM_EVENT')
     return setup
 
   def test_ml_model_create(self):
@@ -411,7 +411,8 @@ class TestMlModel(ModelTestCase):
     self.assertAttributesSaved({
       'name': 'Test Model',
       'type': 'LOGISTIC_REG',
-      'unique_id': 'CLIENT_ID'
+      'unique_id': 'CLIENT_ID',
+      'destination': 'GOOGLE_ANALYTICS_CUSTOM_EVENT'
     })
 
   def test_assign_attributes(self):
@@ -420,7 +421,8 @@ class TestMlModel(ModelTestCase):
       'type': 'BOOSTED_TREE_REGRESSOR',
       'unique_id': 'USER_ID',
       'uses_first_party_data': True,
-      'skew_factor': 7
+      'skew_factor': 7,
+      'destination': 'GOOGLE_ADS_CONVERSION_EVENT'
     }
     self.ml_model.assign_attributes(attributes)
     self.assertAttributesSaved(attributes)
