@@ -84,8 +84,18 @@ def migrate(stage_path: Union[None, str], debug: bool) -> None:
 @cli.command('update')
 @click.option('--stage_path', default=None)
 @click.option('--version', default=None)
+@click.option('--controller_image', default=None)
+@click.option('--jobs_image', default=None)
+@click.option('--frontend_image', default=None)
 @click.option('--debug/--no-debug', default=False)
-def update(stage_path: Union[None, str], version: str, debug: bool) -> None:
+def update(
+    stage_path: Union[None, str],
+    version: Union[None, str],
+    controller_image: Union[None, str],
+    jobs_image: Union[None, str],
+    frontend_image: Union[None, str],
+    debug: bool
+  ) -> None:
   """Update CRMint version."""
   click.echo(click.style('>>>> Update CRMint version', fg='magenta', bold=True))
 
@@ -97,8 +107,11 @@ def update(stage_path: Union[None, str], version: str, debug: bool) -> None:
   except shared.CannotFetchStageError:
     sys.exit(1)
 
-  available_tags = shared.list_available_tags(
-      stage.controller_image, debug=debug)
+  controller_image = controller_image or stage.controller_image
+  jobs_image = jobs_image or stage.jobs_image
+  frontend_image = frontend_image or stage.frontend_image
+
+  available_tags = shared.list_available_tags(controller_image, debug=debug)
   if version is None:
     available_versions = shared.filter_versions_from_tags(available_tags)
     version = available_versions[0]
@@ -110,9 +123,9 @@ def update(stage_path: Union[None, str], version: str, debug: bool) -> None:
                            bold=True))
     sys.exit(1)
 
-  stage.frontend_image = f'{stage.frontend_image.split(":")[0]}:{version}'
-  stage.controller_image = f'{stage.controller_image.split(":")[0]}:{version}'
-  stage.jobs_image = f'{stage.jobs_image.split(":")[0]}:{version}'
+  stage.frontend_image = f'{frontend_image.split(":")[0]}:{version}'
+  stage.controller_image = f'{controller_image.split(":")[0]}:{version}'
+  stage.jobs_image = f'{jobs_image.split(":")[0]}:{version}'
   shared.create_stage_file(stage.stage_path, stage)
   click.echo(click.style(f'Stage updated to version: {version}', fg='green'))
 

@@ -2,10 +2,12 @@ import os
 import json
 
 from datetime import date
+from random import randint
 from enum import Enum
 from uuid import uuid4 as uuid
 from jinja2 import Template, StrictUndefined
 from controller.models import MlModel
+
 
 class TemplateFile(Enum):
   TRAINING_PIPELINE = 'training_pipeline.json'
@@ -15,9 +17,11 @@ class TemplateFile(Enum):
   GA4_REQUEST = 'ga4_request.json'
   OUTPUT = 'output.sql'
 
+
 class Encoding(Enum):
   NONE = 'none'
   JSON = 'json'
+
 
 class RegressionType(Enum):
   BOOSTED_TREE_REGRESSOR = 'BOOSTED_TREE_REGRESSOR'
@@ -25,12 +29,15 @@ class RegressionType(Enum):
   RANDOM_FOREST_REGRESSOR = 'RANDOM_FOREST_REGRESSOR'
   LINEAR_REG = 'LINEAR_REG'
 
+
 class ClassificationType(Enum):
   BOOSTED_TREE_CLASSIFIER = 'BOOSTED_TREE_CLASSIFIER'
   DNN_CLASSIFIER = 'DNN_CLASSIFIER'
   RANDOM_FOREST_CLASSIFIER = 'RANDOM_FOREST_CLASSIFIER'
   LOGISTIC_REG = 'LOGISTIC_REG'
 
+
+# TODO: Leverage StrEnum once available in a later version (3.11) of python.
 class ParamType(Enum):
   SQL = 'sql'
   TEXT = 'text'
@@ -39,19 +46,23 @@ class ParamType(Enum):
   NUMBER = 'number'
 
   def __str__(self) -> str:
-    return self.value
+    return str(self.value)
 
+
+# TODO: Leverage StrEnum once available in a later version (3.11) of python.
 class Worker(Enum):
   BQ_SCRIPT_EXECUTOR = 'BQScriptExecutor'
   BQ_TO_MEASUREMENT_PROTOCOL_GA4 = 'BQToMeasurementProtocolGA4'
   BQ_TO_GOOGLE_ADS = 'BQToGoogleAds'
 
   def __str__(self) -> str:
-    return self.value
+    return str(self.value)
+
 
 class UniqueId(str, Enum):
   USER_ID = 'USER_ID'
   CLIENT_ID = 'CLIENT_ID'
+
 
 class Timespan():
   TRAINING: str = 'training'
@@ -59,11 +70,48 @@ class Timespan():
 
   training: int
   predictive: int
-  unit: str
+  random_training_set: list[int]
+  random_predictive_set: list[int]
+
+  def __init__(self) -> None:
+    self.random_training_set = []
+    self.random_predictive_set = []
+
+  def generate_random_sets(self):
+    """
+    Generate a random training and predictive set to be used in the event standard date ranges are not sufficient.
+    """
+    MAX = self.training + self.predictive
+
+    self.random_training_set = self._generate_random_set(size=self.training, max=MAX)
+    self.random_predictive_set = [n for n in range(MAX + 1) if n not in self.random_training_set]
+
+  def _generate_random_set(self, size: int, max: int) -> list[int]:
+    FIRST_MONTH = self.training + self.predictive
+    LAST_MONTH = 0
+
+    set = []
+    while True:
+      n = randint(0, max)
+      if n not in set:
+        set.append(n)
+
+        # since the first and last months in the timespan are partial then select both if one is selected.
+        if n == FIRST_MONTH:
+          set.append(LAST_MONTH)
+          size += 1
+        elif n == LAST_MONTH:
+          set.append(FIRST_MONTH)
+          size += 1
+
+        if len(set) == size:
+          return set
+
 
 class Destination(str, Enum):
   GOOGLE_ANALYTICS_CUSTOM_EVENT = 'GOOGLE_ANALYTICS_CUSTOM_EVENT',
   GOOGLE_ADS_CONVERSION_EVENT = 'GOOGLE_ADS_CONVERSION_EVENT'
+
 
 class Compiler():
   """Used to build out pipeline configurations based on a series of templates in the templates directory."""
@@ -164,20 +212,18 @@ class Compiler():
     with open(self._absolute_path('templates/' + templateFile.value), 'r') as file:
       return Template(file.read(), **options, undefined=StrictUndefined)
 
-  def _get_timespan(self, timespans: list, unit: str) -> Timespan:
-    """Returns the appropriate timespan (both training and predictive)
-      for the given template and unit (day/week/month/etc)."""
+  def _get_timespan(self, timespans: list) -> Timespan:
+    """Returns the appropriate timespan (both training and predictive) with random sets built-in if needed."""
 
     ts = Timespan()
-    ts.unit = unit.upper()
 
     for timespan in timespans:
-      if timespan.unit == unit:
-        if timespan.name == Timespan.TRAINING:
-          ts.training = timespan.value
-        elif timespan.name == Timespan.PREDICTIVE:
-          ts.predictive = timespan.value
+      if timespan.name == Timespan.TRAINING:
+        ts.training = timespan.value
+      elif timespan.name == Timespan.PREDICTIVE:
+        ts.predictive = timespan.value
 
+    ts.generate_random_sets()
     return ts
 
   def _get_unique_id(self, type: UniqueId) -> str:

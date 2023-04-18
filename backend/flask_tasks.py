@@ -12,31 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import json
-
 import click
+from flask.app import Flask
 
 from controller import database
-from controller import models
 
 
-def add(app):
+def add(app: Flask) -> None:
+  """Adds tasks to the Flask app."""
+
   @app.cli.command()
   def db_seeds():
     """Initialize the database."""
     database.load_fixtures(logger_func=click.echo)
-
-  @app.cli.command()
-  def reset_pipelines():
-    """Reset pipelines and jobs statuses."""
-    database.reset_jobs_and_pipelines_statuses_to_idle()
-
-  @app.cli.command()
-  @click.argument('files', nargs=-1)
-  def import_pipelines(files):
-    for filename in files:
-      with open(filename) as f:
-        data = json.loads(f.read())
-        pipeline = models.Pipeline(name=data['name'])
-        pipeline.save()
-        pipeline.import_data(data)

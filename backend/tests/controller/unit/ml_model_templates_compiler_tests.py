@@ -36,6 +36,7 @@ class TestCompiler(absltest.TestCase):
         'value_type': 'int',
         'is_revenue': False,
         'is_score': True,
+        'is_conversion': False,
         'is_percentage': False
       },
       features=[
@@ -72,6 +73,7 @@ class TestCompiler(absltest.TestCase):
         'value_type': 'int',
         'is_revenue': False,
         'is_score': True,
+        'is_conversion': False,
         'is_percentage': False
       },
       features=[
@@ -167,6 +169,7 @@ class TestCompiler(absltest.TestCase):
         'value_type': 'int',
         'is_revenue': False,
         'is_score': True,
+        'is_conversion': False,
         'is_percentage': False
       },
       features=[
@@ -214,6 +217,7 @@ class TestCompiler(absltest.TestCase):
         'value_type': 'int',
         'is_revenue': False,
         'is_score': True,
+        'is_conversion': False,
         'is_percentage': False
       },
       features=[
@@ -264,6 +268,7 @@ class TestCompiler(absltest.TestCase):
         'value_type': 'int',
         'is_revenue': True,
         'is_score': False,
+        'is_conversion': False,
         'is_percentage': False
       },
       features=[
@@ -289,6 +294,44 @@ class TestCompiler(absltest.TestCase):
         re.escape(') fv')
       ]),
       'Google Analytics first value join check failed.')
+
+  def test_build_model_sql_google_analytics_conversion(self):
+    test_model = self.model_config(
+      type='LOGISTIC_REG',
+      uses_first_party_data=False,
+      label={
+        'name': 'purchase',
+        'source': 'GOOGLE_ANALYTICS',
+        'key': 'value',
+        'value_type': 'int',
+        'is_revenue': False,
+        'is_score': True,
+        'is_conversion': True,
+        'is_percentage': True
+      },
+      features=[
+        {'name': 'click', 'source': 'GOOGLE_ANALYTICS'},
+        {'name': 'subscribe', 'source': 'GOOGLE_ANALYTICS'}
+      ],
+      skew_factor=4)
+
+    pipeline = compiler.build_training_pipeline(test_model, 'test-project-id-1234', 'test-ga4-dataset-loc')
+    params = pipeline['jobs'][0]['params']
+
+    sql_param = next(param for param in params if param["name"] == "script")
+    self.assertIsNotNone(sql_param)
+    sql = sql_param['value']
+
+    # random date selection check
+    self.assertRegex(
+      sql,
+      r'[\s\S]*'.join([
+        re.escape('events AS ('),
+        re.escape('SUBSTR(_TABLE_SUFFIX, 1, 6) IN ('),
+        re.escape('FORMAT_DATE("%Y%m", DATE_SUB(CURRENT_DATE(), INTERVAL '),
+        re.escape(')')
+      ]),
+      'Google Analytics random date selection check failed.')
 
   @freeze_time("2023-02-06T00:00:00")
   def test_build_predictive_pipeline(self):
@@ -462,7 +505,7 @@ class TestCompiler(absltest.TestCase):
 
     # timespan check
     self.assertIn(
-      'FORMAT_DATE("%Y%m%d", DATE_SUB(CURRENT_DATE(), INTERVAL 1 MONTH))',
+      'FORMAT_DATE("%Y%m%d", DATE_SUB(CURRENT_DATE(), INTERVAL 2 DAY))',
       sql,
       'Timespan start check failed.')
 

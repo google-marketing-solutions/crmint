@@ -223,36 +223,8 @@ resource "google_cloud_run_service" "jobs_run" {
   }
 }
 
-resource "google_cloudbuild_worker_pool" "private" {
-  count = var.use_vpc ? 1 : 0
-
-  name = "crmint-private-pool"
-  location = var.region
-
-  worker_config {
-    disk_size_gb = 100
-    machine_type = "e2-standard-2"
-    no_external_ip = var.use_vpc ? true : false
-  }
-
-  dynamic "network_config" {
-    # Includes this block only if `local.private_network` is set to a non-null value.
-    for_each = local.private_network[*]
-    content {
-      peered_network = google_compute_network.private[0].id
-    }
-  }
-
-  depends_on = [
-    google_project_service.apis,
-    google_project_service.vpcaccess,
-    google_service_networking_connection.private_vpc_connection
-  ]
-}
-
 # Local variables are used to simplify the definition of outputs.
 locals {
   migrate_image = var.controller_image
   migrate_sql_conn_name = google_sql_database_instance.main.connection_name
-  pool = var.use_vpc ? google_cloudbuild_worker_pool.private[0].id : "default"
 }

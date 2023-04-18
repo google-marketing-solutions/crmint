@@ -2,32 +2,29 @@ from google.cloud import bigquery
 from google.cloud.exceptions import NotFound
 from enum import Enum
 from datetime import date, timedelta
+from dataclasses import dataclass
 
-# Data Classes
+
+@dataclass
 class Parameter:
   """Represents a variable parameter."""
-
   key: str
   value_type: str
 
-  def __init__(self, key: str, value_type: str) -> None:
-    self.key = key
-    self.value_type = value_type.lower()
+  def __post_init__(self):
+    self.value_type = self.value_type.lower()
 
+
+@dataclass
 class Variable:
   """Represents a single variable (used for feature/label selection)."""
-
   name: str
   source: str
   count: int
   parameters: list[Parameter]
 
-  def __init__(self, name: str, source: str, count: int = 0) -> None:
-    self.name = name
-    self.source = source
-    self.count = count
-    self.parameters = []
 
+# TODO: Leverage StrEnum once available in a later version (3.11) of python.
 class Source(Enum):
   GOOGLE_ANALYTICS = 'GOOGLE_ANALYTICS'
   FIRST_PARTY = 'FIRST_PARTY'
@@ -39,8 +36,7 @@ class Source(Enum):
     return other == str(self.value)
 
 
-# BigQuery Client Wrapper
-class Client(bigquery.Client):
+class CustomClient(bigquery.Client):
   """BigQuery client wrapper that adds custom methods for easy access to necessary data."""
 
   def __init__(self, location: str) -> None:
@@ -118,7 +114,7 @@ class Client(bigquery.Client):
         parameter = Parameter(event.parameter_key, event.parameter_value_type)
 
         if not existing_variable:
-          variable = Variable(event.name, Source.GOOGLE_ANALYTICS, event.count)
+          variable = Variable(event.name, Source.GOOGLE_ANALYTICS, event.count, [])
           if parameter.key not in key_exclude_list:
             variable.parameters.append(parameter)
           # since rows are ordered, event data for a single event name is grouped
@@ -156,8 +152,8 @@ class Client(bigquery.Client):
 
     for column in table.schema:
       if column.name not in exclude_list:
-        variable = Variable(column.name, Source.FIRST_PARTY)
-        variable.parameters.append(Parameter('value', column.field_type))
+        parameter = Parameter('value', column.field_type)
+        variable = Variable(column.name, Source.FIRST_PARTY, 0, [parameter])
         variables.append(variable)
 
     return variables

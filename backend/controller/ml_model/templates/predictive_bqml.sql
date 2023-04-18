@@ -31,7 +31,12 @@ CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.predictions` AS (
         EXTRACT(HOUR FROM(TIMESTAMP_MICROS(user_first_touch_timestamp))) AS first_touch_hour
         FROM `{{project_id}}.{{ga4_dataset}}.events_*`
         WHERE _TABLE_SUFFIX BETWEEN
-          FORMAT_DATE("%Y%m%d", DATE_SUB(CURRENT_DATE(), INTERVAL {{timespan.predictive}} {{timespan.unit}})) AND
+          -- timespan for conversion type label is done in the output step
+          {% if label.is_conversion %}
+          FORMAT_DATE("%Y%m%d", DATE_SUB(CURRENT_DATE(), INTERVAL 2 DAY)) AND
+          {% else %}
+          FORMAT_DATE("%Y%m%d", DATE_SUB(CURRENT_DATE(), INTERVAL {{timespan.predictive}} MONTH)) AND
+          {% endif %}
           FORMAT_DATE("%Y%m%d", DATE_SUB(CURRENT_DATE(), INTERVAL 1 DAY))
     ),
     first_engagement AS (
