@@ -21,7 +21,7 @@ WITH events AS (
     event_params AS params,
     {{unique_id}},
     geo.country AS country,
-    geo.state AS state,
+    geo.region AS region,
     device.language AS language,
     device.category AS device_type,
     device.operating_system AS device_os,
@@ -54,7 +54,7 @@ first_engagement AS (
     SELECT
       {{unique_id}},
       country,
-      state,
+      region,
       language,
       traffic_source,
       traffic_medium,
