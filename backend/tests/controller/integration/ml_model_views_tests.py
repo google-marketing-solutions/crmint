@@ -160,14 +160,14 @@ class TestMlModelViews(controller_utils.ControllerAppTest):
     response = self.client.get('/api/ml-models/variables')
     self.assertEqual(response.status_code, 400)
 
-  @mock.patch('controller.ml_model.bigquery.Client')
+  @mock.patch('controller.ml_model.bigquery.CustomClient')
   def test_retrieve_variables_with_dataset(self, client_mock: mock.Mock):
     dataset = {'dataset_name': 'test-dataset', 'dataset_location': 'US'}
     GeneralSetting.where(name='google_analytics_4_bigquery_dataset').first().update(value='test-ga4-dataset')
 
     # required due to uncertainty around how to do actual integration test with big query locally
     variables: list[Variable] = []
-    variable = Variable('test-name', 'GOOGLE_ANALYTICS', 1)
+    variable = Variable('test-name', 'GOOGLE_ANALYTICS', 1, [])
     variable.parameters.append(Parameter('test-key', 'test-value-type'))
     variables.append(variable)
     client_mock.return_value.get_analytics_variables.return_value = variables
@@ -175,7 +175,7 @@ class TestMlModelViews(controller_utils.ControllerAppTest):
     response = self.client.get('/api/ml-models/variables', query_string=dataset)
     self.assertEqual(response.status_code, 200)
 
-  @mock.patch('controller.ml_model.bigquery.Client')
+  @mock.patch('controller.ml_model.bigquery.CustomClient')
   def test_retrieve_variables_with_dataset_events_not_found(self, client_mock: mock.Mock):
     dataset = {'dataset_name': 'test-dataset', 'dataset_location': 'US'}
     GeneralSetting.where(name='google_analytics_4_bigquery_dataset').first().update(value='test-ga4-dataset')

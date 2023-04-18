@@ -6,11 +6,13 @@ from enum import Enum
 from uuid import uuid4 as uuid
 from jinja2 import Template, StrictUndefined
 
+
 class TemplateFile(Enum):
   TRAINING = 'training.sql'
   PREDICTIVE = 'predictive.sql'
   GA4_REQUEST = 'ga4_request.json'
   OUTPUT = 'output.sql'
+
 
 class RegressionType(Enum):
   BOOSTED_TREE_REGRESSOR = 'BOOSTED_TREE_REGRESSOR'
@@ -18,15 +20,18 @@ class RegressionType(Enum):
   RANDOM_FOREST_REGRESSOR = 'RANDOM_FOREST_REGRESSOR'
   LINEAR_REG = 'LINEAR_REG'
 
+
 class ClassificationType(Enum):
   BOOSTED_TREE_CLASSIFIER = 'BOOSTED_TREE_CLASSIFIER'
   DNN_CLASSIFIER = 'DNN_CLASSIFIER'
   RANDOM_FOREST_CLASSIFIER = 'RANDOM_FOREST_CLASSIFIER'
   LOGISTIC_REG = 'LOGISTIC_REG'
 
+
 class UniqueId(str, Enum):
   USER_ID = 'USER_ID'
   CLIENT_ID = 'CLIENT_ID'
+
 
 class Timespan():
   TRAINING: str = 'training'
@@ -70,6 +75,7 @@ class Timespan():
 
         if len(set) == size:
           return set
+
 
 def build_training_pipeline(ml_model, project_id: str, ga4_dataset: str) -> dict:
   """Builds the training pipeline configuration including the model SQL."""

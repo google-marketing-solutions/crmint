@@ -448,7 +448,6 @@ class MlModel(extensions.db.Model):
   def assign_bigquery_dataset(self, dataset):
     if self.bigquery_dataset:
       self.bigquery_dataset.delete()
-
     MlModelBigQueryDataset.create(ml_model_id=self.id, **dataset)
 
   def assign_features(self, features):
@@ -462,7 +461,6 @@ class MlModel(extensions.db.Model):
   def assign_label(self, label):
     if self.label:
       self.label.delete()
-
     MlModelLabel.create(ml_model_id=self.id, **label)
 
   def assign_hyper_parameters(self, hyper_parameters):

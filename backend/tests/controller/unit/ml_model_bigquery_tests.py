@@ -20,7 +20,7 @@ from typing import Union
 import mock
 import re
 
-from controller.ml_model.bigquery import Client
+from controller.ml_model.bigquery import CustomClient
 
 class TestClient(absltest.TestCase):
 
@@ -28,7 +28,7 @@ class TestClient(absltest.TestCase):
   def setUp(self, init_mock: mock.Mock):
     super().setUp()
     init_mock.return_value = None
-    self.client = Client('US')
+    self.client = CustomClient('US')
     self.client.project = 'test-project-id'
 
   @mock.patch('google.cloud.bigquery.Client.get_table')

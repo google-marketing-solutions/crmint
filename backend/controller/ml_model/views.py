@@ -218,7 +218,7 @@ class MlModelVariables(Resource):
     tracker.track_event(category='ml-models', action='variables')
 
     args = variables_parser.parse_args()
-    bigquery_client = bigquery.Client(args['dataset_location'])
+    bigquery_client = bigquery.CustomClient(args['dataset_location'])
     variables = []
 
     ga4_dataset = setting('google_analytics_4_bigquery_dataset')
@@ -234,21 +234,57 @@ class MlModelVariables(Resource):
     return variables
 
 
-# helper functions for commonly used behavior
 def abort_when_not_found(ml_model, id):
+  """
+  If the model provided does not exist (None is passed) then abort with an appropriate error.
+
+  Args:
+    ml_model: The model to check.
+    id: The id provided in the request.
+
+  Raises:
+    HTTPException: If the ml model id provided in the request was not found.
+  """
   if ml_model is None:
     abort(404, message=f'MlModel {id} doesn\'t exist')
 
 def abort_when_pipeline_active(ml_model):
-    for pipeline in ml_model.pipelines:
-      if pipeline.is_blocked():
-        abort(422, message='Removing or editing of ml model with active pipeline is unavailable')
+  """
+  If the model provided does not exist (None is passed) then abort with an appropriate error.
+
+  Args:
+    ml_model: The model to check.
+
+  Raises:
+    HTTPException: If the pipeline is considered "blocked" due to being active/running/etc.
+  """
+  for pipeline in ml_model.pipelines:
+    if pipeline.is_blocked():
+      abort(422, message='Removing or editing of ml model with active pipeline is unavailable')
 
 def setting(name: str) -> str:
+  """
+  Helper for getting general settings by name if they exist.
+
+  Args:
+    name: The name of the setting to return a value for.
+
+  Returns:
+    The value of the setting.
+  """
   setting = GeneralSetting.where(name=name).first()
   return setting.value if setting else ''
 
 def build_pipelines(ml_model) -> list[dict]:
+  """
+  Builds training and predictive pipelines.
+
+  Args:
+    ml_model: The ml model configuration necessary to build the BQML and pipelines.
+
+  Returns:
+    The newly built training and predictive pipeline objects.
+  """
   ga4_dataset = setting('google_analytics_4_bigquery_dataset')
   ga4_measurement_id = setting('google_analytics_4_measurement_id')
   ga4_api_secret = setting('google_analytics_4_api_secret')
