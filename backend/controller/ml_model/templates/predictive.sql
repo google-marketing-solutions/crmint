@@ -21,7 +21,7 @@ CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.predictions` AS (
         user_id,
         user_pseudo_id,
         geo.country AS country,
-        geo.state AS state,
+        geo.region AS region,
         device.language AS language,
         device.category AS device_type,
         device.operating_system AS device_os,
@@ -48,7 +48,7 @@ CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.predictions` AS (
           {% endif %}
           user_pseudo_id,
           country,
-          state,
+          region,
           language,
           traffic_source,
           traffic_medium,
