@@ -73,4 +73,5 @@ ENV FLASK_APP controller_app.py
 ENV FLASK_ENV production
 ENV PORT 5000
 
-CMD gunicorn -b :$PORT -w 3 controller_app:app
+RUN chmod +x ./controller_entrypoint.sh
+ENTRYPOINT ["./controller_entrypoint.sh"]

@@ -52,3 +52,9 @@
     </form>
   </mat-card>
 </div>
+<div class="crmi-config-wrap">
+  <mat-card>
+    <mat-card-title>Reset Pipelines</mat-card-title>
+    <button mat-raised-button type="button" color="warn" (click)="resetStatuses()" [disabled]="resetStatusesIsRunning()">Reset</button>
+  </mat-card>
+</div>

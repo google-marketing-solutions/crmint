@@ -23,8 +23,3 @@ output "cloud_db_uri" {
   description = "Database connection URI."
   sensitive   = true
 }
-
-output "cloud_build_worker_pool" {
-  value       = local.pool
-  description = "Cloud Build worker pool."
-}

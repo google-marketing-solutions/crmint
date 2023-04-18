@@ -24,25 +24,35 @@ export class SettingsService extends ApiService {
   private configUrl = `${this.host}/configuration`;
   private variablesUrl = `${this.host}/global_variables`;
   private settingsUrl = `${this.host}/general_settings`;
+  private resetStatusesUrl = `${this.host}/reset/statuses`;
 
   getConfigData(): Promise<Config> {
     this.removeContentTypeHeader();
-    return this.http.get(this.configUrl)
-               .toPromise()
-               .catch(this.handleError);
+    return this.http.get(this.configUrl).toPromise().catch(this.handleError);
   }
 
   saveVariables(variables: Param[]): Promise<Param[]> {
     this.addContentTypeHeader();
     return this.http.put(this.variablesUrl, {variables: variables})
-               .toPromise()
-               .catch(this.handleError);
+        .toPromise()
+        .catch(this.handleError);
   }
 
   saveSettings(settings: Setting[]) {
     this.addContentTypeHeader();
     return this.http.put(this.settingsUrl, {settings: settings})
-               .toPromise()
-               .catch(this.handleError);
+        .toPromise()
+        .catch(this.handleError);
+  }
+
+  resetStatuses(callback: CallableFunction) {
+    this.addContentTypeHeader();
+    return this.http.post(this.resetStatusesUrl, null)
+        .toPromise()
+        .then(() => callback())
+        .catch((error: Error| string) => {
+          callback();
+          this.handleError(error);
+        });
   }
 }

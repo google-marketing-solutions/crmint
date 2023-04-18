@@ -72,6 +72,14 @@ class TestViews(controller_utils.ControllerAppTest):
         name='google_ads_refresh_token').first()
     self.assertEqual(ads_token_setting.value, 'new-token')
 
+  def test_reset_statuses_expect_post(self):
+    response = self.client.get('/api/reset/statuses')
+    self.assertEqual(response.status_code, 405)
+
+  def test_can_reset_statuses(self):
+    response = self.client.post('/api/reset/statuses')
+    self.assertEqual(response.status_code, 200)
+
 
 if __name__ == '__main__':
   absltest.main()

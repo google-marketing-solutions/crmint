@@ -27,6 +27,12 @@ services:
       MYSQL_PASSWORD: crmint
     volumes:
       - db_data:/var/lib/mysql
+    healthcheck:
+      test: "/usr/bin/mysql --user=root --password=root --execute \"SHOW DATABASES;\""
+      start_period: 5s
+      interval: 2s
+      timeout: 60s
+      retries: 30
 
   pubsub:
     build:
@@ -51,7 +57,8 @@ services:
       PORT: 8081
     command: ['flask', 'run', '--host', '0.0.0.0', '--port', '8081']
     depends_on:
-      - pubsub
+      pubsub:
+        condition: service_started
 
   controller:
     build:
@@ -73,22 +80,23 @@ services:
       SQLALCHEMY_ECHO: 1
       PORT: 8080
     command: bash -c "python setup_pubsub.py &&
-                      flask db upgrade &&
-                      flask db-seeds &&
                       flask run --host 0.0.0.0 --port 8080"
     volumes:
       - ./backend:/app
       - ~/.config/gcloud:/root/.config/gcloud
     depends_on:
-      - db
-      - pubsub
-      - jobs
+      db:
+        condition: service_healthy
+      pubsub:
+        condition: service_started
+      jobs:
+        condition: service_started
 
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-      target: prod
+      target: ${FRONTEND_DOCKER_TARGET:-prod}
     ports:
       - "4200:4200"
     environment:
@@ -97,5 +105,7 @@ services:
     volumes:
       - ./frontend:/app
     depends_on:
-      - controller
-      - jobs
+      controller:
+        condition: service_started
+      jobs:
+        condition: service_started

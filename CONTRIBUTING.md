@@ -28,7 +28,7 @@ information on using pull requests.
 
 ```sh
 $ export GOOGLE_CLOUD_PROJECT=<PROJECT_ID>
-$ docker-compose up
+$ FRONTEND_DOCKER_TARGET=dev docker-compose up --build
 
 # Open your browser at http://localhost:4200
 ```

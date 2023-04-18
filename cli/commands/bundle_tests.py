@@ -12,7 +12,6 @@ from click import testing
 
 from cli.commands import bundle
 from cli.commands import cloud
-from cli.commands import stages
 from cli.utils import constants
 from cli.utils import shared
 from cli.utils import test_helpers
@@ -51,7 +50,6 @@ class BundleTest(absltest.TestCase):
         'migrate_image': {'value': 'IMAGE:latest'},
         'migrate_sql_conn_name': {'value': 'project:region:db_instance'},
         'cloud_db_uri': {'value': 'mysql://db:3306/name'},
-        'cloud_build_worker_pool': {'value': 'my_worker_pool'},
         'secured_url': {'value': 'https://secured.com'},
     }
     self.enter_context(
@@ -103,7 +101,6 @@ class BundleTest(absltest.TestCase):
     self.assertIn('Stage file created:', result.output)
     self.assertIn('>>>> Checklist', result.output)
     self.assertIn('>>>> Setup', result.output)
-    self.assertIn('>>>> Sync database', result.output)
 
   def test_can_run_install_with_existing_stage_file(self):
     shutil.copyfile(
@@ -116,7 +113,6 @@ class BundleTest(absltest.TestCase):
     self.assertRegex(result.output, 'This stage file ".*" already exists.')
     self.assertIn('>>>> Checklist', result.output)
     self.assertIn('>>>> Setup', result.output)
-    self.assertIn('>>>> Sync database', result.output)
     self.assertIn('>>>> CRMint UI', result.output)
 
   def test_cannot_run_update_without_stage_file(self):
@@ -141,7 +137,6 @@ class BundleTest(absltest.TestCase):
     self.assertIn('>>>> Update CRMint version', result.output)
     self.assertRegex(result.output, 'Stage updated to version: 3.3')
     self.assertIn('>>>> Setup', result.output)
-    self.assertIn('>>>> Sync database', result.output)
     self.assertIn('>>>> CRMint UI', result.output)
 
   def test_can_allow_new_users_and_setup(self):
@@ -156,7 +151,6 @@ class BundleTest(absltest.TestCase):
     self.assertEqual(result.exit_code, 0, msg=result.output)
     self.assertIn('>>>> Allow new users', result.output)
     self.assertIn('>>>> Setup', result.output)
-    self.assertNotIn('>>>> Sync database', result.output)
     self.assertIn('>>>> CRMint UI', result.output)
 
 

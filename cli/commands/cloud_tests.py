@@ -237,6 +237,12 @@ class CloudSetupTest(CloudTestBase):
     self.assertEqual(result.exit_code, 0, msg=result.output)
     self.assertIn('VPC Access Connector (1)', result.output)
 
+  def test_reset_shows_deprecation(self):
+    runner = testing.CliRunner()
+    result = runner.invoke(cloud.reset, catch_exceptions=False)
+    self.assertEqual(result.exit_code, 0, msg=result.output)
+    self.assertRegex(result.output, r'Deprecated')
+
 
 class CloudUrlTest(CloudTestBase):
 

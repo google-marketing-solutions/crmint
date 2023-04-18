@@ -35,6 +35,8 @@ export class SettingsComponent implements OnInit {
     google_ads_auth_url: '',
   };
 
+  resetStatusesRunning = false;
+
   gVarsForm: UntypedFormGroup;
   settingsForm: UntypedFormGroup;
   googleAdsAuthURL: string;
@@ -163,4 +165,15 @@ export class SettingsComponent implements OnInit {
   }
 
   // --------------- END GLOBAL VARIABLES FORM ----------------
+
+  resetStatuses() {
+    this.resetStatusesRunning = true;
+    this.settingsService.resetStatuses(() => {
+      this.resetStatusesRunning = false;
+    });
+  }
+
+  resetStatusesIsRunning(): boolean {
+    return this.resetStatusesRunning;
+  }
 }
