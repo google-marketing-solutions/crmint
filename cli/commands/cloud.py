@@ -246,33 +246,6 @@ def terraform_outputs(debug: bool = False):
   return out
 
 
-def trigger_command(cmd: str,
-                    outputs: dict[str, dict[str, str]],
-                    debug: bool = False) -> None:
-  """Runs a command on Cloud Build.
-
-  Args:
-    cmd: Command to run.
-    outputs: Dictionary of terraform outputs.
-    debug: Enables the debug mode on system calls.
-  """
-  region = outputs['region']['value']
-  image = outputs['migrate_image']['value']
-  db_conn_name = outputs['migrate_sql_conn_name']['value']
-  db_uri = outputs['cloud_db_uri']['value']
-  pool = outputs['cloud_build_worker_pool']['value']
-  pool_arg = f'--worker-pool "{pool}"' if pool != 'default' else ''
-  cmd = textwrap.dedent(f"""\
-      {GCLOUD} builds submit \\
-          --region {region} \\
-          --config ./cli/cloudbuild_run_command.yaml \\
-          --no-source \\
-          {pool_arg} \\
-          --substitutions _COMMAND="{cmd}",_IMAGE_NAME="{image}",_INSTANCE_CONNECTION_NAME="{db_conn_name}",_CLOUD_DB_URI="{db_uri}"
-      """)
-  shared.execute_command('Run on Cloud Build', cmd, debug=debug)
-
-
 def update_stage_with_image_digests(stage: shared.StageContext,
                                     debug: bool = False) -> None:
   """Updates the stage file with the latest image digests.
@@ -382,51 +355,14 @@ def setup(stage_path: Union[None, str], debug: bool) -> None:
   click.echo(click.style('Done.', fg='magenta', bold=True))
 
 
-def _run_command(section_name: str,
-                 cmd: str,
-                 stage_path: Union[None, str],
-                 debug: bool):
-  """Runs a command on Cloud Build."""
-  click.echo(click.style(section_name, fg='magenta', bold=True))
-
-  if stage_path is not None:
-    stage_path = pathlib.Path(stage_path)
-
-  try:
-    stage = shared.fetch_stage_or_default(stage_path, debug=debug)
-  except shared.CannotFetchStageError:
-    sys.exit(1)
-
-  # Switches workspace.
-  terraform_init(debug=debug)
-  terraform_switch_workspace(stage, debug=debug)
-
-  # Retrieves outputs from the current Terraform state.
-  outputs_json_raw = terraform_outputs(debug=debug)
-  outputs = json.loads(outputs_json_raw)
-
-  if not outputs:
-    click.secho(f'No state found in current workspace: {stage.project_id}',
-                fg='red',
-                bold=True)
-    click.secho('Fix this by running: $ crmint cloud setup', fg='green')
-    sys.exit(1)
-
-  # Resets the state of pipelines and jobs.
-  trigger_command(cmd, outputs, debug=debug)
-  click.echo(click.style('Done.', fg='magenta', bold=True))
-
-
 @cli.command('migrate')
 @click.option('--stage_path', type=str, default=None)
 @click.option('--debug/--no-debug', default=False)
 def migrate(stage_path: Union[None, str], debug: bool):
   """Migrate the database to the latest schema."""
-  _run_command(
-      '>>>> Sync database',
-      'python -m flask db upgrade; python -m flask db-seeds;',
-      stage_path,
-      debug=debug)
+  del stage_path
+  del debug
+  click.echo(click.style('Deprecated.', fg='blue', bold=True))
 
 
 @cli.command('reset')
@@ -434,11 +370,9 @@ def migrate(stage_path: Union[None, str], debug: bool):
 @click.option('--debug/--no-debug', default=False)
 def reset(stage_path: Union[None, str], debug: bool):
   """Reset pipeline statuses."""
-  _run_command(
-      '>>>> Reset database',
-      'python -m flask reset-pipelines;',
-      stage_path,
-      debug=debug)
+  del stage_path
+  del debug
+  click.echo(click.style('Deprecated.', fg='blue', bold=True))
 
 
 @cli.command('url')
