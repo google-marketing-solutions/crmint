@@ -80,6 +80,8 @@ class Timespan():
   def generate_random_sets(self):
     """
     Generate a random training and predictive set to be used in the event standard date ranges are not sufficient.
+    A random set (the size of the training timespan) of numbers between 0 and the total number of months in the timespan
+    is created and the remaining months (those not selected for the training set) are used for the predictive set.
     """
     MAX = self.training + self.predictive
 
