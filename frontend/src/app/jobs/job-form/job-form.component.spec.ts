@@ -32,7 +32,7 @@ describe('JobFormComponent', () => {
         FormsModule,
         HttpClientModule,
         ReactiveFormsModule,
-        RouterModule.forRoot([], { relativeLinkResolution: 'legacy' })
+        RouterModule.forRoot([], {})
       ],
       providers: [
         JobsService,

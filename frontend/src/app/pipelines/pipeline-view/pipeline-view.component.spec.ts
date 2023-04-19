@@ -28,7 +28,7 @@ describe('PipelineViewComponent', () => {
     TestBed.configureTestingModule({
       imports: [
         HttpClientModule,
-        RouterModule.forRoot([], { relativeLinkResolution: 'legacy' })
+        RouterModule.forRoot([], {})
       ],
       providers: [
         JobsService,
