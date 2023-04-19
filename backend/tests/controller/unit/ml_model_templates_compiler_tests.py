@@ -15,14 +15,14 @@
 
 """Tests for controller.ml_model.templates.compiler."""
 
-from absl.testing import absltest
+from absl.testing import absltest, parameterized
 from freezegun import freeze_time
 from typing import Union
 import re
 
 from backend.controller.ml_model.compiler import Compiler
 
-class TestCompiler(absltest.TestCase):
+class TestCompiler(parameterized.TestCase):
 
   @freeze_time("2023-02-06T00:00:00")
   def test_build_training_pipeline(self):
@@ -338,8 +338,11 @@ class TestCompiler(absltest.TestCase):
       ]),
       'Google Analytics random date selection check failed.')
 
-  @freeze_time("2023-02-06T00:00:00")
-  def test_build_predictive_pipeline(self):
+  @parameterized.named_parameters(
+    ('destination google analytics custom event', 'GOOGLE_ANALYTICS_CUSTOM_EVENT'),
+    ('destination google ads conversion event', 'GOOGLE_ADS_CONVERSION_EVENT')
+  )
+  def test_build_predictive_pipeline(self, destination: str):
     test_model = self.model_config(
       type='BOOSTED_TREE_REGRESSOR',
       uses_first_party_data=True,
@@ -357,13 +360,21 @@ class TestCompiler(absltest.TestCase):
         {'name': 'click', 'source': 'GOOGLE_ANALYTICS'},
         {'name': 'subscribe', 'source': 'FIRST_PARTY'}
       ],
-      skew_factor=4)
+      skew_factor=4,
+      destination=destination)
 
     pipeline = self.compiler(test_model).build_predictive_pipeline()
     self.assertEqual(pipeline['name'], 'Test Model - Predictive')
 
+    # schedule check
+    self.assertEqual(pipeline['schedules'][0]['cron'], '0 0 * * *')
+
     setup_job = next(job for job in pipeline['jobs'] if job['name'] == 'Test Model - Predictive Setup')
     self.assertIsNotNone(setup_job)
+
+    # check job worker
+    self.assertEqual(setup_job['worker_class'], 'BQScriptExecutor')
+
     params = setup_job['params']
 
     # big-query dataset location check
@@ -371,10 +382,7 @@ class TestCompiler(absltest.TestCase):
     self.assertIsNotNone(dataset_loc_param)
     self.assertEqual(dataset_loc_param['value'], 'US')
 
-    # schedule check
-    self.assertEqual(pipeline['schedules'][0]['cron'], '0 0 * * *')
-
-    # sql check start
+    # sql script check
     sql_param = next(param for param in params if param['name'] == 'script')
     self.assertIsNotNone(sql_param)
 
@@ -384,6 +392,9 @@ class TestCompiler(absltest.TestCase):
     # check job start conditions
     self.assertEqual(output_job['hash_start_conditions'][0]['preceding_job_id'], setup_job['id'])
 
+    # check job worker
+    self.assertEqual(output_job['worker_class'], 'BQScriptExecutor')
+
     params = output_job['params']
 
     # big-query dataset location check
@@ -391,17 +402,35 @@ class TestCompiler(absltest.TestCase):
     self.assertIsNotNone(dataset_loc_param)
     self.assertEqual(dataset_loc_param['value'], 'US')
 
-    # sql check start
+    # sql script check
     sql_param = next(param for param in params if param['name'] == 'script')
     self.assertIsNotNone(sql_param)
 
-    ga4_upload_job = next(job for job in pipeline['jobs'] if job['name'] == 'Test Model - Predictive Upload')
-    self.assertIsNotNone(ga4_upload_job)
+    upload_job = next(job for job in pipeline['jobs'] if job['name'] == 'Test Model - Predictive Upload')
+    self.assertIsNotNone(upload_job)
 
     # check job start conditions
-    self.assertEqual(ga4_upload_job['hash_start_conditions'][0]['preceding_job_id'], output_job['id'])
+    self.assertEqual(upload_job['hash_start_conditions'][0]['preceding_job_id'], output_job['id'])
 
-    params = ga4_upload_job['params']
+    params = upload_job['params']
+
+    # check destination specific parts
+    if destination == 'GOOGLE_ANALYTICS_CUSTOM_EVENT':
+      # check job worker
+      self.assertEqual(upload_job['worker_class'], 'BQToMeasurementProtocolGA4')
+
+      # measurement id check
+      measurement_id_param = next(param for param in params if param['name'] == 'measurement_id')
+      self.assertIsNotNone(measurement_id_param)
+      self.assertEqual(measurement_id_param['value'], 'test-ga4-measurement-id')
+
+      # api secret check
+      api_secret_param = next(param for param in params if param['name'] == 'api_secret')
+      self.assertIsNotNone(api_secret_param)
+      self.assertEqual(api_secret_param['value'], 'test-ga4-api-secret')
+    elif destination == 'GOOGLE_ADS_CONVERSION_EVENT':
+      # check job worker
+      self.assertEqual(upload_job['worker_class'], 'BQToGoogleAds')
 
     # project id check
     bq_project_id_param = next(param for param in params if param['name'] == 'bq_project_id')
@@ -417,16 +446,6 @@ class TestCompiler(absltest.TestCase):
     dataset_loc_param = next(param for param in params if param['name'] == 'bq_dataset_location')
     self.assertIsNotNone(dataset_loc_param)
     self.assertEqual(dataset_loc_param['value'], 'US')
-
-    # measurement id check
-    measurement_id_param = next(param for param in params if param['name'] == 'measurement_id')
-    self.assertIsNotNone(measurement_id_param)
-    self.assertEqual(measurement_id_param['value'], 'test-ga4-measurement-id')
-
-    # api secret check
-    api_secret_param = next(param for param in params if param['name'] == 'api_secret')
-    self.assertIsNotNone(api_secret_param)
-    self.assertEqual(api_secret_param['value'], 'test-ga4-api-secret')
 
     # template check
     template_param = next(param for param in params if param['name'] == 'template')
@@ -1067,7 +1086,8 @@ class TestCompiler(absltest.TestCase):
       'Failed template check.')
 
   def model_config(self, type: str, uses_first_party_data: bool, label: dict,
-                   features: list[dict], skew_factor: int, unique_id: str = 'CLIENT_ID'):
+                   features: list[dict], skew_factor: int, unique_id: str = 'CLIENT_ID',
+                   destination: str = 'GOOGLE_ANALYTICS_CUSTOM_EVENT'):
     return self.convert_to_object({
       'name': 'Test Model',
       'bigquery_dataset': {
@@ -1091,7 +1111,7 @@ class TestCompiler(absltest.TestCase):
         {"name": "training", "value": 17, "unit": "month"},
         {"name": "predictive", "value": 1, "unit": "month"}
       ],
-      'destination': 'GOOGLE_ANALYTICS_CUSTOM_EVENT'
+      'destination': destination
     })
 
   def compiler(self, ml_model):

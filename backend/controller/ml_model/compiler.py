@@ -10,12 +10,13 @@ from controller.shared import StrEnum
 from controller.models import MlModel
 
 
-class TemplateFile(Enum):
+class TemplateFile(StrEnum):
   TRAINING_PIPELINE = 'training_pipeline.json'
   PREDICTIVE_PIPELINE = 'predictive_pipeline.json'
   TRAINING_BQML = 'training_bqml.sql'
   PREDICTIVE_BQML = 'predictive_bqml.sql'
   GA4_REQUEST = 'ga4_request.json'
+  GADS_REQUEST = 'gads_request.json'
   OUTPUT = 'output.sql'
 
 
@@ -205,7 +206,7 @@ class Compiler():
       'lstrip_blocks': True,
       'newline_sequence': '\n'
     }
-    with open(self._absolute_path('templates/' + templateFile.value), 'r') as file:
+    with open(self._absolute_path('templates/' + templateFile), 'r') as file:
       return Template(file.read(), **options, undefined=StrictUndefined)
 
   def _get_timespan(self, timespans: list) -> Timespan:
