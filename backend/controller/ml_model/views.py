@@ -46,6 +46,7 @@ parser.add_argument('features', type=list, location='json', required=False)
 parser.add_argument('label', type=dict, required=False)
 parser.add_argument('skew_factor', type=int, required=False)
 parser.add_argument('timespans', type=list, location='json', required=False)
+parser.add_argument('destination', type=str, required=False)
 
 bigquery_dataset_structure = fields.Nested({
   'name': fields.String,
