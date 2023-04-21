@@ -131,8 +131,8 @@ resource "google_project_iam_member" "pubsub_token-creator" {
 ##
 # Cloud Run permissions
 #
-# NOTE: We delegate the authentication flow to IAP, so we need to give `allUsers` access
-#       to Cloud Run since it's not responsible anymore for authenticating the users.
+# NOTE: We delegate the authentication flow to IAP, so we need to give IAP SA
+#       access to Cloud Run.
 #
 
 data "google_iam_policy" "iap_users" {
@@ -163,26 +163,33 @@ resource "google_iap_web_backend_service_iam_policy" "jobs" {
   policy_data = data.google_iam_policy.iap_users.policy_data
 }
 
-resource "google_cloud_run_service_iam_binding" "frontend_run-invoker" {
+data "google_iam_policy" "run_users" {
+  binding {
+    role = "roles/run.invoker"
+    members = [
+        "serviceAccount:${google_project_service_identity.iap_sa.email}",
+        "serviceAccount:${google_service_account.pubsub_sa.email}",
+    ]
+  }
+}
+
+resource "google_cloud_run_service_iam_policy" "frontend_run-invoker" {
   location = google_cloud_run_service.frontend_run.location
   project = google_cloud_run_service.frontend_run.project
   service = google_cloud_run_service.frontend_run.name
-  role = "roles/run.invoker"
-  members = ["serviceAccount:${google_project_service_identity.iap_sa.email}"]
+  policy_data = data.google_iam_policy.run_users.policy_data
 }
 
-resource "google_cloud_run_service_iam_binding" "controller_run-invoker" {
+resource "google_cloud_run_service_iam_policy" "controller_run-invoker" {
   location = google_cloud_run_service.controller_run.location
   project = google_cloud_run_service.controller_run.project
   service = google_cloud_run_service.controller_run.name
-  role = "roles/run.invoker"
-  members = ["serviceAccount:${google_project_service_identity.iap_sa.email}"]
+  policy_data = data.google_iam_policy.run_users.policy_data
 }
 
-resource "google_cloud_run_service_iam_binding" "jobs_run-invoker" {
+resource "google_cloud_run_service_iam_policy" "jobs_run-invoker" {
   location = google_cloud_run_service.jobs_run.location
   project = google_cloud_run_service.jobs_run.project
   service = google_cloud_run_service.jobs_run.name
-  role = "roles/run.invoker"
-  members = ["serviceAccount:${google_project_service_identity.iap_sa.email}"]
+  policy_data = data.google_iam_policy.run_users.policy_data
 }
