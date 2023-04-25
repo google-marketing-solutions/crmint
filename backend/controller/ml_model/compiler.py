@@ -1,7 +1,6 @@
 import os
 
 from datetime import date
-from random import randint
 from enum import Enum
 from uuid import uuid4 as uuid
 from jinja2 import Template, StrictUndefined
@@ -9,6 +8,7 @@ from jinja2 import Template, StrictUndefined
 
 class TemplateFile(Enum):
   TRAINING = 'training.sql'
+  CONVERSION_VALUES = 'conversion_values.sql'
   PREDICTIVE = 'predictive.sql'
   GA4_REQUEST = 'ga4_request.json'
   OUTPUT = 'output.sql'
@@ -39,51 +39,24 @@ class Timespan():
 
   training: int
   predictive: int
-  random_training_set: list[int]
-  random_predictive_set: list[int]
 
-  def __init__(self) -> None:
-    self.random_training_set = []
-    self.random_predictive_set = []
+  @property
+  def training_start(self) -> int:
+    return self.training + self.predictive
 
-  def generate_random_sets(self):
-    """
-    Generate a random training and predictive set to be used in the event standard date ranges are not sufficient.
-    """
-    MAX = self.training + self.predictive
-
-    self.random_training_set = self._generate_random_set(size=self.training, max=MAX)
-    self.random_predictive_set = [n for n in range(MAX + 1) if n not in self.random_training_set]
-
-  def _generate_random_set(self, size: int, max: int) -> list[int]:
-    FIRST_MONTH = self.training + self.predictive
-    LAST_MONTH = 0
-
-    set = []
-    while True:
-      n = randint(0, max)
-      if n not in set:
-        set.append(n)
-
-        # since the first and last months in the timespan are partial then select both if one is selected.
-        if n == FIRST_MONTH:
-          set.append(LAST_MONTH)
-          size += 1
-        elif n == LAST_MONTH:
-          set.append(FIRST_MONTH)
-          size += 1
-
-        if len(set) == size:
-          return set
+  @property
+  def predictive_start(self) -> int:
+    return self.predictive
 
 
 def build_training_pipeline(ml_model, project_id: str, ga4_dataset: str) -> dict:
   """Builds the training pipeline configuration including the model SQL."""
-  return {
+  setup_job_id = uuid()
+  pipeline = {
     'name': f'{ml_model.name} - Training',
     'params': [],
     'jobs': [{
-      'id': uuid(),
+      'id': setup_job_id,
       'name': f'{ml_model.name} - Training Setup',
       'worker_class': 'BQScriptExecutor',
       'hash_start_conditions': [],
@@ -104,6 +77,31 @@ def build_training_pipeline(ml_model, project_id: str, ga4_dataset: str) -> dict
       'cron': f'0 0 {_safe_day()} {_quarterly_months()} *'
     }]
   }
+
+  if ml_model.label.is_binary:
+    pipeline['jobs'].append({
+      'id': uuid(),
+      'name': f'{ml_model.name} - Conversion Value Calculations',
+      'worker_class': 'BQScriptExecutor',
+      'hash_start_conditions': [{
+        'preceding_job_id': setup_job_id,
+        'condition': 'success'
+      }],
+      'params': [
+        {
+          'name': 'script',
+          'type': 'sql',
+          'value': _compile_template(ml_model, project_id, ga4_dataset, TemplateFile.CONVERSION_VALUES)
+        },
+        {
+          'name': 'bq_dataset_location',
+          'type': 'string',
+          'value': ml_model.bigquery_dataset.location
+        }
+      ]
+    })
+
+  return pipeline
 
 def build_predictive_pipeline(ml_model, project_id: str, ga4_dataset: str, ga4_measurement_id: str, ga4_api_secret: str) -> dict:
   setup_job_id = uuid()
@@ -232,7 +230,7 @@ def _compile_template(ml_model, project_id: str, ga4_dataset: str, templateFile:
     'timespan': _get_timespan(ml_model.timespans),
     'label': ml_model.label,
     'features': ml_model.features,
-    'skew_factor': ml_model.skew_factor
+    'class_imbalance': ml_model.class_imbalance
   }
 
   functions = {
@@ -266,7 +264,6 @@ def _get_timespan(timespans: list) -> Timespan:
     elif timespan.name == Timespan.PREDICTIVE:
       ts.predictive = timespan.value
 
-  ts.generate_random_sets()
   return ts
 
 def _get_unique_id(type: UniqueId) -> str:

@@ -78,13 +78,11 @@ class TestMlModelViews(controller_utils.ControllerAppTest):
           "source": "GOOGLE_ANALYTICS",
           "key": "value",
           "value_type": "int",
-          "is_score": True,
-          "is_percentage": True,
-          "is_revenue": False,
-          "is_conversion": True,
+          "is_binary": True,
+          "is_value": False,
           "average_value": 123.45
       },
-      "skew_factor": 5,
+      "class_imbalance": 5,
       "timespans": [
         {"name": "training", "value": 14, "unit": "month"},
         {"name": "predictive", "value": 2, "unit": "month"}
@@ -219,13 +217,11 @@ class TestMlModelViews(controller_utils.ControllerAppTest):
         "key": "",
         "value_type": "",
         "source": "FIRST_PARTY",
-        "is_score": False,
-        "is_percentage": False,
-        "is_revenue": True,
-        "is_conversion": False,
+        "is_binary": False,
+        "is_value": True,
         "average_value": 0.0
       },
-      "skew_factor": 7,
+      "class_imbalance": 7,
       "timespans": [
         {"name": "training", "value": 20, "unit": "month"},
         {"name": "predictive", "value": 1, "unit": "month"}

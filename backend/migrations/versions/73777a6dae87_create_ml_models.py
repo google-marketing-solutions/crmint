@@ -1,8 +1,22 @@
-"""empty message
+# Copyright 2023 Google Inc
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 
-Revision ID: 724c90740657
+"""Create ML Models
+
+Revision ID: 73777a6dae87
 Revises: 71caf3e9e2fb
-Create Date: 2023-03-09 22:50:59.391800
+Create Date: 2023-04-24 22:59:47.598441
 
 """
 from alembic import op
@@ -10,7 +24,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import mysql
 
 # revision identifiers, used by Alembic.
-revision = '724c90740657'
+revision = '73777a6dae87'
 down_revision = '71caf3e9e2fb'
 branch_labels = None
 depends_on = None
@@ -26,7 +40,7 @@ def upgrade():
     sa.Column('type', sa.String(length=255), nullable=False),
     sa.Column('unique_id', sa.String(length=255), nullable=False),
     sa.Column('uses_first_party_data', sa.Boolean(), nullable=False),
-    sa.Column('skew_factor', sa.Integer(), nullable=False),
+    sa.Column('class_imbalance', sa.Integer(), nullable=False),
     sa.PrimaryKeyConstraint('id')
     )
     op.create_table('ml_model_bigquery_dataset',
@@ -64,10 +78,8 @@ def upgrade():
     sa.Column('source', sa.String(length=255), nullable=False),
     sa.Column('key', sa.String(length=255), nullable=True),
     sa.Column('value_type', sa.String(length=255), nullable=True),
-    sa.Column('is_revenue', sa.Boolean(), nullable=True),
-    sa.Column('is_score', sa.Boolean(), nullable=True),
-    sa.Column('is_percentage', sa.Boolean(), nullable=True),
-    sa.Column('is_conversion', sa.Boolean(), nullable=True),
+    sa.Column('is_binary', sa.Boolean(), nullable=True),
+    sa.Column('is_value', sa.Boolean(), nullable=True),
     sa.Column('average_value', sa.Float(), nullable=True),
     sa.ForeignKeyConstraint(['ml_model_id'], ['ml_models.id'], ),
     sa.PrimaryKeyConstraint('ml_model_id')

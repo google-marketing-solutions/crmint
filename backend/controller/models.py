@@ -393,7 +393,7 @@ class MlModel(extensions.db.Model):
       'MlModelLabel',
       uselist=False,
       lazy='joined')
-  skew_factor = Column(Integer, nullable=False, default=4)
+  class_imbalance = Column(Integer, nullable=False, default=4)
   timespans = orm.relationship(
       'MlModelTimespan',
       lazy='joined')
@@ -419,7 +419,7 @@ class MlModel(extensions.db.Model):
 
   def assign_attributes(self, attributes):
     available_attributes = [
-      'name', 'type', 'unique_id', 'uses_first_party_data', 'skew_factor'
+      'name', 'type', 'unique_id', 'uses_first_party_data', 'class_imbalance'
     ]
 
     for key, value in attributes.items():
@@ -534,10 +534,8 @@ class MlModelLabel(extensions.db.Model):
   source = Column(String(255), nullable=False)
   key = Column(String(255), nullable=True)
   value_type = Column(String(255), nullable=True)
-  is_revenue = Column(Boolean, nullable=True, default=False)
-  is_score = Column(Boolean, nullable=True, default=False)
-  is_percentage = Column(Boolean, nullable=True, default=False)
-  is_conversion = Column(Boolean, nullable=True, default=False)
+  is_binary = Column(Boolean, nullable=True, default=False)
+  is_value = Column(Boolean, nullable=True, default=False)
   average_value = Column(Float, nullable=True, default=0.0)
 
   ml_model = orm.relationship(

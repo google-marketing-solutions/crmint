@@ -73,13 +73,11 @@ export class MlModelFormComponent implements OnInit {
         source: ['', [Validators.required, Validators.pattern(/^[A-Z_]*$/i)]],
         key: ['', [Validators.required, Validators.pattern(/^[a-z][a-z0-9_-]*$/i)]],
         valueType: ['', Validators.pattern(/^[a-z]*$/i)],
-        isRevenue: [null, Validators.required],
-        isScore: [null, Validators.required],
-        isPercentage: [false, Validators.required],
-        isConversion: [false, Validators.required],
+        isBinary: [null, Validators.required],
+        isValue: [null, Validators.required],
         averageValue: [0.0, Validators.required]
       }),
-      skewFactor: [4, [Validators.required, Validators.min(0), Validators.max(10)]],
+      classImbalance: [4, [Validators.required, Validators.min(1), Validators.max(10)]],
       timespans: this._fb.array([])
     });
   }
@@ -147,13 +145,11 @@ export class MlModelFormComponent implements OnInit {
         source: this.mlModel.label.source,
         key: this.mlModel.label.key,
         valueType: this.mlModel.label.value_type,
-        isRevenue: this.mlModel.label.is_revenue,
-        isScore: this.mlModel.label.is_score,
-        isPercentage: this.mlModel.label.is_percentage,
-        isConversion: this.mlModel.label.is_conversion,
+        isBinary: this.mlModel.label.is_binary,
+        isValue: this.mlModel.label.is_value,
         averageValue: this.mlModel.label.average_value
       },
-      skewFactor: this.mlModel.skew_factor
+      classImbalance: this.mlModel.class_imbalance
     });
 
     this.setHyperParameters(this.mlModel.hyper_parameters, this.mlModel.type);
@@ -294,47 +290,41 @@ export class MlModelFormComponent implements OnInit {
     const labels = this.labels;
     const label = this.label;
 
-    const nameField = this.mlModelForm.get(['label', 'name']);
-    const keyField = this.mlModelForm.get(['label', 'key']);
-    const sourceField = this.mlModelForm.get(['label', 'source']);
-    const valueTypeField = this.mlModelForm.get(['label', 'valueType']);
-    const isRevenueField = this.mlModelForm.get(['label', 'isRevenue']);
-    const isPercentageField = this.mlModelForm.get(['label', 'isPercentage']);
-    const isConversionField = this.mlModelForm.get(['label', 'isConversion']);
-    const averageValueField = this.mlModelForm.get(['label', 'averageValue']);
+    const labelField = {
+      name: this.mlModelForm.get(['label', 'name']),
+      key: this.mlModelForm.get(['label', 'key']),
+      source: this.mlModelForm.get(['label', 'source']),
+      valueType: this.mlModelForm.get(['label', 'valueType']),
+      isValue: this.mlModelForm.get(['label', 'isValue'])
+    }
 
-    if (!labels.find(label => label.name === nameField.value)) {
-      nameField.setValue('');
-      keyField.setValue('');
+    if (!labels.find(label => label.name === labelField.name.value)) {
+      labelField.name.setValue('');
+      labelField.key.setValue('');
     }
 
     if (label.name) {
       // set source automatically in the form based on label selected.
-      sourceField.setValue(label.source);
+      labelField.source.setValue(label.source);
 
       // if the selected key is not available anymore due to label change then unset it.
       if (!label.parameters.find(param => param.key === label.key)) {
-        keyField.setValue('');
+        labelField.key.setValue('');
       }
 
       // if there's only one option auto-select and disable the field otherwise make sure the field is enabled.
       if (label.parameters.length === 1) {
-        keyField.setValue(label.parameters[0].key);
-      }
-
-      // most option fields are related to the ouput being a score so update accordingly.
-      if (label.isScore) {
-        isRevenueField.setValue(false);
-      } else {
-        isRevenueField.setValue(true);
-        isPercentageField.setValue(false);
-        isConversionField.setValue(false);
-        averageValueField.setValue(0.0);
+        labelField.key.setValue(label.parameters[0].key);
       }
 
       // set value type automatically in the form based on label and key selected.
       if (label.key) {
-        valueTypeField.setValue(label.valueType);
+        labelField.valueType.setValue(label.valueType);
+      }
+
+      // set isValue field based on isBinary field.
+      if (label.isBinary != null) {
+        labelField.isValue.setValue(!label.isBinary);
       }
     }
   }
@@ -397,13 +387,11 @@ export class MlModelFormComponent implements OnInit {
       source: formModel.label.source as Source,
       key: formModel.label.key as string,
       value_type: formModel.label.valueType as string,
-      is_revenue: formModel.label.isRevenue as boolean,
-      is_score: formModel.label.isScore as boolean,
-      is_percentage: formModel.label.isPercentage as boolean,
-      is_conversion: formModel.label.isConversion as boolean,
+      is_binary: formModel.label.isBinary as boolean,
+      is_value: formModel.label.isValue as boolean,
       average_value: parseFloat(formModel.label.averageValue)
     } as Label;
-    this.mlModel.skew_factor = formModel.skewFactor as number;
+    this.mlModel.class_imbalance = formModel.classImbalance as number;
     this.mlModel.timespans = formModel.timespans as Timespan[];
   }
 

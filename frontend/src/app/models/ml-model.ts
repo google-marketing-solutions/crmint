@@ -83,10 +83,8 @@ export class Label {
   source: Source
   key: string
   value_type: string
-  is_revenue: boolean
-  is_score: boolean
-  is_percentage: boolean
-  is_conversion: boolean
+  is_binary: boolean
+  is_value: boolean
   average_value: number
 }
 
@@ -131,7 +129,7 @@ export class MlModel {
   hyper_parameters: HyperParameter[];
   features: Feature[];
   label: Label;
-  skew_factor: number;
+  class_imbalance: number;
   timespans: Timespan[];
   pipelines: Pipeline[];
   updated_at: string;
@@ -297,7 +295,7 @@ export class MlModel {
       }),
       features: this.features,
       label: this.label,
-      skew_factor: this.skew_factor,
+      class_imbalance: this.class_imbalance,
       timespans: this.timespans.map(timespan => {
         return {
           name: timespan.name,

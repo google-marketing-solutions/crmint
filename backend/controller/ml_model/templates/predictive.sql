@@ -6,9 +6,6 @@ CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.predictions` AS (
     user_pseudo_id,
     {% if type.is_classification %}
     plp.prob AS probability,
-    {% if label.is_conversion %}
-    {{label.name}},
-    {% endif %}
     {% endif %}
     predicted_label
   FROM ML.PREDICT(MODEL `{{project_id}}.{{model_dataset}}.model`, (
@@ -31,12 +28,7 @@ CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.predictions` AS (
         EXTRACT(HOUR FROM(TIMESTAMP_MICROS(user_first_touch_timestamp))) AS first_touch_hour
         FROM `{{project_id}}.{{ga4_dataset}}.events_*`
         WHERE _TABLE_SUFFIX BETWEEN
-          -- timespan for conversion type label is done in the output step
-          {% if label.is_conversion %}
-          FORMAT_DATE("%Y%m%d", DATE_SUB(CURRENT_DATE(), INTERVAL 2 DAY)) AND
-          {% else %}
-          FORMAT_DATE("%Y%m%d", DATE_SUB(CURRENT_DATE(), INTERVAL {{timespan.predictive}} MONTH)) AND
-          {% endif %}
+          FORMAT_DATE("%Y%m%d", DATE_SUB(CURRENT_DATE(), INTERVAL {{timespan.predictive_start}} MONTH)) AND
           FORMAT_DATE("%Y%m%d", DATE_SUB(CURRENT_DATE(), INTERVAL 1 DAY))
     ),
     first_engagement AS (
@@ -75,7 +67,7 @@ CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.predictions` AS (
     analytics_variables AS (
       SELECT
         fe.{{unique_id}},
-        {% if label.is_revenue %}
+        {% if label.is_value %}
         IFNULL(fv.value, 0) AS first_value,
         {% endif %}
         IFNULL(l.label, 0) AS label,
@@ -84,9 +76,9 @@ CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.predictions` AS (
       LEFT OUTER JOIN (
         SELECT
           e.{{unique_id}},
-          {% if label.is_score %}
+          {% if label.is_binary %}
           1 AS label,
-          {% elif label.is_revenue %}
+          {% elif label.is_value %}
           SUM(COALESCE(params.value.int_value, params.value.float_value, params.value.double_value, 0)) AS label,
           {% endif %}
           MIN(e.date) AS date,
@@ -102,7 +94,7 @@ CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.predictions` AS (
       ) l
       ON fe.{{unique_id}} = l.{{unique_id}}
       -- add the first value in as a feature (first purchase/etc)
-      {% if label.is_revenue %}
+      {% if label.is_value %}
       LEFT OUTER JOIN (
         SELECT
           e.{{unique_id}},
@@ -166,15 +158,11 @@ CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.predictions` AS (
       FROM events AS e
       INNER JOIN user_variables AS uv
         ON e.{{unique_id}} = uv.{{unique_id}}
-      WHERE (uv.label > 0 AND e.date <= uv.trigger_event_date)
-      OR uv.label = 0
+      WHERE e.date <= uv.trigger_event_date
       GROUP BY 1
     ),
     SELECT
       fe.*,
-      {% if label.is_conversion %}
-      uv.label AS {{label.name}},
-      {% endif %}
       uab.* EXCEPT ({{unique_id}}),
       uv.* EXCEPT({{unique_id}}, trigger_event_date)
     FROM first_engagement AS fe
