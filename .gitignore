@@ -3,6 +3,7 @@
 __pycache__
 *.pyc
 crmint.egg-info/
+.idea
 
 # System Files
 .DS_Store
