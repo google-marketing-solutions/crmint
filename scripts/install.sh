@@ -40,7 +40,7 @@ if [ ! -d $CRMINT_HOME ]; then
 fi
 
 # Updates the targeted branch (if it's a git repository only).
-if [ ! -d $CRMINT_HOME/.git ]; then
+if [ -d $CRMINT_HOME/.git ]; then
   CURRENT_DIR=$(pwd)
   cd $CRMINT_HOME
   git checkout $TARGET_BRANCH
