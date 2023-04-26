@@ -24,7 +24,7 @@ describe('NavBarComponent', () => {
 
   beforeEach(waitForAsync(() => {
     TestBed.configureTestingModule({
-      imports: [ RouterModule.forRoot([], { relativeLinkResolution: 'legacy' }) ],
+      imports: [ RouterModule.forRoot([], {}) ],
       declarations: [ NavBarComponent ]
     })
     .compileComponents();
