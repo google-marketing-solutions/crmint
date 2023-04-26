@@ -53,7 +53,7 @@ if [ ! -d .venv ]; then
   python3 -m venv .venv
 fi
 . .venv/bin/activate
-pip install --quiet --upgrade pip
+pip install --quiet --upgrade "pip<23.0"
 pip install --quiet -e cli/
 
 # Adds the wrapper function to the user `.bashrc` file.
