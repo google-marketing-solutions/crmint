@@ -43,6 +43,13 @@ fi
 if [ -d $CRMINT_HOME/.git ]; then
   CURRENT_DIR=$(pwd)
   cd $CRMINT_HOME
+
+  if [[ `git status --porcelain` ]]; then
+    echo "ERROR: cannot install configure CRMint Command Line because you have local changes."
+    echo "       Please commit your changes or stash them before you install our CLI."
+    exit 1
+  fi
+
   git checkout $TARGET_BRANCH
   git pull --rebase
   cd "$CURRENT_DIR"
