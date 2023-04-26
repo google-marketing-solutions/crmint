@@ -54,7 +54,7 @@ class TestMlModelViews(controller_utils.ControllerAppTest):
         "name": "test-dataset-update",
         "location": "UK"
       },
-      "type": "LOGISTIC_REG",
+      "type": "BOOSTED_TREE_CLASSIFIER",
       "unique_id": "USER_ID",
       "uses_first_party_data": False,
       "hyper_parameters": [
@@ -78,8 +78,6 @@ class TestMlModelViews(controller_utils.ControllerAppTest):
           "source": "GOOGLE_ANALYTICS",
           "key": "value",
           "value_type": "int",
-          "is_binary": True,
-          "is_value": False,
           "average_value": 123.45
       },
       "class_imbalance": 5,
@@ -217,8 +215,6 @@ class TestMlModelViews(controller_utils.ControllerAppTest):
         "key": "",
         "value_type": "",
         "source": "FIRST_PARTY",
-        "is_binary": False,
-        "is_value": True,
         "average_value": 0.0
       },
       "class_imbalance": 7,

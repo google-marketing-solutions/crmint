@@ -20,6 +20,20 @@ export enum Type {
   BOOSTED_TREE_CLASSIFIER = 'BOOSTED_TREE_CLASSIFIER'
 }
 
+export enum RegressionType {
+  BOOSTED_TREE_REGRESSOR = 'BOOSTED_TREE_REGRESSOR',
+  DNN_REGRESSOR = 'DNN_REGRESSOR',
+  RANDOM_FOREST_REGRESSOR = 'RANDOM_FOREST_REGRESSOR',
+  LINEAR_REG = 'LINEAR_REG'
+}
+
+export enum ClassificationType {
+  BOOSTED_TREE_CLASSIFIER = 'BOOSTED_TREE_CLASSIFIER',
+  DNN_CLASSIFIER = 'DNN_CLASSIFIER',
+  RANDOM_FOREST_CLASSIFIER = 'RANDOM_FOREST_CLASSIFIER',
+  LOGISTIC_REG = 'LOGISTIC_REG'
+}
+
 export enum UniqueId {
   CLIENT_ID = 'CLIENT_ID',
   USER_ID = 'USER_ID'
@@ -83,8 +97,6 @@ export class Label {
   source: Source
   key: string
   value_type: string
-  is_binary: boolean
-  is_value: boolean
   average_value: number
 }
 

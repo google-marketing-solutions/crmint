@@ -10,10 +10,10 @@
       "params": {
         "type": "${type}",
         "value": "${value}",
-        {% if label.is_binary %}
+        {% if type.is_classification %}
         "score": "${score}",
         "nscore": "${normalized_score}"
-        {% elif label.is_value %}
+        {% elif type.is_regression %}
         "revenue": "${revenue}"
         {% endif %}
       }

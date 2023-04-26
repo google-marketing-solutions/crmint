@@ -21,7 +21,10 @@ import { Router, ActivatedRoute } from '@angular/router';
 import { plainToClass } from 'class-transformer';
 
 import { MlModelsService } from '../shared/ml-models.service';
-import { MlModel, Type, UniqueId, HyperParameter, Feature, Label, Variable, BigQueryDataset, Timespan, Source } from 'app/models/ml-model';
+import {
+  MlModel, Type, ClassificationType, RegressionType, UniqueId, HyperParameter,
+  Feature, Label, Variable, BigQueryDataset, Timespan, Source
+} from 'app/models/ml-model';
 
 @Component({
   selector: 'app-ml-model-form',
@@ -73,8 +76,6 @@ export class MlModelFormComponent implements OnInit {
         source: ['', [Validators.required, Validators.pattern(/^[A-Z_]*$/i)]],
         key: ['', [Validators.required, Validators.pattern(/^[a-z][a-z0-9_-]*$/i)]],
         valueType: ['', Validators.pattern(/^[a-z]*$/i)],
-        isBinary: [null, Validators.required],
-        isValue: [null, Validators.required],
         averageValue: [0.0, Validators.required]
       }),
       classImbalance: [4, [Validators.required, Validators.min(1), Validators.max(10)]],
@@ -145,8 +146,6 @@ export class MlModelFormComponent implements OnInit {
         source: this.mlModel.label.source,
         key: this.mlModel.label.key,
         valueType: this.mlModel.label.value_type,
-        isBinary: this.mlModel.label.is_binary,
-        isValue: this.mlModel.label.is_value,
         averageValue: this.mlModel.label.average_value
       },
       classImbalance: this.mlModel.class_imbalance
@@ -156,6 +155,14 @@ export class MlModelFormComponent implements OnInit {
     this.setFeatures(this.mlModel.features);
     this.setTimespans(this.mlModel.timespans);
     this.updateLabelKeyValidator();
+  }
+
+  get type() {
+    const type = this.value('type');
+    return {
+      isClassification: Object.values(ClassificationType).includes(type),
+      isRegression: Object.values(RegressionType).includes(type)
+    }
   }
 
   get analyticsVariables() {
@@ -294,8 +301,7 @@ export class MlModelFormComponent implements OnInit {
       name: this.mlModelForm.get(['label', 'name']),
       key: this.mlModelForm.get(['label', 'key']),
       source: this.mlModelForm.get(['label', 'source']),
-      valueType: this.mlModelForm.get(['label', 'valueType']),
-      isValue: this.mlModelForm.get(['label', 'isValue'])
+      valueType: this.mlModelForm.get(['label', 'valueType'])
     }
 
     if (!labels.find(label => label.name === labelField.name.value)) {
@@ -320,11 +326,6 @@ export class MlModelFormComponent implements OnInit {
       // set value type automatically in the form based on label and key selected.
       if (label.key) {
         labelField.valueType.setValue(label.valueType);
-      }
-
-      // set isValue field based on isBinary field.
-      if (label.isBinary != null) {
-        labelField.isValue.setValue(!label.isBinary);
       }
     }
   }
@@ -387,8 +388,6 @@ export class MlModelFormComponent implements OnInit {
       source: formModel.label.source as Source,
       key: formModel.label.key as string,
       value_type: formModel.label.valueType as string,
-      is_binary: formModel.label.isBinary as boolean,
-      is_value: formModel.label.isValue as boolean,
       average_value: parseFloat(formModel.label.averageValue)
     } as Label;
     this.mlModel.class_imbalance = formModel.classImbalance as number;

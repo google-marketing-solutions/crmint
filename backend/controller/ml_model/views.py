@@ -66,8 +66,6 @@ label_structure = fields.Nested({
   'source': fields.String,
   'key': fields.String,
   'value_type': fields.String,
-  'is_binary': fields.Boolean,
-  'is_value': fields.Boolean,
   'average_value': fields.Float
 })
 

@@ -534,8 +534,6 @@ class MlModelLabel(extensions.db.Model):
   source = Column(String(255), nullable=False)
   key = Column(String(255), nullable=True)
   value_type = Column(String(255), nullable=True)
-  is_binary = Column(Boolean, nullable=True, default=False)
-  is_value = Column(Boolean, nullable=True, default=False)
   average_value = Column(Float, nullable=True, default=0.0)
 
   ml_model = orm.relationship(

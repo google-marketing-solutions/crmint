@@ -33,7 +33,7 @@ WITH events AS (
   WHERE _TABLE_SUFFIX BETWEEN
     FORMAT_DATE("%Y%m%d", DATE_SUB(CURRENT_DATE(), INTERVAL {{timespan.training_start}} MONTH)) AND
     FORMAT_DATE("%Y%m%d", DATE_SUB(DATE_SUB(CURRENT_DATE(), INTERVAL {{timespan.predictive_start}} MONTH), INTERVAL 1 DAY))
-  {% if label.is_binary %}
+  {% if type.is_classification %}
   -- get 90% of the events in this time-range (the other 10% is used to calculate conversion values)
   AND MOD(ABS(FARM_FINGERPRINT({{unique_id}})), 100) < 90
   {% endif %}
@@ -72,7 +72,7 @@ first_engagement AS (
 analytics_variables AS (
   SELECT
     fe.{{unique_id}},
-    {% if label.is_value %}
+    {% if type.is_regression %}
     IFNULL(fv.value, 0) AS first_value,
     {% endif %}
     IFNULL(l.label, 0) AS label,
@@ -81,9 +81,9 @@ analytics_variables AS (
   LEFT OUTER JOIN (
     SELECT
       e.{{unique_id}},
-      {% if label.is_binary %}
+      {% if type.is_classification %}
       1 AS label,
-      {% elif label.is_value %}
+      {% elif type.is_regression %}
       SUM(COALESCE(params.value.int_value, params.value.float_value, params.value.double_value, 0)) AS label,
       {% endif %}
       MIN(e.date) AS date,
@@ -99,7 +99,7 @@ analytics_variables AS (
   ) l
   ON fe.{{unique_id}} = l.{{unique_id}}
   -- add the first value in as a feature (first purchase/etc)
-  {% if label.is_value %}
+  {% if type.is_regression %}
   LEFT OUTER JOIN (
     SELECT
       e.{{unique_id}},

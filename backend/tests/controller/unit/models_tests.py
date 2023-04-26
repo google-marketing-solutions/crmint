@@ -450,14 +450,12 @@ class TestMlModel(ModelTestCase):
       'source': 'FIRST_PARTY',
       'key': 'CR-KEY',
       'value_type': 'CR-VT',
-      'is_binary': True,
       'average_value': 1234}),
     ('update', {
       'name': 'UP-NAME',
       'source': 'GOOGLE_ANALYTICS',
       'key': 'UP-KEY',
-      'value_type': 'UP-VT',
-      'is_value': True})
+      'value_type': 'UP-VT'})
   )
   def test_save_relations_label(self, label):
     self.assertIsNone(self.ml_model.label)

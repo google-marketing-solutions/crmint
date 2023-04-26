@@ -27,15 +27,13 @@ class TestCompiler(absltest.TestCase):
   @freeze_time("2023-02-06T00:00:00")
   def test_build_training_pipeline(self):
     test_model = self.model_config(
-      type='LOGISTIC_REG',
+      type='BOOSTED_TREE_CLASSIFIER',
       uses_first_party_data=True,
       label={
         'name': 'purchase',
         'source': 'GOOGLE_ANALYTICS',
         'key': 'value',
         'value_type': 'int',
-        'is_binary': True,
-        'is_value': False,
         'average_value': 1234.0
       },
       features=[
@@ -78,15 +76,13 @@ class TestCompiler(absltest.TestCase):
 
   def test_build_model_sql_first_party_and_google_analytics(self):
     test_model = self.model_config(
-      type='LOGISTIC_REG',
+      type='BOOSTED_TREE_CLASSIFIER',
       uses_first_party_data=True,
       label={
         'name': 'purchase',
         'source': 'GOOGLE_ANALYTICS',
         'key': 'value',
         'value_type': 'int',
-        'is_binary': True,
-        'is_value': False,
         'average_value': 1234.0
       },
       features=[
@@ -173,15 +169,13 @@ class TestCompiler(absltest.TestCase):
 
   def test_build_model_sql_first_party(self):
     test_model = self.model_config(
-      type='LOGISTIC_REG',
+      type='BOOSTED_TREE_CLASSIFIER',
       uses_first_party_data=True,
       label={
         'name': 'enroll',
         'source': 'FIRST_PARTY',
         'key': 'value',
         'value_type': 'int',
-        'is_binary': True,
-        'is_value': False,
         'average_value': 1234.0
       },
       features=[
@@ -220,15 +214,13 @@ class TestCompiler(absltest.TestCase):
 
   def test_build_model_sql_google_analytics(self):
     test_model = self.model_config(
-      type='LOGISTIC_REG',
+      type='BOOSTED_TREE_CLASSIFIER',
       uses_first_party_data=False,
       label={
         'name': 'purchase',
         'source': 'GOOGLE_ANALYTICS',
         'key': 'value',
         'value_type': 'int',
-        'is_binary': True,
-        'is_value': False,
         'average_value': 1234.0
       },
       features=[
@@ -270,15 +262,13 @@ class TestCompiler(absltest.TestCase):
 
   def test_build_model_sql_google_analytics_revenue(self):
     test_model = self.model_config(
-      type='LOGISTIC_REG',
+      type='BOOSTED_TREE_REGRESSOR',
       uses_first_party_data=False,
       label={
         'name': 'purchase',
         'source': 'GOOGLE_ANALYTICS',
         'key': 'value',
-        'value_type': 'int',
-        'is_binary': False,
-        'is_value': True
+        'value_type': 'int'
       },
       features=[
         {'name': 'click', 'source': 'GOOGLE_ANALYTICS'},
@@ -306,15 +296,13 @@ class TestCompiler(absltest.TestCase):
 
   def test_build_model_sql_google_analytics_binary_label(self):
     test_model = self.model_config(
-      type='LOGISTIC_REG',
+      type='BOOSTED_TREE_CLASSIFIER',
       uses_first_party_data=False,
       label={
         'name': 'purchase',
         'source': 'GOOGLE_ANALYTICS',
         'key': 'value',
         'value_type': 'int',
-        'is_binary': True,
-        'is_value': False,
         'average_value': 1234.0
       },
       features=[
@@ -339,15 +327,13 @@ class TestCompiler(absltest.TestCase):
   @freeze_time("2023-02-06T00:00:00")
   def test_build_predictive_pipeline(self):
     test_model = self.model_config(
-      type='BOOSTED_TREE_REGRESSOR',
+      type='BOOSTED_TREE_CLASSIFIER',
       uses_first_party_data=True,
       label={
         'name': 'purchase',
         'source': 'GOOGLE_ANALYTICS',
         'key': 'value',
         'value_type': 'string,int',
-        'is_binary': True,
-        'is_value': False,
         'average_value': 1234.0
       },
       features=[
@@ -432,15 +418,13 @@ class TestCompiler(absltest.TestCase):
 
   def test_build_predictive_sql_first_party_and_google_analytics(self):
     test_model = self.model_config(
-      type='BOOSTED_TREE_REGRESSOR',
+      type='BOOSTED_TREE_CLASSIFIER',
       uses_first_party_data=True,
       label={
         'name': 'purchase',
         'source': 'GOOGLE_ANALYTICS',
         'key': 'value',
         'value_type': 'string,int',
-        'is_binary': True,
-        'is_value': False,
         'average_value': 1234.0
       },
       features=[
@@ -526,8 +510,6 @@ class TestCompiler(absltest.TestCase):
         'source': 'FIRST_PARTY',
         'key': 'value',
         'value_type': 'int',
-        'is_binary': True,
-        'is_value': False,
         'average_value': 1234.0
       },
       features=[
@@ -590,8 +572,6 @@ class TestCompiler(absltest.TestCase):
         'source': 'GOOGLE_ANALYTICS',
         'key': 'value',
         'value_type': 'string',
-        'is_binary': True,
-        'is_value': False,
         'average_value': 1234.0
       },
       features=[
@@ -638,15 +618,13 @@ class TestCompiler(absltest.TestCase):
 
   def test_build_predictive_sql_google_analytics_revenue(self):
     test_model = self.model_config(
-      type='BOOSTED_TREE_CLASSIFIER',
+      type='BOOSTED_TREE_REGRESSOR',
       uses_first_party_data=False,
       label={
         'name': 'subscription',
         'source': 'GOOGLE_ANALYTICS',
         'key': 'value',
-        'value_type': 'string',
-        'is_binary': False,
-        'is_value': True
+        'value_type': 'string'
       },
       features=[
         {'name': 'click', 'source': 'GOOGLE_ANALYTICS'},
@@ -679,7 +657,7 @@ class TestCompiler(absltest.TestCase):
 
   def test_build_output_sql_binary_label(self):
     test_model = self.model_config(
-      type='BOOSTED_TREE_REGRESSOR',
+      type='BOOSTED_TREE_CLASSIFIER',
       uses_first_party_data=True,
       unique_id='USER_ID',
       label={
@@ -687,8 +665,6 @@ class TestCompiler(absltest.TestCase):
         'source': 'GOOGLE_ANALYTICS',
         'key': 'value',
         'value_type': 'string,int',
-        'is_binary': True,
-        'is_value': False,
         'average_value': 1234.0
       },
       features=[
@@ -760,9 +736,7 @@ class TestCompiler(absltest.TestCase):
         'name': 'purchase',
         'source': 'GOOGLE_ANALYTICS',
         'key': 'value',
-        'value_type': 'float',
-        'is_binary': False,
-        'is_value': True
+        'value_type': 'float'
       },
       features=[
         {'name': 'click', 'source': 'GOOGLE_ANALYTICS'},
@@ -826,9 +800,7 @@ class TestCompiler(absltest.TestCase):
         'name': 'purchase',
         'source': 'GOOGLE_ANALYTICS',
         'key': 'value',
-        'value_type': 'float',
-        'is_binary': False,
-        'is_value': True
+        'value_type': 'float'
       },
       features=[],
       class_imbalance=0)
@@ -863,7 +835,7 @@ class TestCompiler(absltest.TestCase):
 
   def test_build_ga4_request_score(self):
     test_model = self.model_config(
-      type='BOOSTED_TREE_REGRESSOR',
+      type='BOOSTED_TREE_CLASSIFIER',
       uses_first_party_data=True,
       unique_id='USER_ID',
       label={
@@ -871,8 +843,6 @@ class TestCompiler(absltest.TestCase):
         'source': 'GOOGLE_ANALYTICS',
         'key': 'value',
         'value_type': 'float',
-        'is_binary': True,
-        'is_value': False,
         'average_value': 1234.0
       },
       features=[],
@@ -921,9 +891,7 @@ class TestCompiler(absltest.TestCase):
         'name': 'purchase',
         'source': 'GOOGLE_ANALYTICS',
         'key': 'value',
-        'value_type': 'float',
-        'is_binary': False,
-        'is_value': True
+        'value_type': 'float'
       },
       features=[],
       class_imbalance=0)

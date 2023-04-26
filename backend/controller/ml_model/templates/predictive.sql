@@ -67,7 +67,7 @@ CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.predictions` AS (
     analytics_variables AS (
       SELECT
         fe.{{unique_id}},
-        {% if label.is_value %}
+        {% if type.is_regression %}
         IFNULL(fv.value, 0) AS first_value,
         {% endif %}
         IFNULL(l.label, 0) AS label,
@@ -76,9 +76,9 @@ CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.predictions` AS (
       LEFT OUTER JOIN (
         SELECT
           e.{{unique_id}},
-          {% if label.is_binary %}
+          {% if type.is_classification %}
           1 AS label,
-          {% elif label.is_value %}
+          {% elif type.is_regression %}
           SUM(COALESCE(params.value.int_value, params.value.float_value, params.value.double_value, 0)) AS label,
           {% endif %}
           MIN(e.date) AS date,
@@ -94,7 +94,7 @@ CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.predictions` AS (
       ) l
       ON fe.{{unique_id}} = l.{{unique_id}}
       -- add the first value in as a feature (first purchase/etc)
-      {% if label.is_value %}
+      {% if type.is_regression %}
       LEFT OUTER JOIN (
         SELECT
           e.{{unique_id}},

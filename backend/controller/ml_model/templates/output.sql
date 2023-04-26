@@ -28,7 +28,7 @@ CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.output` AS (
     WHERE {{unique_id}} NOT IN (
       SELECT {{unique_id}} FROM users_with_score)
   ),
-  {% if label.is_binary %}
+  {% if type.is_classification %}
   prepared_predictions AS (
     SELECT DISTINCT
       {% if unique_id == 'user_id' %}
@@ -41,7 +41,7 @@ CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.output` AS (
     LEFT OUTER JOIN `{{project_id}}.{{model_dataset}}.conversion_values` cv
     ON p.propability BETWEEN cv.probability_range_start AND cv.probability_range_end
   ),
-  {% elif label.is_value %}
+  {% elif type.is_regression %}
   prepared_predictions AS (
     SELECT DISTINCT
       {% if unique_id == 'user_id' %}

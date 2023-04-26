@@ -78,7 +78,7 @@ def build_training_pipeline(ml_model, project_id: str, ga4_dataset: str) -> dict
     }]
   }
 
-  if ml_model.label.is_binary:
+  if _is_classification(ml_model.type):
     pipeline['jobs'].append({
       'id': uuid(),
       'name': f'{ml_model.name} - Conversion Value Calculations',

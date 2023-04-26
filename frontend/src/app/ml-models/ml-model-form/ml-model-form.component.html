@@ -160,11 +160,7 @@
               </mat-select>
             </div>
             <div *ngIf="label && label.name" class="vertical-group">
-              <mat-select #select placeholder="Output" formControlName="isBinary" (selectionChange)="refreshLabel()">
-                <mat-option [value]="true">Lead Score</mat-option>
-                <mat-option [value]="false">Predictive Lifetime Value (pLTV)</mat-option>
-              </mat-select>
-              <div *ngIf="label.isBinary" class="input-group">
+              <div *ngIf="type.isClassification" class="input-group">
                 <mat-form-field>
                   <input matInput placeholder="Average Conversion Value" formControlName="averageValue">
                 </mat-form-field>
