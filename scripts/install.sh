@@ -51,7 +51,7 @@ if [ -d $CRMINT_HOME/.git ]; then
   if [[ `git status --porcelain` ]]; then
     echo "ERROR: Cannot install configure CRMint Command Line because you have local changes."
     echo "       Please commit your changes or stash them before you install our CLI."
-    exit 1
+    return
   else
     echo -e "\nNo local changes."
   fi
