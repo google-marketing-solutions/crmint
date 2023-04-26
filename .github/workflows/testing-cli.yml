@@ -51,4 +51,4 @@ jobs:
           tags: crmint/cli:latest
       # Install the CLI using our install script
       - name: Install CLI
-        run: source scripts/install.sh
+        run: source scripts/install.sh $GITHUB_SHA
