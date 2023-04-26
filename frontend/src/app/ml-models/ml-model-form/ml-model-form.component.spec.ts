@@ -32,7 +32,7 @@ describe('MlModelFormComponent', () => {
         FormsModule,
         HttpClientModule,
         ReactiveFormsModule,
-        RouterModule.forRoot([], { relativeLinkResolution: 'legacy' })
+        RouterModule.forRoot([], {})
       ],
       providers: [
         MlModelsService
