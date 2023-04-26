@@ -421,7 +421,7 @@ class TestMlModel(ModelTestCase):
       'type': 'BOOSTED_TREE_REGRESSOR',
       'unique_id': 'USER_ID',
       'uses_first_party_data': True,
-      'skew_factor': 7,
+      'class_imbalance': 7,
       'destination': 'GOOGLE_ADS_CONVERSION_EVENT'
     }
     self.ml_model.assign_attributes(attributes)
@@ -452,16 +452,12 @@ class TestMlModel(ModelTestCase):
       'source': 'FIRST_PARTY',
       'key': 'CR-KEY',
       'value_type': 'CR-VT',
-      'is_score': True,
-      'is_percentage': True,
-      'is_conversion': True,
       'average_value': 1234}),
     ('update', {
       'name': 'UP-NAME',
       'source': 'GOOGLE_ANALYTICS',
       'key': 'UP-KEY',
-      'value_type': 'UP-VT',
-      'is_revenue': True})
+      'value_type': 'UP-VT'})
   )
   def test_save_relations_label(self, label):
     self.assertIsNone(self.ml_model.label)

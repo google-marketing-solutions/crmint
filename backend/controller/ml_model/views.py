@@ -44,7 +44,7 @@ parser.add_argument('uses_first_party_data', type=bool, required=False)
 parser.add_argument('hyper_parameters', type=list, location='json', required=False)
 parser.add_argument('features', type=list, location='json', required=False)
 parser.add_argument('label', type=dict, required=False)
-parser.add_argument('skew_factor', type=int, required=False)
+parser.add_argument('class_imbalance', type=int, required=False)
 parser.add_argument('timespans', type=list, location='json', required=False)
 parser.add_argument('destination', type=str, required=False)
 
@@ -68,10 +68,6 @@ label_structure = fields.Nested({
   'source': fields.String,
   'key': fields.String,
   'value_type': fields.String,
-  'is_revenue': fields.Boolean,
-  'is_score': fields.Boolean,
-  'is_percentage': fields.Boolean,
-  'is_conversion': fields.Boolean,
   'average_value': fields.Float
 })
 
@@ -108,7 +104,7 @@ ml_model_structure = {
   'hyper_parameters': hyper_parameters_structure,
   'features': features_structure,
   'label': label_structure,
-  'skew_factor': fields.Integer,
+  'class_imbalance': fields.Integer,
   'timespans': timespans_structure,
   'destination': fields.String,
   'pipelines': pipelines_structure,

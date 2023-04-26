@@ -56,6 +56,18 @@
               </div>
             </div>
           </div>
+          <div *ngIf="extract(pipeline, 'Calculations', 'script'); let sql" class="crmi-card-list">
+            <div class="crmi-card-list-header">
+              <div class="crmi-card-list-item">
+                <div class="crmi-card-list-item-col">Calculations - BQML SQL</div>
+              </div>
+            </div>
+            <div class="crmi-card-list-item">
+              <div class="crmi-card-list-item-col">
+                <pre>{{ sql }}</pre>
+              </div>
+            </div>
+          </div>
           <div *ngIf="extract(pipeline, 'Output', 'script'); let sql" class="crmi-card-list">
             <div class="crmi-card-list-header">
               <div class="crmi-card-list-item">

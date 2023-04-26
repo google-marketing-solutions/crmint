@@ -30,22 +30,13 @@ WITH events AS (
     traffic_source.medium AS traffic_medium,
     EXTRACT(HOUR FROM(TIMESTAMP_MICROS(user_first_touch_timestamp))) AS first_touch_hour
   FROM `{{project_id}}.{{ga4_dataset}}.events_*`
-  WHERE
-    {% if label.is_conversion %}
-    SUBSTR(_TABLE_SUFFIX, 1, 6) IN (
-      {% for number in timespan.random_training_set %}
-      FORMAT_DATE("%Y%m", DATE_SUB(CURRENT_DATE(), INTERVAL {{number}} MONTH)){% if number != timespan.random_training_set[-1] %},{% endif %}
-
-      {% endfor %}
-    )
-    AND _TABLE_SUFFIX BETWEEN
-      FORMAT_DATE("%Y%m%d", DATE_SUB(CURRENT_DATE(), INTERVAL {{timespan.training + timespan.predictive}} MONTH)) AND
-      FORMAT_DATE("%Y%m%d", DATE_SUB(CURRENT_DATE(), INTERVAL 2 DAY))
-    {% else %}
-    _TABLE_SUFFIX BETWEEN
-      FORMAT_DATE("%Y%m%d", DATE_SUB(CURRENT_DATE(), INTERVAL {{timespan.training + timespan.predictive}} MONTH)) AND
-      FORMAT_DATE("%Y%m%d", DATE_SUB(CURRENT_DATE(), INTERVAL {{timespan.predictive}} MONTH))
-    {% endif %}
+  WHERE _TABLE_SUFFIX BETWEEN
+    FORMAT_DATE("%Y%m%d", DATE_SUB(CURRENT_DATE(), INTERVAL {{timespan.training_start}} MONTH)) AND
+    FORMAT_DATE("%Y%m%d", DATE_SUB(DATE_SUB(CURRENT_DATE(), INTERVAL {{timespan.predictive_start}} MONTH), INTERVAL 1 DAY))
+  {% if type.is_classification %}
+  -- get 90% of the events in this time-range (the other 10% is used to calculate conversion values)
+  AND MOD(ABS(FARM_FINGERPRINT({{unique_id}})), 100) < 90
+  {% endif %}
 ),
 -- pull together a list of first engagements and associated metadata that will be useful for the model
 first_engagement AS (
@@ -81,7 +72,7 @@ first_engagement AS (
 analytics_variables AS (
   SELECT
     fe.{{unique_id}},
-    {% if label.is_revenue %}
+    {% if type.is_regression %}
     IFNULL(fv.value, 0) AS first_value,
     {% endif %}
     IFNULL(l.label, 0) AS label,
@@ -90,9 +81,9 @@ analytics_variables AS (
   LEFT OUTER JOIN (
     SELECT
       e.{{unique_id}},
-      {% if label.is_score %}
+      {% if type.is_classification %}
       1 AS label,
-      {% elif label.is_revenue %}
+      {% elif type.is_regression %}
       SUM(COALESCE(params.value.int_value, params.value.float_value, params.value.double_value, 0)) AS label,
       {% endif %}
       MIN(e.date) AS date,
@@ -108,12 +99,12 @@ analytics_variables AS (
   ) l
   ON fe.{{unique_id}} = l.{{unique_id}}
   -- add the first value in as a feature (first purchase/etc)
-  {% if label.is_revenue %}
+  {% if type.is_regression %}
   LEFT OUTER JOIN (
     SELECT
       e.{{unique_id}},
       COALESCE(params.value.int_value, params.value.float_value, params.value.double_value, 0) AS value,
-    ROW_NUMBER() OVER (PARTITION BY e.{{unique_id}} ORDER BY e.timestamp ASC) AS row_num
+      ROW_NUMBER() OVER (PARTITION BY e.{{unique_id}} ORDER BY e.timestamp ASC) AS row_num
     FROM events AS e, UNNEST(params) AS params
     WHERE name = "{{label.name}}"
     AND params.key = "{{label.key}}"
@@ -189,11 +180,11 @@ training_dataset AS (
 )
 SELECT * EXCEPT({{unique_id}})
 FROM training_dataset
-{% if skew_factor > 0 %}
+{% if class_imbalance > 1 %}
 WHERE label > 0
 UNION ALL
 SELECT * EXCEPT({{unique_id}})
 FROM training_dataset
 WHERE label = 0
-AND MOD(ABS(FARM_FINGERPRINT({{unique_id}})), {{skew_factor}}) = 1
+AND MOD(ABS(FARM_FINGERPRINT({{unique_id}})), 100) > ((1 / {{class_imbalance}}) * 100)
 {% endif %}

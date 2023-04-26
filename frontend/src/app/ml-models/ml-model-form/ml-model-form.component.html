@@ -160,22 +160,9 @@
               </mat-select>
             </div>
             <div *ngIf="label && label.name" class="vertical-group">
-              <strong>Output As</strong>
-              <mat-select placeholder="Type" formControlName="isScore" (selectionChange)="refreshLabel()">
-                <mat-option [value]="true">Score</mat-option>
-                <mat-option [value]="false">Revenue</mat-option>
-              </mat-select>
-              <div *ngIf="label.isScore" class="checkbox-group">
-                <mat-checkbox #checkbox formControlName="isPercentage"></mat-checkbox>
-                <span class="label">As Percentage</span>
-              </div>
-              <div *ngIf="label.isScore" class="checkbox-group">
-                <mat-checkbox #checkbox formControlName="isConversion"></mat-checkbox>
-                <span class="label">Include Conversion Rate</span>
-              </div>
-              <div *ngIf="label.isScore && label.isConversion" class="input-group">
+              <div *ngIf="type.isClassification" class="input-group">
                 <mat-form-field>
-                  <input matInput placeholder="Average Value" formControlName="averageValue">
+                  <input matInput placeholder="Average Conversion Value" formControlName="averageValue">
                 </mat-form-field>
               </div>
             </div>
@@ -200,9 +187,9 @@
         </div>
 
         <div class="crmi-form-group">
-          <label class="crmi-form-label">Skew Factor</label>
-          <mat-slider formControlName="skewFactor" [min]="0" [max]="10" [step]="1" [thumbLabel]="value('skewFactor')"></mat-slider>
-          <span>Reduce {{ value('skewFactor') }}x</span>
+          <label class="crmi-form-label">Class Imbalance Ratio</label>
+          <mat-slider formControlName="classImbalance" [min]="1" [max]="10" [step]="1" [thumbLabel]="value('classImbalance')"></mat-slider>
+          <span>1:{{ value('classImbalance') }}</span>
         </div>
 
         <div formArrayName="timespans" class="crmi-form-group">

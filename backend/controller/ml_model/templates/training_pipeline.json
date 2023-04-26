@@ -1,9 +1,10 @@
+{% set setup_job_id = uuid() %}
 {
   "name": "{{name}} - Training",
   "params": [],
   "jobs": [
     {
-      "id": "{{uuid()}}",
+      "id": "{{setup_job_id}}",
       "name": "{{name}} - Training Setup",
       "worker_class": "{{Worker.BQ_SCRIPT_EXECUTOR}}",
       "hash_start_conditions": [],
@@ -19,7 +20,29 @@
           "value": "{{dataset_location}}"
         }
       ]
+    }{% if type.is_classification %},
+    {
+      "id": "{{uuid()}}",
+      "name": "{{name}} - Conversion Value Calculations",
+      "worker_class": "{{Worker.BQ_SCRIPT_EXECUTOR}}",
+      "hash_start_conditions": [{
+        "preceding_job_id": "{{setup_job_id}}",
+        "condition": "success"
+      }],
+      "params": [
+        {
+          "name": "script",
+          "type": "{{ParamType.SQL}}",
+          "value": "{{compile_template(TemplateFile.CONVERSION_VALUES_BQML, Encoding.JSON)}}"
+        },
+        {
+          "name": "bq_dataset_location",
+          "type": "{{ParamType.STRING}}",
+          "value": "{{dataset_location}}"
+        }
+      ]
     }
+    {% endif %}
   ],
   "schedules": [
     {

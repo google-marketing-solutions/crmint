@@ -15,6 +15,7 @@ class TemplateFile(StrEnum):
   PREDICTIVE_PIPELINE = 'predictive_pipeline.json'
   TRAINING_BQML = 'training_bqml.sql'
   PREDICTIVE_BQML = 'predictive_bqml.sql'
+  CONVERSION_VALUES_BQML = 'conversion_values_bqml.sql'
   GA4_REQUEST = 'ga4_request.json'
   GADS_REQUEST = 'gads_request.json'
   OUTPUT = 'output.sql'
@@ -65,44 +66,14 @@ class Timespan():
 
   training: int
   predictive: int
-  random_training_set: list[int]
-  random_predictive_set: list[int]
 
-  def __init__(self) -> None:
-    self.random_training_set = []
-    self.random_predictive_set = []
+  @property
+  def training_start(self) -> int:
+    return self.training + self.predictive
 
-  def generate_random_sets(self):
-    """
-    Generate a random training and predictive set to be used in the event standard date ranges are not sufficient.
-    A random set (the size of the training timespan) of numbers between 0 and the total number of months in the timespan
-    is created and the remaining months (those not selected for the training set) are used for the predictive set.
-    """
-    MAX = self.training + self.predictive
-
-    self.random_training_set = self._generate_random_set(size=self.training, max=MAX)
-    self.random_predictive_set = [n for n in range(MAX + 1) if n not in self.random_training_set]
-
-  def _generate_random_set(self, size: int, max: int) -> list[int]:
-    FIRST_MONTH = self.training + self.predictive
-    LAST_MONTH = 0
-
-    set = []
-    while True:
-      n = randint(0, max)
-      if n not in set:
-        set.append(n)
-
-        # since the first and last months in the timespan are partial then select both if one is selected.
-        if n == FIRST_MONTH:
-          set.append(LAST_MONTH)
-          size += 1
-        elif n == LAST_MONTH:
-          set.append(FIRST_MONTH)
-          size += 1
-
-        if len(set) == size:
-          return set
+  @property
+  def predictive_start(self) -> int:
+    return self.predictive
 
 
 class Destination(StrEnum):
@@ -166,7 +137,7 @@ class Compiler():
       'timespan': self._get_timespan(self.ml_model.timespans),
       'label': self.ml_model.label,
       'features': self.ml_model.features,
-      'skew_factor': self.ml_model.skew_factor,
+      'class_imbalance': self.ml_model.class_imbalance,
       'destination': self.ml_model.destination
     }
 
@@ -220,7 +191,6 @@ class Compiler():
       elif timespan.name == Timespan.PREDICTIVE:
         ts.predictive = timespan.value
 
-    ts.generate_random_sets()
     return ts
 
   def _get_unique_id(self, type: UniqueId) -> str:

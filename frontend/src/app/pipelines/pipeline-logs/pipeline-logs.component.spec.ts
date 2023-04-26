@@ -28,7 +28,7 @@ describe('PipelineLogsComponent', () => {
     TestBed.configureTestingModule({
       imports: [
         HttpClientModule,
-        RouterModule.forRoot([], { relativeLinkResolution: 'legacy' })
+        RouterModule.forRoot([], {})
       ],
       providers: [
         PipelinesService,

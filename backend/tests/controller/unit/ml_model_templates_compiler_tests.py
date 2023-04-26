@@ -27,26 +27,28 @@ class TestCompiler(parameterized.TestCase):
   @freeze_time("2023-02-06T00:00:00")
   def test_build_training_pipeline(self):
     test_model = self.model_config(
-      type='LOGISTIC_REG',
+      type='BOOSTED_TREE_CLASSIFIER',
       uses_first_party_data=True,
       label={
         'name': 'purchase',
         'source': 'GOOGLE_ANALYTICS',
         'key': 'value',
         'value_type': 'int',
-        'is_revenue': False,
-        'is_score': True,
-        'is_conversion': False,
-        'is_percentage': False
+        'average_value': 1234.0
       },
       features=[
         {'name': 'click', 'source': 'GOOGLE_ANALYTICS'},
         {'name': 'subscribe', 'source': 'FIRST_PARTY'}
       ],
-      skew_factor=4)
+      class_imbalance=4)
 
     pipeline = self.compiler(test_model).build_training_pipeline()
     self.assertEqual(pipeline['name'], 'Test Model - Training')
+
+    # schedule check
+    self.assertEqual(pipeline['schedules'][0]['cron'], '0 0 6 2,5,8,11 *')
+
+    # setup job check
     self.assertEqual(pipeline['jobs'][0]['name'], 'Test Model - Training Setup')
     params = pipeline['jobs'][0]['params']
 
@@ -55,8 +57,18 @@ class TestCompiler(parameterized.TestCase):
     self.assertIsNotNone(dataset_loc_param)
     self.assertEqual(dataset_loc_param['value'], 'US')
 
-    # schedule check
-    self.assertEqual(pipeline['schedules'][0]['cron'], '0 0 6 2,5,8,11 *')
+    # sql check start
+    sql_param = next(param for param in params if param["name"] == "script")
+    self.assertIsNotNone(sql_param)
+
+    # conversion value calculations job check
+    self.assertEqual(pipeline['jobs'][1]['name'], 'Test Model - Conversion Value Calculations')
+    params = pipeline['jobs'][1]['params']
+
+    # big-query dataset location check
+    dataset_loc_param = next(param for param in params if param["name"] == "bq_dataset_location")
+    self.assertIsNotNone(dataset_loc_param)
+    self.assertEqual(dataset_loc_param['value'], 'US')
 
     # worker check
     self.assertEqual(pipeline['jobs'][0]['worker_class'], 'BQScriptExecutor')
@@ -69,23 +81,20 @@ class TestCompiler(parameterized.TestCase):
 
   def test_build_model_sql_first_party_and_google_analytics(self):
     test_model = self.model_config(
-      type='LOGISTIC_REG',
+      type='BOOSTED_TREE_CLASSIFIER',
       uses_first_party_data=True,
       label={
         'name': 'purchase',
         'source': 'GOOGLE_ANALYTICS',
         'key': 'value',
         'value_type': 'int',
-        'is_revenue': False,
-        'is_score': True,
-        'is_conversion': False,
-        'is_percentage': False
+        'average_value': 1234.0
       },
       features=[
         {'name': 'click', 'source': 'GOOGLE_ANALYTICS'},
         {'name': 'subscribe', 'source': 'FIRST_PARTY'}
       ],
-      skew_factor=4)
+      class_imbalance=4)
 
     pipeline = self.compiler(test_model).build_training_pipeline()
     self.assertEqual(pipeline['name'], 'Test Model - Training')
@@ -146,11 +155,11 @@ class TestCompiler(parameterized.TestCase):
       re.escape('fp.subscribe'),
       'First party feature check failed.')
 
-    # skew-factor check
+    # class-imbalance check
     self.assertIn(
-      'MOD(ABS(FARM_FINGERPRINT(user_pseudo_id)), 4)',
+      'MOD(ABS(FARM_FINGERPRINT(user_pseudo_id)), 100) > ((1 / 4) * 100)',
       sql,
-      'Skew-factor check failed.')
+      'Class-Imbalance check failed.')
 
     # timespan check
     self.assertIn(
@@ -159,29 +168,26 @@ class TestCompiler(parameterized.TestCase):
       'Timespan start check failed.')
 
     self.assertIn(
-      'FORMAT_DATE("%Y%m%d", DATE_SUB(CURRENT_DATE(), INTERVAL 1 MONTH))',
+      'FORMAT_DATE("%Y%m%d", DATE_SUB(DATE_SUB(CURRENT_DATE(), INTERVAL 1 MONTH), INTERVAL 1 DAY))',
       sql,
       'Timespan end check failed.')
 
   def test_build_model_sql_first_party(self):
     test_model = self.model_config(
-      type='LOGISTIC_REG',
+      type='BOOSTED_TREE_CLASSIFIER',
       uses_first_party_data=True,
       label={
         'name': 'enroll',
         'source': 'FIRST_PARTY',
         'key': 'value',
         'value_type': 'int',
-        'is_revenue': False,
-        'is_score': True,
-        'is_conversion': False,
-        'is_percentage': False
+        'average_value': 1234.0
       },
       features=[
         {'name': 'call', 'source': 'FIRST_PARTY'},
         {'name': 'request_for_info', 'source': 'FIRST_PARTY'}
       ],
-      skew_factor=0)
+      class_imbalance=1)
 
     pipeline = self.compiler(test_model).build_training_pipeline()
     params = pipeline['jobs'][0]['params']
@@ -205,31 +211,28 @@ class TestCompiler(parameterized.TestCase):
       ]),
       'First party feature check failed.')
 
-    # skew-factor check
+    # class-imbalance check
     self.assertNotIn(
-      'MOD(ABS(FARM_FINGERPRINT(user_pseudo_id))',
+      'MOD(ABS(FARM_FINGERPRINT(user_pseudo_id)), 100) > ((1 / 4) * 100)',
       sql,
-      'Skew-factor check failed. Should not exist when skew factor is set to 0.')
+      'Class-Imbalance check failed. Should not exist when class imbalance is set to 1.')
 
   def test_build_model_sql_google_analytics(self):
     test_model = self.model_config(
-      type='LOGISTIC_REG',
+      type='BOOSTED_TREE_CLASSIFIER',
       uses_first_party_data=False,
       label={
         'name': 'purchase',
         'source': 'GOOGLE_ANALYTICS',
         'key': 'value',
         'value_type': 'int',
-        'is_revenue': False,
-        'is_score': True,
-        'is_conversion': False,
-        'is_percentage': False
+        'average_value': 1234.0
       },
       features=[
         {'name': 'click', 'source': 'GOOGLE_ANALYTICS'},
         {'name': 'subscribe', 'source': 'GOOGLE_ANALYTICS'}
       ],
-      skew_factor=4)
+      class_imbalance=4)
 
     pipeline = self.compiler(test_model).build_training_pipeline()
     params = pipeline['jobs'][0]['params']
@@ -264,23 +267,19 @@ class TestCompiler(parameterized.TestCase):
 
   def test_build_model_sql_google_analytics_revenue(self):
     test_model = self.model_config(
-      type='LOGISTIC_REG',
+      type='BOOSTED_TREE_REGRESSOR',
       uses_first_party_data=False,
       label={
         'name': 'purchase',
         'source': 'GOOGLE_ANALYTICS',
         'key': 'value',
-        'value_type': 'int',
-        'is_revenue': True,
-        'is_score': False,
-        'is_conversion': False,
-        'is_percentage': False
+        'value_type': 'int'
       },
       features=[
         {'name': 'click', 'source': 'GOOGLE_ANALYTICS'},
         {'name': 'subscribe', 'source': 'GOOGLE_ANALYTICS'}
       ],
-      skew_factor=4)
+      class_imbalance=4)
 
     pipeline = self.compiler(test_model).build_training_pipeline()
     params = pipeline['jobs'][0]['params']
@@ -300,25 +299,22 @@ class TestCompiler(parameterized.TestCase):
       ]),
       'Google Analytics first value join check failed.')
 
-  def test_build_model_sql_google_analytics_conversion(self):
+  def test_build_model_sql_google_analytics_binary_label(self):
     test_model = self.model_config(
-      type='LOGISTIC_REG',
+      type='BOOSTED_TREE_CLASSIFIER',
       uses_first_party_data=False,
       label={
         'name': 'purchase',
         'source': 'GOOGLE_ANALYTICS',
         'key': 'value',
         'value_type': 'int',
-        'is_revenue': False,
-        'is_score': True,
-        'is_conversion': True,
-        'is_percentage': True
+        'average_value': 1234.0
       },
       features=[
         {'name': 'click', 'source': 'GOOGLE_ANALYTICS'},
         {'name': 'subscribe', 'source': 'GOOGLE_ANALYTICS'}
       ],
-      skew_factor=4)
+      class_imbalance=4)
 
     pipeline = self.compiler(test_model).build_training_pipeline()
     params = pipeline['jobs'][0]['params']
@@ -327,16 +323,11 @@ class TestCompiler(parameterized.TestCase):
     self.assertIsNotNone(sql_param)
     sql = sql_param['value']
 
-    # random date selection check
-    self.assertRegex(
+    # random 90% selection check
+    self.assertIn(
+      'AND MOD(ABS(FARM_FINGERPRINT(user_pseudo_id)), 100) < 90',
       sql,
-      r'[\s\S]*'.join([
-        re.escape('events AS ('),
-        re.escape('SUBSTR(_TABLE_SUFFIX, 1, 6) IN ('),
-        re.escape('FORMAT_DATE("%Y%m", DATE_SUB(CURRENT_DATE(), INTERVAL '),
-        re.escape(')')
-      ]),
-      'Google Analytics random date selection check failed.')
+      'Google Analytics random 90% selection check failed.')
 
   @parameterized.named_parameters(
     ('destination google analytics custom event', 'GOOGLE_ANALYTICS_CUSTOM_EVENT'),
@@ -344,23 +335,20 @@ class TestCompiler(parameterized.TestCase):
   )
   def test_build_predictive_pipeline(self, destination: str):
     test_model = self.model_config(
-      type='BOOSTED_TREE_REGRESSOR',
+      type='BOOSTED_TREE_CLASSIFIER',
       uses_first_party_data=True,
       label={
         'name': 'purchase',
         'source': 'GOOGLE_ANALYTICS',
         'key': 'value',
         'value_type': 'string,int',
-        'is_revenue': False,
-        'is_score': True,
-        'is_percentage': False,
-        'is_conversion': False
+        'average_value': 1234.0
       },
       features=[
         {'name': 'click', 'source': 'GOOGLE_ANALYTICS'},
         {'name': 'subscribe', 'source': 'FIRST_PARTY'}
       ],
-      skew_factor=4,
+      class_imbalance=4,
       destination=destination)
 
     pipeline = self.compiler(test_model).build_predictive_pipeline()
@@ -453,24 +441,20 @@ class TestCompiler(parameterized.TestCase):
 
   def test_build_predictive_sql_first_party_and_google_analytics(self):
     test_model = self.model_config(
-      type='BOOSTED_TREE_REGRESSOR',
+      type='BOOSTED_TREE_CLASSIFIER',
       uses_first_party_data=True,
       label={
         'name': 'purchase',
         'source': 'GOOGLE_ANALYTICS',
         'key': 'value',
         'value_type': 'string,int',
-        'is_revenue': False,
-        'is_score': True,
-        'is_percentage': False,
-        'is_conversion': True,
-        'average_value': 1234
+        'average_value': 1234.0
       },
       features=[
         {'name': 'click', 'source': 'GOOGLE_ANALYTICS'},
         {'name': 'subscribe', 'source': 'FIRST_PARTY'}
       ],
-      skew_factor=4)
+      class_imbalance=4)
 
     pipeline = self.compiler(test_model).build_predictive_pipeline()
     self.assertEqual(pipeline['name'], 'Test Model - Predictive')
@@ -529,7 +513,7 @@ class TestCompiler(parameterized.TestCase):
 
     # timespan check
     self.assertIn(
-      'FORMAT_DATE("%Y%m%d", DATE_SUB(CURRENT_DATE(), INTERVAL 2 DAY))',
+      'FORMAT_DATE("%Y%m%d", DATE_SUB(CURRENT_DATE(), INTERVAL 1 MONTH))',
       sql,
       'Timespan start check failed.')
 
@@ -548,17 +532,13 @@ class TestCompiler(parameterized.TestCase):
         'source': 'FIRST_PARTY',
         'key': 'value',
         'value_type': 'int',
-        'is_revenue': False,
-        'is_score': True,
-        'is_percentage': False,
-        'is_conversion': True,
-        'average_value': 1234
+        'average_value': 1234.0
       },
       features=[
         {'name': 'purchase', 'source': 'FIRST_PARTY'},
         {'name': 'request_for_info', 'source': 'FIRST_PARTY'}
       ],
-      skew_factor=4)
+      class_imbalance=4)
 
     pipeline = self.compiler(test_model).build_predictive_pipeline()
     self.assertEqual(pipeline['name'], 'Test Model - Predictive')
@@ -577,15 +557,6 @@ class TestCompiler(parameterized.TestCase):
       sql,
       'Probability not found in select when selecting from ML.PREDICT.'
     )
-
-    # conversion label check
-    self.assertRegex(
-      sql,
-      r',[\s\S]+'.join([
-        'premium_subscription',
-        re.escape('ML.PREDICT'),
-      ]),
-      'Conversion label check failed.')
 
     # user ids check
     self.assertRegex(
@@ -622,16 +593,13 @@ class TestCompiler(parameterized.TestCase):
         'source': 'GOOGLE_ANALYTICS',
         'key': 'value',
         'value_type': 'string',
-        'is_revenue': False,
-        'is_score': True,
-        'is_percentage': False,
-        'is_conversion': False
+        'average_value': 1234.0
       },
       features=[
         {'name': 'click', 'source': 'GOOGLE_ANALYTICS'},
         {'name': 'scroll', 'source': 'GOOGLE_ANALYTICS'}
       ],
-      skew_factor=4)
+      class_imbalance=4)
 
     pipeline = self.compiler(test_model).build_predictive_pipeline()
     self.assertEqual(pipeline['name'], 'Test Model - Predictive')
@@ -670,23 +638,19 @@ class TestCompiler(parameterized.TestCase):
 
   def test_build_predictive_sql_google_analytics_revenue(self):
     test_model = self.model_config(
-      type='BOOSTED_TREE_CLASSIFIER',
+      type='BOOSTED_TREE_REGRESSOR',
       uses_first_party_data=False,
       label={
         'name': 'subscription',
         'source': 'GOOGLE_ANALYTICS',
         'key': 'value',
-        'value_type': 'string',
-        'is_revenue': True,
-        'is_score': False,
-        'is_percentage': False,
-        'is_conversion': False
+        'value_type': 'string'
       },
       features=[
         {'name': 'click', 'source': 'GOOGLE_ANALYTICS'},
         {'name': 'scroll', 'source': 'GOOGLE_ANALYTICS'}
       ],
-      skew_factor=4)
+      class_imbalance=4)
 
     pipeline = self.compiler(test_model).build_predictive_pipeline()
     self.assertEqual(pipeline['name'], 'Test Model - Predictive')
@@ -710,9 +674,9 @@ class TestCompiler(parameterized.TestCase):
       ]),
       'Google Analytics first value join check failed.')
 
-  def test_build_output_sql_score(self):
+  def test_build_output_sql_binary_label(self):
     test_model = self.model_config(
-      type='BOOSTED_TREE_REGRESSOR',
+      type='BOOSTED_TREE_CLASSIFIER',
       uses_first_party_data=True,
       unique_id='USER_ID',
       label={
@@ -720,17 +684,13 @@ class TestCompiler(parameterized.TestCase):
         'source': 'GOOGLE_ANALYTICS',
         'key': 'value',
         'value_type': 'string,int',
-        'is_revenue': False,
-        'is_score': True,
-        'is_percentage': True,
-        'is_conversion': True,
-        'average_value': 1234
+        'average_value': 1234.0
       },
       features=[
         {'name': 'click', 'source': 'GOOGLE_ANALYTICS'},
         {'name': 'subscribe', 'source': 'FIRST_PARTY'}
       ],
-      skew_factor=4)
+      class_imbalance=4)
 
     pipeline = self.compiler(test_model).build_predictive_pipeline()
     self.assertEqual(pipeline['name'], 'Test Model - Predictive')
@@ -767,27 +727,11 @@ class TestCompiler(parameterized.TestCase):
       sql,
       'Summary table name check failed.')
 
-    # conversion label check
-    self.assertRegex(
+    # conversion values join check
+    self.assertIn(
+      'LEFT OUTER JOIN `test-project-id-1234.test-dataset.conversion_values` cv',
       sql,
-      re.escape('(SUM(purchase) / COUNT(normalized_score)) * 1234 AS value'),
-      'Failed conversion label check within conversion rate calculation step.')
-
-    self.assertRegex(
-      sql,
-      r'[\s\S]+'.join([
-        re.escape('p.purchase,'),
-        re.escape('FROM `test-project-id-1234.test-dataset.predictions`')
-      ]),
-      'Failed conversion label check within prediction preparation step.')
-
-    self.assertRegex(
-      sql,
-      r'[\s\S]+'.join([
-        re.escape('cr.value,'),
-        re.escape('LEFT OUTER JOIN conversion_rate cr')
-      ]),
-      'Failed conversion rate check within ouput consolidation step.')
+      'Failed conversion values join check.')
 
     # user id check
     self.assertIn(
@@ -795,87 +739,13 @@ class TestCompiler(parameterized.TestCase):
       sql,
       'Failed user id check within prediction preparation step.')
 
-  def test_build_output_sql_score_as_percentage(self):
-    test_model = self.model_config(
-      type='BOOSTED_TREE_REGRESSOR',
-      uses_first_party_data=True,
-      label={
-        'name': 'purchase',
-        'source': 'GOOGLE_ANALYTICS',
-        'key': 'value',
-        'value_type': 'int',
-        'is_revenue': False,
-        'is_score': True,
-        'is_percentage': True,
-        'is_conversion': False
-      },
-      features=[
-        {'name': 'click', 'source': 'GOOGLE_ANALYTICS'},
-        {'name': 'subscribe', 'source': 'FIRST_PARTY'}
-      ],
-      skew_factor=4)
-
-    pipeline = self.compiler(test_model).build_predictive_pipeline()
-    self.assertEqual(pipeline['name'], 'Test Model - Predictive')
-
-    output_job = next(job for job in pipeline['jobs'] if job['name'] == 'Test Model - Predictive Output')
-    self.assertIsNotNone(output_job)
-    params = output_job['params']
-
-    sql_param = next(param for param in params if param['name'] == 'script')
-    self.assertIsNotNone(sql_param)
-    sql = sql_param['value']
-
-    # label type check
-    self.assertRegex(
+    # score check
+    self.assertIn(
+      'p.probability * 100 AS score',
       sql,
-      r'[\n\s]+'.join([
-        re.escape('p.predicted_label * 100 AS value,'),
-        re.escape('p.predicted_label * 100 AS score,')
-      ]),
-      'Failed label type check within prediction preparation step. Expected percentage multiplier (100).')
+      'Failed score check within prediction preparation step.')
 
-  def test_build_output_sql_score_as_decimal(self):
-    test_model = self.model_config(
-      type='BOOSTED_TREE_REGRESSOR',
-      uses_first_party_data=True,
-      label={
-        'name': 'purchase',
-        'source': 'GOOGLE_ANALYTICS',
-        'key': 'value',
-        'value_type': 'int',
-        'is_revenue': False,
-        'is_score': True,
-        'is_percentage': False,
-        'is_conversion': False
-      },
-      features=[
-        {'name': 'click', 'source': 'GOOGLE_ANALYTICS'},
-        {'name': 'subscribe', 'source': 'FIRST_PARTY'}
-      ],
-      skew_factor=4)
-
-    pipeline = self.compiler(test_model).build_predictive_pipeline()
-    self.assertEqual(pipeline['name'], 'Test Model - Predictive')
-
-    output_job = next(job for job in pipeline['jobs'] if job['name'] == 'Test Model - Predictive Output')
-    self.assertIsNotNone(output_job)
-    params = output_job['params']
-
-    sql_param = next(param for param in params if param['name'] == 'script')
-    self.assertIsNotNone(sql_param)
-    sql = sql_param['value']
-
-    # label type check
-    self.assertRegex(
-      sql,
-      r'[\n\s]+'.join([
-        re.escape('p.predicted_label * 1 AS value,'),
-        re.escape('p.predicted_label * 1 AS score,')
-      ]),
-      'Failed label type check within prediction preparation step. Expected no multiplier (1).')
-
-  def test_build_output_sql_revenue(self):
+  def test_build_output_sql_value_label(self):
     test_model = self.model_config(
       type='BOOSTED_TREE_REGRESSOR',
       uses_first_party_data=True,
@@ -884,16 +754,13 @@ class TestCompiler(parameterized.TestCase):
         'name': 'purchase',
         'source': 'GOOGLE_ANALYTICS',
         'key': 'value',
-        'value_type': 'float',
-        'is_score': False,
-        'is_revenue': True,
-        'is_conversion': False
+        'value_type': 'float'
       },
       features=[
         {'name': 'click', 'source': 'GOOGLE_ANALYTICS'},
         {'name': 'subscribe', 'source': 'FIRST_PARTY'}
       ],
-      skew_factor=4)
+      class_imbalance=4)
 
     pipeline = self.compiler(test_model).build_predictive_pipeline()
     self.assertEqual(pipeline['name'], 'Test Model - Predictive')
@@ -930,15 +797,15 @@ class TestCompiler(parameterized.TestCase):
       sql,
       'Summary table name check failed.')
 
-    # label output type check
+    # revenue check
     self.assertIn(
-      'p.predicted_label AS revenue',
+      'predicted_label AS revenue',
       sql,
-      'Failed label output type check within prediction preparation step.')
+      'Failed label revenue check within prediction preparation step.')
 
     # user id check
     self.assertIn(
-      'p.user_id,',
+      'user_id,',
       sql,
       'Failed user id check within prediction preparation step.')
 
@@ -950,13 +817,10 @@ class TestCompiler(parameterized.TestCase):
         'name': 'purchase',
         'source': 'GOOGLE_ANALYTICS',
         'key': 'value',
-        'value_type': 'float',
-        'is_score': False,
-        'is_revenue': True,
-        'is_conversion': False
+        'value_type': 'float'
       },
       features=[],
-      skew_factor=0)
+      class_imbalance=0)
 
     pipeline = self.compiler(test_model).build_predictive_pipeline()
     self.assertEqual(pipeline['name'], 'Test Model - Predictive')
@@ -987,7 +851,7 @@ class TestCompiler(parameterized.TestCase):
 
   def test_build_ga4_request_score(self):
     test_model = self.model_config(
-      type='BOOSTED_TREE_REGRESSOR',
+      type='BOOSTED_TREE_CLASSIFIER',
       uses_first_party_data=True,
       unique_id='USER_ID',
       label={
@@ -995,13 +859,10 @@ class TestCompiler(parameterized.TestCase):
         'source': 'GOOGLE_ANALYTICS',
         'key': 'value',
         'value_type': 'float',
-        'is_revenue': False,
-        'is_score': True,
-        'is_percentage': True,
-        'is_conversion': False
+        'average_value': 1234.0
       },
       features=[],
-      skew_factor=0)
+      class_imbalance=0)
 
     pipeline = self.compiler(test_model).build_predictive_pipeline()
     self.assertEqual(pipeline['name'], 'Test Model - Predictive')
@@ -1045,13 +906,10 @@ class TestCompiler(parameterized.TestCase):
         'name': 'purchase',
         'source': 'GOOGLE_ANALYTICS',
         'key': 'value',
-        'value_type': 'float',
-        'is_score': False,
-        'is_revenue': True,
-        'is_conversion': False
+        'value_type': 'float'
       },
       features=[],
-      skew_factor=0)
+      class_imbalance=0)
 
     pipeline = self.compiler(test_model).build_predictive_pipeline()
     self.assertEqual(pipeline['name'], 'Test Model - Predictive')
@@ -1086,7 +944,7 @@ class TestCompiler(parameterized.TestCase):
       'Failed template check.')
 
   def model_config(self, type: str, uses_first_party_data: bool, label: dict,
-                   features: list[dict], skew_factor: int, unique_id: str = 'CLIENT_ID',
+                   features: list[dict], class_imbalance: int, unique_id: str = 'CLIENT_ID',
                    destination: str = 'GOOGLE_ANALYTICS_CUSTOM_EVENT'):
     return self.convert_to_object({
       'name': 'Test Model',
@@ -1106,7 +964,7 @@ class TestCompiler(parameterized.TestCase):
       ],
       'label': label,
       'features': features,
-      'skew_factor': skew_factor,
+      'class_imbalance': class_imbalance,
       'timespans': [
         {"name": "training", "value": 17, "unit": "month"},
         {"name": "predictive", "value": 1, "unit": "month"}

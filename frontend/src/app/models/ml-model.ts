@@ -20,6 +20,20 @@ export enum Type {
   BOOSTED_TREE_CLASSIFIER = 'BOOSTED_TREE_CLASSIFIER'
 }
 
+export enum RegressionType {
+  BOOSTED_TREE_REGRESSOR = 'BOOSTED_TREE_REGRESSOR',
+  DNN_REGRESSOR = 'DNN_REGRESSOR',
+  RANDOM_FOREST_REGRESSOR = 'RANDOM_FOREST_REGRESSOR',
+  LINEAR_REG = 'LINEAR_REG'
+}
+
+export enum ClassificationType {
+  BOOSTED_TREE_CLASSIFIER = 'BOOSTED_TREE_CLASSIFIER',
+  DNN_CLASSIFIER = 'DNN_CLASSIFIER',
+  RANDOM_FOREST_CLASSIFIER = 'RANDOM_FOREST_CLASSIFIER',
+  LOGISTIC_REG = 'LOGISTIC_REG'
+}
+
 export enum UniqueId {
   CLIENT_ID = 'CLIENT_ID',
   USER_ID = 'USER_ID'
@@ -88,10 +102,6 @@ export class Label {
   source: Source
   key: string
   value_type: string
-  is_revenue: boolean
-  is_score: boolean
-  is_percentage: boolean
-  is_conversion: boolean
   average_value: number
 }
 
@@ -136,7 +146,7 @@ export class MlModel {
   hyper_parameters: HyperParameter[];
   features: Feature[];
   label: Label;
-  skew_factor: number;
+  class_imbalance: number;
   timespans: Timespan[];
   destination: Destination;
   pipelines: Pipeline[];
@@ -303,7 +313,7 @@ export class MlModel {
       }),
       features: this.features,
       label: this.label,
-      skew_factor: this.skew_factor,
+      class_imbalance: this.class_imbalance,
       timespans: this.timespans.map(timespan => {
         return {
           name: timespan.name,
