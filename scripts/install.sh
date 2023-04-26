@@ -57,7 +57,7 @@ if [ -d $CRMINT_HOME/.git ]; then
   fi
 
   git checkout $TARGET_BRANCH
-  git pull --rebase
+  git pull origin $TARGET_BRANCH
   cd "$CURRENT_DIR"
 fi
 
