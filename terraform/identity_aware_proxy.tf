@@ -20,9 +20,3 @@ resource "google_project_service_identity" "iap_sa" {
   project  = google_project_service.iap_service.project
   service  = "iap.googleapis.com"
 }
-
-resource "google_project_iam_member" "iap_sa--run_invoker" {
-  project = google_project_service.iap_service.project
-  role    = "roles/run.invoker"
-  member  = "serviceAccount:${google_project_service_identity.iap_sa.email}"
-}
