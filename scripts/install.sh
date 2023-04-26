@@ -48,7 +48,7 @@ if [ -d $CRMINT_HOME/.git ]; then
   CURRENT_DIR=$(pwd)
   cd $CRMINT_HOME
 
-  if [[ `git status --porcelain` ]]; then
+  if [[ `git status --porcelain --untracked-files=no` ]]; then
     echo "ERROR: Cannot install configure CRMint Command Line because you have local changes."
     echo "       Please commit your changes or stash them before you install our CLI."
     return
