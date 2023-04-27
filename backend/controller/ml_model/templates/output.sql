@@ -36,6 +36,7 @@ CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.output` AS (
       {% endif %}
       p.user_pseudo_id AS client_id,
       cv.value,
+      cv.normalized_probability AS normalized_score,
       p.probability * 100 AS score,
     FROM `{{project_id}}.{{model_dataset}}.predictions` p
     LEFT OUTER JOIN `{{project_id}}.{{model_dataset}}.conversion_values` cv
