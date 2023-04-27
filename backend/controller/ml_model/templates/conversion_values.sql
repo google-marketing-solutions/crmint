@@ -6,7 +6,7 @@ CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.conversion_values` AS 
     MAX(probability) AS probability_range_end
   FROM (
     SELECT
-      label,
+      p.label,
       plp.prob AS probability,
       NTILE(10) OVER (ORDER BY plp.prob ASC) AS normalized_probability
     FROM ML.PREDICT(MODEL `{{project_id}}.{{model_dataset}}.model`, (
@@ -145,7 +145,6 @@ CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.conversion_values` AS 
       )
       SELECT
         fe.*,
-        uv.label,
         uab.* EXCEPT ({{unique_id}}),
         uv.* EXCEPT({{unique_id}}, trigger_event_date)
       FROM first_engagement AS fe
@@ -153,7 +152,7 @@ CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.conversion_values` AS 
       ON fe.{{unique_id}} = uab.{{unique_id}}
       INNER JOIN user_variables AS uv
       ON fe.{{unique_id}} = uv.{{unique_id}}
-    )),
+    )) AS p,
     UNNEST(predicted_label_probs) AS plp
     WHERE plp.label = predicted_label
   )
