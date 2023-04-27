@@ -142,7 +142,7 @@ CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.conversion_values` AS 
         WHERE (uv.label > 0 AND e.date <= uv.trigger_event_date)
         OR uv.label = 0
         GROUP BY 1
-      ),
+      )
       SELECT
         fe.*,
         uv.label,
@@ -153,7 +153,7 @@ CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.conversion_values` AS 
       ON fe.{{unique_id}} = uab.{{unique_id}}
       INNER JOIN user_variables AS uv
       ON fe.{{unique_id}} = uv.{{unique_id}}
-    ))
+    )),
     UNNEST(predicted_label_probs) AS plp
     WHERE plp.label = predicted_label
   )
