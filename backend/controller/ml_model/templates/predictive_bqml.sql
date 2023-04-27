@@ -160,7 +160,7 @@ CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.predictions` AS (
         ON e.{{unique_id}} = uv.{{unique_id}}
       WHERE e.date <= uv.trigger_event_date
       GROUP BY 1
-    ),
+    )
     SELECT
       fe.*,
       uab.* EXCEPT ({{unique_id}}),
