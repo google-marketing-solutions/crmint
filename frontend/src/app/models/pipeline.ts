@@ -36,31 +36,31 @@ export class Pipeline {
   @Type(() => Param)
   params: Param[] = [];
 
-  public blocked_running(): boolean {
+  blocked_running(): boolean {
     return this.run_on_schedule;
   }
 
-  public blocked_stopping(): boolean {
+  blocked_stopping(): boolean {
     return this.status === 'stopping';
   }
 
-  public showed_stopping(): boolean {
+  showed_stopping(): boolean {
     return ['running', 'stopping'].includes(this.status);
   }
 
-  public is_active(): boolean {
+  is_active(): boolean {
     return ['running', 'stopping'].includes(this.status);
   }
 
-  public showed_running(): boolean {
+  showed_running(): boolean {
     return ['idle', 'finished', 'failed', 'succeeded'].includes(this.status);
   }
 
-  public blocked_managing() {
+  blocked_managing() {
     return this.run_on_schedule || ['running', 'stopping'].includes(this.status);
   }
 
-  public run_on_schedule_next_date(showText = false) {
+  run_on_schedule_next_date(showText = false) {
     let text = showText ? 'Run on schedule' : '';
     if (this.run_on_schedule) {
       const dates = [];
