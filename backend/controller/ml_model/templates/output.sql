@@ -34,7 +34,7 @@ CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.output` AS (
       {% if unique_id == 'user_id' %}
       p.user_id,
       {% endif %}
-      p.user_pseudo_id AS client_id,
+      p.user_pseudo_id,
       cv.value,
       cv.normalized_probability AS normalized_score,
       p.probability * 100 AS score,
@@ -48,7 +48,7 @@ CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.output` AS (
       {% if unique_id == 'user_id' %}
       user_id,
       {% endif %}
-      user_pseudo_id AS client_id,
+      user_pseudo_id,
       predicted_label AS value,
       predicted_label AS revenue
     FROM `{{project_id}}.{{model_dataset}}.predictions`
@@ -56,7 +56,8 @@ CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.output` AS (
   {% endif %}
   consolidated_output AS (
     SELECT
-      p.*,
+      p.* EXCEPT(user_pseudo_id),
+      p.user_pseudo_id AS client_id,
       'prop_score' AS event_name,
       'Predicted_Value' AS type
     FROM prepared_predictions p

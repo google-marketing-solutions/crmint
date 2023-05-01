@@ -77,7 +77,7 @@ export class MlModelFormComponent implements OnInit {
         name: ['', [Validators.required, Validators.pattern(/^[a-z][a-z0-9_-]*$/i)]],
         source: ['', [Validators.required, Validators.pattern(/^[A-Z_]*$/i)]],
         key: ['', [Validators.required, Validators.pattern(/^[a-z][a-z0-9_-]*$/i)]],
-        valueType: ['', Validators.pattern(/^[a-z]*$/i)],
+        valueType: ['', Validators.pattern(/^[a-z,]*$/i)],
         averageValue: [0.0, Validators.required]
       }),
       classImbalance: [4, [Validators.required, Validators.min(1), Validators.max(10)]],
@@ -228,7 +228,7 @@ export class MlModelFormComponent implements OnInit {
     try {
       const dataset = bigQueryDataset || this.value('bigQueryDataset');
       let variables = await this.mlModelsService.getVariables(dataset);
-      this.variables = plainToClass(Variable, variables as Variable[]);
+      this.variables = variables as Variable[];
       this.errorMessage = '';
     } catch (error) {
       this.errorMessage = error || 'An error occurred';
@@ -293,7 +293,7 @@ export class MlModelFormComponent implements OnInit {
   }
 
   /**
-   * Resets label name and key in the event an update to the available labels cases the currently
+   * Resets label name and key in the event an update to the available labels causes the currently
    * selected label to no longer be available. Also resets output settings based on whether the
    * label is considered a score or revenue.
    */

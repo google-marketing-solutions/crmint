@@ -49,7 +49,7 @@ export enum Destination {
   GOOGLE_ADS_CONVERSION_EVENT = 'GOOGLE_ADS_CONVERSION_EVENT'
 }
 
-export class Range {
+export type Range = {
   min: number
   max: number
   step: number
@@ -57,7 +57,7 @@ export class Range {
 
 export class HyperParameter {
   name: string
-  _value: string
+  _value: string|number|boolean
   toggled?: boolean = true
   range?: Range
   options?: string[]
@@ -69,12 +69,12 @@ export class HyperParameter {
     }
   }
 
-  set value(v: any) {
+  set value(v: string|number|boolean) {
     let value = v;
     if (typeof value === 'string') {
       if (value.match(/^\d+$/)) {
         value = parseInt(value);
-      } else if (v.match(/^\d*\.\d+$/)) {
+      } else if (value.match(/^\d*\.\d+$/)) {
         value = parseFloat(value);
       } else if (value.match(/^(true|false)$/i)) {
         value = value.toLowerCase() === 'true';
@@ -83,7 +83,7 @@ export class HyperParameter {
     this._value = value;
   }
 
-  get value(): any {
+  get value(): string|number|boolean {
     return this._value;
   }
 
@@ -92,12 +92,12 @@ export class HyperParameter {
   }
 }
 
-export class Feature {
+export type Feature = {
   name: string
   source: Source
 }
 
-export class Label {
+export type Label = {
   name: string
   source: Source
   key: string
@@ -105,35 +105,28 @@ export class Label {
   average_value: number
 }
 
-class Parameter {
+type Parameter = {
   key: string;
   value_type: string;
 }
 
-export class Variable {
+export type Variable = {
   name: string;
   source: string;
   count: number;
   parameters: Parameter[];
 }
 
-export class BigQueryDataset {
+export type BigQueryDataset = {
   name: string;
   location: string;
 }
 
-export class Timespan {
+export type Timespan = {
   name: string;
   value: number;
   unit: string;
   range?: Range
-
-  constructor(config: object) {
-    for (const key in config) {
-      const value = config[key];
-      this[key] = value;
-    }
-  }
 }
 
 export class MlModel {
@@ -152,7 +145,13 @@ export class MlModel {
   pipelines: Pipeline[];
   updated_at: string;
 
-  public static getDefaultHyperParameters(type: Type): HyperParameter[] {
+  /**
+   * Return a set of default hyper-parameters based on the model type provided.
+   *
+   * @param type The model type.
+   * @returns A hyper-parameter list.
+   */
+  static getDefaultHyperParameters(type: Type): HyperParameter[] {
     let configs = [];
     switch (type) {
       case Type.LOGISTIC_REG:
@@ -272,7 +271,12 @@ export class MlModel {
     return params;
   }
 
-  public static getDefaultTimespans(): Timespan[] {
+  /**
+   * Get default timespans and associated configurations.
+   *
+   * @returns A timespan list.
+   */
+  static getDefaultTimespans(): Timespan[] {
     let configs = [
       {
         name: 'training',
@@ -290,12 +294,12 @@ export class MlModel {
 
     let timespans = []
     for (const config of configs) {
-      timespans.push(new Timespan(config));
+      timespans.push(config as Timespan);
     }
     return timespans;
   }
 
-  public toJSON() {
+  toJSON() {
     return {
       id: this.id,
       name: this.name,
