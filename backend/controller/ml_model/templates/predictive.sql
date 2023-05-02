@@ -158,19 +158,35 @@ CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.predictions` AS (
       FROM events AS e
       INNER JOIN user_variables AS uv
         ON e.{{unique_id}} = uv.{{unique_id}}
-      WHERE e.date <= uv.trigger_event_date
+      WHERE (uv.label > 0 AND e.date <= uv.trigger_event_date)
+      OR uv.label = 0
       GROUP BY 1
+    ),
+    predictive_dataset AS (
+      SELECT
+        fe.*,
+        uab.* EXCEPT ({{unique_id}}),
+        uv.* EXCEPT({{unique_id}}, trigger_event_date)
+      FROM first_engagement AS fe
+      INNER JOIN user_aggregate_behavior AS uab
+      ON fe.{{unique_id}} = uab.{{unique_id}}
+      INNER JOIN user_variables AS uv
+      ON fe.{{unique_id}} = uv.{{unique_id}}
     )
+    {% if type.is_classification %}
+    SELECT *
+    {% elif type.is_regression %}
     SELECT
-      fe.*,
-      uab.* EXCEPT ({{unique_id}}),
-      uv.* EXCEPT({{unique_id}}, trigger_event_date)
-    FROM first_engagement AS fe
-    INNER JOIN user_aggregate_behavior AS uab
-    ON fe.{{unique_id}} = uab.{{unique_id}}
-    INNER JOIN user_variables AS uv
-    ON fe.{{unique_id}} = uv.{{unique_id}}
-  )){% if type.is_classification %},
+      * EXCEPT(label),
+      -- label in the case of a regression type model is the sum of all values;
+      -- this works for everything except the end dataset which needs to have
+      -- label as (total value - first value), first value, and total value
+      label AS total_value,
+      (label - first_value) AS label
+    {% endif %}
+    FROM predictive_dataset
+  ))
+  {% if type.is_classification %},
   UNNEST(predicted_label_probs) AS plp
   WHERE plp.label = predicted_label
   {% endif %}
