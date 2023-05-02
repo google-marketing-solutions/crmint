@@ -40,7 +40,7 @@ CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.output` AS (
       p.probability * 100 AS score,
     FROM `{{project_id}}.{{model_dataset}}.predictions` p
     LEFT OUTER JOIN `{{project_id}}.{{model_dataset}}.conversion_values` cv
-    ON p.propability BETWEEN cv.probability_range_start AND cv.probability_range_end
+    ON p.probability BETWEEN cv.probability_range_start AND cv.probability_range_end
   ),
   {% elif type.is_regression %}
   prepared_predictions AS (
