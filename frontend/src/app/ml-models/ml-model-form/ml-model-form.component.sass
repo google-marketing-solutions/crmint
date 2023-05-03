@@ -61,15 +61,16 @@
       color: rgba(0, 0, 0, 0.54)
   .input-group
     padding-top: 10px
-  .select-group, .slider-group
-    position: relative
-    padding-top: 20px
-    .label
-      position: absolute
-      left: 0px
-      top: 0px
-      font-size: 11px
-      color: rgba(0, 0, 0, 0.54)
+
+.select-group, .slider-group
+  position: relative
+  padding-top: 20px
+  .label
+    position: absolute
+    left: 0px
+    top: 0px
+    font-size: 11px
+    color: rgba(0, 0, 0, 0.54)
 
 #hyper-parameters
   > *
@@ -122,14 +123,7 @@
     text-transform: unset
 
 #label
-  .hidden
-    visibility: hidden
-    flex-grow: 0
-    width: 0px
-    margin: 0px
-    padding: 0px
   .vertical-group
-    margin: 0px
     width: 742px
     max-width: 742px
     strong
@@ -137,8 +131,10 @@
       text-transform: uppercase
       font-size: 11px
       padding-left: 10px
-  .horizontal-group
-    display: flex
+    .select-group
+      padding: 5px 0px
+      .label
+        font-size: 12px
 
 button[type='submit']
   margin-top: 50px

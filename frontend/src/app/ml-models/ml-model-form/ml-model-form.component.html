@@ -38,7 +38,7 @@
           <label class="crmi-form-label">Data Source</label>
           <mat-select formControlName="usesFirstPartyData"
                       placeholder="Source"
-                      (change)="updateLabelKeyValidator()">
+                      (selectionChange)="refreshLabel()">
             <mat-option [value]="false">Google Analytics 4</mat-option>
             <mat-option [value]="true">Google Analytics 4 <strong>and</strong> First-Party Data</mat-option>
           </mat-select>
@@ -144,22 +144,33 @@
         <div *ngIf="variables.length" formGroupName="label" id='label' class="crmi-form-group">
           <label class="crmi-form-label">Label</label>
           <div class="vertical-group">
-            <div class="horizontal-group">
-              <mat-select formControlName="name" placeholder="Label"
-                          (selectionChange)="refreshLabel()"
-                          (openedChange)="toggleOptionDescriptions($event)">
-                <mat-option *ngFor="let label of labels" [value]="label.name">
-                  {{ label.name }} <span class="option-description">{{ optionDescription(label.source) | labelcase }}</span>
+            <span class="select-group">
+              <span class="label">Source *</span>
+              <mat-select formControlName="source" placeholder="Source"
+                          (selectionChange)="refreshLabel()">
+                <mat-option *ngFor="let source of sources" [value]="source">
+                  {{ source | labelcase }}
                 </mat-option>
               </mat-select>
-              <mat-select *ngIf="label && label.parameters" formControlName="key" placeholder="Key"
-                          [class]="{hidden: label.isFirstParty}">
+            </span>
+            <span *ngIf="label && label.source" class="select-group">
+              <span class="label">Name *</span>
+              <mat-select formControlName="name" placeholder="Name"
+                          (selectionChange)="refreshLabel()">
+                <mat-option *ngFor="let label of labels" [value]="label.name">
+                  {{ label.name }}
+                </mat-option>
+              </mat-select>
+            </span>
+            <span *ngIf="label && label.parameters && !label.isFirstParty" class="select-group">
+              <span class="label">Key *</span>
+              <mat-select formControlName="key" placeholder="Key">
                 <mat-option *ngFor="let parameter of label.parameters" [value]="parameter.key">
                   {{ parameter.key }}
                 </mat-option>
               </mat-select>
-            </div>
-            <div *ngIf="label && label.name" class="vertical-group">
+            </span>
+            <div *ngIf="label && label.name">
               <div *ngIf="type.isClassification" class="input-group">
                 <mat-form-field>
                   <input matInput placeholder="Average Conversion Value" formControlName="averageValue">
