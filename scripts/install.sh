@@ -22,7 +22,7 @@
 
 set -e
 
-TARGET_BRANCH=$1
+TARGET_BRANCH=${1:-master}
 
 # Allows advanced users to use their own CLI wrapper docker image.
 #
