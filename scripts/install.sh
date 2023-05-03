@@ -56,8 +56,13 @@ if [ -d $CRMINT_HOME/.git ]; then
     echo -e "\nNo local changes."
   fi
 
-  git checkout $TARGET_BRANCH
-  git pull origin $TARGET_BRANCH
+  # Ensures the correct fork.
+  git remote add upstream https://github.com/google/crmint.git 2>&1
+  git fetch upstream
+
+  # Loads new commits.
+  git checkout -B $TARGET_BRANCH upstream/$TARGET_BRANCH
+  git pull upstream $TARGET_BRANCH
   cd "$CURRENT_DIR"
 fi
 
