@@ -38,7 +38,7 @@
           <label class="crmi-form-label">Data Source</label>
           <mat-select formControlName="usesFirstPartyData"
                       placeholder="Source"
-                      (selectionChange)="refreshLabel()">
+                      (selectionChange)="refreshLabel(); refreshFeatures()">
             <mat-option [value]="false">Google Analytics 4</mat-option>
             <mat-option [value]="true">Google Analytics 4 <strong>and</strong> First-Party Data</mat-option>
           </mat-select>
