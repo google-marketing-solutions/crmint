@@ -178,9 +178,8 @@ CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.predictions` AS (
     {% elif type.is_regression %}
     SELECT
       * EXCEPT(label),
-      -- label in the case of a regression type model is the sum of all values;
-      -- this works for everything except the end dataset which needs to have
-      -- label as (total value - first value), first value, and total value
+      -- total value here is used to give something to compare the prediction
+      -- against when analyzing the results of the model for accuracy.
       label AS total_value,
       (label - first_value) AS label
     {% endif %}
@@ -188,6 +187,6 @@ CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.predictions` AS (
   ))
   {% if type.is_classification %},
   UNNEST(predicted_label_probs) AS plp
-  WHERE plp.label = predicted_label
+  WHERE plp.label = 1
   {% endif %}
 )
