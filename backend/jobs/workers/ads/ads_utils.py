@@ -13,3 +13,12 @@
 # limitations under the License.
 
 """Utilities for Google Ads workers."""
+from typing import Dict
+from typing import Any
+from google.ads.googleads.client import GoogleAdsClient
+
+
+def get_ads_client_with_service_account(
+  service_account_keys_file_path: str
+) -> None:
+  """Generates a Google Ads client from a service account keys file."""
