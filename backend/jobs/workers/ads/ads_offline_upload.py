@@ -13,12 +13,10 @@
 # limitations under the License.
 
 """Workers to upload offline conversions to Google Ads."""
-from typing import Dict, Any
+from typing import Any
 
-from google.ads.googleads.client import GoogleAdsClient
-from jobs.workers import worker
-
-from jobs.workers.ads import ads_utils
+from google.ads.googleads import client
+from jobs.workers.bigquery import bq_worker
 
 
 DEVELOPER_TOKEN = 'google_ads_developer_token'
@@ -81,7 +79,7 @@ class _ConversionUploadConfigInfo():
     return bool(self.service_account_file)
 
 
-class AdsOfflineClickConversionUploader(worker.Worker):
+class AdsOfflineClickConversionUploader(bq_worker.BQWorker):
   """Worker for uploading offline click conversions into Google Ads.
 
   This worker supports uploading click-based offline conversions, where a
@@ -89,7 +87,6 @@ class AdsOfflineClickConversionUploader(worker.Worker):
   with their GCLID's should be in a BigQuery table specified by the
   parameters.
   """
-
   PARAMS = [
     (CONVERSIONS_BQ_TABLE, 'string', True, '', 'Bigquery conversions table'),
   ]
@@ -107,18 +104,18 @@ class AdsOfflineClickConversionUploader(worker.Worker):
     self.config_data = _ConversionUploadConfigInfo()
     self.config_data.populate_from_params(self._params)
 
-  #   ads_client = self._get_ads_client()
-  #
-  # def _get_ads_client(self) -> GoogleAdsClient:
-  #   if self.config_data.is_service_account_auth():
-  #     return ads_utils.get_ads_client_using_service_account(
-  #       self.config_data.developer_token,
-  #       self.config_data.service_account_file
-  #     )
-  #   else:
-  #     return ads_utils.get_ads_client_using_refresh_tokens(
-  #       self.config_data.developer_token,
-  #       self.config_data.client_id,
-  #       self.config_data.client_secret,
-  #       self.config_data.refresh_token
-  #     )
+    ads_client = self._get_ads_client()
+
+  def _get_ads_client(self) -> client.GoogleAdsClient:
+    client_params = {'developer_token': self.config_data.developer_token}
+
+    if self.config_data.is_service_account_auth():
+      client_params['json_key_file_path'] = (
+        self.config_data.service_account_file)
+    else:
+      client_params['client_id'] = self.config_data.client_id
+      client_params['client_secret'] = self.config_data.client_secret
+      client_params['refresh_token'] = self.config_data.refresh_token
+
+    return client.GoogleAdsClient.load_from_dict(client_params)
+

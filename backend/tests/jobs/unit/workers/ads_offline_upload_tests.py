@@ -5,6 +5,8 @@ from unittest import mock
 from absl.testing import absltest
 from absl.testing import parameterized
 
+from google.ads.googleads import client
+
 from jobs.workers.ads import ads_offline_upload
 
 
@@ -12,6 +14,8 @@ class AdsOfflineClickConversionUploaderTest(parameterized.TestCase):
 
   def setUp(self):
     super().setUp()
+    ads_client = mock.create_autospec(
+      client.GoogleAdsClient, instance=True, spec_set=True)
 
   @parameterized.parameters(
     {'dev_token_value': '',
@@ -76,6 +80,26 @@ class AdsOfflineClickConversionUploaderTest(parameterized.TestCase):
     And a service account file is provided
     When the worker is executed
     Then no exceptions are raised.
+    """
+    parameters = {
+      'google_ads_developer_token': 'token',
+      'google_ads_bigquery_conversions_table': 'bq_table_name',
+      'google_ads_service_account_file': '/file/path',
+    }
+    worker = ads_offline_upload.AdsOfflineClickConversionUploader(
+      parameters, 'pipeline_id', 'job_id'
+    )
+    worker._execute()
+
+  def test_creates_ad_client_for_service_account(self):
+    """The ad conversion worker can be configured to create a service
+    account client.
+
+    Given an Ads conversion uploader worker is instantiated
+    And a service account file is provided
+    When the worker is executed
+    It creates a Google Ads client configured for service account
+      authentication.
     """
     parameters = {
       'google_ads_developer_token': 'token',
