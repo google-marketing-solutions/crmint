@@ -5,6 +5,8 @@ from unittest import mock
 from absl.testing import absltest
 from absl.testing import parameterized
 
+from google.ads.googleads import client as ads_client_lib
+
 from jobs.workers.ads import ads_offline_upload
 
 
@@ -12,6 +14,10 @@ class AdsOfflineClickConversionUploaderTest(parameterized.TestCase):
 
   def setUp(self):
     super().setUp()
+    self.mock_loads_from_dict = self.enter_context(
+      mock.patch.object(
+        ads_client_lib.GoogleAdsClient, 'load_from_dict', autospec=True)
+    )
 
   @parameterized.parameters(
     {'dev_token_value': '',
@@ -86,6 +92,60 @@ class AdsOfflineClickConversionUploaderTest(parameterized.TestCase):
       parameters, 'pipeline_id', 'job_id'
     )
     worker._execute()
+
+  def test_creates_ad_client_for_service_account(self):
+    """The ad conversion worker can be configured to create a service
+    account client.
+
+    Given an Ads conversion uploader worker is instantiated
+    And a service account file is provided
+    When the worker is executed
+    It creates a Google Ads client configured for service account
+      authentication.
+    """
+    parameters = {
+      'google_ads_developer_token': 'token',
+      'google_ads_bigquery_conversions_table': 'bq_table_name',
+      'google_ads_service_account_file': '/file/path',
+    }
+    worker = ads_offline_upload.AdsOfflineClickConversionUploader(
+      parameters, 'pipeline_id', 'job_id'
+    )
+    worker._execute()
+
+    expected = {'developer_token': 'token',
+                'json_key_file_path': '/file/path',}
+    self.mock_loads_from_dict.assert_called_with(expected)
+
+  def test_creates_ad_client_for_refresh_token(self):
+    """The ad conversion worker can be configured to create a refresh
+     token client.
+
+    Given an Ads conversion uploader worker is instantiated
+    And a refresh token, client ID and client secret are provided
+    When the worker is executed
+    It creates a Google Ads client configured for refresh token authentication.
+    """
+    parameters = {
+      'google_ads_developer_token': 'token',
+      'google_ads_bigquery_conversions_table': 'bq_table_name',
+      'google_ads_refresh_token': 'a_refresh_token',
+      'client_id': 'a_client_id',
+      'client_secret': 'a_client_secret',
+    }
+    worker = ads_offline_upload.AdsOfflineClickConversionUploader(
+      parameters, 'pipeline_id', 'job_id'
+    )
+    worker._execute()
+
+    expected = {
+      'developer_token': 'token',
+      'refresh_token': 'a_refresh_token',
+      'client_id': 'a_client_id',
+      'client_secret': 'a_client_secret',
+    }
+    self.mock_loads_from_dict.assert_called_with(expected)
+
 
 if __name__ == '__main__':
   absltest.main()
