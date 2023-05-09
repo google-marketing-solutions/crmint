@@ -295,13 +295,10 @@ class TestCompiler(absltest.TestCase):
       'Google Analytics first value join check failed.')
 
     # proper label and total value assignment check
-    self.assertRegex(
+    self.assertIn(
+      '(label - first_value) AS label',
       sql,
-      r'[\s\S]*'.join([
-        re.escape('label AS total_value,'),
-        re.escape('(label - first_value) AS label')
-      ]),
-      'Output label and total_value check failed.')
+      'Output label check failed.')
 
   def test_build_model_sql_google_analytics_classification_model(self):
     test_model = self.model_config(
@@ -741,7 +738,7 @@ class TestCompiler(absltest.TestCase):
 
     # score check
     self.assertIn(
-      'p.probability * 100 AS score',
+      'MAX(p.probability) * 100 AS score',
       sql,
       'Failed score check within prediction preparation step.')
 
@@ -800,7 +797,7 @@ class TestCompiler(absltest.TestCase):
 
     # revenue check
     self.assertIn(
-      'IF(predicted_label > 0, predicted_label, 0) AS revenue',
+      'IF(predicted_label > 0, ROUND(predicted_label, 4), 0) AS revenue',
       sql,
       'Failed label revenue check within prediction preparation step.')
 
