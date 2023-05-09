@@ -42,7 +42,6 @@ export class MlModelFormComponent implements OnInit {
   types: string[];
   destinations: string[];
   variables: Variable[] = [];
-  optionDescriptions: boolean = false;
   fetchingVariables: boolean = false;
   submitting: boolean = false;
 
@@ -53,7 +52,7 @@ export class MlModelFormComponent implements OnInit {
     private route: ActivatedRoute) {
       this.title = this.router.url.endsWith('new') ? 'New Machine-Learning Model' : 'Edit Machine-Learning Model';
       this.createForm();
-      this.types = Object.values(Type).filter(type => type !== 'LOGISTIC_REG');
+      this.types = Object.values(Type).filter(type => type !== Type.LOGISTIC_REG);
       this.uniqueIds = Object.values(UniqueId);
       this.destinations = Object.values(Destination);
     }
@@ -158,7 +157,7 @@ export class MlModelFormComponent implements OnInit {
     this.setHyperParameters(this.mlModel.hyper_parameters, this.mlModel.type);
     this.setFeatures(this.mlModel.features);
     this.setTimespans(this.mlModel.timespans);
-    this.updateLabelKeyValidator();
+    this.refreshLabel();
   }
 
   get type() {
@@ -167,6 +166,12 @@ export class MlModelFormComponent implements OnInit {
       isClassification: Object.values(ClassificationType).includes(type),
       isRegression: Object.values(RegressionType).includes(type)
     }
+  }
+
+  get sources() {
+    const usesFirstPartyData = this.value('usesFirstPartyData');
+    const sources = Object.values(Source);
+    return !usesFirstPartyData ? sources.filter(source => source !== Source.FIRST_PARTY) : sources;
   }
 
   get analyticsVariables() {
@@ -190,21 +195,24 @@ export class MlModelFormComponent implements OnInit {
   }
 
   get labels() {
-    const usesFirstPartyData = this.value('usesFirstPartyData');
-    if (usesFirstPartyData) {
-      return this.variables.filter(variable => !this.featureSelected(variable));
-    } else {
-      return this.variables.filter(variable => !this.featureSelected(variable) && variable.source !== Source.FIRST_PARTY);
+    const source = this.value('label', 'source');
+    let variables = this.variables;
+
+    // limit labels available for selection to the selected source.
+    if (source) {
+      variables = variables.filter(variable => variable.source === source);
     }
+
+    // limit variables available to those not already selected as features.
+    return variables.filter(variable => !this.featureSelected(variable));
   }
 
   get label() {
     let label = this.mlModelForm.get('label').value;
     if (label.name) {
-      const variable = this.variables.find(variable => variable.name === label.name);
+      const variable = this.variables.find(variable => variable.name === label.name && variable.source === label.source);
 
       label.parameters = variable.parameters;
-      label.source = variable.source;
       label.isFirstParty = variable.source === Source.FIRST_PARTY;
 
       if (label.key) {
@@ -293,80 +301,74 @@ export class MlModelFormComponent implements OnInit {
   }
 
   /**
-   * Resets label name and key in the event an update to the available labels causes the currently
-   * selected label to no longer be available. Also resets output settings based on whether the
-   * label is considered a score or revenue.
+   * Handles ensuring the label fields are updated appropriately when form fields that
+   * affect what's allowed to be selected are changed.
    */
   refreshLabel() {
-    const labels = this.labels;
-    const label = this.label;
-
+    const usesFirstPartyData = this.value('usesFirstPartyData');
     const labelField = {
       name: this.mlModelForm.get(['label', 'name']),
       key: this.mlModelForm.get(['label', 'key']),
       source: this.mlModelForm.get(['label', 'source']),
       valueType: this.mlModelForm.get(['label', 'valueType'])
+    };
+
+    // set the source to Google Analytics if no first party data is used.
+    if (!usesFirstPartyData) {
+      labelField.source.setValue(Source.GOOGLE_ANALYTICS);
     }
 
-    if (!labels.find(label => label.name === labelField.name.value)) {
+    // if selected label is no longer available due to form changes then remove selection.
+    if (!this.labels.find(l => l.name === labelField.name.value && l.source === labelField.source.value)) {
       labelField.name.setValue('');
       labelField.key.setValue('');
     }
 
+    const label = this.label;
     if (label.name) {
-      // set source automatically in the form based on label selected.
-      labelField.source.setValue(label.source);
-
       // if the selected key is not available anymore due to label change then unset it.
       if (!label.parameters.find(param => param.key === label.key)) {
         labelField.key.setValue('');
       }
 
-      // if there's only one option auto-select and disable the field otherwise make sure the field is enabled.
+      // if there's only one option auto-select it.
       if (label.parameters.length === 1) {
         labelField.key.setValue(label.parameters[0].key);
       }
 
-      // set value type automatically in the form based on label and key selected.
+      // set value type automatically in the form based on source, name, and key selected.
       if (label.key) {
         labelField.valueType.setValue(label.valueType);
       }
+
+      // label key is required for a google analytics label, but not for a first party label.
+      if (label.source === Source.GOOGLE_ANALYTICS) {
+        labelField.key.addValidators(Validators.required);
+      } else {
+        labelField.key.removeValidators(Validators.required);
+      }
+
+      labelField.key.updateValueAndValidity();
     }
   }
 
   /**
-   * Updates the label key validator based on whether or not the data source includes first party data.
-   * With first party data: label key is not required.
-   * Without first party data: label key is required.
+   * Handles ensuring the features are updated appropriately when form fields that
+   * affect what's allowed to be selected are changed.
    */
-  updateLabelKeyValidator() {
+  refreshFeatures() {
     const usesFirstPartyData = this.value('usesFirstPartyData');
-    const labelKeyField = this.mlModelForm.get('label').get('key');
-    if (usesFirstPartyData) {
-      labelKeyField.removeValidators(Validators.required);
-    } else {
-      labelKeyField.addValidators(Validators.required);
+
+    // if no longer using first party data then ensure first party features are removed.
+    if (!usesFirstPartyData) {
+      const features = this.features.value as Feature[];
+      this.features.clear();
+      for (const feature of features) {
+        if (feature.source !== Source.FIRST_PARTY) {
+          this.features.push(this._fb.control(feature as Feature));
+        }
+      }
     }
-    labelKeyField.updateValueAndValidity();
-  }
-
-  /**
-   * Add/Remove select-box option descriptions.
-   *
-   * @param toggled Whether or not to show the option descriptions.
-   */
-  toggleOptionDescriptions(toggled: boolean) {
-    this.optionDescriptions = toggled;
-  }
-
-  /**
-   * Enforces option description visibility while also formatting the description appropriately.
-   *
-   * @param description The description to show.
-   * @returns The formatted description if option descriptions are enabled.
-   */
-  optionDescription(description: string): string {
-    return this.optionDescriptions ? description : '';
   }
 
   /**

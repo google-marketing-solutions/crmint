@@ -20,7 +20,9 @@
 # if you want to expose the crmint bash function to the
 # parent shell session.
 
-TARGET_BRANCH=$1
+set -e
+
+TARGET_BRANCH=${1:-master}
 
 # Allows advanced users to use their own CLI wrapper docker image.
 #
@@ -37,14 +39,30 @@ CRMINT_HOME=${CRMINT_HOME:-$HOME/crmint}
 if [ ! -d $CRMINT_HOME ]; then
   git clone https://github.com/google/crmint.git $CRMINT_HOME
   echo -e "\nCloned crmint repository to: $CRMINT_HOME."
+else
+  echo -e "\nSkip cloning."
 fi
 
 # Updates the targeted branch (if it's a git repository only).
-if [ ! -d $CRMINT_HOME/.git ]; then
+if [ -d $CRMINT_HOME/.git ]; then
   CURRENT_DIR=$(pwd)
   cd $CRMINT_HOME
-  git checkout $TARGET_BRANCH
-  git pull --rebase
+
+  if [[ `git status --porcelain --untracked-files=no` ]]; then
+    echo "ERROR: Cannot install configure CRMint Command Line because you have local changes."
+    echo "       Please commit your changes or stash them before you install our CLI."
+    return
+  else
+    echo -e "\nNo local changes."
+  fi
+
+  # Ensures the correct fork.
+  git remote add upstream https://github.com/google/crmint.git 2>&1
+  git fetch upstream
+
+  # Loads new commits.
+  git checkout -B $TARGET_BRANCH upstream/$TARGET_BRANCH
+  git pull upstream $TARGET_BRANCH
   cd "$CURRENT_DIR"
 fi
 

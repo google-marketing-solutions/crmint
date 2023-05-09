@@ -14,7 +14,7 @@
 //  you can delete this line and instead use:
 //    `@include mat.legacy-typography-hierarchy(mat.define-legacy-typography-config());`
 @include mat.all-legacy-component-typographies();
-@include mat.legacy-core();
+@include mat.core();
 
 
 

@@ -178,7 +178,13 @@ training_dataset AS (
   INNER JOIN user_variables AS uv
   ON fe.{{unique_id}} = uv.{{unique_id}}
 )
+{% if type.is_classification %}
 SELECT * EXCEPT({{unique_id}})
+{% elif type.is_regression %}
+SELECT
+  * EXCEPT({{unique_id}}, label),
+  (label - first_value) AS label
+{% endif %}
 FROM training_dataset
 {% if class_imbalance > 1 %}
 WHERE label > 0

@@ -1,10 +1,10 @@
 CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.output` AS (
   WITH prior_table AS (
-    SELECT SPLIT(MAX(table_id), 'events_')[OFFSET(1)] AS suffix
+    SELECT SPLIT(table_id, 'events_')[OFFSET(1)] AS suffix
     FROM `{{project_id}}.{{ga4_dataset}}.__TABLES_SUMMARY__`
     WHERE table_id LIKE 'events_%'
-    AND table_id NOT IN (
-      SELECT MAX(table_id) FROM `{{project_id}}.{{ga4_dataset}}.__TABLES_SUMMARY__`)
+    ORDER BY table_id DESC
+    LIMIT 1 OFFSET 1
   ),
   events AS (
     SELECT
@@ -35,12 +35,13 @@ CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.output` AS (
       p.user_id,
       {% endif %}
       p.user_pseudo_id,
-      cv.value,
-      cv.normalized_probability AS normalized_score,
-      p.probability * 100 AS score,
+      ROUND(MAX(cv.value), 4) AS value,
+      MAX(cv.normalized_probability) AS normalized_score,
+      MAX(p.probability) * 100 AS score,
     FROM `{{project_id}}.{{model_dataset}}.predictions` p
     LEFT OUTER JOIN `{{project_id}}.{{model_dataset}}.conversion_values` cv
-    ON p.propability BETWEEN cv.probability_range_start AND cv.probability_range_end
+    ON p.probability BETWEEN cv.probability_range_start AND cv.probability_range_end
+    GROUP BY p.{{unique_id}}
   ),
   {% elif type.is_regression %}
   prepared_predictions AS (
@@ -49,8 +50,8 @@ CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.output` AS (
       user_id,
       {% endif %}
       user_pseudo_id,
-      predicted_label AS value,
-      predicted_label AS revenue
+      IF(predicted_label > 0, ROUND(predicted_label, 4), 0) AS value,
+      IF(predicted_label > 0, ROUND(predicted_label, 4), 0) AS revenue
     FROM `{{project_id}}.{{model_dataset}}.predictions`
   ),
   {% endif %}

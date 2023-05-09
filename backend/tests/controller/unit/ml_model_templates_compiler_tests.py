@@ -265,7 +265,7 @@ class TestCompiler(parameterized.TestCase):
       ]),
       'Google Analytics feature check failed.')
 
-  def test_build_model_sql_google_analytics_revenue(self):
+  def test_build_model_sql_google_analytics_regression_model(self):
     test_model = self.model_config(
       type='BOOSTED_TREE_REGRESSOR',
       uses_first_party_data=False,
@@ -299,7 +299,13 @@ class TestCompiler(parameterized.TestCase):
       ]),
       'Google Analytics first value join check failed.')
 
-  def test_build_model_sql_google_analytics_binary_label(self):
+    # proper label and total value assignment check
+    self.assertIn(
+      '(label - first_value) AS label',
+      sql,
+      'Output label check failed.')
+
+  def test_build_model_sql_google_analytics_classification_model(self):
     test_model = self.model_config(
       type='BOOSTED_TREE_CLASSIFIER',
       uses_first_party_data=False,
@@ -636,7 +642,7 @@ class TestCompiler(parameterized.TestCase):
       ]),
       'Google Analytics feature check failed.')
 
-  def test_build_predictive_sql_google_analytics_revenue(self):
+  def test_build_predictive_sql_google_analytics_regression_model(self):
     test_model = self.model_config(
       type='BOOSTED_TREE_REGRESSOR',
       uses_first_party_data=False,
@@ -674,7 +680,16 @@ class TestCompiler(parameterized.TestCase):
       ]),
       'Google Analytics first value join check failed.')
 
-  def test_build_output_sql_binary_label(self):
+    # proper label and total value assignment check
+    self.assertRegex(
+      sql,
+      r'[\s\S]*'.join([
+        re.escape('label AS total_value,'),
+        re.escape('(label - first_value) AS label')
+      ]),
+      'Output label and total_value check failed.')
+
+  def test_build_output_sql_classification_model(self):
     test_model = self.model_config(
       type='BOOSTED_TREE_CLASSIFIER',
       uses_first_party_data=True,
@@ -741,11 +756,11 @@ class TestCompiler(parameterized.TestCase):
 
     # score check
     self.assertIn(
-      'p.probability * 100 AS score',
+      'MAX(p.probability) * 100 AS score',
       sql,
       'Failed score check within prediction preparation step.')
 
-  def test_build_output_sql_value_label(self):
+  def test_build_output_sql_regression_model(self):
     test_model = self.model_config(
       type='BOOSTED_TREE_REGRESSOR',
       uses_first_party_data=True,
@@ -799,7 +814,7 @@ class TestCompiler(parameterized.TestCase):
 
     # revenue check
     self.assertIn(
-      'predicted_label AS revenue',
+      'IF(predicted_label > 0, ROUND(predicted_label, 4), 0) AS revenue',
       sql,
       'Failed label revenue check within prediction preparation step.')
 
