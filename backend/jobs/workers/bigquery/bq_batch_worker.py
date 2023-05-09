@@ -24,7 +24,15 @@ from jobs.workers.bigquery import bq_worker
 
 # Param name to use when passing around a BQ table name to process between
 # workers and sub-workers.
-BQ_TABLE_TO_PROCESS = 'bq_table_to_process'
+BQ_TABLE_TO_PROCESS_PARAM = 'bq_table_to_process'
+
+# Param name to use when passing around a BQ page token between workers
+# and sub-workers
+BQ_PAGE_TOKEN_PARAM = 'bq_page_token'
+
+# Param name to use when passing around batch size between workers and
+# sub-workers.
+BQ_BATCH_SIZE_PARAM = 'bq_batch_size'
 
 
 class BQBatchDataWorker(bq_worker.BQWorker, abc.ABC):
@@ -46,32 +54,33 @@ class BQBatchDataWorker(bq_worker.BQWorker, abc.ABC):
         mapping.
     4)  Add the base class to the public workers mapping.
   """
+
   # BigQuery batch size for querying results.
-  BQ_BATCH_SIZE = 1000
+  DEFAULT_BQ_BATCH_SIZE = 1000
 
   # Maximum number of jobs to enqueued before spawning a new scheduler.
   MAX_ENQUEUED_JOBS_PER_COORDINATOR = 50
 
   def _execute(self) -> None:
-    page_token = self._params.get('bq_page_token', None)
-    table_name_to_process = self._params.get(BQ_TABLE_TO_PROCESS, None)
+    page_token = self._params.get(BQ_PAGE_TOKEN_PARAM, None)
+    table_name_to_process = self._params.get(BQ_TABLE_TO_PROCESS_PARAM, None)
     if not table_name_to_process:
-      raise ValueError('Param \'' + BQ_TABLE_TO_PROCESS +
+      raise ValueError('Param \'' + BQ_TABLE_TO_PROCESS_PARAM +
                        '\' needs to be set for batch processing.')
 
     client = self._get_client()
     row_iterator = client.list_rows(
       table=client.get_table(table_name_to_process),
       page_token=page_token,
-      page_size=self.BQ_BATCH_SIZE
+      page_size=self.DEFAULT_BQ_BATCH_SIZE
     )
 
     enqueued_jobs_count = 0
     for _ in row_iterator.pages:
       # Enqueue job for this page
       worker_params = self._params.copy()
-      worker_params['bq_page_token'] = page_token
-      worker_params['bq_batch_size'] = self.BQ_BATCH_SIZE
+      worker_params[BQ_PAGE_TOKEN_PARAM] = page_token
+      worker_params[BQ_BATCH_SIZE_PARAM] = self.DEFAULT_BQ_BATCH_SIZE
 
       self._enqueue(
         self._get_sub_worker_name(),
@@ -86,7 +95,7 @@ class BQBatchDataWorker(bq_worker.BQWorker, abc.ABC):
       if (enqueued_jobs_count >= self.MAX_ENQUEUED_JOBS_PER_COORDINATOR
         and page_token is not None):
         worker_params = self._params.copy()
-        worker_params['bq_page_token'] = page_token
+        worker_params[BQ_PAGE_TOKEN_PARAM] = page_token
         self._enqueue(self.__class__.__name__, worker_params)
         return
 
@@ -109,18 +118,18 @@ class TablePageResultsProcessorWorker(bq_worker.BQWorker, abc.ABC):
   def _extract_parameters(self) -> Tuple[str, str, int]:
     page_token = self._params.get('bq_page_token', None)
     if not page_token:
-      raise ValueError(
-        'Param \'bq_page_token\' needs to be set for batch processing.')
+      raise ValueError('Param \'' + BQ_PAGE_TOKEN_PARAM + '\' needs to be set'
+                       ' for batch processing.')
 
-    table_name_to_process = self._params.get(BQ_TABLE_TO_PROCESS, None)
+    table_name_to_process = self._params.get(BQ_TABLE_TO_PROCESS_PARAM, None)
     if not table_name_to_process:
-      raise ValueError('Param \'' + BQ_TABLE_TO_PROCESS +
+      raise ValueError('Param \'' + BQ_TABLE_TO_PROCESS_PARAM +
                        '\' needs to be set for batch processing.')
 
-    batch_size = self._params.get('bq_batch_size', None)
+    batch_size = self._params.get(BQ_BATCH_SIZE_PARAM, None)
     if not batch_size:
-      raise ValueError(
-        'Param \'bq_batch_size\' needs to be set for batch processing.')
+      raise ValueError('Param \'' + BQ_BATCH_SIZE_PARAM + '\' needs to be set'
+                       ' for batch processing.')
 
     return table_name_to_process, page_token, batch_size
 
