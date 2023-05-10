@@ -16,7 +16,9 @@
 from typing import Any
 
 from google.ads.googleads import client
-from jobs.workers.bigquery import bq_worker
+from google.api_core import page_iterator
+
+from jobs.workers.bigquery import bq_batch_worker
 
 
 DEVELOPER_TOKEN = 'google_ads_developer_token'
@@ -27,59 +29,7 @@ CLIENT_ID = 'client_id'
 CLIENT_SECRET = 'client_secret'
 
 
-class _ConversionUploadConfigInfo():
-  developer_token: str
-  service_account_file: str
-  refresh_token: str
-  token_uri: str
-  client_id: str
-  client_secret: str
-  conversion_bq_table: str
-
-  def populate_from_params(self, params: dict[str, Any]) -> None:
-    """Populates the configuration object from the provided dict."""
-    self.developer_token = params.get(DEVELOPER_TOKEN, '')
-    self.conversion_bq_table = params.get(CONVERSIONS_BQ_TABLE, '')
-
-    self.service_account_file = params.get(SERVICE_ACCOUNT_FILE, '')
-    self.refresh_token = params.get(REFRESH_TOKEN, '')
-    self.client_id = params.get(CLIENT_ID, '')
-    self.client_secret = params.get(CLIENT_SECRET, '')
-
-    self._validate()
-
-  def _validate(self) -> None:
-    if not self.developer_token:
-      raise ValueError('"google_ads_developer_token" is required and was not provided.')
-
-    if not self.conversion_bq_table:
-      raise ValueError('"google_ads_bigquery_conversions_table" is required and was not provided.')
-
-    if not self.service_account_file and not self.refresh_token:
-      raise ValueError('Provide either "google_ads_service_account_file"'
-                       ' or "google_ads_refresh_token".')
-    self._validate_ads_client_params()
-
-  def _validate_ads_client_params(self):
-    # If a service account file is provided, that's all we need for the service
-    # OAuth server account flow.
-    if self.service_account_file:
-      return
-
-    if not self.client_id:
-      raise ValueError('"client_id" is required if an OAuth '
-                       'refresh token is provided')
-
-    if not self.client_secret:
-      raise ValueError('"client_secret" is required if an OAuth '
-                       'refresh token is provided')
-
-  def is_service_account_auth(self) -> bool:
-    """Is this config setup for service accounts?"""
-    return bool(self.service_account_file)
-
-
-class AdsOfflineClickConversionUploader(bq_worker.BQWorker):
+class AdsOfflineClickConversionUploader(bq_batch_worker.BQBatchDataWorker):
   """Worker for uploading offline click conversions into Google Ads.
 
   This worker supports uploading click-based offline conversions, where a
@@ -87,6 +37,7 @@ class AdsOfflineClickConversionUploader(bq_worker.BQWorker):
   with their GCLID's should be in a BigQuery table specified by the
   parameters.
   """
+
   PARAMS = [
     (CONVERSIONS_BQ_TABLE, 'string', True, '', 'Bigquery conversions table'),
   ]
@@ -99,23 +50,58 @@ class AdsOfflineClickConversionUploader(bq_worker.BQWorker):
     CLIENT_SECRET,
   ]
 
+  def _validate_params(self) -> None:
+    if not self._params.get(DEVELOPER_TOKEN, None):
+      raise ValueError('"google_ads_developer_token" is required and was not provided.')
+
+    if not self._params.get(CONVERSIONS_BQ_TABLE, None):
+      raise ValueError('"google_ads_bigquery_conversions_table" is required and was not provided.')
+
+    if not self._params.get(SERVICE_ACCOUNT_FILE, None) and not self._params.get(REFRESH_TOKEN, None):
+      raise ValueError('Provide either "google_ads_service_account_file"'
+                       ' or "google_ads_refresh_token".')
+    self._validate_ads_client_params()
+
+  def _validate_ads_client_params(self):
+    # If a service account file is provided, that's all we need for the service
+    # OAuth server account flow.
+    if self._params.get(SERVICE_ACCOUNT_FILE, None):
+      return
+
+    if not self._params.get(CLIENT_ID, None) :
+      raise ValueError('"client_id" is required if an OAuth '
+                       'refresh token is provided')
+
+    if not self._params.get(CLIENT_SECRET, None) :
+      raise ValueError('"client_secret" is required if an OAuth '
+                       'refresh token is provided')
+
   def _execute(self) -> None:
     """Begin the processing and upload of offline click conversions."""
-    self.config_data = _ConversionUploadConfigInfo()
-    self.config_data.populate_from_params(self._params)
+    self._validate_params()
+    self._params[bq_batch_worker.BQ_TABLE_TO_PROCESS_PARAM] = \
+      self._params[CONVERSIONS_BQ_TABLE]
 
+    super()._execute()
+
+  def _get_sub_worker_name(self) -> str:
+    return AdsOfflineClickPageResultsWorker.__class__.__name__
+
+
+class AdsOfflineClickPageResultsWorker(bq_batch_worker.TablePageResultsProcessorWorker):
+  """"""
+
+  def _process_page_results(self, page_data: page_iterator.Page) -> None:
     ads_client = self._get_ads_client()
 
   def _get_ads_client(self) -> client.GoogleAdsClient:
-    client_params = {'developer_token': self.config_data.developer_token}
+    client_params = {'developer_token': self._params[DEVELOPER_TOKEN]}
 
-    if self.config_data.is_service_account_auth():
-      client_params['json_key_file_path'] = (
-        self.config_data.service_account_file)
+    if SERVICE_ACCOUNT_FILE in self._params:
+      client_params['json_key_file_path'] = self._params[SERVICE_ACCOUNT_FILE]
     else:
-      client_params['client_id'] = self.config_data.client_id
-      client_params['client_secret'] = self.config_data.client_secret
-      client_params['refresh_token'] = self.config_data.refresh_token
+      client_params['client_id'] = self._params[CLIENT_ID]
+      client_params['client_secret'] = self._params[CLIENT_SECRET]
+      client_params['refresh_token'] = self._params[REFRESH_TOKEN]
 
     return client.GoogleAdsClient.load_from_dict(client_params)
-

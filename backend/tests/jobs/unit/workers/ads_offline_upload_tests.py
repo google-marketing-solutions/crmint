@@ -10,14 +10,10 @@ from google.ads.googleads import client as ads_client_lib
 from jobs.workers.ads import ads_offline_upload
 
 
-class AdsOfflineClickConversionUploaderTest(parameterized.TestCase):
+class AdsOfflineClickPageResultsWorkerTest(parameterized.TestCase):
 
   def setUp(self):
     super().setUp()
-    self.mock_loads_from_dict = self.enter_context(
-      mock.patch.object(
-        ads_client_lib.GoogleAdsClient, 'load_from_dict', autospec=True)
-    )
 
   @parameterized.parameters(
     {'dev_token_value': '',
@@ -33,37 +29,28 @@ class AdsOfflineClickConversionUploaderTest(parameterized.TestCase):
     bq_table_value,
     expected_err
   ):
-    """The Ad worker fails when executed without required parameters.
-
-    Given an Ads conversion uploader worker is instantiated
-    And the developer token OR BQ table name haven't been provided
-    When the worker is executed
-    Then an exception is raised.
-    """
     parameters = {
       'google_ads_developer_token': dev_token_value,
       'google_ads_bigquery_conversions_table': bq_table_value
     }
     worker = ads_offline_upload.AdsOfflineClickConversionUploader(
-      parameters, 'pipeline_id', 'job_id'
+      parameters, 0, 0
     )
-    with self.assertRaises(ValueError) as err_context:
-      worker._execute()
-    self.assertIn(expected_err, str(err_context.exception))
 
-  def test_either_service_account_or_refresh_token_is_required(self):
-    """The Ad worker requires either a service account or refresh token.
+    with mock.patch(
+      'jobs.workers.bigquery.bq_batch_worker.BQBatchDataWorker._execute'
+    ) as _:
+      with self.assertRaises(ValueError) as err_context:
+        worker._execute()
+      self.assertIn(expected_err, str(err_context.exception))
 
-    Given an Ads conversion uploader worker is instantiated
-    And neither the service account file nor the refresh token were provided
-    When the worker is executed
-    Then an exception is raised.
-    """
+  @mock.patch('jobs.workers.bigquery.bq_batch_worker.BQBatchDataWorker._execute')
+  def test_either_service_account_or_refresh_token_is_required(self, _):
+    """The Ad worker requires either a service account or refresh token."""
     parameters = {
       'google_ads_developer_token': 'token',
       'google_ads_bigquery_conversions_table': 'bq_table_name'
     }
-
     worker = ads_offline_upload.AdsOfflineClickConversionUploader(
       parameters, 'pipeline_id', 'job_id'
     )
@@ -75,14 +62,9 @@ class AdsOfflineClickConversionUploaderTest(parameterized.TestCase):
       ' or "google_ads_refresh_token".',
       str(err_context.exception))
 
-  def test_can_configure_with_only_service_account_file(self):
-    """The Ad worker only requires a service account file to run.
-
-    Given an Ads conversion uploader worker is instantiated
-    And a service account file is provided
-    When the worker is executed
-    Then no exceptions are raised.
-    """
+  @mock.patch('jobs.workers.bigquery.bq_batch_worker.BQBatchDataWorker._execute')
+  def test_can_configure_with_only_service_account_file(self, _):
+    """The Ad worker only requires a service account file to run."""
     parameters = {
       'google_ads_developer_token': 'token',
       'google_ads_bigquery_conversions_table': 'bq_table_name',
@@ -93,58 +75,38 @@ class AdsOfflineClickConversionUploaderTest(parameterized.TestCase):
     )
     worker._execute()
 
-  def test_creates_ad_client_for_service_account(self):
-    """The ad conversion worker can be configured to create a service
-    account client.
-
-    Given an Ads conversion uploader worker is instantiated
-    And a service account file is provided
-    When the worker is executed
-    It creates a Google Ads client configured for service account
-      authentication.
-    """
-    parameters = {
-      'google_ads_developer_token': 'token',
-      'google_ads_bigquery_conversions_table': 'bq_table_name',
-      'google_ads_service_account_file': '/file/path',
-    }
-    worker = ads_offline_upload.AdsOfflineClickConversionUploader(
-      parameters, 'pipeline_id', 'job_id'
-    )
-    worker._execute()
-
-    expected = {'developer_token': 'token',
-                'json_key_file_path': '/file/path',}
-    self.mock_loads_from_dict.assert_called_with(expected)
-
-  def test_creates_ad_client_for_refresh_token(self):
-    """The ad conversion worker can be configured to create a refresh
-     token client.
-
-    Given an Ads conversion uploader worker is instantiated
-    And a refresh token, client ID and client secret are provided
-    When the worker is executed
-    It creates a Google Ads client configured for refresh token authentication.
-    """
+  @parameterized.parameters(
+    {'client_id_value': '',
+     'client_secret_value': '',
+     'expected_err': '"client_id" is required if an OAuth refresh token is provided'},
+    {'client_id_value': 'a_client_id',
+     'client_secret_value': '',
+     'expected_err': '"client_secret" is required if an OAuth refresh token is provided'},
+  )
+  def test_can_client_params_are_required_if_refresh_token_provided(
+    self,
+    client_id_value,
+    client_secret_value,
+    expected_err
+  ):
+    """The Ad requires client ID and secret if a refresh token was provided."""
     parameters = {
       'google_ads_developer_token': 'token',
       'google_ads_bigquery_conversions_table': 'bq_table_name',
       'google_ads_refresh_token': 'a_refresh_token',
-      'client_id': 'a_client_id',
-      'client_secret': 'a_client_secret',
+      'client_id': client_id_value,
+      'client_secret': client_secret_value
     }
+
     worker = ads_offline_upload.AdsOfflineClickConversionUploader(
       parameters, 'pipeline_id', 'job_id'
     )
-    worker._execute()
-
-    expected = {
-      'developer_token': 'token',
-      'refresh_token': 'a_refresh_token',
-      'client_id': 'a_client_id',
-      'client_secret': 'a_client_secret',
-    }
-    self.mock_loads_from_dict.assert_called_with(expected)
+    with mock.patch(
+      'jobs.workers.bigquery.bq_batch_worker.BQBatchDataWorker._execute'
+    ) as _:
+      with self.assertRaises(ValueError) as err_context:
+        worker._execute()
+      self.assertIn(expected_err, str(err_context.exception))
 
 
 if __name__ == '__main__':

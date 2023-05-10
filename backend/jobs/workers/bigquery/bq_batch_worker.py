@@ -62,12 +62,12 @@ class BQBatchDataWorker(bq_worker.BQWorker, abc.ABC):
   MAX_ENQUEUED_JOBS_PER_COORDINATOR = 50
 
   def _execute(self) -> None:
-    page_token = self._params.get(BQ_PAGE_TOKEN_PARAM, None)
     table_name_to_process = self._params.get(BQ_TABLE_TO_PROCESS_PARAM, None)
     if not table_name_to_process:
       raise ValueError('Param \'' + BQ_TABLE_TO_PROCESS_PARAM +
                        '\' needs to be set for batch processing.')
 
+    page_token = self._params.get(BQ_PAGE_TOKEN_PARAM, None)
     client = self._get_client()
     row_iterator = client.list_rows(
       table=client.get_table(table_name_to_process),
