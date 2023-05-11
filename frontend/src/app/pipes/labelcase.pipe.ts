@@ -14,15 +14,31 @@
 
 import { Pipe, PipeTransform } from '@angular/core';
 
-import * as _ from 'lodash';
-
 @Pipe({
   name: 'labelcase'
 })
 export class LabelcasePipe implements PipeTransform {
+  specialCaseMap: Object = {api: 'API', id: 'ID', bigquery: 'BigQuery'};
 
+  /**
+   * Uppercase the first character in the word(s) provided (word split into
+   * multiple words on underscore). Handles special cases like id, api, etc
+   * according to an internal mapping.
+   *
+   * @param value The word(s) you want to capitalize.
+   * @returns The capitalized word(s).
+   */
   transform(value: any, args?: any): any {
-    return _.capitalize(value).replace(/_/g, ' ');
-  }
+    let formattedParts = [];
+    for (const part of value.split('_')) {
+      if (Object.keys(this.specialCaseMap).includes(part.toLowerCase())) {
+        formattedParts.push(this.specialCaseMap[part.toLowerCase()]);
+      } else {
+        formattedParts.push(
+            part.charAt(0).toUpperCase() + part.slice(1).toLowerCase());
+      }
+    }
 
+    return formattedParts.join(' ');
+  }
 }

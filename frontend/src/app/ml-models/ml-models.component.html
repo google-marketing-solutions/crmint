@@ -1,0 +1,70 @@
+<mat-card>
+  <div [ngSwitch]="state">
+    <!-- LOADING -->
+    <ng-template ngSwitchCase="loading">
+      <div class="crmi-loading-block">
+        <mat-progress-spinner
+          strokeWidth="10"
+          style="width:100px;height:100px;"
+          mode="indeterminate">
+        </mat-progress-spinner>
+        Loading machine-learning models...
+      </div>
+    </ng-template>
+    <!-- LOADED -->
+    <ng-template ngSwitchCase="loaded">
+      <mat-card-title>
+        Machine-Learning Models
+        <div class="crmi-card-title-buttons">
+          <a mat-raised-button routerLink="/ml-models/new">
+            <mat-icon>add</mat-icon>
+            New Model
+          </a>
+        </div>
+      </mat-card-title>
+
+      <div *ngIf="mlModels.length > 0">
+        <div class="crmi-card-list">
+          <div class="crmi-card-list-header">
+            <div class="crmi-card-list-item">
+              <div class="crmi-card-list-item-col">Model</div>
+              <div class="crmi-card-list-item-col crmi-card-list-item-col-2">Last Updated (UTC)</div>
+              <div class="crmi-card-list-item-col crmi-card-list-item-col-1">Actions</div>
+            </div>
+          </div>
+          <div *ngFor="let model of mlModels" class="crmi-card-list-item">
+            <div class="crmi-card-list-item-col">
+              <a class="crmi-card-list-item-name" [routerLink]="['/ml-models', model.id]">{{model.name}}</a>
+            </div>
+            <div class="crmi-card-list-item-col crmi-card-list-item-col-2">
+              {{model.updated_at}}
+            </div>
+            <div class="crmi-card-list-item-col crmi-card-list-item-col-1">
+              <a class="crmi-link" [routerLink]="['/ml-models', model.id, 'edit']">
+                <mat-icon>edit</mat-icon>
+                Edit
+              </a>
+              <br/>
+              <button class="crmi-link" (click)="deleteModel(model)">
+                <mat-icon>delete</mat-icon>
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div *ngIf="mlModels.length === 0" class="crmi-no-items">
+        <div class="crmi-no-items-header">NO MACHINE-LEARNING MODELS</div>
+        <div class="crmi-no-items-textaction">Let's get started shall we?</div>
+        <a mat-raised-button color="primary" type="button" routerLink="/ml-models/new">
+          <mat-icon>add</mat-icon>
+          Create New Model
+        </a>
+      </div>
+    </ng-template>
+    <!-- ERROR -->
+    <ng-template ngSwitchCase="error">
+      <div class="crmi-error-block">There is error after loading data.</div>
+    </ng-template>
+  </div>
+</mat-card>

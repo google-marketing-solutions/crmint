@@ -1,11 +1,29 @@
+# Copyright 2023 Google Inc
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+
 """Tests for controller.models."""
 
 import textwrap
+from typing import Any, Union
 
 from absl.testing import absltest
-import freezegun
+from absl.testing import parameterized
+from freezegun import freeze_time
 import jinja2
 
+from controller import extensions
 from controller import models
 from tests import controller_utils
 
@@ -191,7 +209,7 @@ class TestParamRuntimeValues(controller_utils.ModelTestCase):
     with self.assertRaises(jinja2.TemplateError):
       param.populate_runtime_value(context={'bar': 'abc'})
 
-  @freezegun.freeze_time('2022-05-15T00:00:00')
+  @freeze_time('2022-05-15T00:00:00')
   def test_job_param_runtime_value_can_render_inline_function_today(self):
     pipeline = models.Pipeline.create(name='pipeline1')
     job = models.Job.create(name='job1', pipeline_id=pipeline.id)
@@ -203,7 +221,7 @@ class TestParamRuntimeValues(controller_utils.ModelTestCase):
     param.populate_runtime_value(context={'foo': 'bar'})
     self.assertEqual(param.runtime_value, '2022 05 15')
 
-  @freezegun.freeze_time('2022-05-15T00:00:00')
+  @freeze_time('2022-05-15T00:00:00')
   def test_job_param_runtime_value_can_render_inline_function_days_ago(self):
     pipeline = models.Pipeline.create(name='pipeline1')
     job = models.Job.create(name='job1', pipeline_id=pipeline.id)
@@ -380,6 +398,226 @@ class TestTaskEnqueued(controller_utils.ModelTestCase):
     models.TaskEnqueued.create(task_namespace='xyz')
     models.TaskEnqueued.create(task_namespace='abc')
     self.assertEqual(models.TaskEnqueued.count_in_namespace('xyz'), 1)
+
+
+class TestMlModel(controller_utils.ModelTestCase):
+
+  def setUp(self):
+    setup = super().setUp()
+    self.ml_model = models.MlModel.create(
+        name='Test Model', type='LOGISTIC_REG', unique_id='CLIENT_ID'
+    )
+    return setup
+
+  def test_ml_model_create(self):
+    self.assertLen(models.MlModel.all(), 1)
+    self.assertAttributesSaved(
+        {'name': 'Test Model', 'type': 'LOGISTIC_REG', 'unique_id': 'CLIENT_ID'}
+    )
+
+  def test_assign_attributes(self):
+    attributes = {
+        'name': 'Attribute Assigned',
+        'type': 'BOOSTED_TREE_REGRESSOR',
+        'unique_id': 'USER_ID',
+        'uses_first_party_data': True,
+        'class_imbalance': 7,
+    }
+    self.ml_model.assign_attributes(attributes)
+    self.assertAttributesSaved(attributes)
+
+  @parameterized.named_parameters(
+      ('create', {'name': 'CR-NAME', 'location': 'CR-LOC'}),
+      ('update', {'name': 'UP-NAME', 'location': 'UP-LOC'}),
+  )
+  def test_save_relations_bigquery_dataset(self, dataset):
+    self.assertIsNone(self.ml_model.bigquery_dataset)
+    self.ml_model.save_relations({'bigquery_dataset': dataset})
+    self.assertRelationSaved(models.MlModelBigQueryDataset, dataset)
+
+  @parameterized.named_parameters(
+      ('create', [{'name': 'click', 'source': 'FIRST_PARTY'}]),
+      (
+          'update',
+          [
+              {'name': 'click', 'source': 'GOOGLE_ANALYTICS'},
+              {'name': 'subscribe', 'source': 'FIRST_PARTY'},
+          ],
+      ),
+      ('delete', []),
+  )
+  def test_save_relations_features(self, features):
+    self.assertLen(self.ml_model.features, 0)
+    self.ml_model.save_relations({'features': features})
+    self.assertRelationSaved(models.MlModelFeature, features)
+
+  @parameterized.named_parameters(
+      (
+          'create',
+          {
+              'name': 'CR-NAME',
+              'source': 'FIRST_PARTY',
+              'key': 'CR-KEY',
+              'value_type': 'CR-VT',
+              'average_value': 1234,
+          },
+      ),
+      (
+          'update',
+          {
+              'name': 'UP-NAME',
+              'source': 'GOOGLE_ANALYTICS',
+              'key': 'UP-KEY',
+              'value_type': 'UP-VT',
+          },
+      ),
+  )
+  def test_save_relations_label(self, label):
+    self.assertIsNone(self.ml_model.label)
+    self.ml_model.save_relations({'label': label})
+    self.assertRelationSaved(models.MlModelLabel, label)
+
+  @parameterized.named_parameters(
+      ('create', [{'name': 'L1_REG', 'value': '1'}]),
+      (
+          'update',
+          [{'name': 'L1_REG', 'value': '2'}, {'name': 'L2_REG', 'value': '1'}],
+      ),
+      ('delete', []),
+  )
+  def test_save_relations_hyper_parameters(self, hyper_parameters):
+    self.assertLen(self.ml_model.hyper_parameters, 0)
+    self.ml_model.save_relations({'hyper_parameters': hyper_parameters})
+    self.assertRelationSaved(models.MlModelHyperParameter, hyper_parameters)
+
+  @parameterized.named_parameters(
+      ('create', [{'name': 'training', 'value': 11, 'unit': 'month'}]),
+      (
+          'update',
+          [
+              {'name': 'training', 'value': 1, 'unit': 'year'},
+              {'name': 'predictive', 'value': 1, 'unit': 'month'},
+          ],
+      ),
+      ('delete', []),
+  )
+  def test_save_relations_pipelines(self, expected_objects):
+    self.assertLen(self.ml_model.pipelines, 0)
+
+    self.ml_model.save_relations(
+        {
+            'pipelines': [{
+                'name': 'Test Model - Training Pipeline',
+                'params': [],
+                'jobs': [{
+                    'id': 'de5cf393-24b6-4fbd-8cd3-3563d47aeace',
+                    'name': 'Test Model - Training Job',
+                    'worker_class': 'BQScriptExecutor',
+                    'hash_start_conditions': [],
+                    'params': [
+                        {'type': 'sql', 'name': 'script', 'value': ''},
+                        {
+                            'type': 'string',
+                            'name': 'bq_dataset_location',
+                            'value': 'US',
+                        },
+                    ],
+                }],
+                'schedules': [{'cron': '0 0 21 */3 0'}],
+            }]
+        }
+    )
+
+    pipeline = models.Pipeline.where(ml_model_id=self.ml_model.id).first()
+    self.assertIsNotNone(pipeline)
+
+    pipeline = models.Pipeline.where(ml_model_id=self.ml_model.id).first()
+    self.assertIsNotNone(pipeline)
+    self.assertEqual(pipeline.name, 'Test Model - Training Pipeline')
+    self.assertLen(pipeline.jobs, 1)
+    self.assertLen(pipeline.jobs[0].params, 2)
+    self.assertLen(pipeline.schedules, 1)
+
+  def test_destroy_removes_all_relations(self):
+    self.ml_model.save_relations({
+        'bigquery_dataset': {'name': 'CR-NAME', 'location': 'CR-LOC'},
+        'hyper_parameters': [{'name': 'L1_REG', 'value': '1'}],
+        'features': [
+            {'name': 'click', 'source': 'GOOGLE_ANALYTICS'},
+            {'name': 'subscribe', 'source': 'FIRST_PARTY'},
+        ],
+        'label': {
+            'name': 'CR-NAME',
+            'source': 'FIRST_PARTY',
+            'key': 'CR-KEY',
+            'value_type': 'CR-VT',
+        },
+        'pipelines': [{
+            'name': 'Test Model - Training Pipeline',
+            'params': [],
+            'jobs': [{
+                'id': 'de5cf393-24b6-4fbd-8cd3-3563d47aeace',
+                'name': 'Test Model - Training Job',
+                'worker_class': 'BQScriptExecutor',
+                'hash_start_conditions': [],
+                'params': [
+                    {'type': 'sql', 'name': 'script', 'value': ''},
+                    {
+                        'type': 'string',
+                        'name': 'bq_dataset_location',
+                        'value': 'US',
+                    },
+                ],
+            }],
+            'schedules': [{'cron': '0 0 21 */3 0'}],
+        }],
+    })
+
+    model_id = self.ml_model.id
+
+    self.ml_model.destroy()
+
+    self.assertIsNone(
+        models.MlModelBigQueryDataset.where(ml_model_id=model_id).first()
+    )
+    self.assertIsNone(
+        models.MlModelHyperParameter.where(ml_model_id=model_id).first()
+    )
+    self.assertIsNone(models.MlModelFeature.where(ml_model_id=model_id).first())
+    self.assertIsNone(models.MlModelLabel.where(ml_model_id=model_id).first())
+    self.assertIsNone(models.Pipeline.where(ml_model_id=model_id).first())
+
+  def assertAttributesSaved(self, assertions: dict[str, Any]):
+    """Custom assertion that checks the MlModel.
+
+    Using find and ensures the assertions provided match what's saved.
+
+    Args:
+      assertions: Dictionary of assertions to validate
+    """
+    row = models.MlModel.find(self.ml_model.id)
+    for key, value in assertions.items():
+      self.assertEqual(getattr(row, key), value)
+
+  def assertRelationSaved(
+      self,
+      model: extensions.db.Model,
+      assertions: Union[dict[str, Any], list[Any]],
+  ):
+    """Custom assertion that checks the saved model matches expectations."""
+    if isinstance(assertions, dict):
+      row = model.where(ml_model_id=self.ml_model.id).first()
+      for key, value in assertions.items():
+        self.assertEqual(getattr(row, key), value)
+    elif isinstance(assertions, list):
+      rows = model.where(ml_model_id=self.ml_model.id).all()
+      self.assertLen(rows, len(assertions))
+      if rows:
+        assertions.sort(key=lambda c: c['name'])
+        rows.sort(key=lambda c: c.name)
+        for index, assertion in enumerate(assertions):
+          row_dict = rows[index].__dict__
+          self.assertDictEqual(row_dict, row_dict | assertion)
 
 
 if __name__ == '__main__':

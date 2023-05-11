@@ -18,6 +18,7 @@ import * as moment from 'moment';
 
 import { Schedule } from './schedule';
 import { Param } from './param';
+import { Job } from './job';
 
 export class Pipeline {
   id: number;
@@ -26,6 +27,7 @@ export class Pipeline {
   updated_at: string;
   run_on_schedule: boolean;
   sid: string;
+  jobs: Job[];
   has_jobs: boolean;
 
   @Type(() => Schedule)
@@ -37,6 +39,7 @@ export class Pipeline {
   blocked_running(): boolean {
     return this.run_on_schedule;
   }
+
   blocked_stopping(): boolean {
     return this.status === 'stopping';
   }

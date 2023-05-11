@@ -27,11 +27,12 @@ import { DashboardComponent } from './dashboard/dashboard.component';
 import { SettingsComponent } from './settings/settings.component';
 import { PipelinesModule } from './pipelines/pipelines.module';
 import { PipelinesRoutingModule } from './pipelines/pipelines-routing.module';
+import { MlModelsModule } from './ml-models/ml-models.module';
+import { MlModelsRoutingModule } from './ml-models/ml-models-routing.module';
 import { JobsModule } from './jobs/jobs.module';
 import { JobsRoutingModule } from './jobs/jobs-routing.module';
 import { NavBarComponent } from './nav-bar/nav-bar.component';
 import { TopBarComponent } from './top-bar/top-bar.component';
-import { LabelcasePipe } from './pipes/labelcase.pipe';
 import { StagesService } from './dashboard/shared/stages.service';
 import { DashboardPipelinesComponent } from 'app/dashboard/dashboard-pipelines/dashboard-pipelines.component';
 
@@ -43,8 +44,7 @@ import { DashboardPipelinesComponent } from 'app/dashboard/dashboard-pipelines/d
     SettingsComponent,
     NavBarComponent,
     TopBarComponent,
-    StagesComponent,
-    LabelcasePipe,
+    StagesComponent
   ],
   imports: [
     BrowserModule,
@@ -53,6 +53,8 @@ import { DashboardPipelinesComponent } from 'app/dashboard/dashboard-pipelines/d
     HttpClientModule,
     PipelinesModule,
     PipelinesRoutingModule,
+    MlModelsModule,
+    MlModelsRoutingModule,
     JobsModule,
     JobsRoutingModule,
     AppRoutingModule,
