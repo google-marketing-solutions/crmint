@@ -13,16 +13,17 @@
 # limitations under the License.
 
 """Workers to upload offline conversions to Google Ads."""
-from typing import Any
+from typing import List
 
 from google.ads.googleads import client
 from google.api_core import page_iterator
 
-from jobs.workers.bigquery import bq_batch_worker
+from jobs.workers.bigquery import bq_batch_worker, bq_worker
 
 
+CONVERSION_UPLOAD_JSON_TEMPLATE = 'template'
+CONVERSIONS_CUSTOMER_ID = 'customer_id'
 DEVELOPER_TOKEN = 'google_ads_developer_token'
-CONVERSIONS_BQ_TABLE = 'google_ads_bigquery_conversions_table'
 SERVICE_ACCOUNT_FILE = 'google_ads_service_account_file'
 REFRESH_TOKEN = 'google_ads_refresh_token'
 CLIENT_ID = 'client_id'
@@ -39,7 +40,31 @@ class AdsOfflineClickConversionUploader(bq_batch_worker.BQBatchDataWorker):
   """
 
   PARAMS = [
-    (CONVERSIONS_BQ_TABLE, 'string', True, '', 'Bigquery conversions table'),
+    (bq_worker.BQ_PROJECT_ID_PARAM_NAME,
+     'string',
+     True,
+     '',
+     'GCP Project ID where the BQ conversions table lives.'),
+    (bq_worker.BQ_DATASET_NAME_PARAM_NAME,
+     'string',
+     True,
+     '',
+     'Dataset name where the BQ conversions table lives.'),
+    (bq_worker.BQ_TABLE_NAME_PARAM_NAME,
+     'string',
+     True,
+     '',
+     'Table name where the BQ conversion data lives.'),
+    (CONVERSION_UPLOAD_JSON_TEMPLATE,
+     'string',
+     True,
+     '',
+     'JSON template of a conversion upload request.'),
+    (CONVERSIONS_CUSTOMER_ID,
+     'string',
+     True,
+     '',
+     'Customer ID of the account the conversions will be uploaded for.'),
   ]
 
   GLOBAL_SETTINGS = [
@@ -51,37 +76,60 @@ class AdsOfflineClickConversionUploader(bq_batch_worker.BQBatchDataWorker):
   ]
 
   def _validate_params(self) -> None:
-    if not self._params.get(DEVELOPER_TOKEN, None):
-      raise ValueError('"google_ads_developer_token" is required and was not provided.')
+    err_messages = []
 
-    if not self._params.get(CONVERSIONS_BQ_TABLE, None):
-      raise ValueError('"google_ads_bigquery_conversions_table" is required and was not provided.')
+    err_messages += self._validate_bq_params()
+    err_messages += self._validate_ads_client_params()
+
+    if err_messages:
+      raise ValueError('The following param validation errors occurred:\n' +
+                       '\n'.join(err_messages))
+
+  def _validate_bq_params(self) -> List[str]:
+    err_messages = []
+
+    if not self._params.get(bq_worker.BQ_PROJECT_ID_PARAM_NAME, None):
+      err_messages.append(
+        '"'+bq_worker.BQ_PROJECT_ID_PARAM_NAME+'" is required.')
+
+    if not self._params.get(bq_worker.BQ_DATASET_NAME_PARAM_NAME, None):
+      err_messages.append(
+        '"'+bq_worker.BQ_DATASET_NAME_PARAM_NAME+'" is required.')
+
+    if not self._params.get(bq_worker.BQ_TABLE_NAME_PARAM_NAME, None):
+      err_messages.append(
+        '"'+bq_worker.BQ_TABLE_NAME_PARAM_NAME+'" is required.')
+
+    return err_messages
+
+  def _validate_ads_client_params(self) -> List[str]:
+    err_messages = []
+    is_service_account = SERVICE_ACCOUNT_FILE in self._params
 
     if not self._params.get(SERVICE_ACCOUNT_FILE, None) and not self._params.get(REFRESH_TOKEN, None):
-      raise ValueError('Provide either "google_ads_service_account_file"'
-                       ' or "google_ads_refresh_token".')
-    self._validate_ads_client_params()
+      err_messages.append(
+        'Either "'+SERVICE_ACCOUNT_FILE+'" or "'+REFRESH_TOKEN+'" are required')
 
-  def _validate_ads_client_params(self):
-    # If a service account file is provided, that's all we need for the service
-    # OAuth server account flow.
-    if self._params.get(SERVICE_ACCOUNT_FILE, None):
-      return
+    if not self._params.get(CONVERSION_UPLOAD_JSON_TEMPLATE, None):
+      err_messages.append('"'+CONVERSION_UPLOAD_JSON_TEMPLATE+'" is required.')
 
-    if not self._params.get(CLIENT_ID, None) :
-      raise ValueError('"client_id" is required if an OAuth '
-                       'refresh token is provided')
+    if not self._params.get(CONVERSIONS_CUSTOMER_ID, None):
+      err_messages.append('"'+CONVERSIONS_CUSTOMER_ID+'" is required.')
 
-    if not self._params.get(CLIENT_SECRET, None) :
-      raise ValueError('"client_secret" is required if an OAuth '
-                       'refresh token is provided')
+    if not self._params.get(DEVELOPER_TOKEN, None):
+      err_messages.append('"'+DEVELOPER_TOKEN+'" is required.')
+
+    if not is_service_account and not self._params.get(CLIENT_ID, None) :
+      err_messages.append('"'+CLIENT_ID+'" is required.')
+
+    if not is_service_account and not self._params.get(CLIENT_SECRET, None):
+      err_messages.append('"'+CLIENT_SECRET+'" is required.')
+
+    return err_messages
 
   def _execute(self) -> None:
     """Begin the processing and upload of offline click conversions."""
     self._validate_params()
-    self._params[bq_batch_worker.BQ_TABLE_TO_PROCESS_PARAM] = \
-      self._params[CONVERSIONS_BQ_TABLE]
-
     super()._execute()
 
   def _get_sub_worker_name(self) -> str:

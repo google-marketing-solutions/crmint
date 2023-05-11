@@ -37,39 +37,41 @@ class BQBatchDataWorkerTest(parameterized.TestCase):
       mock.patch.object(bigquery, 'Client', autospec=True))
     self.patched_bq_client_init.return_value = self.mock_bq_client
 
-  def test_fails_execution_if_bq_table_to_process_is_missing(self):
-    """Batch worker fails if a BQ table to process param is missing."""
-    params = {}
-    worker = MockImplBatchWorker(params, 0, 0)
-    with self.assertRaises(ValueError) as ctx:
-      worker._execute()
-
-    self.assertEqual('Param \'bq_table_to_process\' needs to be set for '
-                     'batch processing.', str(ctx.exception))
-
   def test_loads_data_from_table_provided_in_params(self):
     """Batch worker loads data from the provided BQ table"""
-    params = {'bq_table_to_process': 'bq_table_name'}
+    params = {
+      'bq_project_id': 'a_project',
+      'bq_dataset_id': 'a_dataset_id',
+      'bq_table_id': 'a_table_id'
+    }
     worker = MockImplBatchWorker(params, 0, 0)
     worker._execute()
 
-    self.mock_bq_client.get_table.assert_called_with('bq_table_name')
+    self.mock_bq_client.get_table.assert_called_with(
+      'a_project.a_dataset_id.a_table_id'
+    )
 
   def test_loads_table_with_provided_table_name_in_params(self):
     """Batch workers loads the table using the provided name in the params."""
     params = {
-      'bq_table_to_process': 'bq_table_name',
+      'bq_project_id': 'a_project',
+      'bq_dataset_id': 'a_dataset_id',
+      'bq_table_id': 'a_table_id',
       'bq_page_token': 'a_token'
     }
     worker = MockImplBatchWorker(params, 0, 0)
     worker._execute()
 
-    self.mock_bq_client.get_table.assert_called_with('bq_table_name')
+    self.mock_bq_client.get_table.assert_called_with(
+      'a_project.a_dataset_id.a_table_id'
+    )
 
   def test_loads_data_with_page_token_provided_in_params(self):
     """Batch worker loads data using the provided page token."""
     params = {
-      'bq_table_to_process': 'bq_table_name',
+      'bq_project_id': 'a_project',
+      'bq_dataset_id': 'a_dataset_id',
+      'bq_table_id': 'a_table_id',
       'bq_page_token': 'a_token'
     }
     worker = MockImplBatchWorker(params, 0, 0)
@@ -85,7 +87,9 @@ class BQBatchDataWorkerTest(parameterized.TestCase):
   def test_enqueues_sub_worker_for_every_page_of_results(self, mocked_enqueue):
     """Batch worker enqueues a sub_worker for every page of results."""
     params = {
-      'bq_table_to_process': 'bq_table_name',
+      'bq_project_id': 'a_project',
+      'bq_dataset_id': 'a_dataset_id',
+      'bq_table_id': 'a_table_id',
       'bq_page_token': 'a_token'
     }
     self.mock_row_iterator.next_page_token = 'next_token'
@@ -95,12 +99,16 @@ class BQBatchDataWorkerTest(parameterized.TestCase):
     worker._execute()
 
     expected_params_first_page = {
-      'bq_table_to_process': 'bq_table_name',
+      'bq_project_id': 'a_project',
+      'bq_dataset_id': 'a_dataset_id',
+      'bq_table_id': 'a_table_id',
       'bq_page_token': 'a_token',
       'bq_batch_size': 1000
     }
     expected_params_second_page = {
-      'bq_table_to_process': 'bq_table_name',
+      'bq_project_id': 'a_project',
+      'bq_dataset_id': 'a_dataset_id',
+      'bq_table_id': 'a_table_id',
       'bq_page_token': 'next_token',
       'bq_batch_size': 1000
     }
@@ -119,7 +127,9 @@ class BQBatchDataWorkerTest(parameterized.TestCase):
     enqueued.
     """
     params = {
-      'bq_table_to_process': 'bq_table_name',
+      'bq_project_id': 'a_project',
+      'bq_dataset_id': 'a_dataset_id',
+      'bq_table_id': 'a_table_id',
       'bq_page_token': 'a_token'
     }
     self.mock_row_iterator.next_page_token = 'next_token'
@@ -138,12 +148,16 @@ class BQBatchDataWorkerTest(parameterized.TestCase):
       worker._execute()
 
     expected_params_sub_worker = {
-      'bq_table_to_process': 'bq_table_name',
+      'bq_project_id': 'a_project',
+      'bq_dataset_id': 'a_dataset_id',
+      'bq_table_id': 'a_table_id',
       'bq_page_token': 'a_token',
       'bq_batch_size': 1000
     }
     expected_params_new_parent_worker = {
-      'bq_table_to_process': 'bq_table_name',
+      'bq_project_id': 'a_project',
+      'bq_dataset_id': 'a_dataset_id',
+      'bq_table_id': 'a_table_id',
       'bq_page_token': 'next_token',
     }
 
@@ -183,30 +197,25 @@ class TablePageResultsProcessorWorkerTests(parameterized.TestCase):
     self.patched_bq_client_init.return_value = self.mock_bq_client
 
   @parameterized.parameters(
-    {'page_token_value': 'a_token',
-     'bq_table_value': '',
-     'batch_size_value': 100,
-     'expected_err': 'Param \'bq_table_to_process\' needs to be set for batch processing.',},
     {'page_token_value': '',
-     'bq_table_value': 'bq.table.name',
      'batch_size_value': 100,
      'expected_err': 'Param \'bq_page_token\' needs to be set for batch processing.',},
     {'page_token_value': 'a_token',
-     'bq_table_value': 'bq.table.name',
      'batch_size_value': None,
      'expected_err': 'Param \'bq_batch_size\' needs to be set for batch processing.',},
   )
   def test_fails_execution_if_required_parameters_are_missing(
     self,
     page_token_value,
-    bq_table_value,
     batch_size_value,
     expected_err
   ):
     """Results processor fails if the BQ table to process param is missing."""
     params = {
+      'bq_project_id': 'a_project',
+      'bq_dataset_id': 'a_dataset_id',
+      'bq_table_id': 'a_table_id',
       'bq_page_token': page_token_value,
-      'bq_table_to_process': bq_table_value,
       'bq_batch_size': batch_size_value
     }
     worker = MockImplTablePageResultsProcessorWorker(params, 0, 0)
@@ -219,19 +228,25 @@ class TablePageResultsProcessorWorkerTests(parameterized.TestCase):
     """Batch worker loads data from the provided BQ table"""
     params = {
       'bq_page_token': 'a_token',
-      'bq_table_to_process': 'bq_table_name',
+      'bq_project_id': 'a_project',
+      'bq_dataset_id': 'a_dataset_id',
+      'bq_table_id': 'a_table_id',
       'bq_batch_size': 10
     }
     worker = MockImplTablePageResultsProcessorWorker(params, 0, 0)
     worker._execute()
 
-    self.mock_bq_client.get_table.assert_called_with('bq_table_name')
+    self.mock_bq_client.get_table.assert_called_with(
+      'a_project.a_dataset_id.a_table_id'
+    )
 
   def test_loads_data_with_values_provided_in_params(self):
     """Batch worker loads data using the provided page token."""
     params = {
       'bq_page_token': 'a_token',
-      'bq_table_to_process': 'bq_table_name',
+      'bq_project_id': 'a_project',
+      'bq_dataset_id': 'a_dataset_id',
+      'bq_table_id': 'a_table_id',
       'bq_batch_size': 10
     }
     worker = MockImplTablePageResultsProcessorWorker(params, 0, 0)
@@ -246,7 +261,9 @@ class TablePageResultsProcessorWorkerTests(parameterized.TestCase):
   def test_calls_process_page_results(self):
     params = {
       'bq_page_token': 'a_token',
-      'bq_table_to_process': 'bq_table_name',
+      'bq_project_id': 'a_project',
+      'bq_dataset_id': 'a_dataset_id',
+      'bq_table_id': 'a_table_id',
       'bq_batch_size': 10
     }
     worker = MockImplTablePageResultsProcessorWorker(params, 0, 0)

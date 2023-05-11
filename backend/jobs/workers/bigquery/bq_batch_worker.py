@@ -62,13 +62,10 @@ class BQBatchDataWorker(bq_worker.BQWorker, abc.ABC):
   MAX_ENQUEUED_JOBS_PER_COORDINATOR = 50
 
   def _execute(self) -> None:
-    table_name_to_process = self._params.get(BQ_TABLE_TO_PROCESS_PARAM, None)
-    if not table_name_to_process:
-      raise ValueError('Param \'' + BQ_TABLE_TO_PROCESS_PARAM +
-                       '\' needs to be set for batch processing.')
-
+    table_name_to_process = self._generate_qualified_bq_table_name()
     page_token = self._params.get(BQ_PAGE_TOKEN_PARAM, None)
     client = self._get_client()
+
     row_iterator = client.list_rows(
       table=client.get_table(table_name_to_process),
       page_token=page_token,
@@ -121,24 +118,19 @@ class TablePageResultsProcessorWorker(bq_worker.BQWorker, abc.ABC):
       raise ValueError('Param \'' + BQ_PAGE_TOKEN_PARAM + '\' needs to be set'
                        ' for batch processing.')
 
-    table_name_to_process = self._params.get(BQ_TABLE_TO_PROCESS_PARAM, None)
-    if not table_name_to_process:
-      raise ValueError('Param \'' + BQ_TABLE_TO_PROCESS_PARAM +
-                       '\' needs to be set for batch processing.')
-
     batch_size = self._params.get(BQ_BATCH_SIZE_PARAM, None)
     if not batch_size:
       raise ValueError('Param \'' + BQ_BATCH_SIZE_PARAM + '\' needs to be set'
                        ' for batch processing.')
 
-    return table_name_to_process, page_token, batch_size
+    return page_token, batch_size
 
   def _execute(self) -> None:
     """Process the chunk of BQ data."""
-    (table_name_to_process, page_token, batch_size) = self._extract_parameters()
+    (page_token, batch_size) = self._extract_parameters()
 
     client = self._get_client()
-    table = client.get_table(table_name_to_process)
+    table = client.get_table(self._generate_qualified_bq_table_name())
 
     row_iterator = client.list_rows(
       table=table,
