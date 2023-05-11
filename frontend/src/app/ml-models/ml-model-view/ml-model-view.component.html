@@ -1,0 +1,103 @@
+<mat-card>
+  <div [ngSwitch]="state">
+    <!-- LOADING -->
+    <ng-template ngSwitchCase="loading">
+      <div class="crmi-loading-block">
+        <mat-progress-spinner
+          strokeWidth="10"
+          style="width:100px;height:100px;"
+          mode="indeterminate">
+        </mat-progress-spinner>
+        Loading Machine Learning Model Configuration...
+      </div>
+    </ng-template>
+    <!-- LOADED -->
+    <ng-template ngSwitchCase="loaded">
+      <mat-card-title>
+        {{ mlModel.name }}
+        <div class="crmi-card-title-buttons">
+          <button mat-raised-button color="warn" [routerLink]="['/ml-models', mlModel.id, 'edit']">
+            <mat-icon>edit</mat-icon>
+            Edit Model
+          </button>
+        </div>
+      </mat-card-title>
+
+      <mat-tab-group dynamicHeight disableRipple (selectedTabChange)="setTab($event.index)" class="crmi-card-tabs">
+        <mat-tab *ngFor="let pipeline of mlModel.pipelines">
+          <ng-template mat-tab-label>{{ pipeline.name.split(' - ').pop() }}</ng-template>
+          <div class="crmi-card-list">
+            <div class="crmi-card-list-header">
+              <div class="crmi-card-list-item">
+                <div class="crmi-card-list-item-col">Pipeline</div>
+              </div>
+            </div>
+            <div class="crmi-card-list-item">
+              <div class="crmi-card-list-item-col crmi-card-list-item-col-center">
+                <a class="crmi-card-list-item-name" [routerLink]="['/pipelines', pipeline.id]">
+                  <mat-icon>pageview</mat-icon>
+                  {{pipeline.name}}
+                </a>
+              </div>
+              <div class="crmi-card-list-item-col crmi-card-list-item-col-2 crmi-card-list-item-col-center">
+                <app-status [status]="pipeline.status"></app-status>
+              </div>
+            </div>
+          </div>
+          <div *ngIf="extract(pipeline, 'Setup', 'script'); let sql" class="crmi-card-list">
+            <div class="crmi-card-list-header">
+              <div class="crmi-card-list-item">
+                <div class="crmi-card-list-item-col">Setup - BQML SQL</div>
+              </div>
+            </div>
+            <div class="crmi-card-list-item">
+              <div class="crmi-card-list-item-col">
+                <pre>{{ sql }}</pre>
+              </div>
+            </div>
+          </div>
+          <div *ngIf="extract(pipeline, 'Calculations', 'script'); let sql" class="crmi-card-list">
+            <div class="crmi-card-list-header">
+              <div class="crmi-card-list-item">
+                <div class="crmi-card-list-item-col">Calculations - BQML SQL</div>
+              </div>
+            </div>
+            <div class="crmi-card-list-item">
+              <div class="crmi-card-list-item-col">
+                <pre>{{ sql }}</pre>
+              </div>
+            </div>
+          </div>
+          <div *ngIf="extract(pipeline, 'Output', 'script'); let sql" class="crmi-card-list">
+            <div class="crmi-card-list-header">
+              <div class="crmi-card-list-item">
+                <div class="crmi-card-list-item-col">Output - BQML SQL</div>
+              </div>
+            </div>
+            <div class="crmi-card-list-item">
+              <div class="crmi-card-list-item-col">
+                <pre>{{ sql }}</pre>
+              </div>
+            </div>
+          </div>
+          <div *ngIf="extract(pipeline, 'Upload', 'template'); let sql" class="crmi-card-list">
+            <div class="crmi-card-list-header">
+              <div class="crmi-card-list-item">
+                <div class="crmi-card-list-item-col">Upload - API Request Template</div>
+              </div>
+            </div>
+            <div class="crmi-card-list-item">
+              <div class="crmi-card-list-item-col">
+                <pre>{{ sql }}</pre>
+              </div>
+            </div>
+          </div>
+        </mat-tab>
+      </mat-tab-group>
+    </ng-template>
+    <!-- ERROR -->
+    <ng-template ngSwitchCase="error">
+      <div class="crmi-error-block">There was an error when loading data.</div>
+    </ng-template>
+  </div>
+</mat-card>

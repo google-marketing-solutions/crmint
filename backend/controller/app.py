@@ -21,6 +21,7 @@ from flask import Flask
 
 from controller import extensions
 from controller import job
+from controller import ml_model
 from controller import pipeline
 from controller import result
 from controller import stage
@@ -60,6 +61,7 @@ def register_extensions(app):
 def register_blueprints(app):
   """Register Flask blueprints."""
   app.register_blueprint(views.blueprint, url_prefix='/api')
+  app.register_blueprint(ml_model.views.blueprint, url_prefix='/api')
   app.register_blueprint(pipeline.views.blueprint, url_prefix='/api')
   app.register_blueprint(job.views.blueprint, url_prefix='/api')
   app.register_blueprint(stage.views.blueprint, url_prefix='/api')

@@ -1,0 +1,241 @@
+<mat-card>
+  <mat-card-title>{{ title }}</mat-card-title>
+  <div class="crmi-card-title-separator"></div>
+
+  <div [ngSwitch]="state">
+    <!-- LOADING -->
+    <ng-template ngSwitchCase="loading">
+      <div class="crmi-loading-block">
+        <mat-progress-spinner
+          strokeWidth="10"
+          style="width:100px;height:100px;"
+          mode="indeterminate">
+        </mat-progress-spinner>
+        Loading data...
+      </div>
+    </ng-template>
+    <!-- LOADED -->
+    <ng-template ngSwitchCase="loaded">
+      <form [formGroup]="mlModelForm" class="crmi-form" novalidate (ngSubmit)="save()" autocomplete="off">
+        <div class="crmi-form-group">
+          <label class="crmi-form-label">Name</label>
+          <mat-form-field>
+            <input matInput placeholder="Name" formControlName="name">
+          </mat-form-field>
+        </div>
+
+        <div class="crmi-form-group" formGroupName="bigQueryDataset">
+          <label class="crmi-form-label">BigQuery Dataset</label>
+          <mat-form-field>
+            <input matInput placeholder="Dataset Name" formControlName="name" name="dataset-name">
+          </mat-form-field>
+          <mat-form-field>
+            <input matInput placeholder="Dataset Location" formControlName="location" name="dataset-loc">
+          </mat-form-field>
+        </div>
+
+        <div class="crmi-form-group">
+          <label class="crmi-form-label">Data Source</label>
+          <mat-select formControlName="usesFirstPartyData"
+                      placeholder="Source"
+                      (selectionChange)="refreshLabel(); refreshFeatures()">
+            <mat-option [value]="false">Google Analytics 4</mat-option>
+            <mat-option [value]="true">Google Analytics 4 <strong>and</strong> First-Party Data</mat-option>
+          </mat-select>
+        </div>
+
+        <div class="crmi-form-group">
+          <label class="crmi-form-label">User Identifier</label>
+          <mat-select placeholder="Unique ID" formControlName="uniqueId">
+            <mat-option *ngFor="let uniqueId of uniqueIds" [value]="uniqueId">{{ uniqueId | labelcase }}</mat-option>
+          </mat-select>
+        </div>
+
+        <div class="crmi-form-group">
+          <label class="crmi-form-label">Type</label>
+          <mat-select #select placeholder="Type" formControlName="type"
+                      (selectionChange)="updateHyperParameters(select.value)">
+            <mat-option *ngFor="let type of types" [value]="type">{{ type | labelcase }}</mat-option>
+          </mat-select>
+        </div>
+
+        <div formArrayName="hyperParameters" class="crmi-form-group">
+          <label class="crmi-form-label">Hyper-Parameters</label>
+          <div id="hyper-parameters" class="vertical-group">
+            <div *ngFor="let param of hyperParameters.controls; index as i" [formGroupName]="i">
+              <mat-checkbox formControlName="toggled"></mat-checkbox>
+              <span *ngIf="value(param, 'options'); let options" class="select-group">
+                <span class="label">{{ value(param, 'name') }}</span>
+                <mat-select formControlName="value" [placeholder]="value(param, 'name')">
+                  <mat-option *ngFor="let option of options" [value]="option">
+                    {{ option.toString().toUpperCase() }}
+                  </mat-option>
+                </mat-select>
+              </span>
+              <span *ngIf="value(param, 'range'); let range" class="slider-group">
+                <span class="label">{{ value(param, 'name') }}</span>
+                <mat-slider formControlName="value" [min]="range.min" [max]="range.max"
+                            [step]="range.step" [thumbLabel]="value(param, 'value')">
+                </mat-slider>
+                <span>{{ value(param, 'value') }}</span>
+              </span>
+              <mat-form-field *ngIf="!value(param, 'options') && !value(param, 'range')">
+                <input matInput [placeholder]="value(param, 'name')" formControlName="value">
+              </mat-form-field>
+            </div>
+            <div *ngIf="hyperParameters.controls.length === 0" class="notice">
+              Must first select a <strong>Type</strong> to see available Hyper-Parameters.
+            </div>
+          </div>
+        </div>
+
+        <div *ngIf="variables.length" formArrayName="features" id="features" class="crmi-form-group">
+          <label class="crmi-form-label">Features</label>
+          <div>
+            <table *ngIf="analyticsVariables.length">
+              <thead>
+                <tr>
+                  <th colspan="2">Google Analytics</th>
+                </tr>
+                <tr>
+                  <th></th>
+                  <th>Name</th>
+                  <th>Count</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let variable of analyticsVariables; index as i">
+                  <td>
+                    <mat-checkbox #checkbox
+                                  [checked]="featureSelected(variable)"
+                                  (change)="toggleFeature(variable, checkbox.checked)">
+                    </mat-checkbox>
+                  </td>
+                  <td>{{ variable.name }}</td>
+                  <td>{{ variable.count }}</td>
+                </tr>
+              </tbody>
+            </table>
+            <table *ngIf="value('usesFirstPartyData') && firstPartyVariables.length">
+              <thead>
+                <tr>
+                  <th colspan="2">First Party</th>
+                </tr>
+                <tr>
+                  <th></th>
+                  <th>Name</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let variable of firstPartyVariables; index as i">
+                  <td>
+                    <mat-checkbox #checkbox
+                                  [checked]="featureSelected(variable)"
+                                  (change)="toggleFeature(variable, checkbox.checked)">
+                    </mat-checkbox>
+                  </td>
+                  <td>{{ variable.name }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div *ngIf="variables.length" formGroupName="label" id='label' class="crmi-form-group">
+          <label class="crmi-form-label">Label</label>
+          <div class="vertical-group">
+            <span class="select-group">
+              <span class="label">Source *</span>
+              <mat-select formControlName="source" placeholder="Source"
+                          (selectionChange)="refreshLabel()">
+                <mat-option *ngFor="let source of sources" [value]="source">
+                  {{ source | labelcase }}
+                </mat-option>
+              </mat-select>
+            </span>
+            <span *ngIf="label && label.source" class="select-group">
+              <span class="label">Name *</span>
+              <mat-select formControlName="name" placeholder="Name"
+                          (selectionChange)="refreshLabel()">
+                <mat-option *ngFor="let label of labels" [value]="label.name">
+                  {{ label.name }}
+                </mat-option>
+              </mat-select>
+            </span>
+            <span *ngIf="label && label.parameters && !label.isFirstParty" class="select-group">
+              <span class="label">Key *</span>
+              <mat-select formControlName="key" placeholder="Key">
+                <mat-option *ngFor="let parameter of label.parameters" [value]="parameter.key">
+                  {{ parameter.key }}
+                </mat-option>
+              </mat-select>
+            </span>
+            <div *ngIf="label && label.name">
+              <div *ngIf="type.isClassification" class="input-group">
+                <mat-form-field>
+                  <input matInput placeholder="Average Conversion Value" formControlName="averageValue">
+                </mat-form-field>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div *ngIf="!variables.length" class="crmi-form-group">
+          <label class="crmi-form-label">Features/Label</label>
+          <div *ngIf="value('bigQueryDataset', 'name') && value('usesFirstPartyData') !== null" class="notice green">
+            Use above <strong>BigQuery Dataset</strong> and <strong>Data Source</strong> to fetch feature and label options.
+            <button mat-raised-button
+                    (click)="fetchVariables()"
+                    type="button"
+                    [disabled]="fetchingVariables"
+                    color="alternate">
+              Fetch
+            </button>
+          </div>
+          <div *ngIf="!value('bigQueryDataset', 'name') || value('usesFirstPartyData') === null" class="notice">
+            Must first enter a <strong>BigQuery Dataset</strong> and <strong>Data Source</strong> to see available Features/Labels.
+          </div>
+        </div>
+
+        <div class="crmi-form-group">
+          <label class="crmi-form-label">Class Imbalance Ratio</label>
+          <mat-slider formControlName="classImbalance" [min]="1" [max]="10" [step]="1" [thumbLabel]="value('classImbalance')"></mat-slider>
+          <span>1:{{ value('classImbalance') }}</span>
+        </div>
+
+        <div formArrayName="timespans" class="crmi-form-group">
+          <label class="crmi-form-label">Timespan</label>
+          <div id="timespans" class="vertical-group">
+            <div *ngFor="let timespan of timespans.controls; index as i" [formGroupName]="i">
+              <span *ngIf="value(timespan, 'range'); let range" class="slider-group">
+                <span class="label">{{ value(timespan, 'name').toUpperCase() }}</span>
+                <mat-slider formControlName="value" [min]="range.min" [max]="range.max"
+                            [step]="range.step" [thumbLabel]="value(timespan, 'value')">
+                </mat-slider>
+                <span>{{ value(timespan, 'value') }} {{ value(timespan, 'unit') | labelcase }}s</span>
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div class="crmi-form-offset">
+          <div class="crmi-form-message crmi-form-message-error">{{ errorMessage }}</div>
+          <button mat-raised-button
+                  type="submit"
+                  [disabled]="!mlModelForm.valid || submitting"
+                  color="primary">
+            {{ mlModel.id ? 'Save' : 'Create' }}
+          </button>
+          <button mat-raised-button
+                  (click)="cancel()"
+                  type="button">
+            Cancel
+          </button>
+        </div>
+      </form>
+    </ng-template>
+    <ng-template ngSwitchCase="error">
+      <div class="crmi-form-message crmi-form-message-error">{{ errorMessage }}</div>
+    </ng-template>
+  </div>
+</mat-card>

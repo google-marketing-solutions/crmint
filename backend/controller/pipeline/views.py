@@ -16,7 +16,6 @@
 
 import datetime
 import json
-import os
 import textwrap
 import time
 import uuid
@@ -37,8 +36,6 @@ from common import crmint_logging
 from common import insight
 from controller import models
 
-
-_PROJECT_ID = os.getenv('GOOGLE_CLOUD_PROJECT')
 _LOGS_PAGE_SIZE = 20
 
 blueprint = flask.Blueprint('pipeline', __name__)
@@ -53,7 +50,7 @@ parser.add_argument('params', type=list, location='json')
 schedule_fields = {
     'id': fields.Integer,
     'pipeline_id': fields.Integer,
-    'cron': fields.String,
+    'cron': fields.String
 }
 param_fields = {
     'id': fields.Integer,

@@ -1,0 +1,22 @@
+{
+  "clientId": "${client_id}",
+  {% if unique_id == 'user_id' %}
+  "userId": "${user_id}",
+  {% endif %}
+  "nonPersonalizedAds": false,
+  "events": [
+    {
+      "name": "${event_name}",
+      "params": {
+        "type": "${type}",
+        "value": "${value}",
+        {% if type.is_classification %}
+        "score": "${score}",
+        "nscore": "${normalized_score}"
+        {% elif type.is_regression %}
+        "revenue": "${revenue}"
+        {% endif %}
+      }
+    }
+  ]
+}

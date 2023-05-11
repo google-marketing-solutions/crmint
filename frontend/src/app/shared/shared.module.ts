@@ -18,10 +18,12 @@ import { MatDatepickerModule } from '@angular/material/datepicker';
 import { MatNativeDateModule } from '@angular/material/core';
 import { MatLegacyFormFieldModule as MatFormFieldModule } from '@angular/material/legacy-form-field';
 import { MatLegacyInputModule as MatInputModule } from '@angular/material/legacy-input';
+import { MatLegacyRadioModule as MatRadioModule } from '@angular/material/legacy-radio';
 import { MatLegacyProgressSpinnerModule as MatProgressSpinnerModule } from '@angular/material/legacy-progress-spinner';
 import { MatIconModule } from '@angular/material/icon';
 import { MatLegacyCardModule as MatCardModule } from '@angular/material/legacy-card';
 import { MatLegacySlideToggleModule as MatSlideToggleModule } from '@angular/material/legacy-slide-toggle';
+import { MatLegacySliderModule as MatSliderModule } from '@angular/material/legacy-slider';
 import { MatLegacySelectModule as MatSelectModule } from '@angular/material/legacy-select';
 import { MatToolbarModule } from '@angular/material/toolbar';
 import { MatLegacyTabsModule as MatTabsModule } from '@angular/material/legacy-tabs';
@@ -31,6 +33,7 @@ import { NgModule, CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
 import { CommonModule } from '@angular/common';
 
 import { StatusComponent } from './status/status.component';
+import { LabelcasePipe } from 'app/pipes/labelcase.pipe';
 
 @NgModule({
   imports: [
@@ -40,10 +43,12 @@ import { StatusComponent } from './status/status.component';
     MatNativeDateModule,
     MatFormFieldModule,
     MatInputModule,
+    MatRadioModule,
     MatProgressSpinnerModule,
     MatIconModule,
     MatCardModule,
     MatSlideToggleModule,
+    MatSliderModule,
     MatSelectModule,
     BrowserAnimationsModule,
     MatToolbarModule,
@@ -53,6 +58,7 @@ import { StatusComponent } from './status/status.component';
   ],
   declarations: [
     StatusComponent,
+    LabelcasePipe
   ],
   exports: [
     StatusComponent,
@@ -61,16 +67,19 @@ import { StatusComponent } from './status/status.component';
     MatNativeDateModule,
     MatFormFieldModule,
     MatInputModule,
+    MatRadioModule,
     MatProgressSpinnerModule,
     MatIconModule,
     MatCardModule,
     MatSlideToggleModule,
+    MatSliderModule,
     MatSelectModule,
     BrowserAnimationsModule,
     MatToolbarModule,
     MatTabsModule,
     MatCheckboxModule,
-    MatMenuModule
+    MatMenuModule,
+    LabelcasePipe
   ],
   schemas: [CUSTOM_ELEMENTS_SCHEMA]
 })

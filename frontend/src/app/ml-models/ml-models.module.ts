@@ -1,4 +1,4 @@
-// Copyright 2018 Google Inc
+// Copyright 2023 Google Inc
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -18,16 +18,10 @@ import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { ReactiveFormsModule, FormsModule } from '@angular/forms';
 
-import { PrettycronPipe } from 'app/pipes/prettycron.pipe';
-
-import { PipelinesComponent } from './pipelines.component';
-import { PipelineFormComponent } from './pipeline-form/pipeline-form.component';
-import { PipelinesService } from './shared/pipelines.service';
-import { PipelineViewComponent } from './pipeline-view/pipeline-view.component';
-import { PipelineParamsComponent } from './pipeline-form/pipeline-params/pipeline-params.component';
-import { PipelineJobsComponent } from './pipeline-jobs/pipeline-jobs.component';
-import { PipelineGraphComponent } from './pipeline-graph/pipeline-graph.component';
-import { PipelineLogsComponent } from './pipeline-logs/pipeline-logs.component';
+import { MlModelsComponent } from './ml-models.component';
+import { MlModelsService } from './shared/ml-models.service';
+import { MlModelFormComponent } from './ml-model-form/ml-model-form.component';
+import { MlModelViewComponent } from './ml-model-view/ml-model-view.component';
 
 @NgModule({
   imports: [
@@ -38,20 +32,15 @@ import { PipelineLogsComponent } from './pipeline-logs/pipeline-logs.component';
     RouterModule
   ],
   declarations: [
-    PipelinesComponent,
-    PipelineFormComponent,
-    PipelineViewComponent,
-    PipelineParamsComponent,
-    PrettycronPipe,
-    PipelineGraphComponent,
-    PipelineJobsComponent,
-    PipelineLogsComponent,
+    MlModelsComponent,
+    MlModelFormComponent,
+    MlModelViewComponent
 ],
   exports: [
-    PipelinesComponent
+    MlModelsComponent
   ],
   providers: [
-    PipelinesService
+    MlModelsService
   ]
 })
-export class PipelinesModule { }
+export class MlModelsModule { }

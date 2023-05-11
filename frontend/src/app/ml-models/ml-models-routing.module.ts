@@ -1,4 +1,4 @@
-// Copyright 2018 Google Inc
+// Copyright 2023 Google Inc
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,37 +15,33 @@
 import { NgModule } from '@angular/core';
 import { Routes, RouterModule } from '@angular/router';
 
-import { DashboardComponent } from './dashboard/dashboard.component';
-import { SettingsComponent } from './settings/settings.component';
-import { PipelinesComponent } from './pipelines/pipelines.component';
-import { MlModelsComponent } from './ml-models/ml-models.component';
+import { MlModelsComponent } from './ml-models.component';
+import { MlModelFormComponent } from './ml-model-form/ml-model-form.component';
+import { MlModelViewComponent } from './ml-model-view/ml-model-view.component';
 
 const routes: Routes = [
   {
     path: 'ml-models',
-    component: MlModelsComponent
-  },
-  {
-    path: 'dashboard',
-    component: DashboardComponent
-  },
-  {
-    path: 'settings',
-    component: SettingsComponent
-  },
-  {
-    path: '',
-    redirectTo: '/pipelines',
+    component: MlModelsComponent,
     pathMatch: 'full'
   },
   {
-    path: '**',
-    redirectTo: '/pipelines'
+    path: 'ml-models/new',
+    component: MlModelFormComponent
+  },
+  {
+    path: 'ml-models/:id/edit',
+    component: MlModelFormComponent
+  },
+  {
+    path: 'ml-models/:id',
+    component: MlModelViewComponent,
+    pathMatch: 'full'
   }
 ];
 
 @NgModule({
-  imports: [RouterModule.forRoot(routes, {})],
+  imports: [RouterModule.forChild(routes)],
   exports: [RouterModule]
 })
-export class AppRoutingModule { }
+export class MlModelsRoutingModule { };
