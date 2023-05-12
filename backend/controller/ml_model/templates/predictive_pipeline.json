@@ -50,7 +50,7 @@
         "preceding_job_id": "{{output_job_id}}",
         "condition": "success"
       }],
-      {% if destination == Destination.GOOGLE_ANALYTICS_CUSTOM_EVENT %}
+      {% if output_config.destination == Destination.GOOGLE_ANALYTICS_MP_EVENT %}
         "worker_class": "{{Worker.BQ_TO_MEASUREMENT_PROTOCOL_GA4}}",
         "params": [
           {
@@ -86,7 +86,7 @@
           {
             "name": "template",
             "type": "{{ParamType.TEXT}}",
-            "value": "{{compile_template(TemplateFile.GA4_REQUEST, Encoding.JSON)}}"
+            "value": "{{compile_template(TemplateFile.GOOGLE_ANALYTICS_MP_EVENT, Encoding.JSON)}}"
           },
           {
             "name": "mp_batch_size",
@@ -99,8 +99,8 @@
             "value": false
           }
         ]
-      {% elif destination == Destination.GOOGLE_ADS_CONVERSION_EVENT %}
-        "worker_class": "{{Worker.BQ_TO_GOOGLE_ADS}}",
+      {% elif output_config.destination == Destination.GOOGLE_ADS_OFFLINE_CONVERSION %}
+        "worker_class": "{{Worker.BQ_TO_GOOGLE_ADS_OFFLINE_CONVERSION}}",
         "params": [
           {
             "name": "bq_project_id",
@@ -123,9 +123,14 @@
             "value": "output"
           },
           {
+            "name": "customer_id",
+            "type": "{{ParamType.STRING}}",
+            "value": "{{destination.customer_id}}"
+          },
+          {
             "name": "template",
             "type": "{{ParamType.TEXT}}",
-            "value": "{{compile_template(TemplateFile.GADS_REQUEST, Encoding.JSON)}}"
+            "value": "{{compile_template(TemplateFile.GOOGLE_ADS_OFFLINE_CONVERSION, Encoding.JSON)}}"
           },
           {
             "name": "debug",

@@ -16,8 +16,8 @@ class TemplateFile(StrEnum):
   TRAINING_BQML = 'training_bqml.sql'
   PREDICTIVE_BQML = 'predictive_bqml.sql'
   CONVERSION_VALUES_BQML = 'conversion_values_bqml.sql'
-  GA4_REQUEST = 'ga4_request.json'
-  GADS_REQUEST = 'gads_request.json'
+  GOOGLE_ANALYTICS_MP_EVENT = 'google_analytics_mp_event.json'
+  GOOGLE_ADS_OFFLINE_CONVERSION = 'google_ads_offline_conversion.json'
   OUTPUT = 'output.sql'
 
 
@@ -52,7 +52,7 @@ class ParamType(StrEnum):
 class Worker(StrEnum):
   BQ_SCRIPT_EXECUTOR = 'BQScriptExecutor'
   BQ_TO_MEASUREMENT_PROTOCOL_GA4 = 'BQToMeasurementProtocolGA4'
-  BQ_TO_GOOGLE_ADS = 'BQToGoogleAds'
+  BQ_TO_GOOGLE_ADS_OFFLINE_CONVERSION = 'BQToGoogleAdsOfflineConversion'
 
 
 class UniqueId(StrEnum):
@@ -77,8 +77,8 @@ class Timespan():
 
 
 class Destination(StrEnum):
-  GOOGLE_ANALYTICS_CUSTOM_EVENT = 'GOOGLE_ANALYTICS_CUSTOM_EVENT',
-  GOOGLE_ADS_CONVERSION_EVENT = 'GOOGLE_ADS_CONVERSION_EVENT'
+  GOOGLE_ANALYTICS_MP_EVENT = 'GOOGLE_ANALYTICS_MP_EVENT'
+  GOOGLE_ADS_OFFLINE_CONVERSION = 'GOOGLE_ADS_OFFLINE_CONVERSION'
 
 
 class Compiler():
@@ -138,7 +138,7 @@ class Compiler():
       'label': self.ml_model.label,
       'features': self.ml_model.features,
       'class_imbalance': self.ml_model.class_imbalance,
-      'destination': self.ml_model.destination
+      'output_config': self.ml_model.output_config
     }
 
     constants = {

@@ -21,6 +21,7 @@ export class LabelcasePipe implements PipeTransform {
   specialCaseMap: Object = {
     api: 'API',
     id: 'ID',
+    mp: 'MP',
     bigquery: 'BigQuery'
   };
 
@@ -33,6 +34,9 @@ export class LabelcasePipe implements PipeTransform {
    */
   transform(value: any, args?: any): any {
     let formattedParts = [];
+    if (value.match(/[a-z]+/)) {
+      value = value.replace(/([A-Z])/g, '_$1');
+    }
     for (const part of value.split('_')) {
       if (Object.keys(this.specialCaseMap).includes(part.toLowerCase())) {
         formattedParts.push(this.specialCaseMap[part.toLowerCase()]);

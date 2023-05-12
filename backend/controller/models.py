@@ -397,7 +397,10 @@ class MlModel(extensions.db.Model):
   timespans = orm.relationship(
       'MlModelTimespan',
       lazy='joined')
-  destination = Column(String(255), nullable=False)
+  output_config = orm.relationship(
+      'MlModelOutputConfig',
+      uselist=False,
+      lazy='joined')
   pipelines = orm.relationship(
       'Pipeline',
       lazy='joined',
@@ -410,7 +413,7 @@ class MlModel(extensions.db.Model):
   def assign_attributes(self, attributes):
     available_attributes = [
       'name', 'type', 'unique_id', 'uses_first_party_data',
-      'class_imbalance', 'destination'
+      'class_imbalance'
     ]
 
     enum_attribute_options = {
@@ -422,10 +425,6 @@ class MlModel(extensions.db.Model):
       'unique_id': [
         'CLIENT_ID',
         'USER_ID'
-      ],
-      'destination': [
-        'GOOGLE_ANALYTICS_CUSTOM_EVENT',
-        'GOOGLE_ADS_CONVERSION_EVENT'
       ]
     }
 
@@ -447,6 +446,8 @@ class MlModel(extensions.db.Model):
         self.assign_hyper_parameters(value)
       elif key == 'timespans':
         self.assign_timespans(value)
+      elif key == 'output_config':
+        self.assign_output_config(value)
       elif key == 'pipelines':
         self.assign_pipelines(value)
 
@@ -484,6 +485,11 @@ class MlModel(extensions.db.Model):
       if type(timespan) == dict:
         MlModelTimespan.create(ml_model_id=self.id, **timespan)
 
+  def assign_output_config(self, output_config):
+    if self.output_config:
+      self.output_config.delete()
+    MlModelOutputConfig.create(ml_model_id=self.id, **output_config)
+
   def assign_pipelines(self, pipelines):
     for pipeline in self.pipelines:
       pipeline.destroy()
@@ -512,6 +518,9 @@ class MlModel(extensions.db.Model):
 
     for timespan in self.timespans:
       timespan.delete()
+
+    if self.output_config:
+      self.output_config.delete()
 
     self.delete()
 
@@ -582,6 +591,20 @@ class MlModelTimespan(extensions.db.Model):
 
   ml_model = orm.relationship(
       'MlModel', foreign_keys=[ml_model_id], back_populates='timespans')
+
+
+class MlModelOutputConfig(extensions.db.Model):
+  """Model for ml model output config."""
+  __tablename__ = 'ml_model_output_config'
+  __repr_attrs__ = ['name']
+
+  ml_model_id = Column(Integer, ForeignKey('ml_models.id'), primary_key=True)
+  destination = Column(String(255), nullable=False)
+  customer_id = Column(Integer, nullable=True)
+  action_id = Column(Integer, nullable=True)
+
+  ml_model = orm.relationship(
+    'MlModel', foreign_keys=[ml_model_id], back_populates='output_config')
 
 
 class TaskEnqueued(extensions.db.Model):

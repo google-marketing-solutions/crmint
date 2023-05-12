@@ -46,7 +46,7 @@ parser.add_argument('features', type=list, location='json', required=False)
 parser.add_argument('label', type=dict, required=False)
 parser.add_argument('class_imbalance', type=int, required=False)
 parser.add_argument('timespans', type=list, location='json', required=False)
-parser.add_argument('destination', type=str, required=False)
+parser.add_argument('output_config', type=dict, required=False)
 
 bigquery_dataset_structure = fields.Nested({
   'name': fields.String,
@@ -77,6 +77,12 @@ timespans_structure = fields.List(fields.Nested({
   'unit': fields.String
 }))
 
+output_config_structure = fields.Nested({
+  'destination': fields.String,
+  'customer_id': fields.Integer,
+  'action_id': fields.Integer
+})
+
 pipelines_structure = fields.List(fields.Nested({
   'id': fields.Integer,
   'name': fields.String,
@@ -106,7 +112,7 @@ ml_model_structure = {
   'label': label_structure,
   'class_imbalance': fields.Integer,
   'timespans': timespans_structure,
-  'destination': fields.String,
+  'output_config': output_config_structure,
   'pipelines': pipelines_structure,
   'updated_at': fields.String
 }
