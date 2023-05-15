@@ -68,7 +68,7 @@ class ParamType(shared.StrEnum):
 class Worker(shared.StrEnum):
   BQ_SCRIPT_EXECUTOR = 'BQScriptExecutor'
   BQ_TO_MEASUREMENT_PROTOCOL_GA4 = 'BQToMeasurementProtocolGA4'
-  BQ_TO_GOOGLE_ADS_OFFLINE_CONVERSION = 'BQToGoogleAdsOfflineConversion'
+  BQ_TO_GOOGLE_ADS_OFFLINE_CONVERSION = 'BQToAdsOfflineClickConversion'
 
 
 class UniqueId(shared.StrEnum):
