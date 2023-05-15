@@ -34,7 +34,7 @@ CLIENT_ID = 'client_id'
 CLIENT_SECRET = 'client_secret'
 
 
-class AdsOfflineClickConversionUploader(bq_batch_worker.BQBatchDataWorker):
+class BQToAdsOfflineClickConversion(bq_batch_worker.BQBatchDataWorker):
   """Worker that reads conversions from a BQ table and uploading into Ads.
 
   This worker supports uploading click-based offline conversions, where a

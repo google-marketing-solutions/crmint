@@ -8,7 +8,7 @@ from absl.testing import parameterized
 from google.ads.googleads import client as ads_client_lib
 from google.ads.googleads.v13.services.types import conversion_upload_service
 
-from jobs.workers.ads import ads_offline_upload
+from jobs.workers.ads import bq_to_ads_offline_click_conversion
 
 
 JSON_TEMPLATE_PARAM_VALUE = """
@@ -77,7 +77,7 @@ class AdsOfflineClickPageResultsWorkerTest(parameterized.TestCase):
       'template': 'template_value',
     }
 
-    worker = ads_offline_upload.AdsOfflineClickPageResultsWorker(
+    worker = bq_to_ads_offline_click_conversion.AdsOfflineClickPageResultsWorker(
       params, 1, 1
     )
 
@@ -109,7 +109,7 @@ class AdsOfflineClickPageResultsWorkerTest(parameterized.TestCase):
   def test_creates_upload_request_for_provided_customer_id(self):
     """The ad conversion page results worker sets the request customer ID to
     the provided customer ID."""
-    worker = ads_offline_upload.AdsOfflineClickPageResultsWorker(
+    worker = bq_to_ads_offline_click_conversion.AdsOfflineClickPageResultsWorker(
       self._generate_default_params(), 1, 1
     )
 
@@ -135,7 +135,7 @@ class AdsOfflineClickPageResultsWorkerTest(parameterized.TestCase):
     params = self._generate_default_params()
     params['template'] = JSON_TEMPLATE_PARAM_VALUE
 
-    worker = ads_offline_upload.AdsOfflineClickPageResultsWorker(
+    worker = bq_to_ads_offline_click_conversion.AdsOfflineClickPageResultsWorker(
       params, 1, 1
     )
     self.enter_context(mock.patch.object(worker, '_log', autospec=True))
@@ -169,7 +169,7 @@ class AdsOfflineClickPageResultsWorkerTest(parameterized.TestCase):
     params = self._generate_default_params()
     params['template'] = JSON_TEMPLATE_PARAM_VALUE
 
-    worker = ads_offline_upload.AdsOfflineClickPageResultsWorker(
+    worker = bq_to_ads_offline_click_conversion.AdsOfflineClickPageResultsWorker(
       params, 1, 1
     )
     self.enter_context(mock.patch.object(worker, '_log', autospec=True))

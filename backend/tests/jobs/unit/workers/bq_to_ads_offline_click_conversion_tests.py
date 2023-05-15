@@ -1,21 +1,21 @@
-"""Tests for ads_offline_upload.py"""
+"""Tests for bq_to_ads_offline_click_conversion.py"""
 
 from unittest import mock
 
 from absl.testing import absltest
 from absl.testing import parameterized
 
-from jobs.workers.ads import ads_offline_upload
+from jobs.workers.ads import bq_to_ads_offline_click_conversion
 
 
-class AdsOfflineClickPageResultsWorkerTests(parameterized.TestCase):
+class BQToAdsOfflineClickConversionTests(parameterized.TestCase):
   def setUp(self):
     super().setUp()
 
   @mock.patch('jobs.workers.bigquery.bq_batch_worker.BQBatchDataWorker._execute')
   def test_fails_if_required_params_not_provided(self, _):
     parameters = {}
-    worker = ads_offline_upload.AdsOfflineClickConversionUploader(
+    worker = bq_to_ads_offline_click_conversion.BQToAdsOfflineClickConversion(
       parameters, 0, 0
     )
 
@@ -41,7 +41,7 @@ class AdsOfflineClickPageResultsWorkerTests(parameterized.TestCase):
       'template': 'a_template_string',
       'customer_id':  '123456'
     }
-    worker = ads_offline_upload.AdsOfflineClickConversionUploader(
+    worker = bq_to_ads_offline_click_conversion.BQToAdsOfflineClickConversion(
       parameters, 'pipeline_id', 'job_id'
     )
     with self.assertRaises(ValueError) as err_context:
@@ -68,7 +68,7 @@ class AdsOfflineClickPageResultsWorkerTests(parameterized.TestCase):
       'google_ads_refresh_token': 'a_refresh_token'
     }
 
-    worker = ads_offline_upload.AdsOfflineClickConversionUploader(
+    worker = bq_to_ads_offline_click_conversion.BQToAdsOfflineClickConversion(
       parameters, 'pipeline_id', 'job_id'
     )
     with self.assertRaises(ValueError) as err_context:
@@ -93,7 +93,7 @@ class AdsOfflineClickPageResultsWorkerTests(parameterized.TestCase):
       'google_ads_service_account_file': '/a/file/path'
     }
 
-    worker = ads_offline_upload.AdsOfflineClickConversionUploader(
+    worker = bq_to_ads_offline_click_conversion.BQToAdsOfflineClickConversion(
       parameters, 'pipeline_id', 'job_id'
     )
     worker._execute()
