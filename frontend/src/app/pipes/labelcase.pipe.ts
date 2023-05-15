@@ -26,8 +26,9 @@ export class LabelcasePipe implements PipeTransform {
   };
 
   /**
-   * Uppercase the first character in the word(s) provided (word split into multiple words on underscore).
-   * Handles special cases like id, api, etc according to an internal mapping.
+   * Uppercase the first character in the word(s) provided (word split into
+   * multiple words on underscore). Handles special cases like id, api, etc
+   * according to an internal mapping.
    *
    * @param value The word(s) you want to capitalize.
    * @returns The capitalized word(s).
@@ -41,7 +42,8 @@ export class LabelcasePipe implements PipeTransform {
       if (Object.keys(this.specialCaseMap).includes(part.toLowerCase())) {
         formattedParts.push(this.specialCaseMap[part.toLowerCase()]);
       } else {
-        formattedParts.push(part.charAt(0).toUpperCase() + part.slice(1).toLowerCase());
+        formattedParts.push(
+            part.charAt(0).toUpperCase() + part.slice(1).toLowerCase());
       }
     }
 

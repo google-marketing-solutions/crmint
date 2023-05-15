@@ -14,6 +14,8 @@
 
 """MlModel module."""
 
+from . import bigquery
+from . import compiler
 from . import views
 
-__all__ = ['views']
+__all__ = ['bigquery', 'compiler', 'views']

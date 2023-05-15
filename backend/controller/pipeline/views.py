@@ -16,7 +16,6 @@
 
 import datetime
 import json
-import os
 import textwrap
 import time
 import uuid
@@ -49,27 +48,27 @@ parser.add_argument('schedules', type=list, location='json')
 parser.add_argument('params', type=list, location='json')
 
 schedule_fields = {
-  'id': fields.Integer,
-  'pipeline_id': fields.Integer,
-  'cron': fields.String
+    'id': fields.Integer,
+    'pipeline_id': fields.Integer,
+    'cron': fields.String
 }
 param_fields = {
-  'id': fields.Integer,
-  'name': fields.String,
-  'type': fields.String,
-  'value': fields.Raw(attribute='api_value'),
-  'label': fields.String
+    'id': fields.Integer,
+    'name': fields.String,
+    'type': fields.String,
+    'value': fields.Raw(attribute='api_value'),
+    'label': fields.String
 }
 pipeline_fields = {
-  'id': fields.Integer,
-  'name': fields.String,
-  'status': fields.String,
-  'updated_at': fields.String,
-  'run_on_schedule': fields.Boolean,
-  'schedules': fields.List(fields.Nested(schedule_fields)),
-  'params': fields.List(fields.Nested(param_fields)),
-  'message': fields.String,
-  'has_jobs': fields.Boolean
+    'id': fields.Integer,
+    'name': fields.String,
+    'status': fields.String,
+    'updated_at': fields.String,
+    'run_on_schedule': fields.Boolean,
+    'schedules': fields.List(fields.Nested(schedule_fields)),
+    'params': fields.List(fields.Nested(param_fields)),
+    'message': fields.String,
+    'has_jobs': fields.Boolean,
 }
 
 

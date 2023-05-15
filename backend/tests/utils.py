@@ -20,6 +20,7 @@ from unittest import mock
 
 from absl import flags
 from absl.testing import parameterized
+import flask
 import requests
 
 from common import crmint_logging
@@ -42,10 +43,10 @@ def initialize_flags_with_defaults() -> None:
 class AppTestCase(parameterized.TestCase):
   """Base class for app testing."""
 
-  ctx = None
-  client = None
+  ctx: flask.Flask.app_ctx_globals_class
+  client: flask.Flask
 
-  def create_app(self):
+  def create_app(self) -> flask.Flask:
     raise NotImplementedError
 
   @mock.patch.dict(os.environ, {'DATABASE_URI': 'sqlite:///:memory:'})

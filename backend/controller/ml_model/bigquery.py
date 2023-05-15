@@ -1,11 +1,27 @@
+# Copyright 2023 Google Inc
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+"""MlModel bigquery helpers."""
+
 from google.cloud import bigquery
 from google.cloud.exceptions import NotFound
 from controller.shared import StrEnum
-from datetime import date, timedelta
-from dataclasses import dataclass
+import dataclasses
+import datetime
 
 
-@dataclass
+@dataclasses.dataclass
 class Parameter:
   """Represents a variable parameter."""
   key: str
@@ -15,7 +31,7 @@ class Parameter:
     self.value_type = self.value_type.lower()
 
 
-@dataclass
+@dataclasses.dataclass
 class Variable:
   """Represents a single variable (used for feature/label selection)."""
   name: str
@@ -37,7 +53,7 @@ class CustomClient(bigquery.Client):
 
   def get_analytics_variables(self, dataset_name: str) -> list[Variable]:
     """
-    Get approximate counts, keys, and value_types for all GA4 events that happened in the last year.
+    Get approximate counts for all GA4 events that happened in the last year.
 
     Args:
       dataset_name: The dataset where the GA4 events tables are located.
@@ -49,15 +65,29 @@ class CustomClient(bigquery.Client):
     variables: list[Variable] = []
 
     event_exclude_list = [
-        'user_engagement', 'scroll', 'session_start', 'first_visit', 'page_view'
+        'user_engagement',
+        'scroll',
+        'session_start',
+        'first_visit',
+        'page_view'
     ]
 
     key_exclude_list = [
-      'debug_mode', 'ga_session_id', 'ga_session_number', 'transaction_id', 'page_location', 'page_referrer',
-      'session_engaged', 'engaged_session_event', 'content_group', 'engagement_time_msec'
+        'debug_mode',
+        'ga_session_id',
+        'ga_session_number',
+        'transaction_id',
+        'page_location',
+        'page_referrer',
+        'session_engaged',
+        'engaged_session_event',
+        'content_group',
+        'engagement_time_msec'
     ]
 
-    suffix = (date.today() - timedelta(days=7)).strftime('%Y%m%d')
+    suffix = (
+      datetime.date.today() - datetime.timedelta(days=7)
+    ).strftime('%Y%m%d')
     if not self.table_exists(dataset_name, f'events_{suffix}'):
       return variables
 
@@ -107,14 +137,16 @@ class CustomClient(bigquery.Client):
         parameter = Parameter(event.parameter_key, event.parameter_value_type)
 
         if not existing_variable:
-          variable = Variable(event.name, Source.GOOGLE_ANALYTICS, event.count, [])
+          variable = Variable(
+              event.name, Source.GOOGLE_ANALYTICS, event.count, [])
           if parameter.key not in key_exclude_list:
             variable.parameters.append(parameter)
-          # since rows are ordered, event data for a single event name is grouped
-          # together and as such it's faster to insert new events at the beginning
-          # so the loop on the next row finds the matching event name immediately
-          # which saves cycles and because it's sortecd asc and basically flipping
-          # the events as it processes them they will come out in descending order.
+          # Since rows are ordered, event data for a single event name is
+          # grouped together and as such it's faster to insert new events at
+          # the beginning so the loop on the next row finds the matching event
+          # name immediately which saves cycles and because it's sortecd asc
+          # and basically flipping the events as it processes them they will
+          # come out in descending order.
           variables.insert(0, variable)
         elif parameter.key not in key_exclude_list:
           existing_variable.parameters.append(parameter)
@@ -123,7 +155,7 @@ class CustomClient(bigquery.Client):
 
   def get_first_party_variables(self, dataset_name: str) -> list[Variable]:
     """
-    Look up and return the column/field names and their types for use in feature/label selection.
+    Look up and return the field names for use in feature/label selection.
 
     Args:
       dataset_name: The dataset where the first party table is located.
@@ -152,7 +184,7 @@ class CustomClient(bigquery.Client):
     return variables
 
   def table_exists(self, dataset_name: str, table_name: str) -> bool:
-    """Returns whether or not a table exists in this project under the provided dataset."""
+    """Returns whether or not a table exists in this project."""
     try:
       self.get_table(f'{dataset_name}.{table_name}')
       return True

@@ -53,7 +53,7 @@ class ControllerAppTest(utils.AppTestCase):
   """Controller app test class."""
 
   @mock.patch.dict(os.environ, {'DATABASE_URI': 'sqlite:///:memory:'})
-  def create_app(self):
+  def create_app(self) -> flask.Flask:
     test_config = {
         'TESTING': True,
         'PRESERVE_CONTEXT_ON_EXCEPTION': False,

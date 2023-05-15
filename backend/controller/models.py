@@ -33,9 +33,9 @@ import jinja2
 from sqlalchemy import Boolean
 from sqlalchemy import Column
 from sqlalchemy import DateTime
+from sqlalchemy import Float
 from sqlalchemy import ForeignKey
 from sqlalchemy import Integer
-from sqlalchemy import Float
 from sqlalchemy import orm
 from sqlalchemy import String
 from sqlalchemy import Text
@@ -45,6 +45,7 @@ from common import task
 from controller import extensions
 from controller import inline
 from controller import shared
+
 
 def _str_to_number(x: str) -> numbers.Number:
   """Converts the input string into a number.
@@ -62,6 +63,7 @@ def _str_to_number(x: str) -> numbers.Number:
     return int(x)
   except ValueError:
     return float(x)
+
 
 @enum.unique
 class PipelineReadyStatus(enum.Enum):
@@ -115,7 +117,7 @@ class Pipeline(extensions.db.Model):
 
   @property
   def has_jobs(self):
-    return len(self.jobs) > 0
+    return len(self.jobs) > 0  # pylint: disable=g-explicit-length-test
 
   def assign_attributes(self, attributes):
     for key, value in attributes.items():
@@ -377,9 +379,9 @@ class MlModel(extensions.db.Model):
   id = Column(Integer, primary_key=True, autoincrement=True)
   name = Column(String(255), nullable=False)
   bigquery_dataset = orm.relationship(
-    'MlModelBigQueryDataset',
-    uselist=False,
-    lazy='joined')
+      'MlModelBigQueryDataset',
+      uselist=False,
+      lazy='joined')
   type = Column(String(255), nullable=False)
   unique_id = Column(String(255), nullable=False)
   uses_first_party_data = Column(Boolean, nullable=False, default=False)
@@ -412,20 +414,23 @@ class MlModel(extensions.db.Model):
 
   def assign_attributes(self, attributes):
     available_attributes = [
-      'name', 'type', 'unique_id', 'uses_first_party_data',
-      'class_imbalance'
+        'name',
+        'type',
+        'unique_id',
+        'uses_first_party_data',
+        'class_imbalance'
     ]
 
     enum_attribute_options = {
-      'type': [
-        'LOGISTIC_REG',
-        'BOOSTED_TREE_REGRESSOR',
-        'BOOSTED_TREE_CLASSIFIER'
-      ],
-      'unique_id': [
-        'CLIENT_ID',
-        'USER_ID'
-      ]
+        'type': [
+            'LOGISTIC_REG',
+            'BOOSTED_TREE_REGRESSOR',
+            'BOOSTED_TREE_CLASSIFIER'
+        ],
+        'unique_id': [
+            'CLIENT_ID',
+            'USER_ID'
+        ]
     }
 
     for key, value in attributes.items():
@@ -461,7 +466,7 @@ class MlModel(extensions.db.Model):
       feature.delete()
 
     for feature in features:
-      if type(feature) == dict:
+      if isinstance(feature, dict):
         MlModelFeature.create(ml_model_id=self.id, **feature)
 
   def assign_label(self, label):
@@ -474,7 +479,7 @@ class MlModel(extensions.db.Model):
       param.delete()
 
     for param in hyper_parameters:
-      if type(param) == dict:
+      if isinstance(param, dict):
         MlModelHyperParameter.create(ml_model_id=self.id, **param)
 
   def assign_timespans(self, timespans):
@@ -482,7 +487,7 @@ class MlModel(extensions.db.Model):
       timespan.delete()
 
     for timespan in timespans:
-      if type(timespan) == dict:
+      if isinstance(timespan, dict):
         MlModelTimespan.create(ml_model_id=self.id, **timespan)
 
   def assign_output_config(self, output_config):
@@ -535,7 +540,7 @@ class MlModelBigQueryDataset(extensions.db.Model):
   location = Column(String(255), nullable=False, default='US')
 
   ml_model = orm.relationship(
-    'MlModel', foreign_keys=[ml_model_id], back_populates='bigquery_dataset')
+      'MlModel', foreign_keys=[ml_model_id], back_populates='bigquery_dataset')
 
 
 class MlModelLabel(extensions.db.Model):
@@ -551,7 +556,7 @@ class MlModelLabel(extensions.db.Model):
   average_value = Column(Float, nullable=True, default=0.0)
 
   ml_model = orm.relationship(
-    'MlModel', foreign_keys=[ml_model_id], back_populates='label')
+      'MlModel', foreign_keys=[ml_model_id], back_populates='label')
 
 
 class MlModelFeature(extensions.db.Model):

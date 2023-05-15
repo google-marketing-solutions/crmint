@@ -1,16 +1,32 @@
+# Copyright 2023 Google Inc
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+"""MlModel template compiler."""
+
+import datetime
 import os
 import json
+import enum
+import uuid
+import jinja2
 
-from datetime import date
-from random import randint
-from enum import Enum, auto
-from uuid import uuid4 as uuid
-from jinja2 import Template, StrictUndefined
-from controller.shared import StrEnum
-from controller.models import MlModel
+from typing import Any
+from controller import shared
+from controller import models
 
 
-class TemplateFile(StrEnum):
+class TemplateFile(shared.StrEnum):
   TRAINING_PIPELINE = 'training_pipeline.json'
   PREDICTIVE_PIPELINE = 'predictive_pipeline.json'
   TRAINING_BQML = 'training_bqml.sql'
@@ -21,9 +37,9 @@ class TemplateFile(StrEnum):
   OUTPUT = 'output.sql'
 
 
-class Encoding(Enum):
-  NONE = auto()
-  JSON = auto()
+class Encoding(enum.Enum):
+  NONE = enum.auto()
+  JSON = enum.auto()
 
 
 class ModelTypes:
@@ -41,7 +57,7 @@ class ModelTypes:
   ]
 
 
-class ParamType(StrEnum):
+class ParamType(shared.StrEnum):
   SQL = 'sql'
   TEXT = 'text'
   STRING = 'string'
@@ -49,18 +65,19 @@ class ParamType(StrEnum):
   NUMBER = 'number'
 
 
-class Worker(StrEnum):
+class Worker(shared.StrEnum):
   BQ_SCRIPT_EXECUTOR = 'BQScriptExecutor'
   BQ_TO_MEASUREMENT_PROTOCOL_GA4 = 'BQToMeasurementProtocolGA4'
   BQ_TO_GOOGLE_ADS_OFFLINE_CONVERSION = 'BQToGoogleAdsOfflineConversion'
 
 
-class UniqueId(StrEnum):
+class UniqueId(shared.StrEnum):
   USER_ID = 'USER_ID'
   CLIENT_ID = 'CLIENT_ID'
 
 
-class Timespan():
+class Timespan:
+  """Encapsulates a timespan."""
   TRAINING: str = 'training'
   PREDICTIVE: str = 'predictive'
 
@@ -76,47 +93,59 @@ class Timespan():
     return self.predictive
 
 
-class Destination(StrEnum):
+class Destination(shared.StrEnum):
   GOOGLE_ANALYTICS_MP_EVENT = 'GOOGLE_ANALYTICS_MP_EVENT'
   GOOGLE_ADS_OFFLINE_CONVERSION = 'GOOGLE_ADS_OFFLINE_CONVERSION'
 
 
 class Compiler():
-  """Used to build out pipeline configurations based on a series of templates in the templates directory."""
+  """
+  Used to build out pipeline configurations based on a series of
+  templates in the templates directory.
+  """
   project_id: str
   ga4_dataset: str
   ga4_measurement_id: str
   ga4_api_secret: str
-  ml_model: MlModel
+  ml_model: models.MlModel
 
-  def __init__(self, project_id: str, ga4_dataset: str, ga4_measurement_id: str, ga4_api_secret: str, ml_model: MlModel) -> None:
+  def __init__(self,
+               project_id: str,
+               ga4_dataset: str,
+               ga4_measurement_id: str,
+               ga4_api_secret: str,
+               ml_model: models.MlModel) -> None:
     self.project_id = project_id
     self.ga4_dataset = ga4_dataset
     self.ga4_measurement_id = ga4_measurement_id
     self.ga4_api_secret = ga4_api_secret
     self.ml_model = ml_model
 
-  def build_training_pipeline(self) -> dict:
+  def build_training_pipeline(self) -> dict[str, Any]:
     """
     Builds the training pipeline configuration including the model SQL.
 
     Returns:
-      A pipeline configuration for creating and training the model provided to the compiler.
+      A pipeline configuration for creating and training the model
+      provided to the compiler.
     """
     pipeline_configuration = self._compile_template(TemplateFile.TRAINING_PIPELINE)
     return json.loads(pipeline_configuration)
 
-  def build_predictive_pipeline(self) -> dict:
+  def build_predictive_pipeline(self) -> dict[str, Any]:
     """
     Builds the predictive pipeline configuration including the model SQL.
 
     Returns:
-      A pipeline configuration for predicting values and uploading the results for the model provided to the compiler.
+      A pipeline configuration for predicting values and uploading the
+      results for the model provided to the compiler.
     """
     pipeline_configuration = self._compile_template(TemplateFile.PREDICTIVE_PIPELINE)
     return json.loads(pipeline_configuration)
 
-  def _compile_template(self, templateFile: TemplateFile, encoding: Encoding = Encoding.NONE) -> str:
+  def _compile_template(self,
+                        templateFile: TemplateFile,
+                        encoding: Encoding = Encoding.NONE) -> str:
     """Uses the template and data provided to render the result."""
     variables = {
       'name': self.ml_model.name,
@@ -158,7 +187,7 @@ class Compiler():
       'is_bool': self._is_bool,
       'safe_day': self._safe_day,
       'quarterly_months': self._quarterly_months,
-      'uuid': uuid
+      'uuid': uuid.uuid4()
     }
 
     template = self._get_template(templateFile)
@@ -168,7 +197,7 @@ class Compiler():
     else:
       return rendered
 
-  def _get_template(self, templateFile: TemplateFile) -> Template:
+  def _get_template(self, templateFile: TemplateFile) -> jinja2.Template:
     """Pulls appropriate template text from file."""
     options = {
       'comment_start_string': '--',
@@ -178,10 +207,13 @@ class Compiler():
       'newline_sequence': '\n'
     }
     with open(self._absolute_path('templates/' + templateFile), 'r') as file:
-      return Template(file.read(), **options, undefined=StrictUndefined)
+      return jinja2.Template(file.read(), **options, undefined=jinja2.StrictUndefined)
 
   def _get_timespan(self, timespans: list) -> Timespan:
-    """Returns the appropriate timespan (both training and predictive) with random sets built-in if needed."""
+    """
+    Returns the appropriate timespan (both training and predictive)
+    with random sets built-in if needed.
+    """
 
     ts = Timespan()
 
@@ -201,7 +233,10 @@ class Compiler():
       return 'user_pseudo_id'
 
   def _json_encode(self, text: str) -> str:
-    """JSON encode a string of text provided without including double-quote wrapper."""
+    """
+    JSON encode a string of text provided without including
+    double-quote wrapper.
+    """
     return json.dumps(text).removeprefix('"').removesuffix('"')
 
   def _is_number(self, value: str) -> bool:
@@ -218,21 +253,23 @@ class Compiler():
 
   def _safe_day(self) -> str:
     """Returns the current day if safe to schedule and otherwise returns 28."""
-    day = date.today().day
+    day = datetime.date.today().day
     return f'{day}' if day < 28 else '28'
 
   def _quarterly_months(self) -> str:
     """Returns the months of the year that occur quarterly (every 3 months)
       from the current month."""
-    currentMonth = date.today().month
+    currentMonth = datetime.date.today().month
     months = ''
     for month in range(currentMonth, currentMonth + 11, 3):
       months += f'{month % 12 if month < 12 else month},'
     return months.removesuffix(',')
 
   def _absolute_path(self, file: str) -> str:
-    """Returns the absolute path of the file assuming the file provided
-      is in the current directory."""
+    """
+    Returns the absolute path of the file assuming the file provided
+    is in the current directory.
+    """
     running_dir = os.getcwd()
     current_dir_relative = os.path.dirname(__file__)
     current_dir_full = os.path.join(running_dir, current_dir_relative)
