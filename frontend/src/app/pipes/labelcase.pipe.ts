@@ -18,7 +18,12 @@ import { Pipe, PipeTransform } from '@angular/core';
   name: 'labelcase'
 })
 export class LabelcasePipe implements PipeTransform {
-  specialCaseMap: Object = {api: 'API', id: 'ID', bigquery: 'BigQuery'};
+  specialCaseMap: Object = {
+    api: 'API',
+    id: 'ID',
+    mp: 'MP',
+    bigquery: 'BigQuery'
+  };
 
   /**
    * Uppercase the first character in the word(s) provided (word split into
@@ -30,6 +35,9 @@ export class LabelcasePipe implements PipeTransform {
    */
   transform(value: any, args?: any): any {
     let formattedParts = [];
+    if (value.match(/[a-z]+/)) {
+      value = value.replace(/([A-Z])/g, '_$1');
+    }
     for (const part of value.split('_')) {
       if (Object.keys(this.specialCaseMap).includes(part.toLowerCase())) {
         formattedParts.push(this.specialCaseMap[part.toLowerCase()]);

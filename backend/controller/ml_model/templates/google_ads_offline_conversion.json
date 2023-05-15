@@ -1,0 +1,7 @@
+{
+  "conversionEnvironment": "WEB",
+  "gclid": "${gclid}",
+  "conversionAction": "customers/{{output_config.customer_id}}/conversionActions/{{output_config.action_id}}",
+  "conversionDateTime": "${datetime}",
+  "conversionValue": ${value}
+}

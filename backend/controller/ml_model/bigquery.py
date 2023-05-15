@@ -14,17 +14,11 @@
 
 """MlModel bigquery helpers."""
 
-import dataclasses
-import datetime
-import enum
-from typing import Callable, TypeVar
-
 from google.cloud import bigquery
 from google.cloud.exceptions import NotFound
-
-from common import utils
-
-T = TypeVar('T')
+from controller.shared import StrEnum
+import dataclasses
+import datetime
 
 
 @dataclasses.dataclass
@@ -46,16 +40,9 @@ class Variable:
   parameters: list[Parameter]
 
 
-# TODO(dulacp): Leverage StrEnum once we upgrade Python to 3.11
-class Source(enum.Enum):
+class Source(StrEnum):
   GOOGLE_ANALYTICS = 'GOOGLE_ANALYTICS'
   FIRST_PARTY = 'FIRST_PARTY'
-
-  def __str__(self) -> str:
-    return str(self.value)
-
-  def __eq__(self, other) -> bool:
-    return other == str(self.value)
 
 
 class CustomClient(bigquery.Client):
@@ -65,7 +52,8 @@ class CustomClient(bigquery.Client):
     super().__init__(location=location)
 
   def get_analytics_variables(self, dataset_name: str) -> list[Variable]:
-    """Get approximate counts for all GA4 events that happened in the last year.
+    """
+    Get approximate counts for all GA4 events that happened in the last year.
 
     Args:
       dataset_name: The dataset where the GA4 events tables are located.
@@ -74,8 +62,14 @@ class CustomClient(bigquery.Client):
       A list of variables to be used for feature and label selection.
     """
 
+    variables: list[Variable] = []
+
     event_exclude_list = [
-        'user_engagement', 'scroll', 'session_start', 'first_visit', 'page_view'
+        'user_engagement',
+        'scroll',
+        'session_start',
+        'first_visit',
+        'page_view'
     ]
 
     key_exclude_list = [
@@ -88,13 +82,11 @@ class CustomClient(bigquery.Client):
         'session_engaged',
         'engaged_session_event',
         'content_group',
-        'engagement_time_msec',
+        'engagement_time_msec'
     ]
 
-    variables: list[Variable] = []
-
     suffix = (
-        datetime.date.today() - datetime.timedelta(days=7)
+      datetime.date.today() - datetime.timedelta(days=7)
     ).strftime('%Y%m%d')
     if not self.table_exists(dataset_name, f'events_{suffix}'):
       return variables
@@ -139,16 +131,9 @@ class CustomClient(bigquery.Client):
     job = self.query(query=query)
     events = job.result()
 
-    def make_condition_func(event_name: str) -> Callable[[T], bool]:
-      return lambda x: x.name == event_name
-
     for event in events:
       if event.name not in event_exclude_list:
-        try:
-          existing_variable = utils.first(
-              variables, make_condition_func(event.name))
-        except StopIteration:
-          existing_variable = None
+        existing_variable = next((v for v in variables if v.name == event.name), None)
         parameter = Parameter(event.parameter_key, event.parameter_value_type)
 
         if not existing_variable:
@@ -169,7 +154,8 @@ class CustomClient(bigquery.Client):
     return variables
 
   def get_first_party_variables(self, dataset_name: str) -> list[Variable]:
-    """Look up and return the field names for use in feature/label selection.
+    """
+    Look up and return the field names for use in feature/label selection.
 
     Args:
       dataset_name: The dataset where the first party table is located.
@@ -178,8 +164,11 @@ class CustomClient(bigquery.Client):
       A list of variables to be used for feature and label selection.
     """
 
-    exclude_list = ['user_id', 'user_pseudo_id', 'trigger_event_date']
     variables: list[Variable] = []
+
+    exclude_list = [
+      'user_id', 'user_pseudo_id', 'trigger_event_date'
+    ]
 
     if not self.table_exists(dataset_name, 'first_party'):
       return variables

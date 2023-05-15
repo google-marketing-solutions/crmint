@@ -404,32 +404,36 @@ class TestMlModel(controller_utils.ModelTestCase):
 
   def setUp(self):
     setup = super().setUp()
-    self.ml_model = models.MlModel.create(
-        name='Test Model', type='LOGISTIC_REG', unique_id='CLIENT_ID'
-    )
+    self.ml_model = models.MlModel.create(name='Test Model',
+                                          type='LOGISTIC_REG',
+                                          unique_id='CLIENT_ID',
+                                          destination='GOOGLE_ANALYTICS_CUSTOM_EVENT')
     return setup
 
   def test_ml_model_create(self):
     self.assertLen(models.MlModel.all(), 1)
-    self.assertAttributesSaved(
-        {'name': 'Test Model', 'type': 'LOGISTIC_REG', 'unique_id': 'CLIENT_ID'}
-    )
+    self.assertAttributesSaved({
+      'name': 'Test Model',
+      'type': 'LOGISTIC_REG',
+      'unique_id': 'CLIENT_ID',
+      'destination': 'GOOGLE_ANALYTICS_CUSTOM_EVENT'
+    })
 
   def test_assign_attributes(self):
     attributes = {
-        'name': 'Attribute Assigned',
-        'type': 'BOOSTED_TREE_REGRESSOR',
-        'unique_id': 'USER_ID',
-        'uses_first_party_data': True,
-        'class_imbalance': 7,
+      'name': 'Attribute Assigned',
+      'type': 'BOOSTED_TREE_REGRESSOR',
+      'unique_id': 'USER_ID',
+      'uses_first_party_data': True,
+      'class_imbalance': 7,
+      'destination': 'GOOGLE_ADS_CONVERSION_EVENT'
     }
     self.ml_model.assign_attributes(attributes)
     self.assertAttributesSaved(attributes)
 
   @parameterized.named_parameters(
       ('create', {'name': 'CR-NAME', 'location': 'CR-LOC'}),
-      ('update', {'name': 'UP-NAME', 'location': 'UP-LOC'}),
-  )
+      ('update', {'name': 'UP-NAME', 'location': 'UP-LOC'}))
   def test_save_relations_bigquery_dataset(self, dataset):
     self.assertIsNone(self.ml_model.bigquery_dataset)
     self.ml_model.save_relations({'bigquery_dataset': dataset})
@@ -444,8 +448,7 @@ class TestMlModel(controller_utils.ModelTestCase):
               {'name': 'subscribe', 'source': 'FIRST_PARTY'},
           ],
       ),
-      ('delete', []),
-  )
+      ('delete', []))
   def test_save_relations_features(self, features):
     self.assertLen(self.ml_model.features, 0)
     self.ml_model.save_relations({'features': features})
@@ -470,8 +473,7 @@ class TestMlModel(controller_utils.ModelTestCase):
               'key': 'UP-KEY',
               'value_type': 'UP-VT',
           },
-      ),
-  )
+      ))
   def test_save_relations_label(self, label):
     self.assertIsNone(self.ml_model.label)
     self.ml_model.save_relations({'label': label})
@@ -483,8 +485,7 @@ class TestMlModel(controller_utils.ModelTestCase):
           'update',
           [{'name': 'L1_REG', 'value': '2'}, {'name': 'L2_REG', 'value': '1'}],
       ),
-      ('delete', []),
-  )
+      ('delete', []))
   def test_save_relations_hyper_parameters(self, hyper_parameters):
     self.assertLen(self.ml_model.hyper_parameters, 0)
     self.ml_model.save_relations({'hyper_parameters': hyper_parameters})
@@ -499,8 +500,7 @@ class TestMlModel(controller_utils.ModelTestCase):
               {'name': 'predictive', 'value': 1, 'unit': 'month'},
           ],
       ),
-      ('delete', []),
-  )
+      ('delete', []))
   def test_save_relations_pipelines(self, expected_objects):
     self.assertLen(self.ml_model.pipelines, 0)
 
@@ -588,7 +588,8 @@ class TestMlModel(controller_utils.ModelTestCase):
     self.assertIsNone(models.Pipeline.where(ml_model_id=model_id).first())
 
   def assertAttributesSaved(self, assertions: dict[str, Any]):
-    """Custom assertion that checks the MlModel.
+    """
+    Custom assertion that checks the MlModel.
 
     Using find and ensures the assertions provided match what's saved.
 
@@ -602,8 +603,7 @@ class TestMlModel(controller_utils.ModelTestCase):
   def assertRelationSaved(
       self,
       model: extensions.db.Model,
-      assertions: Union[dict[str, Any], list[Any]],
-  ):
+      assertions: Union[dict[str, Any], list[Any]]):
     """Custom assertion that checks the saved model matches expectations."""
     if isinstance(assertions, dict):
       row = model.where(ml_model_id=self.ml_model.id).first()

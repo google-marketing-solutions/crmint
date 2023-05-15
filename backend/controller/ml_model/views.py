@@ -29,7 +29,6 @@ from common import insight
 from controller import ml_model
 from controller import models
 
-
 project_id = os.getenv('GOOGLE_CLOUD_PROJECT')
 
 blueprint = flask.Blueprint('ml_model', __name__)
@@ -48,6 +47,7 @@ parser.add_argument('features', type=list, location='json', required=False)
 parser.add_argument('label', type=dict, required=False)
 parser.add_argument('class_imbalance', type=int, required=False)
 parser.add_argument('timespans', type=list, location='json', required=False)
+parser.add_argument('output_config', type=dict, required=False)
 
 bigquery_dataset_structure = fields.Nested(
     {'name': fields.String, 'location': fields.String}
@@ -74,6 +74,12 @@ timespans_structure = fields.List(
         {'name': fields.String, 'value': fields.Integer, 'unit': fields.String}
     )
 )
+
+output_config_structure = fields.Nested({
+    'destination': fields.String,
+    'customer_id': fields.Integer,
+    'action_id': fields.Integer
+})
 
 pipelines_structure = fields.List(
     fields.Nested({
@@ -112,6 +118,7 @@ ml_model_structure = {
     'label': label_structure,
     'class_imbalance': fields.Integer,
     'timespans': timespans_structure,
+    'output_config': output_config_structure,
     'pipelines': pipelines_structure,
     'updated_at': fields.String
 }
@@ -208,10 +215,12 @@ ml_variable_structure = {
     'name': fields.String,
     'count': fields.Integer,
     'source': fields.String,
-    'parameters': fields.List(fields.Nested({
-        'key': fields.String,
-        'value_type': fields.String
-    }))
+    'parameters': fields.List(
+        fields.Nested({
+            'key': fields.String,
+            'value_type': fields.String
+        })
+    )
 }
 
 
@@ -302,14 +311,16 @@ def build_pipelines(obj: models.MlModel) -> list[dict[str, Any]]:
   Returns:
     The newly built training and predictive pipeline objects.
   """
-  ga4_dataset = setting('google_analytics_4_bigquery_dataset')
-  ga4_measurement_id = setting('google_analytics_4_measurement_id')
-  ga4_api_secret = setting('google_analytics_4_api_secret')
+  compiler = ml_model.Compiler(
+    project_id=project_id,
+    ga4_dataset=setting('google_analytics_4_bigquery_dataset'),
+    ga4_measurement_id=setting('google_analytics_4_measurement_id'),
+    ga4_api_secret=setting('google_analytics_4_api_secret'),
+    ml_model=ml_model
+  )
 
-  training_pipeline = ml_model.compiler.build_training_pipeline(
-      obj, project_id, ga4_dataset)
-  predictive_pipeline = ml_model.compiler.build_predictive_pipeline(
-      obj, project_id, ga4_dataset, ga4_measurement_id, ga4_api_secret)
+  training_pipeline = compiler.build_training_pipeline()
+  predictive_pipeline = compiler.build_predictive_pipeline()
 
   return [training_pipeline, predictive_pipeline]
 

@@ -218,6 +218,21 @@
           </div>
         </div>
 
+        <div formGroupName="outputConfig" class="crmi-form-group">
+          <label class="crmi-form-label">Output Configuration</label>
+          <div class="vertical-group">
+            <mat-select placeholder="Destination" formControlName="destination"
+                        (selectionChange)="refreshOutputConfig()">
+              <mat-option *ngFor="let destination of destinations" [value]="destination">{{ destination | labelcase }}</mat-option>
+            </mat-select>
+            <div *ngIf="outputConfig.requirements.length > 0" class="input-group">
+              <mat-form-field *ngFor="let requirement of outputConfig.requirements">
+                <input matInput [placeholder]="requirement | labelcase" [formControlName]="requirement">
+              </mat-form-field>
+            </div>
+          </div>
+        </div>
+
         <div class="crmi-form-offset">
           <div class="crmi-form-message crmi-form-message-error">{{ errorMessage }}</div>
           <button mat-raised-button

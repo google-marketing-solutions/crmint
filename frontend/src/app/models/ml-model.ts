@@ -44,6 +44,11 @@ export enum Source {
   FIRST_PARTY = 'FIRST_PARTY'
 }
 
+export enum Destination {
+  GOOGLE_ANALYTICS_MP_EVENT = 'GOOGLE_ANALYTICS_MP_EVENT',
+  GOOGLE_ADS_OFFLINE_CONVERSION = 'GOOGLE_ADS_OFFLINE_CONVERSION'
+}
+
 export type Range = {
   min: number
   max: number
@@ -124,6 +129,12 @@ export type Timespan = {
   range?: Range
 }
 
+export type OutputConfig = {
+  destination: Destination;
+  customer_id: number;
+  action_id: number;
+}
+
 export class MlModel {
   id: number;
   name: string;
@@ -136,6 +147,7 @@ export class MlModel {
   label: Label;
   class_imbalance: number;
   timespans: Timespan[];
+  output_config: OutputConfig;
   pipelines: Pipeline[];
   updated_at: string;
 
@@ -319,6 +331,7 @@ export class MlModel {
           unit: timespan.unit
         };
       }),
+      output_config: this.output_config
     }
   }
 }

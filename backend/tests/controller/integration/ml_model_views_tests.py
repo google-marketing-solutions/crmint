@@ -26,8 +26,10 @@ class TestMlModelViews(controller_utils.ControllerAppTest):
     self.assertEqual(response.status_code, 200)
 
   def test_list_with_one_ml_model(self):
-    models.MlModel.create(
-        name='Test Model', type='LOGISTIC_REG', unique_id='CLIENT_ID')
+    models.MlModel.create(name='Test Model',
+                          type='LOGISTIC_REG',
+                          unique_id='CLIENT_ID',
+                          destination='GOOGLE_ANALYTICS_CUSTOM_EVENT')
     response = self.client.get('/api/ml-models')
     self.assertEqual(response.status_code, 200)
 
@@ -40,8 +42,10 @@ class TestMlModelViews(controller_utils.ControllerAppTest):
     self.assertEqual(response.status_code, 404)
 
   def test_put_active_ml_model(self):
-    model = models.MlModel.create(
-        name='Test Model', type='LOGISTIC_REG', unique_id='CLIENT_ID')
+    model = models.MlModel.create(name='Test Model',
+                                  type='LOGISTIC_REG',
+                                  unique_id='CLIENT_ID',
+                                  destination='GOOGLE_ANALYTICS_CUSTOM_EVENT')
     pipeline = models.Pipeline.create(ml_model_id=model.id)
     pipeline.status = models.Pipeline.STATUS.RUNNING
     pipeline.save()
@@ -52,36 +56,43 @@ class TestMlModelViews(controller_utils.ControllerAppTest):
     self.post_test_model()
 
     request = {
-        'name': 'Test Model - Update',
-        'bigquery_dataset': {'name': 'test-dataset-update', 'location': 'UK'},
-        'type': 'BOOSTED_TREE_CLASSIFIER',
-        'unique_id': 'USER_ID',
-        'uses_first_party_data': False,
-        'hyper_parameters': [
-            {'name': 'L1_REG', 'value': '2'},
-            {'name': 'L2_REG', 'value': '4'},
-            {'name': 'BOOSTER_TYPE', 'value': 'GBTREE'},
-            {'name': 'MAX_ITERATIONS', 'value': '12'},
-            {'name': 'SUBSAMPLE', 'value': '0.4'},
-            {'name': 'TREE_METHOD', 'value': 'HIST'},
-            {'name': 'ENABLE_GLOBAL_EXPLAIN', 'value': 'false'},
-            {'name': 'NUM_PARALLEL_TREE', 'value': '4'},
-            {'name': 'DATA_SPLIT_METHOD', 'value': 'AUTO_SPLIT'},
-            {'name': 'EARLY_STOP', 'value': 'true'},
-        ],
-        'features': [{'name': 'enrollment', 'source': 'FIRST_PARTY'}],
-        'label': {
-            'name': 'purchase',
-            'source': 'GOOGLE_ANALYTICS',
-            'key': 'value',
-            'value_type': 'int',
-            'average_value': 123.45,
+        "name": "Test Model - Update",
+        "bigquery_dataset": {
+            "name": "test-dataset-update",
+            "location": "UK"
         },
-        'class_imbalance': 5,
-        'timespans': [
-            {'name': 'training', 'value': 14, 'unit': 'month'},
-            {'name': 'predictive', 'value': 2, 'unit': 'month'},
+        "type": "BOOSTED_TREE_CLASSIFIER",
+        "unique_id": "USER_ID",
+        "uses_first_party_data": False,
+        "hyper_parameters": [
+            {"name": "L1_REG", "value": "2"},
+            {"name": "L2_REG", "value": "4"},
+            {"name": "BOOSTER_TYPE", "value": "GBTREE"},
+            {"name": "MAX_ITERATIONS", "value": "12"},
+            {"name": "SUBSAMPLE", "value": "0.4"},
+            {"name": "TREE_METHOD", "value": "HIST"},
+            {"name": "ENABLE_GLOBAL_EXPLAIN", "value": "false"},
+            {"name": "NUM_PARALLEL_TREE", "value": "4"},
+            {"name": "DATA_SPLIT_METHOD", "value": "AUTO_SPLIT"},
+            {"name": "EARLY_STOP", "value": "true"}
         ],
+        "features": [{
+            "name": "enrollment",
+            "source": "FIRST_PARTY"
+        }],
+        "label": {
+            "name": "purchase",
+            "source": "GOOGLE_ANALYTICS",
+            "key": "value",
+            "value_type": "int",
+            "average_value": 123.45
+        },
+        "class_imbalance": 5,
+        "timespans": [
+            {"name": "training", "value": 14, "unit": "month"},
+            {"name": "predictive", "value": 2, "unit": "month"}
+        ],
+        "destination": "GOOGLE_ADS_CONVERSION_EVENT"
     }
 
     response = self.client.put('/api/ml-models/1', json=request)
@@ -101,8 +112,10 @@ class TestMlModelViews(controller_utils.ControllerAppTest):
     self.assertEqual(response.status_code, 404)
 
   def test_delete_active_ml_model(self):
-    model = models.MlModel.create(
-        name='Test Model', type='LOGISTIC_REG', unique_id='CLIENT_ID')
+    model = models.MlModel.create(name='Test Model',
+                                  type='LOGISTIC_REG',
+                                  unique_id='CLIENT_ID',
+                                  destination='GOOGLE_ANALYTICS_CUSTOM_EVENT')
     pipeline = models.Pipeline.create(ml_model_id=model.id)
     pipeline.status = models.Pipeline.STATUS.RUNNING
     pipeline.save()
@@ -110,8 +123,10 @@ class TestMlModelViews(controller_utils.ControllerAppTest):
     self.assertEqual(response.status_code, 422)
 
   def test_delete_ml_model(self):
-    models.MlModel.create(
-        name='Test Model', type='LOGISTIC_REG', unique_id='CLIENT_ID')
+    models.MlModel.create(name='Test Model',
+                          type='LOGISTIC_REG',
+                          unique_id='CLIENT_ID',
+                          destination='GOOGLE_ANALYTICS_CUSTOM_EVENT')
 
     response = self.client.get('/api/ml-models/1')
     self.assertEqual(response.status_code, 200)
@@ -148,8 +163,10 @@ class TestMlModelViews(controller_utils.ControllerAppTest):
     self.assertEqual(response.status_code, 404)
 
   def test_retrieve_ml_model(self):
-    model = models.MlModel.create(
-        name='Test Model', type='LOGISTIC_REG', unique_id='CLIENT_ID')
+    model = models.MlModel.create(name='Test Model',
+                                  type='LOGISTIC_REG',
+                                  unique_id='CLIENT_ID',
+                                  destination='GOOGLE_ANALYTICS_CUSTOM_EVENT')
     models.Pipeline.create(ml_model_id=model.id)
     response = self.client.get('/api/ml-models/1')
     self.assertEqual(response.status_code, 200)
@@ -197,36 +214,43 @@ class TestMlModelViews(controller_utils.ControllerAppTest):
 
   def post_test_model(self):
     request = {
-        'name': 'Test Model',
-        'bigquery_dataset': {'name': 'test-dataset', 'location': 'US'},
-        'type': 'BOOSTED_TREE_REGRESSOR',
-        'unique_id': 'CLIENT_ID',
-        'uses_first_party_data': False,
-        'hyper_parameters': [
-            {'name': 'L1_REG', 'value': '1'},
-            {'name': 'L2_REG', 'value': '1'},
-            {'name': 'BOOSTER_TYPE', 'value': 'GBTREE'},
-            {'name': 'MAX_ITERATIONS', 'value': '50'},
-            {'name': 'SUBSAMPLE', 'value': '0.8'},
-            {'name': 'TREE_METHOD', 'value': 'HIST'},
-            {'name': 'ENABLE_GLOBAL_EXPLAIN', 'value': 'true'},
-            {'name': 'NUM_PARALLEL_TREE', 'value': '2'},
-            {'name': 'DATA_SPLIT_METHOD', 'value': 'AUTO_SPLIT'},
-            {'name': 'EARLY_STOP', 'value': 'false'},
-        ],
-        'features': [{'name': 'click', 'source': 'GOOGLE_ANALYTICS'}],
-        'label': {
-            'name': 'purchase',
-            'key': '',
-            'value_type': '',
-            'source': 'FIRST_PARTY',
-            'average_value': 0.0,
+        "name": "Test Model",
+        "bigquery_dataset": {
+            "name": "test-dataset",
+            "location": "US"
         },
-        'class_imbalance': 7,
-        'timespans': [
-            {'name': 'training', 'value': 20, 'unit': 'month'},
-            {'name': 'predictive', 'value': 1, 'unit': 'month'},
+        "type": "BOOSTED_TREE_REGRESSOR",
+        "unique_id": "CLIENT_ID",
+        "uses_first_party_data": False,
+        "hyper_parameters": [
+            {"name": "L1_REG", "value": "1"},
+            {"name": "L2_REG", "value": "1"},
+            {"name": "BOOSTER_TYPE", "value": "GBTREE"},
+            {"name": "MAX_ITERATIONS", "value": "50"},
+            {"name": "SUBSAMPLE", "value": "0.8"},
+            {"name": "TREE_METHOD", "value": "HIST"},
+            {"name": "ENABLE_GLOBAL_EXPLAIN", "value": "true"},
+            {"name": "NUM_PARALLEL_TREE", "value": "2"},
+            {"name": "DATA_SPLIT_METHOD", "value": "AUTO_SPLIT"},
+            {"name": "EARLY_STOP", "value": "false"}
         ],
+        "features": [{
+            "name": "click",
+            "source": "GOOGLE_ANALYTICS"
+        }],
+        "label": {
+            "name": "purchase",
+            "key": "",
+            "value_type": "",
+            "source": "FIRST_PARTY",
+            "average_value": 0.0
+        },
+        "class_imbalance": 7,
+        "timespans": [
+            {"name": "training", "value": 20, "unit": "month"},
+            {"name": "predictive", "value": 1, "unit": "month"}
+        ],
+        "destination": "GOOGLE_ANALYTICS_CUSTOM_EVENT"
     }
 
     response = self.client.post('/api/ml-models', json=request)
