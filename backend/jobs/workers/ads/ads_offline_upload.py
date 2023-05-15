@@ -13,7 +13,11 @@
 # limitations under the License.
 
 """Workers to upload offline conversions to Google Ads."""
-from typing import List
+import json
+import math
+import string
+
+from typing import Any, List
 
 from google.ads.googleads import client
 from google.api_core import page_iterator
@@ -31,7 +35,7 @@ CLIENT_SECRET = 'client_secret'
 
 
 class AdsOfflineClickConversionUploader(bq_batch_worker.BQBatchDataWorker):
-  """Worker for uploading offline click conversions into Google Ads.
+  """Worker that reads conversions from a BQ table and uploading into Ads.
 
   This worker supports uploading click-based offline conversions, where a
   GCLID is provided for each conversion action being uploaded.  The conversions
@@ -137,10 +141,26 @@ class AdsOfflineClickConversionUploader(bq_batch_worker.BQBatchDataWorker):
 
 
 class AdsOfflineClickPageResultsWorker(bq_batch_worker.TablePageResultsProcessorWorker):
-  """"""
+  """A page results worker for uploading a chunk of conversion data."""
 
   def _process_page_results(self, page_data: page_iterator.Page) -> None:
     ads_client = self._get_ads_client()
+    num_rows = page_data.num_items
+    template = string.Template(self._params['template'])
+
+    conversion_objs = []
+    for idx, row in enumerate(page_data):
+      payload = template.substitute(dict(row.items()))
+      conversion_objs.append(
+        self._generate_conversion_object(json.loads(payload), ads_client)
+      )
+
+      if idx % (math.ceil(num_rows / 10)) == 0:
+        progress = idx / num_rows
+        self.log_info(f'Completed {progress:.2%} of the ads conversions.')
+
+    self._send_payload(conversion_objs, ads_client)
+    self.log_info('Done with measurement protocol hits.')
 
   def _get_ads_client(self) -> client.GoogleAdsClient:
     client_params = {'developer_token': self._params[DEVELOPER_TOKEN]}
@@ -153,3 +173,35 @@ class AdsOfflineClickPageResultsWorker(bq_batch_worker.TablePageResultsProcessor
       client_params['refresh_token'] = self._params[REFRESH_TOKEN]
 
     return client.GoogleAdsClient.load_from_dict(client_params)
+
+  def _generate_conversion_object(
+    self,
+    conversion_data: Any,
+    ads_client: client.GoogleAdsClient
+  ) -> Any:
+    """Generates an Ads API conversion object."""
+    click_conversion = ads_client.get_type("ClickConversion")
+
+    click_conversion.gclid = conversion_data['gclid']
+    click_conversion.conversion_value = conversion_data['conversionValue']
+    click_conversion.conversion_date_time = conversion_data[
+      'conversionDateTime']
+    click_conversion.currency_code = conversion_data['currencyCode']
+    click_conversion.conversion_action = conversion_data['conversionAction']
+
+    return click_conversion
+
+  def _send_payload(
+    self, payload: List[Any], ads_client: client.GoogleAdsClient
+  ) -> None:
+    request = ads_client.get_type("UploadClickConversionsRequest")
+    request.customer_id = self._params[CONVERSIONS_CUSTOMER_ID]
+    request.conversions.extend(payload)
+    request.partial_failure = True
+
+    conversion_upload_service = ads_client.get_service(
+      "ConversionActionService"
+    )
+    conversion_upload_response = (
+      conversion_upload_service.upload_click_conversions(request=request)
+    )

@@ -5,13 +5,10 @@ from unittest import mock
 from absl.testing import absltest
 from absl.testing import parameterized
 
-from google.ads.googleads import client as ads_client_lib
-
 from jobs.workers.ads import ads_offline_upload
 
 
-class AdsOfflineClickPageResultsWorkerTest(parameterized.TestCase):
-
+class AdsOfflineClickPageResultsWorkerTests(parameterized.TestCase):
   def setUp(self):
     super().setUp()
 
@@ -58,14 +55,17 @@ class AdsOfflineClickPageResultsWorkerTest(parameterized.TestCase):
 
   @mock.patch('jobs.workers.bigquery.bq_batch_worker.BQBatchDataWorker._execute')
   def test_can_client_params_are_required_if_refresh_token_provided(self, _):
-    """The Ad requires client ID and secret if a refresh token was provided."""
+    """The worker requires client ID and secret if a refresh token was
+    provided.
+    """
     parameters = {
       'google_ads_developer_token': 'token',
       'bq_project_id': '123',
       'bq_dataset_id': 'a_dataset',
       'bq_table_id': 'a_table',
       'template': 'a_template_string',
-      'customer_id':  '123456'
+      'customer_id':  '123456',
+      'google_ads_refresh_token': 'a_refresh_token'
     }
 
     worker = ads_offline_upload.AdsOfflineClickConversionUploader(
@@ -76,6 +76,29 @@ class AdsOfflineClickPageResultsWorkerTest(parameterized.TestCase):
 
     self.assertIn('"client_id" is required.', str(err_context.exception))
     self.assertIn('"client_secret" is required.', str(err_context.exception))
+
+  @mock.patch('jobs.workers.bigquery.bq_batch_worker.BQBatchDataWorker._execute')
+  def test_calls_parent_bq_batch_worker_to_start_execution(
+    self,
+    mocked_parent_execute
+  ):
+    """The Ad requires client ID and secret if a refresh token was provided."""
+    parameters = {
+      'google_ads_developer_token': 'token',
+      'bq_project_id': '123',
+      'bq_dataset_id': 'a_dataset',
+      'bq_table_id': 'a_table',
+      'template': 'a_template_string',
+      'customer_id':  '123456',
+      'google_ads_service_account_file': '/a/file/path'
+    }
+
+    worker = ads_offline_upload.AdsOfflineClickConversionUploader(
+      parameters, 'pipeline_id', 'job_id'
+    )
+    worker._execute()
+
+    mocked_parent_execute.assert_called()
 
 
 if __name__ == '__main__':

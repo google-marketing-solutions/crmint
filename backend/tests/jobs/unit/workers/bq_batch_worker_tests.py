@@ -176,6 +176,7 @@ class MockImplTablePageResultsProcessorWorker(bq_batch_worker.TablePageResultsPr
     self.was_called = True
     self.was_called_with = page_data
 
+
 class TablePageResultsProcessorWorkerTests(parameterized.TestCase):
   def setUp(self):
     super().setUp()
