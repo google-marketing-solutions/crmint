@@ -89,14 +89,15 @@
 
 #timespans
   flex-grow: 1
-  .slider-group
-    display: flex
-    flex-grow: 1
-    align-items: center
-    .mat-slider
-      margin-left: -8px
-    .label
-      top: 7px
+  padding: 10px
+  > span:first-of-type
+    margin-right: 40px
+  input + span
+    position: absolute
+    right: 0px
+    bottom: 4px
+    font-size: 12px
+    color: rgba(0, 0, 0, 0.54)
 
 #features
   > div
