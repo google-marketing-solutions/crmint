@@ -1,8 +1,6 @@
 """Generic utilities."""
 
-from typing import Any, Callable, Iterable, Optional, TypeVar
-
-T = TypeVar('T')
+from typing import Any
 
 
 def detect_patch_update(patch: Any, target: Any) -> bool:
@@ -36,34 +34,3 @@ def detect_patch_update(patch: Any, target: Any) -> bool:
     return True
 
   return False
-
-
-def first(iterable: Iterable[T],
-          condition: Callable[[T], bool] = lambda x: True,
-          default: Optional[T] = None) -> T:
-  """Returns the first item in the `iterable` that satisfies the `condition`.
-
-  If the condition is not given, returns the first item of
-  the iterable.
-
-  If the `default` argument is given and the iterable is empty,
-  or if it has no items matching the condition, the `default` argument
-  is returned if it matches the condition.
-
-  The `default` argument being None is the same as it not being given.
-
-  Raises `StopIteration` if no item satisfying the condition is found
-  and default is not given or doesn't satisfy the condition.
-
-  Args:
-    iterable: List of elements.
-    condition: Condition to test elements on.
-    default: Optional default value.
-  """
-  try:
-    return next(x for x in iterable if condition(x))
-  except StopIteration:
-    if default is not None and condition(default):
-      return default
-    else:
-      raise

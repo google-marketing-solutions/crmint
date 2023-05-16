@@ -16,10 +16,10 @@
 
 from absl.testing import absltest, parameterized
 from freezegun import freeze_time
-from typing import Union
+from typing import Union, Iterable
 import re
 
-from controller.ml_model.compiler import Compiler
+from controller.ml_model import compiler
 
 class TestCompiler(parameterized.TestCase):
 
@@ -52,12 +52,12 @@ class TestCompiler(parameterized.TestCase):
     params = pipeline['jobs'][0]['params']
 
     # big-query dataset location check
-    dataset_loc_param = next(param for param in params if param['name'] == 'bq_dataset_location')
+    dataset_loc_param = self.first(params, 'name', 'bq_dataset_location')
     self.assertIsNotNone(dataset_loc_param)
     self.assertEqual(dataset_loc_param['value'], 'US')
 
     # sql check start
-    sql_param = next(param for param in params if param['name'] == 'script')
+    sql_param = self.first(params, 'name', 'script')
     self.assertIsNotNone(sql_param)
 
     # conversion value calculations job check
@@ -67,7 +67,7 @@ class TestCompiler(parameterized.TestCase):
     params = pipeline['jobs'][1]['params']
 
     # big-query dataset location check
-    dataset_loc_param = next(param for param in params if param['name'] == 'bq_dataset_location')
+    dataset_loc_param = self.first(params, 'name', 'bq_dataset_location')
     self.assertIsNotNone(dataset_loc_param)
     self.assertEqual(dataset_loc_param['value'], 'US')
 
@@ -75,7 +75,7 @@ class TestCompiler(parameterized.TestCase):
     self.assertEqual(pipeline['jobs'][0]['worker_class'], 'BQScriptExecutor')
 
     # sql check
-    sql_param = next(param for param in params if param["name"] == "script")
+    sql_param = self.first(params, 'name', 'script')
     self.assertIsNotNone(sql_param)
     self.assertEqual(sql_param['type'], 'sql')
     self.assertNotEmpty(sql_param['value'])
@@ -102,7 +102,7 @@ class TestCompiler(parameterized.TestCase):
     self.assertEqual(pipeline['jobs'][0]['name'], 'Test Model - Training Setup')
     params = pipeline['jobs'][0]['params']
 
-    sql_param = next(param for param in params if param['name'] == 'script')
+    sql_param = self.first(params, 'name', 'script')
     self.assertIsNotNone(sql_param)
     sql = sql_param['value']
 
@@ -171,14 +171,14 @@ class TestCompiler(parameterized.TestCase):
 
     # timespan check
     self.assertIn(
-        'FORMAT_DATE("%Y%m%d", DATE_SUB(CURRENT_DATE(), INTERVAL 18 MONTH))',
+        'FORMAT_DATE("%Y%m%d", DATE_SUB(CURRENT_DATE(), INTERVAL 19 DAY))',
         sql,
         'Timespan start check failed.',
     )
 
     self.assertIn(
-        'FORMAT_DATE("%Y%m%d", DATE_SUB(DATE_SUB(CURRENT_DATE(), INTERVAL 1'
-        ' MONTH), INTERVAL 1 DAY))',
+        'FORMAT_DATE("%Y%m%d", DATE_SUB(DATE_SUB(CURRENT_DATE(), INTERVAL 2'
+        ' DAY), INTERVAL 1 DAY))',
         sql,
         'Timespan end check failed.',
     )
@@ -203,7 +203,7 @@ class TestCompiler(parameterized.TestCase):
     pipeline = self.compiler(test_model).build_training_pipeline()
     params = pipeline['jobs'][0]['params']
 
-    sql_param = next(param for param in params if param['name'] == 'script')
+    sql_param = self.first(params, 'name', 'script')
     self.assertIsNotNone(sql_param)
     sql = sql_param['value']
 
@@ -251,7 +251,7 @@ class TestCompiler(parameterized.TestCase):
     pipeline = self.compiler(test_model).build_training_pipeline()
     params = pipeline['jobs'][0]['params']
 
-    sql_param = next(param for param in params if param['name'] == 'script')
+    sql_param = self.first(params, 'name', 'script')
     self.assertIsNotNone(sql_param)
     sql = sql_param['value']
 
@@ -304,7 +304,7 @@ class TestCompiler(parameterized.TestCase):
     pipeline = self.compiler(test_model).build_training_pipeline()
     params = pipeline['jobs'][0]['params']
 
-    sql_param = next(param for param in params if param['name'] == 'script')
+    sql_param = self.first(params, 'name', 'script')
     self.assertIsNotNone(sql_param)
     sql = sql_param['value']
 
@@ -345,7 +345,7 @@ class TestCompiler(parameterized.TestCase):
     pipeline = self.compiler(test_model).build_training_pipeline()
     params = pipeline['jobs'][0]['params']
 
-    sql_param = next(param for param in params if param['name'] == 'script')
+    sql_param = self.first(params, 'name', 'script')
     self.assertIsNotNone(sql_param)
     sql = sql_param['value']
 
@@ -356,12 +356,12 @@ class TestCompiler(parameterized.TestCase):
         'Google Analytics random 90% selection check failed.')
 
   @parameterized.named_parameters(
-    ('destination google analytics custom event', 'GOOGLE_ANALYTICS_CUSTOM_EVENT'),
-    ('destination google ads conversion event', 'GOOGLE_ADS_CONVERSION_EVENT')
+    ('destination google analytics custom event', 'GOOGLE_ANALYTICS_MP_EVENT'),
+    ('destination google ads conversion event', 'GOOGLE_ADS_OFFLINE_CONVERSION')
   )
   def test_build_predictive_pipeline(self, destination: str):
     test_model = self.model_config(
-      type='BOOSTED_TREE_CLASSIFIER',
+      model_type='BOOSTED_TREE_CLASSIFIER',
       uses_first_party_data=True,
       label={
         'name': 'purchase',
@@ -383,7 +383,7 @@ class TestCompiler(parameterized.TestCase):
     # schedule check
     self.assertEqual(pipeline['schedules'][0]['cron'], '0 0 * * *')
 
-    setup_job = next(job for job in pipeline['jobs'] if job['name'] == 'Test Model - Predictive Setup')
+    setup_job = self.first(pipeline['jobs'], 'name', 'Test Model - Predictive Setup')
     self.assertIsNotNone(setup_job)
 
     # check job worker
@@ -392,16 +392,15 @@ class TestCompiler(parameterized.TestCase):
     params = setup_job['params']
 
     # big-query dataset location check
-    dataset_loc_param = next(
-        param for param in params if param['name'] == 'bq_dataset_location')
+    dataset_loc_param = self.first(params, 'name', 'bq_dataset_location')
     self.assertIsNotNone(dataset_loc_param)
     self.assertEqual(dataset_loc_param['value'], 'US')
 
     # sql script check
-    sql_param = next(param for param in params if param['name'] == 'script')
+    sql_param = self.first(params, 'name', 'script')
     self.assertIsNotNone(sql_param)
 
-    output_job = next(job for job in pipeline if job['name'] == 'Test Model - Predictive Output')
+    output_job = self.first(pipeline['jobs'], 'name', 'Test Model - Predictive Output')
     self.assertIsNotNone(output_job)
 
     # check job start conditions
@@ -415,16 +414,15 @@ class TestCompiler(parameterized.TestCase):
     params = output_job['params']
 
     # big-query dataset location check
-    dataset_loc_param = next(
-        param for param in params if param['name'] == 'bq_dataset_location')
+    dataset_loc_param = self.first(params, 'name', 'bq_dataset_location')
     self.assertIsNotNone(dataset_loc_param)
     self.assertEqual(dataset_loc_param['value'], 'US')
 
     # sql script check
-    sql_param = next(param for param in params if param['name'] == 'script')
+    sql_param = self.first(params, 'name', 'script')
     self.assertIsNotNone(sql_param)
 
-    upload_job = next(job for job in pipeline['jobs'] if job['name'] == 'Test Model - Predictive Upload')
+    upload_job = self.first(pipeline['jobs'], 'name', 'Test Model - Predictive Upload')
     self.assertIsNotNone(upload_job)
 
     # check job start conditions
@@ -434,44 +432,40 @@ class TestCompiler(parameterized.TestCase):
     params = upload_job['params']
 
     # check destination specific parts
-    if destination == 'GOOGLE_ANALYTICS_CUSTOM_EVENT':
+    if destination == 'GOOGLE_ANALYTICS_MP_EVENT':
       # check job worker
       self.assertEqual(upload_job['worker_class'], 'BQToMeasurementProtocolGA4')
 
       # measurement id check
-      measurement_id_param = next(param for param in params if param['name'] == 'measurement_id')
+      measurement_id_param = self.first(params, 'name', 'measurement_id')
       self.assertIsNotNone(measurement_id_param)
       self.assertEqual(measurement_id_param['value'], 'test-ga4-measurement-id')
 
       # api secret check
-      api_secret_param = next(param for param in params if param['name'] == 'api_secret')
+      api_secret_param = self.first(params, 'name', 'api_secret')
       self.assertIsNotNone(api_secret_param)
       self.assertEqual(api_secret_param['value'], 'test-ga4-api-secret')
-    elif destination == 'GOOGLE_ADS_CONVERSION_EVENT':
+    elif destination == 'GOOGLE_ADS_OFFLINE_CONVERSION':
       # check job worker
-      self.assertEqual(upload_job['worker_class'], 'BQToGoogleAds')
+      self.assertEqual(upload_job['worker_class'], 'BQToAdsOfflineClickConversion')
 
     # project id check
-    bq_project_id_param = next(
-        param for param in params if param['name'] == 'bq_project_id')
+    bq_project_id_param = self.first(params, 'name', 'bq_project_id')
     self.assertIsNotNone(bq_project_id_param)
     self.assertEqual(bq_project_id_param['value'], 'test-project-id-1234')
 
     # big-query dataset name check
-    dataset_name_param = next(
-        param for param in params if param['name'] == 'bq_dataset_id')
+    dataset_name_param = self.first(params, 'name', 'bq_dataset_id')
     self.assertIsNotNone(dataset_name_param)
     self.assertEqual(dataset_name_param['value'], 'test-dataset')
 
     # big-query dataset location check
-    dataset_loc_param = next(
-        param for param in params if param['name'] == 'bq_dataset_location')
+    dataset_loc_param = self.first(params, 'name', 'bq_dataset_location')
     self.assertIsNotNone(dataset_loc_param)
     self.assertEqual(dataset_loc_param['value'], 'US')
 
     # template check
-    template_param = next(
-        param for param in params if param['name'] == 'template')
+    template_param = self.first(params, 'name', 'template')
     self.assertIsNotNone(template_param)
 
   def test_build_predictive_sql_first_party_and_google_analytics(self):
@@ -494,12 +488,11 @@ class TestCompiler(parameterized.TestCase):
     pipeline = self.compiler(test_model).build_predictive_pipeline()
     self.assertEqual(pipeline['name'], 'Test Model - Predictive')
 
-    setup_job = next(
-        job for job in pipeline['jobs'] if job['name'] == 'Test Model - Predictive Setup')
+    setup_job = self.first(pipeline['jobs'], 'name', 'Test Model - Predictive Setup')
     self.assertIsNotNone(setup_job)
     params = setup_job['params']
 
-    sql_param = next(param for param in params if param['name'] == 'script')
+    sql_param = self.first(params, 'name', 'script')
     self.assertIsNotNone(sql_param)
     sql = sql_param['value']
 
@@ -549,7 +542,7 @@ class TestCompiler(parameterized.TestCase):
 
     # timespan check
     self.assertIn(
-        'FORMAT_DATE("%Y%m%d", DATE_SUB(CURRENT_DATE(), INTERVAL 1 MONTH))',
+        'FORMAT_DATE("%Y%m%d", DATE_SUB(CURRENT_DATE(), INTERVAL 2 DAY))',
         sql,
         'Timespan start check failed.')
 
@@ -579,11 +572,11 @@ class TestCompiler(parameterized.TestCase):
     pipeline = self.compiler(test_model).build_predictive_pipeline()
     self.assertEqual(pipeline['name'], 'Test Model - Predictive')
 
-    setup_job = next(job for job in pipeline['jobs'] if job['name'] == 'Test Model - Predictive Setup')
+    setup_job = self.first(pipeline['jobs'], 'name', 'Test Model - Predictive Setup')
     self.assertIsNotNone(setup_job)
     params = setup_job['params']
 
-    sql_param = next(param for param in params if param['name'] == 'script')
+    sql_param = self.first(params, 'name', 'script')
     self.assertIsNotNone(sql_param)
     sql = sql_param['value']
 
@@ -639,11 +632,11 @@ class TestCompiler(parameterized.TestCase):
     pipeline = self.compiler(test_model).build_predictive_pipeline()
     self.assertEqual(pipeline['name'], 'Test Model - Predictive')
 
-    setup_job = next(job for job in pipeline['jobs'] if job['name'] == 'Test Model - Predictive Setup')
+    setup_job = self.first(pipeline['jobs'], 'name', 'Test Model - Predictive Setup')
     self.assertIsNotNone(setup_job)
     params = setup_job['params']
 
-    sql_param = next(param for param in params if param['name'] == 'script')
+    sql_param = self.first(params, 'name', 'script')
     self.assertIsNotNone(sql_param)
     sql = sql_param['value']
 
@@ -690,11 +683,11 @@ class TestCompiler(parameterized.TestCase):
     pipeline = self.compiler(test_model).build_predictive_pipeline()
     self.assertEqual(pipeline['name'], 'Test Model - Predictive')
 
-    setup_job = next(job for job in pipeline['jobs'] if job['name'] == 'Test Model - Predictive Setup')
+    setup_job = self.first(pipeline['jobs'], 'name', 'Test Model - Predictive Setup')
     self.assertIsNotNone(setup_job)
     params = setup_job['params']
 
-    sql_param = next(param for param in params if param['name'] == 'script')
+    sql_param = self.first(params, 'name', 'script')
     self.assertIsNotNone(sql_param)
     sql = sql_param['value']
 
@@ -742,11 +735,11 @@ class TestCompiler(parameterized.TestCase):
     pipeline = self.compiler(test_model).build_predictive_pipeline()
     self.assertEqual(pipeline['name'], 'Test Model - Predictive')
 
-    output_job = next(job for job in pipeline if job['name'] == 'Test Model - Predictive Output')
+    output_job = self.first(pipeline['jobs'], 'name', 'Test Model - Predictive Output')
     self.assertIsNotNone(output_job)
     params = output_job['params']
 
-    sql_param = next(param for param in params if param['name'] == 'script')
+    sql_param = self.first(params, 'name', 'script')
     self.assertIsNotNone(sql_param)
     sql = sql_param['value']
 
@@ -813,11 +806,11 @@ class TestCompiler(parameterized.TestCase):
     pipeline = self.compiler(test_model).build_predictive_pipeline()
     self.assertEqual(pipeline['name'], 'Test Model - Predictive')
 
-    output_job = next(job for job in pipeline if job['name'] == 'Test Model - Predictive Output')
+    output_job = self.first(pipeline['jobs'], 'name', 'Test Model - Predictive Output')
     self.assertIsNotNone(output_job)
     params = output_job['params']
 
-    sql_param = next(param for param in params if param['name'] == 'script')
+    sql_param = self.first(params, 'name', 'script')
     self.assertIsNotNone(sql_param)
     sql = sql_param['value']
 
@@ -873,31 +866,31 @@ class TestCompiler(parameterized.TestCase):
     pipeline = self.compiler(test_model).build_predictive_pipeline()
     self.assertEqual(pipeline['name'], 'Test Model - Predictive')
 
-    upload_job = next(job for job in pipeline['jobs'] if job['name'] == 'Test Model - Predictive Upload')
+    upload_job = self.first(pipeline['jobs'], 'name', 'Test Model - Predictive Upload')
     self.assertIsNotNone(upload_job)
     params = upload_job['params']
 
     # big-query dataset id check
-    dataset_id_param = next(param for param in params if param['name'] == 'bq_dataset_id')
+    dataset_id_param = self.first(params, 'name', 'bq_dataset_id')
     self.assertIsNotNone(dataset_id_param)
     self.assertEqual(dataset_id_param['value'], 'test-dataset')
 
     # big-query dataset location check
-    dataset_loc_param = next(param for param in params if param['name'] == 'bq_dataset_location')
+    dataset_loc_param = self.first(params, 'name', 'bq_dataset_location')
     self.assertIsNotNone(dataset_loc_param)
     self.assertEqual(dataset_loc_param['value'], 'US')
 
     # ga4 measurement id check
-    measurement_id_param = next(param for param in params if param['name'] == 'measurement_id')
+    measurement_id_param = self.first(params, 'name', 'measurement_id')
     self.assertIsNotNone(measurement_id_param)
     self.assertEqual(measurement_id_param['value'], 'test-ga4-measurement-id')
 
     # ga4 api secret check
-    api_secret_param = next(param for param in params if param['name'] == 'api_secret')
+    api_secret_param = self.first(params, 'name', 'api_secret')
     self.assertIsNotNone(api_secret_param)
     self.assertEqual(api_secret_param['value'], 'test-ga4-api-secret')
 
-  def test_build_ga4_request_score(self):
+  def test_build_google_analytics_mp_event_score(self):
     test_model = self.model_config(
         model_type='BOOSTED_TREE_CLASSIFIER',
         uses_first_party_data=True,
@@ -915,12 +908,12 @@ class TestCompiler(parameterized.TestCase):
     pipeline = self.compiler(test_model).build_predictive_pipeline()
     self.assertEqual(pipeline['name'], 'Test Model - Predictive')
 
-    upload_job = next(job for job in pipeline['jobs'] if job['name'] == 'Test Model - Predictive Upload')
+    upload_job = self.first(pipeline['jobs'], 'name', 'Test Model - Predictive Upload')
     self.assertIsNotNone(upload_job)
     params = upload_job['params']
 
     # template check
-    template_param = next(param for param in params if param['name'] == 'template')
+    template_param = self.first(params, 'name', 'template')
     self.assertIsNotNone(template_param)
 
     self.assertJsonEqual(
@@ -945,7 +938,7 @@ class TestCompiler(parameterized.TestCase):
         """,
         'Failed template check.')
 
-  def test_build_ga4_request_revenue(self):
+  def test_build_google_analytics_mp_event_revenue(self):
     test_model = self.model_config(
         model_type='BOOSTED_TREE_REGRESSOR',
         uses_first_party_data=True,
@@ -962,12 +955,12 @@ class TestCompiler(parameterized.TestCase):
     pipeline = self.compiler(test_model).build_predictive_pipeline()
     self.assertEqual(pipeline['name'], 'Test Model - Predictive')
 
-    upload_job = next(job for job in pipeline['jobs'] if job['name'] == 'Test Model - Predictive Upload')
+    upload_job = self.first(pipeline['jobs'], 'name', 'Test Model - Predictive Upload')
     self.assertIsNotNone(upload_job)
     params = upload_job['params']
 
     # template check
-    template_param = next(param for param in params if param['name'] == 'template')
+    template_param = self.first(params, 'name', 'template')
     self.assertIsNotNone(template_param)
 
     self.assertJsonEqual(
@@ -991,6 +984,37 @@ class TestCompiler(parameterized.TestCase):
         """,
         'Failed template check.')
 
+  def test_build_google_ads_offline_conversion(self):
+    test_model = self.model_config(
+        model_type='BOOSTED_TREE_REGRESSOR',
+        uses_first_party_data=True,
+        unique_id='USER_ID',
+        label={
+            'name': 'purchase',
+            'source': 'GOOGLE_ANALYTICS',
+            'key': 'value',
+            'value_type': 'float'
+        },
+        features=[],
+        class_imbalance=0,
+        destination='GOOGLE_ADS_OFFLINE_CONVERSION')
+
+    pipeline = self.compiler(test_model).build_predictive_pipeline()
+    self.assertEqual(pipeline['name'], 'Test Model - Predictive')
+
+    upload_job = self.first(pipeline['jobs'], 'name', 'Test Model - Predictive Upload')
+    self.assertIsNotNone(upload_job)
+    params = upload_job['params']
+
+    # template check
+    template_param = self.first(params, 'name', 'template')
+    self.assertIsNotNone(template_param)
+
+    self.assertIn(
+        'customers/1234/conversionActions/5678',
+        template_param['value'],
+        'Failed template check.')
+
   def model_config(self,
                    model_type: str,
                    uses_first_party_data: bool,
@@ -998,7 +1022,7 @@ class TestCompiler(parameterized.TestCase):
                    features: list[dict],
                    class_imbalance: int,
                    unique_id: str = 'CLIENT_ID',
-                   destination: str = 'GOOGLE_ANALYTICS_CUSTOM_EVENT'):
+                   destination: str = 'GOOGLE_ANALYTICS_MP_EVENT'):
     return self.convert_to_object({
       'name': 'Test Model',
       'bigquery_dataset': {
@@ -1019,14 +1043,18 @@ class TestCompiler(parameterized.TestCase):
       'features': features,
       'class_imbalance': class_imbalance,
       'timespans': [
-        {"name": "training", "value": 17, "unit": "month"},
-        {"name": "predictive", "value": 1, "unit": "month"}
+        {'name': 'training', 'value': 17, 'unit': 'month'},
+        {'name': 'predictive', 'value': 1, 'unit': 'month'}
       ],
-      'destination': destination
+      'output_config': {
+        'destination': destination,
+        'customer_id': 1234,
+        'action_id': 5678
+      }
     })
 
   def compiler(self, ml_model):
-    return Compiler(
+    return compiler.Compiler(
       project_id='test-project-id-1234',
       ga4_dataset='test-ga4-dataset-loc',
       ga4_measurement_id='test-ga4-measurement-id',
@@ -1048,6 +1076,18 @@ class TestCompiler(parameterized.TestCase):
       return temp
 
     return collection
+
+  def first(self, iterable: Iterable[dict], key: str, value: str) -> dict:
+    """
+    Finds the dictionary in the list where the key specified
+    (dictionary[key]) matches the value specified.
+
+    Args:
+        iterable: List of elements.
+        key: Key to find.
+        value: Value to compare.
+    """
+    return next(x for x in iterable if x[key] == value)
 
 
 if __name__ == '__main__':
