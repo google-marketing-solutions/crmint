@@ -25,7 +25,10 @@
         </div>
 
         <div class="crmi-form-group" formGroupName="bigQueryDataset">
-          <label class="crmi-form-label">BigQuery Dataset</label>
+          <label class="crmi-form-label">
+            BigQuery Dataset
+            <mat-icon class='tooltip' title="Model, predictions, and output will be stored here.">help</mat-icon>
+          </label>
           <mat-form-field>
             <input matInput placeholder="Dataset Name" formControlName="name" name="dataset-name">
           </mat-form-field>
@@ -197,14 +200,26 @@
           </div>
         </div>
 
+        <div *ngIf="type.isClassification" class="crmi-form-group">
+          <label class="crmi-form-label">
+            Number of Segments
+            <mat-icon class='tooltip' title="Used when calculating conversion rates.">help</mat-icon>
+          </label>
+          <mat-slider formControlName="conversionRateSegments" [min]="2" [max]="10" [step]="1" [thumbLabel]="true"></mat-slider>
+          <span>{{ value('conversionRateSegments') }}</span>
+        </div>
+
         <div class="crmi-form-group">
           <label class="crmi-form-label">Class Imbalance Ratio</label>
-          <mat-slider formControlName="classImbalance" [min]="1" [max]="10" [step]="1" [thumbLabel]="value('classImbalance')"></mat-slider>
+          <mat-slider formControlName="classImbalance" [min]="1" [max]="10" [step]="1" [thumbLabel]="true"></mat-slider>
           <span>1:{{ value('classImbalance') }}</span>
         </div>
 
         <div formArrayName="timespans" class="crmi-form-group">
-          <label class="crmi-form-label">Timespan</label>
+          <label class="crmi-form-label">
+            Timespan
+            <mat-icon class='tooltip' title="Training and predictive timespans limited to 3 years and 1 year respectively.">help</mat-icon>
+          </label>
           <div id="timespans">
             <span *ngFor="let timespan of timespans.controls; index as i" [formGroupName]="i">
               <mat-form-field *ngIf="value(timespan, 'range'); let range">

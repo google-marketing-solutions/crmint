@@ -145,6 +145,7 @@ export class MlModel {
   hyper_parameters: HyperParameter[];
   features: Feature[];
   label: Label;
+  conversion_rate_segments: number;
   class_imbalance: number;
   timespans: Timespan[];
   output_config: OutputConfig;
@@ -323,6 +324,7 @@ export class MlModel {
       }),
       features: this.features,
       label: this.label,
+      conversion_rate_segments: this.conversion_rate_segments,
       class_imbalance: this.class_imbalance,
       timespans: this.timespans.map(timespan => {
         return {

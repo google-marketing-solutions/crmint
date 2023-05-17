@@ -18,6 +18,7 @@
 # docker-compose down --volumes
 # docker-compose run controller python -m flask db upgrade
 # docker-compose run controller python -m flask db migrate
+# sudo chown ldap:primarygroup backend/migrations/versions/filename.py
 # docker-compose run controller python -m flask db upgrade
 
 """Models definitions."""
@@ -395,6 +396,7 @@ class MlModel(extensions.db.Model):
       'MlModelLabel',
       uselist=False,
       lazy='joined')
+  conversion_rate_segments = Column(Integer, nullable=True)
   class_imbalance = Column(Integer, nullable=False, default=4)
   timespans = orm.relationship(
       'MlModelTimespan',
@@ -418,6 +420,7 @@ class MlModel(extensions.db.Model):
         'type',
         'unique_id',
         'uses_first_party_data',
+        'conversion_rate_segments',
         'class_imbalance'
     ]
 

@@ -166,6 +166,7 @@ class Compiler():
       'timespan': self._get_timespan(self.ml_model.timespans),
       'label': self.ml_model.label,
       'features': self.ml_model.features,
+      'conversion_rate_segments': self.ml_model.conversion_rate_segments,
       'class_imbalance': self.ml_model.class_imbalance,
       'output_config': self.ml_model.output_config
     }
