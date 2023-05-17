@@ -74,7 +74,7 @@ export class MlModelFormComponent implements OnInit {
       features: this._fb.array([]),
       label: this._fb.group({
         name: ['', [Validators.required, Validators.pattern(/^[a-z][a-z0-9_-]*$/i)]],
-        source: ['', [Validators.required, Validators.pattern(/^[A-Z_]*$/i)]],
+        source: ['', [Validators.required, Validators.pattern(/^[a-z_]*$/i)]],
         key: ['', [Validators.required, Validators.pattern(/^[a-z][a-z0-9_-]*$/i)]],
         valueType: ['', Validators.pattern(/^[a-z,]*$/i)],
         averageValue: [0.0, Validators.required]

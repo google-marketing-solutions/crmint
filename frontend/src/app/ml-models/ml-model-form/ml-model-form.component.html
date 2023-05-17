@@ -205,16 +205,14 @@
 
         <div formArrayName="timespans" class="crmi-form-group">
           <label class="crmi-form-label">Timespan</label>
-          <div id="timespans" class="vertical-group">
-            <div *ngFor="let timespan of timespans.controls; index as i" [formGroupName]="i">
-              <span *ngIf="value(timespan, 'range'); let range" class="slider-group">
-                <span class="label">{{ value(timespan, 'name').toUpperCase() }}</span>
-                <mat-slider formControlName="value" [min]="range.min" [max]="range.max"
-                            [step]="range.step" [thumbLabel]="value(timespan, 'value')">
-                </mat-slider>
-                <span>{{ value(timespan, 'value') }} {{ value(timespan, 'unit') | labelcase }}s</span>
-              </span>
-            </div>
+          <div id="timespans">
+            <span *ngFor="let timespan of timespans.controls; index as i" [formGroupName]="i">
+              <mat-form-field *ngIf="value(timespan, 'range'); let range">
+                <input matInput placeholder="{{value(timespan, 'name') | labelcase }}" type="number"
+                        formControlName="value" [min]="range.min" [max]="range.max" [step]="range.step">
+                <span>{{ value(timespan, 'unit') | labelcase }}s</span>
+              </mat-form-field>
+            </span>
           </div>
         </div>
 

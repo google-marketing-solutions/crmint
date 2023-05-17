@@ -23,8 +23,9 @@ from absl.testing import parameterized
 from freezegun import freeze_time
 import jinja2
 
-from controller import extensions
 from controller import models
+from controller import extensions
+
 from tests import controller_utils
 
 
@@ -399,15 +400,13 @@ class TestTaskEnqueued(controller_utils.ModelTestCase):
     models.TaskEnqueued.create(task_namespace='abc')
     self.assertEqual(models.TaskEnqueued.count_in_namespace('xyz'), 1)
 
-
 class TestMlModel(controller_utils.ModelTestCase):
 
   def setUp(self):
     setup = super().setUp()
     self.ml_model = models.MlModel.create(name='Test Model',
                                           type='LOGISTIC_REG',
-                                          unique_id='CLIENT_ID',
-                                          destination='GOOGLE_ANALYTICS_CUSTOM_EVENT')
+                                          unique_id='CLIENT_ID')
     return setup
 
   def test_ml_model_create(self):
@@ -415,8 +414,7 @@ class TestMlModel(controller_utils.ModelTestCase):
     self.assertAttributesSaved({
       'name': 'Test Model',
       'type': 'LOGISTIC_REG',
-      'unique_id': 'CLIENT_ID',
-      'destination': 'GOOGLE_ANALYTICS_CUSTOM_EVENT'
+      'unique_id': 'CLIENT_ID'
     })
 
   def test_assign_attributes(self):
@@ -425,8 +423,7 @@ class TestMlModel(controller_utils.ModelTestCase):
       'type': 'BOOSTED_TREE_REGRESSOR',
       'unique_id': 'USER_ID',
       'uses_first_party_data': True,
-      'class_imbalance': 7,
-      'destination': 'GOOGLE_ADS_CONVERSION_EVENT'
+      'class_imbalance': 7
     }
     self.ml_model.assign_attributes(attributes)
     self.assertAttributesSaved(attributes)
@@ -501,7 +498,34 @@ class TestMlModel(controller_utils.ModelTestCase):
           ],
       ),
       ('delete', []))
-  def test_save_relations_pipelines(self, expected_objects):
+  def test_save_relations_timespans(self, timespans):
+    self.assertLen(self.ml_model.timespans, 0)
+    self.ml_model.save_relations({'timespans': timespans})
+    self.assertRelationSaved(models.MlModelTimespan, timespans)
+
+  @parameterized.named_parameters(
+      (
+          'create',
+          {
+              'destination': 'GOOGLE_ANALTYICS_MP_EVENT',
+              'customer_id': 0,
+              'action_id': 0,
+          },
+      ),
+      (
+          'update',
+          {
+              'destination': 'GOOGLE_ANALTYICS_MP_EVENT',
+              'customer_id': 1234,
+              'action_id': 5678,
+          },
+      ))
+  def test_save_relations_output_config(self, output_config):
+    self.assertIsNone(self.ml_model.output_config)
+    self.ml_model.save_relations({'output_config': output_config})
+    self.assertRelationSaved(models.MlModelOutputConfig, output_config)
+
+  def test_save_relations_pipelines_create(self):
     self.assertLen(self.ml_model.pipelines, 0)
 
     self.ml_model.save_relations(
@@ -527,9 +551,6 @@ class TestMlModel(controller_utils.ModelTestCase):
             }]
         }
     )
-
-    pipeline = models.Pipeline.where(ml_model_id=self.ml_model.id).first()
-    self.assertIsNotNone(pipeline)
 
     pipeline = models.Pipeline.where(ml_model_id=self.ml_model.id).first()
     self.assertIsNotNone(pipeline)
@@ -602,23 +623,30 @@ class TestMlModel(controller_utils.ModelTestCase):
 
   def assertRelationSaved(
       self,
-      model: extensions.db.Model,
-      assertions: Union[dict[str, Any], list[Any]]):
-    """Custom assertion that checks the saved model matches expectations."""
-    if isinstance(assertions, dict):
-      row = model.where(ml_model_id=self.ml_model.id).first()
+      db_model: extensions.db.Model,
+      assertions: Union[dict[str, Any], list[Any]],
+  ):
+    """
+    Custom assertion that checks the model provided using where and
+    ensures the assertions provided match what's saved.
+
+    Args:
+      db_model: The database model to check.
+      assertions: What to compare against the database model provided.
+    """
+    if type(assertions) == dict:
+      row = db_model.where(ml_model_id=self.ml_model.id).first()
       for key, value in assertions.items():
         self.assertEqual(getattr(row, key), value)
-    elif isinstance(assertions, list):
-      rows = model.where(ml_model_id=self.ml_model.id).all()
+    elif type(assertions) == list:
+      rows = db_model.where(ml_model_id=self.ml_model.id).all()
       self.assertLen(rows, len(assertions))
-      if rows:
-        assertions.sort(key=lambda c: c['name'])
-        rows.sort(key=lambda c: c.name)
+      if len(rows):
+        assertions.sort(key = lambda c : c['name'])
+        rows.sort(key = lambda c : c.name)
         for index, assertion in enumerate(assertions):
           row_dict = rows[index].__dict__
           self.assertDictEqual(row_dict, row_dict | assertion)
-
 
 if __name__ == '__main__':
   absltest.main()

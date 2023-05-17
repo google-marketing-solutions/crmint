@@ -68,7 +68,7 @@ class ParamType(shared.StrEnum):
 class Worker(shared.StrEnum):
   BQ_SCRIPT_EXECUTOR = 'BQScriptExecutor'
   BQ_TO_MEASUREMENT_PROTOCOL_GA4 = 'BQToMeasurementProtocolGA4'
-  BQ_TO_GOOGLE_ADS_OFFLINE_CONVERSION = 'BQToGoogleAdsOfflineConversion'
+  BQ_TO_GOOGLE_ADS_OFFLINE_CONVERSION = 'BQToAdsOfflineClickConversion'
 
 
 class UniqueId(shared.StrEnum):
@@ -86,11 +86,11 @@ class Timespan:
 
   @property
   def training_start(self) -> int:
-    return self.training + self.predictive
+    return self.training + self.predictive + 1
 
   @property
   def predictive_start(self) -> int:
-    return self.predictive
+    return self.predictive + 1
 
 
 class Destination(shared.StrEnum):
@@ -187,7 +187,7 @@ class Compiler():
       'is_bool': self._is_bool,
       'safe_day': self._safe_day,
       'quarterly_months': self._quarterly_months,
-      'uuid': uuid.uuid4()
+      'uuid': uuid.uuid4
     }
 
     template = self._get_template(templateFile)
