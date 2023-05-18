@@ -65,7 +65,8 @@ class AdsOfflineClickPageResultsWorkerTest(parameterized.TestCase):
     }
 
 
-  def test_creates_ad_client_for_service_account(self):
+  @mock.patch('jobs.workers.worker.Worker.log_info')
+  def test_creates_ad_client_for_service_account(self, _):
     """The ad conversion page results worker can be configured to create a
     service account client."""
     params = {
@@ -81,21 +82,20 @@ class AdsOfflineClickPageResultsWorkerTest(parameterized.TestCase):
       params, 1, 1
     )
 
-    self.enter_context(mock.patch.object(worker, '_log', autospec=True))
     worker._process_page_results(mock.MagicMock())
 
     expected = {'developer_token': 'token',
                 'json_key_file_path': '/file/path'}
     self.patched_loads_from_dict.assert_called_with(expected)
 
-  def test_creates_ad_client_for_refresh_token(self):
+  @mock.patch('jobs.workers.worker.Worker.log_info')
+  def test_creates_ad_client_for_refresh_token(self, _):
     """The ad conversion page results worker can be configured to create a
     refresh token client."""
-    worker = ads_offline_upload.AdsOfflineClickPageResultsWorker(
+    worker = bq_to_ads_offline_click_conversion.AdsOfflineClickPageResultsWorker(
       self._generate_default_params(), 1, 1
     )
 
-    self.enter_context(mock.patch.object(worker, '_log', autospec=True))
     worker._process_page_results(mock.MagicMock())
 
     expected = {
@@ -106,19 +106,20 @@ class AdsOfflineClickPageResultsWorkerTest(parameterized.TestCase):
     }
     self.patched_loads_from_dict.assert_called_with(expected)
 
-  def test_creates_upload_request_for_provided_customer_id(self):
+  @mock.patch('jobs.workers.worker.Worker.log_info')
+  def test_creates_upload_request_for_provided_customer_id(self, _):
     """The ad conversion page results worker sets the request customer ID to
     the provided customer ID."""
     worker = bq_to_ads_offline_click_conversion.AdsOfflineClickPageResultsWorker(
       self._generate_default_params(), 1, 1
     )
 
-    self.enter_context(mock.patch.object(worker, '_log', autospec=True))
     worker._process_page_results(mock.MagicMock())
 
     self.assertEqual(self.test_api_request.customer_id, 'a_customer_id')
 
-  def test_creates_upload_request_for_provided_customer_id(self):
+  @mock.patch('jobs.workers.worker.Worker.log_info')
+  def test_creates_upload_request_for_provided_customer_id(self, _):
     """The ad conversion page results worker sets the request customer ID to
     the provided customer ID."""
     conversion_record_data = {
@@ -138,12 +139,12 @@ class AdsOfflineClickPageResultsWorkerTest(parameterized.TestCase):
     worker = bq_to_ads_offline_click_conversion.AdsOfflineClickPageResultsWorker(
       params, 1, 1
     )
-    self.enter_context(mock.patch.object(worker, '_log', autospec=True))
     worker._process_page_results(page_data)
 
     self.assertEqual(self.test_api_request.customer_id, 'a_customer_id')
 
-  def test_creates_upload_request_with_provided_conversion_data(self):
+  @mock.patch('jobs.workers.worker.Worker.log_info')
+  def test_creates_upload_request_with_provided_conversion_data(self, _):
     """The ad conversion page results worker adds click conversions for each
     conversion row in the page dataset."""
     conversion_record_data_1 = {
@@ -172,7 +173,6 @@ class AdsOfflineClickPageResultsWorkerTest(parameterized.TestCase):
     worker = bq_to_ads_offline_click_conversion.AdsOfflineClickPageResultsWorker(
       params, 1, 1
     )
-    self.enter_context(mock.patch.object(worker, '_log', autospec=True))
     worker._process_page_results(page_data)
 
     expected_click_conversion_1 = conversion_upload_service.ClickConversion()

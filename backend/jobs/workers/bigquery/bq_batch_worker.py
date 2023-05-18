@@ -63,6 +63,8 @@ class BQBatchDataWorker(bq_worker.BQWorker, abc.ABC):
 
   def _execute(self) -> None:
     table_name_to_process = self._generate_qualified_bq_table_name()
+    self.log_info(
+      f'About to query BQ table for conversions: {table_name_to_process}')
     page_token = self._params.get(BQ_PAGE_TOKEN_PARAM, None)
     client = self._get_client()
 
@@ -74,11 +76,14 @@ class BQBatchDataWorker(bq_worker.BQWorker, abc.ABC):
 
     enqueued_jobs_count = 0
     for _ in row_iterator.pages:
+
       # Enqueue job for this page
       worker_params = self._params.copy()
       worker_params[BQ_PAGE_TOKEN_PARAM] = page_token
       worker_params[BQ_BATCH_SIZE_PARAM] = self.DEFAULT_BQ_BATCH_SIZE
 
+      self.log_info(
+        f'Enqueueing a conversion data page worker: {worker_params}.')
       self._enqueue(
         self._get_sub_worker_name(),
         worker_params

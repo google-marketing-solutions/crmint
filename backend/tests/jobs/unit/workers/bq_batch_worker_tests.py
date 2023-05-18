@@ -8,6 +8,7 @@ from absl.testing import parameterized
 from google.api_core import page_iterator
 from google.cloud import bigquery
 
+from jobs.workers import worker
 from jobs.workers.bigquery import bq_batch_worker
 
 
@@ -37,7 +38,8 @@ class BQBatchDataWorkerTest(parameterized.TestCase):
       mock.patch.object(bigquery, 'Client', autospec=True))
     self.patched_bq_client_init.return_value = self.mock_bq_client
 
-  def test_loads_data_from_table_provided_in_params(self):
+  @mock.patch('jobs.workers.worker.Worker.log_info')
+  def test_loads_data_from_table_provided_in_params(self, _):
     """Batch worker loads data from the provided BQ table"""
     params = {
       'bq_project_id': 'a_project',
@@ -51,7 +53,8 @@ class BQBatchDataWorkerTest(parameterized.TestCase):
       'a_project.a_dataset_id.a_table_id'
     )
 
-  def test_loads_table_with_provided_table_name_in_params(self):
+  @mock.patch('jobs.workers.worker.Worker.log_info')
+  def test_loads_table_with_provided_table_name_in_params(self, _):
     """Batch workers loads the table using the provided name in the params."""
     params = {
       'bq_project_id': 'a_project',
@@ -66,7 +69,8 @@ class BQBatchDataWorkerTest(parameterized.TestCase):
       'a_project.a_dataset_id.a_table_id'
     )
 
-  def test_loads_data_with_page_token_provided_in_params(self):
+  @mock.patch('jobs.workers.worker.Worker.log_info')
+  def test_loads_data_with_page_token_provided_in_params(self, _):
     """Batch worker loads data using the provided page token."""
     params = {
       'bq_project_id': 'a_project',
@@ -84,7 +88,12 @@ class BQBatchDataWorkerTest(parameterized.TestCase):
     )
 
   @mock.patch('jobs.workers.worker.Worker._enqueue')
-  def test_enqueues_sub_worker_for_every_page_of_results(self, mocked_enqueue):
+  @mock.patch('jobs.workers.worker.Worker.log_info')
+  def test_enqueues_sub_worker_for_every_page_of_results(
+    self,
+    _,
+    mocked_enqueue
+  ):
     """Batch worker enqueues a sub_worker for every page of results."""
     params = {
       'bq_project_id': 'a_project',
@@ -120,8 +129,11 @@ class BQBatchDataWorkerTest(parameterized.TestCase):
     mocked_enqueue.assert_has_calls(calls)
 
   @mock.patch('jobs.workers.worker.Worker._enqueue')
+  @mock.patch('jobs.workers.worker.Worker.log_info')
   def test_enqueues_new_parent_worker_if_too_many_sub_workers_enqueued(
-    self, mocked_enqueue
+    self,
+    _,
+    mocked_enqueue
   ):
     """Batch worker enqueues a new parent worker if too many sub workers were
     enqueued.

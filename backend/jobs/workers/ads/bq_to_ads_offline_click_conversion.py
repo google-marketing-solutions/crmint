@@ -133,6 +133,7 @@ class BQToAdsOfflineClickConversion(bq_batch_worker.BQBatchDataWorker):
 
   def _execute(self) -> None:
     """Begin the processing and upload of offline click conversions."""
+    self.log_info('Validating parameters now.')
     self._validate_params()
     super()._execute()
 
@@ -166,8 +167,10 @@ class AdsOfflineClickPageResultsWorker(bq_batch_worker.TablePageResultsProcessor
     client_params = {'developer_token': self._params[DEVELOPER_TOKEN]}
 
     if SERVICE_ACCOUNT_FILE in self._params:
+      self.log_info('Setting up Ads client for service account.')
       client_params['json_key_file_path'] = self._params[SERVICE_ACCOUNT_FILE]
     else:
+      self.log_info('Setting up Ads client for user flow.')
       client_params['client_id'] = self._params[CLIENT_ID]
       client_params['client_secret'] = self._params[CLIENT_SECRET]
       client_params['refresh_token'] = self._params[REFRESH_TOKEN]
