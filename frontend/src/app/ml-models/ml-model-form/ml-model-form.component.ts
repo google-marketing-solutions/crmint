@@ -77,8 +77,9 @@ export class MlModelFormComponent implements OnInit {
         source: ['', [Validators.required, Validators.pattern(/^[a-z_]*$/i)]],
         key: ['', [Validators.required, Validators.pattern(/^[a-z][a-z0-9_-]*$/i)]],
         valueType: ['', Validators.pattern(/^[a-z,]*$/i)],
-        averageValue: [0.0, Validators.required]
+        averageValue: [0.0, [Validators.required, Validators.pattern(/^[0-9\.]*$/i)]]
       }),
+      conversionRateSegments: [0, [Validators.required, Validators.pattern(/^[0-9]*$/i)]],
       classImbalance: [4, [Validators.required, Validators.min(1), Validators.max(10)]],
       timespans: this._fb.array([]),
       outputConfig: this._fb.group({
@@ -154,6 +155,7 @@ export class MlModelFormComponent implements OnInit {
         valueType: this.mlModel.label.value_type,
         averageValue: this.mlModel.label.average_value
       },
+      conversionRateSegments: this.mlModel.conversion_rate_segments,
       classImbalance: this.mlModel.class_imbalance,
       outputConfig: {
         destination: this.mlModel.output_config.destination,
@@ -443,6 +445,7 @@ export class MlModelFormComponent implements OnInit {
       value_type: formModel.label.valueType as string,
       average_value: parseFloat(formModel.label.averageValue)
     } as Label;
+    this.mlModel.conversion_rate_segments = formModel.conversionRateSegments as number;
     this.mlModel.class_imbalance = formModel.classImbalance as number;
     this.mlModel.timespans = formModel.timespans as Timespan[];
     this.mlModel.output_config = {

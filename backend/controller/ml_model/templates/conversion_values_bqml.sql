@@ -8,12 +8,12 @@ CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.conversion_values` AS 
     SELECT
       p.label,
       plp.prob AS probability,
-      NTILE(10) OVER (ORDER BY plp.prob ASC) AS normalized_probability
+      NTILE({{conversion_rate_segments}}) OVER (ORDER BY plp.prob ASC) AS normalized_probability
     FROM ML.PREDICT(MODEL `{{project_id}}.{{model_dataset}}.model`, (
       WITH events AS (
         SELECT
           event_timestamp AS timestamp,
-          event_date AS date,
+          CAST(event_date AS DATE FORMAT 'YYYYMMDD') AS date,
           event_name AS name,
           event_params AS params,
           user_id,

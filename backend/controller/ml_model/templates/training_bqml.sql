@@ -16,7 +16,7 @@ OPTIONS (
 WITH events AS (
   SELECT
     event_timestamp AS timestamp,
-    event_date AS date,
+    CAST(event_date AS DATE FORMAT 'YYYYMMDD') AS date,
     event_name AS name,
     event_params AS params,
     {{unique_id}},
@@ -192,5 +192,5 @@ UNION ALL
 SELECT * EXCEPT({{unique_id}})
 FROM training_dataset
 WHERE label = 0
-AND MOD(ABS(FARM_FINGERPRINT({{unique_id}})), 100) > ((1 / {{class_imbalance}}) * 100)
+AND MOD(ABS(FARM_FINGERPRINT({{unique_id}})), 100) <= ((1 / {{class_imbalance}}) * 100)
 {% endif %}

@@ -46,6 +46,7 @@ parser.add_argument(
 )
 parser.add_argument('features', type=list, location='json', required=False)
 parser.add_argument('label', type=dict, required=False)
+parser.add_argument('conversion_rate_segments', type=int, required=False)
 parser.add_argument('class_imbalance', type=int, required=False)
 parser.add_argument('timespans', type=list, location='json', required=False)
 parser.add_argument('output_config', type=dict, required=False)
@@ -117,6 +118,7 @@ ml_model_structure = {
     'hyper_parameters': hyper_parameters_structure,
     'features': features_structure,
     'label': label_structure,
+    'conversion_rate_segments': fields.Integer,
     'class_imbalance': fields.Integer,
     'timespans': timespans_structure,
     'output_config': output_config_structure,
