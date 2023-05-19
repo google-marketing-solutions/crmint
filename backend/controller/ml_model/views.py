@@ -15,6 +15,7 @@
 """MlModel views."""
 
 import os
+import json
 from typing import Any
 
 import flask
@@ -196,7 +197,7 @@ class MlModelList(Resource):
       ml_model.save()
       ml_model.save_relations(args)
 
-      # automatically build and assign training pipeline upon ml model creation.
+      # Automatically build and assign training pipeline upon ml model creation.
       pipelines = build_pipelines(ml_model)
       ml_model.save_relations({'pipelines': pipelines})
     except:
@@ -211,8 +212,8 @@ class MlModelList(Resource):
 
 
 variables_parser = reqparse.RequestParser()
-variables_parser.add_argument('dataset_name', type=str, required=True)
-variables_parser.add_argument('dataset_location', type=str, required=True)
+variables_parser.add_argument('dataset', type=str, required=True)
+variables_parser.add_argument('timespans', type=str, required=True)
 
 ml_variable_structure = {
     'name': fields.String,
@@ -240,23 +241,29 @@ class MlModelVariables(Resource):
     tracker.track_event(category='ml-models', action='variables')
 
     args = variables_parser.parse_args()
-    bigquery_client = bigquery.CustomClient(args['dataset_location'])
+    dataset = json.loads(args['dataset'])
+    timespan = compiler.Timespan(json.loads(args['timespans']))
+
+    bigquery_client = bigquery.CustomClient(dataset['location'])
     variables = []
 
     ga4_dataset = setting('google_analytics_4_bigquery_dataset')
-    variables.extend(bigquery_client.get_analytics_variables(ga4_dataset))
 
-    if not variables:
+    # Timebox the variables/events to the training dataset timespan.
+    analytics_variables = bigquery_client.get_analytics_variables(
+        ga4_dataset, timespan.training_start, timespan.training_end)
+    if not analytics_variables:
       abort(
           400,
           message=(
-              'GA4 dataset does not include expected events tables. Update'
-              ' settings entry and try again.'
+              'GA4 BigQuery Dataset does not include expected events tables.'
+              ' Check configuration in Settings tab and try again.'
           ),
       )
+    variables.extend(analytics_variables)
 
     first_party_columns = bigquery_client.get_first_party_variables(
-        args['dataset_name']
+        dataset['name']
     )
     if first_party_columns:
       variables.extend(first_party_columns)

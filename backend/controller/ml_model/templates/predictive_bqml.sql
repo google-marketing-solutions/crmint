@@ -8,7 +8,7 @@ CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.predictions` AS (
     plp.prob AS probability,
     {% endif %}
     predicted_label
-  FROM ML.PREDICT(MODEL `{{project_id}}.{{model_dataset}}.model`, (
+  FROM ML.PREDICT(MODEL `{{project_id}}.{{model_dataset}}.predictive_model`, (
     WITH events AS (
       SELECT
         event_timestamp AS timestamp,
@@ -29,7 +29,7 @@ CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.predictions` AS (
         FROM `{{project_id}}.{{ga4_dataset}}.events_*`
         WHERE _TABLE_SUFFIX BETWEEN
           FORMAT_DATE("%Y%m%d", DATE_SUB(CURRENT_DATE(), INTERVAL {{timespan.predictive_start}} DAY)) AND
-          FORMAT_DATE("%Y%m%d", DATE_SUB(CURRENT_DATE(), INTERVAL 1 DAY))
+          FORMAT_DATE("%Y%m%d", DATE_SUB(CURRENT_DATE(), INTERVAL {{timespan.predictive_end}} DAY))
     ),
     first_engagement AS (
       SELECT * EXCEPT(row_num)

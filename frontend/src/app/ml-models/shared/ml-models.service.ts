@@ -56,11 +56,11 @@ export class MlModelsService extends ApiService {
                     .catch(this.handleError);
   }
 
-  getVariables(bigquery_dataset) {
+  getVariables(bigqueryDataset, modelTimespans) {
     this.removeContentTypeHeader();
     this.options.params = {
-      dataset_name: bigquery_dataset.name,
-      dataset_location: bigquery_dataset.location
+      dataset: JSON.stringify(bigqueryDataset),
+      timespans: JSON.stringify(modelTimespans)
     };
     return this.http.get(this.url + '/variables', this.options)
                     .toPromise()

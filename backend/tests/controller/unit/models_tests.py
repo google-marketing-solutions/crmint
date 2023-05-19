@@ -423,6 +423,7 @@ class TestMlModel(controller_utils.ModelTestCase):
       'type': 'BOOSTED_TREE_REGRESSOR',
       'unique_id': 'USER_ID',
       'uses_first_party_data': True,
+      'conversion_rate_segments': 10,
       'class_imbalance': 7
     }
     self.ml_model.assign_attributes(attributes)

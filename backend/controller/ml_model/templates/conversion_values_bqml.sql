@@ -9,7 +9,7 @@ CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.conversion_values` AS 
       p.label,
       plp.prob AS probability,
       NTILE({{conversion_rate_segments}}) OVER (ORDER BY plp.prob ASC) AS normalized_probability
-    FROM ML.PREDICT(MODEL `{{project_id}}.{{model_dataset}}.model`, (
+    FROM ML.PREDICT(MODEL `{{project_id}}.{{model_dataset}}.predictive_model`, (
       WITH events AS (
         SELECT
           event_timestamp AS timestamp,
@@ -30,7 +30,7 @@ CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.conversion_values` AS 
           FROM `{{project_id}}.{{ga4_dataset}}.events_*`
           WHERE _TABLE_SUFFIX BETWEEN
             FORMAT_DATE("%Y%m%d", DATE_SUB(CURRENT_DATE(), INTERVAL {{timespan.training_start}} DAY)) AND
-            FORMAT_DATE("%Y%m%d", DATE_SUB(DATE_SUB(CURRENT_DATE(), INTERVAL {{timespan.predictive_start}} DAY), INTERVAL 1 DAY))
+            FORMAT_DATE("%Y%m%d", DATE_SUB(CURRENT_DATE(), INTERVAL {{timespan.training_end}} DAY))
           -- select the remaining 10% of the data not used in the training dataset
           AND MOD(ABS(FARM_FINGERPRINT({{unique_id}})), 100) >= 90
       ),

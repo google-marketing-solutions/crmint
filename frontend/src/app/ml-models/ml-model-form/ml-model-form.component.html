@@ -27,10 +27,11 @@
         <div class="crmi-form-group" formGroupName="bigQueryDataset">
           <label class="crmi-form-label">
             BigQuery Dataset
-            <mat-icon class='tooltip' title="Model, predictions, and output will be stored here.">help</mat-icon>
+            <mat-icon class="tooltip" title="Model, predictions, and output will be stored here.">help</mat-icon>
           </label>
           <mat-form-field>
-            <input matInput placeholder="Dataset Name" formControlName="name" name="dataset-name">
+            <input matInput placeholder="Dataset Name" formControlName="name" name="dataset-name"
+                   (change)="resetVariables()">
           </mat-form-field>
           <mat-form-field>
             <input matInput placeholder="Dataset Location" formControlName="location" name="dataset-loc">
@@ -38,13 +39,36 @@
         </div>
 
         <div class="crmi-form-group">
-          <label class="crmi-form-label">Data Source</label>
+          <label class="crmi-form-label">
+            Data Source
+            <mat-icon class="tooltip" title="Where the model variables (features/label) exist.">help</mat-icon>
+          </label>
           <mat-select formControlName="usesFirstPartyData"
                       placeholder="Source"
                       (selectionChange)="refreshLabel(); refreshFeatures()">
             <mat-option [value]="false">Google Analytics 4</mat-option>
             <mat-option [value]="true">Google Analytics 4 <strong>and</strong> First-Party Data</mat-option>
           </mat-select>
+        </div>
+
+        <div formArrayName="timespans" class="crmi-form-group">
+          <label class="crmi-form-label">
+            Timespan
+            <mat-icon class="tooltip"
+                      title="The amount of data in days to use for training (3 year max) and predictive (1 year max) steps.">
+              help
+            </mat-icon>
+          </label>
+          <div id="timespans">
+            <span *ngFor="let timespan of timespans.controls; index as i" [formGroupName]="i">
+              <mat-form-field *ngIf="value(timespan, 'range'); let range">
+                <input matInput placeholder="{{value(timespan, 'name') | labelcase }}" type="number"
+                       formControlName="value" [min]="range.min" [max]="range.max" [step]="range.step"
+                       (change)="resetVariables()">
+                <span>{{ value(timespan, 'unit') | labelcase }}s</span>
+              </mat-form-field>
+            </span>
+          </div>
         </div>
 
         <div class="crmi-form-group">
@@ -185,8 +209,9 @@
 
         <div *ngIf="!variables.length" class="crmi-form-group">
           <label class="crmi-form-label">Features/Label</label>
-          <div *ngIf="value('bigQueryDataset', 'name') && value('usesFirstPartyData') !== null" class="notice green">
-            Use above <strong>BigQuery Dataset</strong> and <strong>Data Source</strong> to fetch feature and label options.
+          <div *ngIf="variableRequirementsProvided" class="notice green">
+            Use above <strong>BigQuery Dataset</strong>, <strong>Data Source</strong>, and
+            <strong>Timespan</strong> to fetch feature and label options.
             <button mat-raised-button
                     (click)="fetchVariables()"
                     type="button"
@@ -194,16 +219,18 @@
                     color="alternate">
               Fetch
             </button>
+            <small>(<strong>Note:</strong> Re-fetch required when BigQuery Dataset or Timespan change.)</small>
           </div>
-          <div *ngIf="!value('bigQueryDataset', 'name') || value('usesFirstPartyData') === null" class="notice">
-            Must first enter a <strong>BigQuery Dataset</strong> and <strong>Data Source</strong> to see available Features/Labels.
+          <div *ngIf="!variableRequirementsProvided" class="notice">
+            Must first enter <strong>BigQuery Dataset</strong>, <strong>Data Source</strong>, and<br>
+            <strong>Timespan</strong> values to see available feature and label options.
           </div>
         </div>
 
         <div *ngIf="type.isClassification" class="crmi-form-group">
           <label class="crmi-form-label">
             Number of Segments
-            <mat-icon class='tooltip' title="Used when calculating conversion rates.">help</mat-icon>
+            <mat-icon class="tooltip" title="Used when calculating conversion rates.">help</mat-icon>
           </label>
           <mat-slider formControlName="conversionRateSegments" [min]="2" [max]="10" [step]="1" [thumbLabel]="true"></mat-slider>
           <span>{{ value('conversionRateSegments') }}</span>
@@ -213,22 +240,6 @@
           <label class="crmi-form-label">Class Imbalance Ratio</label>
           <mat-slider formControlName="classImbalance" [min]="1" [max]="10" [step]="1" [thumbLabel]="true"></mat-slider>
           <span>1:{{ value('classImbalance') }}</span>
-        </div>
-
-        <div formArrayName="timespans" class="crmi-form-group">
-          <label class="crmi-form-label">
-            Timespan
-            <mat-icon class='tooltip' title="Training and predictive timespans limited to 3 years and 1 year respectively.">help</mat-icon>
-          </label>
-          <div id="timespans">
-            <span *ngFor="let timespan of timespans.controls; index as i" [formGroupName]="i">
-              <mat-form-field *ngIf="value(timespan, 'range'); let range">
-                <input matInput placeholder="{{value(timespan, 'name') | labelcase }}" type="number"
-                        formControlName="value" [min]="range.min" [max]="range.max" [step]="range.step">
-                <span>{{ value(timespan, 'unit') | labelcase }}s</span>
-              </mat-form-field>
-            </span>
-          </div>
         </div>
 
         <div formGroupName="outputConfig" class="crmi-form-group">

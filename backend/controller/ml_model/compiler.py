@@ -78,19 +78,29 @@ class UniqueId(shared.StrEnum):
 
 class Timespan:
   """Encapsulates a timespan."""
-  TRAINING: str = 'training'
-  PREDICTIVE: str = 'predictive'
 
-  training: int
-  predictive: int
+  _training: int
+  _predictive: int
+
+  def __init__(self, timespans: list[dict]) -> None:
+    for timespan in timespans:
+      setattr(self, '_' + timespan['name'], int(timespan['value']))
 
   @property
   def training_start(self) -> int:
-    return self.training + self.predictive + 1
+    return self.predictive_start + self._training
+
+  @property
+  def training_end(self) -> int:
+    return self.predictive_start + 1
 
   @property
   def predictive_start(self) -> int:
-    return self.predictive + 1
+    return self._predictive + 1
+
+  @property
+  def predictive_end(self) -> int:
+    return 1
 
 
 class Destination(shared.StrEnum):
@@ -99,9 +109,11 @@ class Destination(shared.StrEnum):
 
 
 class Compiler():
-  """
-  Used to build out pipeline configurations based on a series of
-  templates in the templates directory.
+  """Used to build out pipeline configurations.
+
+  Makes use of a series of templates in the templates directory to
+  build all necessary components of model based pipelines including
+  the pipeline configuration itself.
   """
   project_id: str
   ga4_dataset: str
@@ -122,8 +134,7 @@ class Compiler():
     self.ml_model = ml_model
 
   def build_training_pipeline(self) -> dict[str, Any]:
-    """
-    Builds the training pipeline configuration including the model SQL.
+    """Builds the training pipeline configuration including the model SQL.
 
     Returns:
       A pipeline configuration for creating and training the model
@@ -133,8 +144,7 @@ class Compiler():
     return json.loads(pipeline_configuration)
 
   def build_predictive_pipeline(self) -> dict[str, Any]:
-    """
-    Builds the predictive pipeline configuration including the model SQL.
+    """Builds the predictive pipeline configuration including the model SQL.
 
     Returns:
       A pipeline configuration for predicting values and uploading the
@@ -210,22 +220,6 @@ class Compiler():
     with open(self._absolute_path('templates/' + templateFile), 'r') as file:
       return jinja2.Template(file.read(), **options, undefined=jinja2.StrictUndefined)
 
-  def _get_timespan(self, timespans: list) -> Timespan:
-    """
-    Returns the appropriate timespan (both training and predictive)
-    with random sets built-in if needed.
-    """
-
-    ts = Timespan()
-
-    for timespan in timespans:
-      if timespan.name == Timespan.TRAINING:
-        ts.training = timespan.value
-      elif timespan.name == Timespan.PREDICTIVE:
-        ts.predictive = timespan.value
-
-    return ts
-
   def _get_unique_id(self, type: UniqueId) -> str:
     """Get the actual unique identifier column name based on unique id type."""
     if type == UniqueId.USER_ID:
@@ -233,11 +227,12 @@ class Compiler():
     if type == UniqueId.CLIENT_ID:
       return 'user_pseudo_id'
 
+  def _get_timespan(self, timespans: list[models.MlModelTimespan]) -> Timespan:
+    """Returns model timespan including both training and predictive start and end."""
+    return Timespan([t.__dict__ for t in timespans])
+
   def _json_encode(self, text: str) -> str:
-    """
-    JSON encode a string of text provided without including
-    double-quote wrapper.
-    """
+    """JSON encode text provided without including double-quote wrapper."""
     return json.dumps(text).removeprefix('"').removesuffix('"')
 
   def _is_number(self, value: str) -> bool:
@@ -258,8 +253,7 @@ class Compiler():
     return f'{day}' if day < 28 else '28'
 
   def _quarterly_months(self) -> str:
-    """Returns the months of the year that occur quarterly (every 3 months)
-      from the current month."""
+    """Returns months of year that occur every 3 months from the current month."""
     currentMonth = datetime.date.today().month
     months = ''
     for month in range(currentMonth, currentMonth + 11, 3):
@@ -267,10 +261,7 @@ class Compiler():
     return months.removesuffix(',')
 
   def _absolute_path(self, file: str) -> str:
-    """
-    Returns the absolute path of the file assuming the file provided
-    is in the current directory.
-    """
+    """Returns the absolute path given a relative path from this directory."""
     running_dir = os.getcwd()
     current_dir_relative = os.path.dirname(__file__)
     current_dir_full = os.path.join(running_dir, current_dir_relative)

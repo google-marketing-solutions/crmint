@@ -108,7 +108,7 @@ class TestCompiler(parameterized.TestCase):
 
     # name check
     self.assertIn(
-        'CREATE OR REPLACE MODEL `test-project-id-1234.test-dataset.model`',
+        'CREATE OR REPLACE MODEL `test-project-id-1234.test-dataset.predictive_model`',
         sql,
         'Model name check failed.')
 
@@ -380,7 +380,7 @@ class TestCompiler(parameterized.TestCase):
 
     # training table check
     self.assertIn(
-        'FROM ML.PREDICT(MODEL `test-project-id-1234.test-dataset.model`',
+        'FROM ML.PREDICT(MODEL `test-project-id-1234.test-dataset.predictive_model`',
         sql,
         'Not able to find training model dataset callout.')
 
@@ -688,7 +688,7 @@ class TestCompiler(parameterized.TestCase):
 
     # training table check
     self.assertIn(
-        'FROM ML.PREDICT(MODEL `test-project-id-1234.test-dataset.model`',
+        'FROM ML.PREDICT(MODEL `test-project-id-1234.test-dataset.predictive_model`',
         sql,
         'Not able to find training model dataset callout.')
 

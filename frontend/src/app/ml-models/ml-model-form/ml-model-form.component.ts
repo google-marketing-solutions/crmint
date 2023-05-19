@@ -124,7 +124,7 @@ export class MlModelFormComponent implements OnInit {
     try {
       const mlModel = await this.mlModelsService.get(id);
       this.mlModel = plainToClass(MlModel, mlModel as MlModel);
-      await this.fetchVariables(this.mlModel.bigquery_dataset);
+      await this.fetchVariables(this.mlModel.bigquery_dataset, this.mlModel.timespans);
       this.assignMlModelToForm();
     } catch (error) {
       if (error && error.status === 404) {
@@ -250,16 +250,44 @@ export class MlModelFormComponent implements OnInit {
   }
 
   /**
+   * Provides a quick unified way to check all the necessary parameters exist
+   * that are required to properly fetch the ml model variables.
+   */
+  get variableRequirementsProvided() {
+    const bigQueryDatasetName = this.value('bigQueryDataset', 'name');
+    const bigQueryDatasetLocation = this.value('bigQueryDataset', 'location');
+    const usesFirstPartyData = this.value('usesFirstPartyData');
+    const timespans = this.value('timespans');
+
+    if (!bigQueryDatasetName || !bigQueryDatasetLocation) {
+      return false;
+    }
+
+    if (usesFirstPartyData === null) {
+      return false;
+    }
+
+    for (const timespan of timespans) {
+      if (timespan.value <= 0) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  /**
    * Fetch variables (feature and label options) from GA4 Events and First Party tables in BigQuery.
    *
    * @param bigQueryDataset The dataset to use when fetching first party variables
    *                        (only required for loading an existing model).
    */
-  async fetchVariables(bigQueryDataset: Object = null) {
+  async fetchVariables(bigQueryDataset: object = null, timespans: Timespan[] = []) {
     this.fetchingVariables = true;
     try {
       const dataset = bigQueryDataset || this.value('bigQueryDataset');
-      let variables = await this.mlModelsService.getVariables(dataset);
+      const ts = timespans.length ? timespans : this.value('timespans');
+      let variables = await this.mlModelsService.getVariables(dataset, ts);
       this.variables = variables as Variable[];
       this.errorMessage = '';
     } catch (error) {
@@ -267,6 +295,14 @@ export class MlModelFormComponent implements OnInit {
     } finally {
       this.fetchingVariables = false;
     }
+  }
+
+  /**
+   * Reset variables to empty array. Necessary when modifying parameters that affect
+   * which variables are available for selection and requires a manual refresh.
+   */
+  resetVariables() {
+    this.variables = [];
   }
 
   /**
@@ -310,7 +346,10 @@ export class MlModelFormComponent implements OnInit {
    */
   toggleFeature(feature: Feature, toggled: boolean) {
     if (toggled) {
-      this.features.push(this._fb.control(feature as Feature));
+      // only allow toggling features that (still) exist.
+      if (this.variables.find(v => v.name === feature.name && v.source === feature.source)) {
+        this.features.push(this._fb.control(feature as Feature));
+      }
     } else {
       const features = this.features.value as Feature[];
       for (const index of features.keys()) {

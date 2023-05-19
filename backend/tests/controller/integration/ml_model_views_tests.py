@@ -171,13 +171,16 @@ class TestMlModelViews(controller_utils.ControllerAppTest):
     response = self.client.get('/api/ml-models/1')
     self.assertEqual(response.status_code, 200)
 
-  def test_retrieve_variables_without_dataset(self):
+  def test_retrieve_variables_without_required_fields(self):
     response = self.client.get('/api/ml-models/variables')
     self.assertEqual(response.status_code, 400)
 
   @mock.patch.object(ml_model.bigquery, 'CustomClient')
-  def test_retrieve_variables_with_dataset(self, client_mock: mock.Mock):
-    dataset = {'dataset_name': 'test-dataset', 'dataset_location': 'US'}
+  def test_retrieve_variables_with_required_fields(self, client_mock: mock.Mock):
+    dataset = {
+      'dataset': '{\"name\": \"test-dataset\", \"location\": \"US\"}',
+      'timespans': '[{\"name\": \"training\", \"value\": 90},{\"name\": \"predictive\", \"value\": 30}]',
+    }
     models.GeneralSetting.where(
         name='google_analytics_4_bigquery_dataset'
     ).first().update(value='test-ga4-dataset')
