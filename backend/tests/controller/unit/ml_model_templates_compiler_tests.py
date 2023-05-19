@@ -142,46 +142,38 @@ class TestCompiler(parameterized.TestCase):
                 ' 0) > 0'
             ),
         ]),
-        'Google Analytics label pull check failed.',
-    )
+        'Google Analytics label pull check failed.')
 
     self.assertRegex(
         sql,
         re.escape('IFNULL(av.label, 0) AS label'),
-        'Google Analytics label join check failed.',
-    )
+        'Google Analytics label join check failed.')
 
     # feature check
     self.assertRegex(
         sql,
         re.escape('SUM(IF(e.name = "click", 1, 0)) AS cnt_click'),
-        'Google Analytics feature check failed.',
-    )
+        'Google Analytics feature check failed.')
 
     self.assertRegex(
-        sql, re.escape('fp.subscribe'), 'First party feature check failed.'
-    )
+        sql, re.escape('fp.subscribe'), 'First party feature check failed.')
 
     # class-imbalance check
     self.assertIn(
-        'MOD(ABS(FARM_FINGERPRINT(user_pseudo_id)), 100) > ((1 / 4) * 100)',
+        'MOD(ABS(FARM_FINGERPRINT(user_pseudo_id)), 100) <= ((1 / 4) * 100)',
         sql,
-        'Class-Imbalance check failed.',
-    )
+        'Class-Imbalance check failed.')
 
     # timespan check
     self.assertIn(
         'FORMAT_DATE("%Y%m%d", DATE_SUB(CURRENT_DATE(), INTERVAL 19 DAY))',
         sql,
-        'Timespan start check failed.',
-    )
+        'Timespan start check failed.')
 
     self.assertIn(
-        'FORMAT_DATE("%Y%m%d", DATE_SUB(DATE_SUB(CURRENT_DATE(), INTERVAL 2'
-        ' DAY), INTERVAL 1 DAY))',
+        'FORMAT_DATE("%Y%m%d", DATE_SUB(CURRENT_DATE(), INTERVAL 3 DAY))',
         sql,
-        'Timespan end check failed.',
-    )
+        'Timespan end check failed.')
 
   def test_build_model_sql_first_party(self):
     test_model = self.model_config(
@@ -267,14 +259,12 @@ class TestCompiler(parameterized.TestCase):
                 ' 0) > 0'
             ),
         ]),
-        'Google Analytics label pull check failed.',
-    )
+        'Google Analytics label pull check failed.')
 
     self.assertRegex(
         sql,
         re.escape('SELECT * FROM analytics_variables'),
-        'Google Analytics label join check failed.',
-    )
+        'Google Analytics label join check failed.')
 
     # feature check
     self.assertRegex(
@@ -354,6 +344,200 @@ class TestCompiler(parameterized.TestCase):
         'AND MOD(ABS(FARM_FINGERPRINT(user_pseudo_id)), 100) < 90',
         sql,
         'Google Analytics random 90% selection check failed.')
+
+  def test_build_conversion_values_sql_first_party_and_google_analytics(self):
+    test_model = self.model_config(
+        model_type='BOOSTED_TREE_CLASSIFIER',
+        uses_first_party_data=True,
+        label={
+            'name': 'purchase',
+            'source': 'GOOGLE_ANALYTICS',
+            'key': 'value',
+            'value_type': 'string,int',
+            'average_value': 1234.0
+        },
+        features=[
+            {'name': 'click', 'source': 'GOOGLE_ANALYTICS'},
+            {'name': 'subscribe', 'source': 'FIRST_PARTY'}
+        ],
+        class_imbalance=4)
+
+    pipeline = self.compiler(test_model).build_training_pipeline()
+
+    setup_job = self.first(pipeline['jobs'], 'name', 'Test Model - Conversion Value Calculations')
+    self.assertIsNotNone(setup_job)
+    params = setup_job['params']
+
+    sql_param = self.first(params, 'name', 'script')
+    self.assertIsNotNone(sql_param)
+    sql = sql_param['value']
+
+    # name check
+    self.assertIn(
+        'CREATE OR REPLACE TABLE `test-project-id-1234.test-dataset.conversion_values`',
+        sql,
+        'Predictions table name check failed.')
+
+    # training table check
+    self.assertIn(
+        'FROM ML.PREDICT(MODEL `test-project-id-1234.test-dataset.model`',
+        sql,
+        'Not able to find training model dataset callout.')
+
+    # event table name check
+    self.assertIn(
+        'FROM `test-project-id-1234.test-ga4-dataset-loc.events_*`',
+        sql,
+        'Event table name check failed.')
+
+    # label check
+    self.assertRegex(
+        sql,
+        r'[\s\n]+'.join([
+            'WHERE name = "purchase"',
+            'AND params.key = "value"',
+            re.escape('AND COALESCE(params.value.string_value, params.value.int_value) NOT IN ("", "0", 0, NULL)')
+        ]),
+        'Google Analytics label pull check failed.')
+
+    self.assertRegex(
+        sql,
+        re.escape('IFNULL(av.label, 0) AS label'),
+        'Google Analytics label join check failed.')
+
+    # feature check
+    self.assertRegex(
+        sql,
+        re.escape('SUM(IF(e.name = "click", 1, 0)) AS cnt_click'),
+        'Google Analytics feature check failed.')
+
+    self.assertRegex(
+        sql,
+        re.escape('fp.subscribe'),
+        'First party feature check failed.')
+
+    # timespan check
+    self.assertIn(
+        'FORMAT_DATE("%Y%m%d", DATE_SUB(CURRENT_DATE(), INTERVAL 19 DAY))',
+        sql,
+        'Timespan start check failed.')
+
+    self.assertIn(
+        'FORMAT_DATE("%Y%m%d", DATE_SUB(CURRENT_DATE(), INTERVAL 3 DAY))',
+        sql,
+        'Timespan end check failed.')
+
+    # ntile (conversion rate segments) check
+    self.assertIn(
+      'NTILE(10) OVER (ORDER BY plp.prob ASC)',
+      sql,
+      'Conversion rate segments check failed.')
+
+    # average value check
+    self.assertIn(
+      '(SUM(label) / COUNT(1)) * 1234.0 AS value,',
+      sql,
+      'Average value check failed.')
+
+    # probability check
+    self.assertIn(
+        'plp.prob AS probability,',
+        sql,
+        'Probability not found in select when selecting from ML.PREDICT.')
+
+  def test_build_conversion_values_sql_first_party(self):
+    test_model = self.model_config(
+        model_type='BOOSTED_TREE_CLASSIFIER',
+        uses_first_party_data=True,
+        unique_id='USER_ID',
+        label={
+            'name': 'premium_subscription',
+            'source': 'FIRST_PARTY',
+            'key': 'value',
+            'value_type': 'int',
+            'average_value': 1234.0
+        },
+        features=[
+            {'name': 'purchase', 'source': 'FIRST_PARTY'},
+            {'name': 'request_for_info', 'source': 'FIRST_PARTY'}
+        ],
+        class_imbalance=4)
+
+    pipeline = self.compiler(test_model).build_training_pipeline()
+
+    setup_job = self.first(pipeline['jobs'], 'name', 'Test Model - Conversion Value Calculations')
+    self.assertIsNotNone(setup_job)
+    params = setup_job['params']
+
+    sql_param = self.first(params, 'name', 'script')
+    self.assertIsNotNone(sql_param)
+    sql = sql_param['value']
+
+    # label check
+    self.assertIn(
+        'fp.premium_subscription AS label,',
+        sql,
+        'First party label check failed.')
+
+    # feature check
+    self.assertRegex(
+        sql,
+        r',[\s\n]+'.join([
+            re.escape('fp.purchase'),
+            re.escape('fp.request_for_info'),
+        ]),
+        'First party feature check failed.')
+
+  def test_build_conversion_values_sql_google_analytics(self):
+    test_model = self.model_config(
+        model_type='BOOSTED_TREE_CLASSIFIER',
+        uses_first_party_data=False,
+        label={
+            'name': 'subscription',
+            'source': 'GOOGLE_ANALYTICS',
+            'key': 'value',
+            'value_type': 'string',
+            'average_value': 1234.0
+        },
+        features=[
+            {'name': 'click', 'source': 'GOOGLE_ANALYTICS'},
+            {'name': 'scroll', 'source': 'GOOGLE_ANALYTICS'}
+        ],
+        class_imbalance=4)
+
+    pipeline = self.compiler(test_model).build_training_pipeline()
+
+    setup_job = self.first(pipeline['jobs'], 'name', 'Test Model - Conversion Value Calculations')
+    self.assertIsNotNone(setup_job)
+    params = setup_job['params']
+
+    sql_param = self.first(params, 'name', 'script')
+    self.assertIsNotNone(sql_param)
+    sql = sql_param['value']
+
+    # label check
+    self.assertRegex(
+        sql,
+        r'[\s\n]+'.join([
+            'WHERE name = "subscription"',
+            'AND params.key = "value"',
+            re.escape('AND COALESCE(params.value.string_value, params.value.int_value) NOT IN ("", "0", 0, NULL)')
+        ]),
+        'Google Analytics label pull check failed.')
+
+    self.assertRegex(
+        sql,
+        re.escape('SELECT * FROM analytics_variables'),
+        'Google Analytics label join check failed.')
+
+    # feature check
+    self.assertRegex(
+        sql,
+        r',[\s\n]+'.join([
+            re.escape('SUM(IF(e.name = "click", 1, 0)) AS cnt_click'),
+            re.escape('SUM(IF(e.name = "scroll", 1, 0)) AS cnt_scroll')
+        ]),
+        'Google Analytics feature check failed.')
 
   @parameterized.named_parameters(
     ('destination google analytics custom event', 'GOOGLE_ANALYTICS_MP_EVENT'),
@@ -580,7 +764,7 @@ class TestCompiler(parameterized.TestCase):
     self.assertIsNotNone(sql_param)
     sql = sql_param['value']
 
-    # Probability check
+    # probability check
     self.assertIn(
         'plp.prob AS probability,',
         sql,
@@ -1041,6 +1225,7 @@ class TestCompiler(parameterized.TestCase):
       ],
       'label': label,
       'features': features,
+      'conversion_rate_segments': 10 if model_type.endswith('CLASSIFIER') else 0,
       'class_imbalance': class_imbalance,
       'timespans': [
         {'name': 'training', 'value': 17, 'unit': 'month'},

@@ -85,6 +85,7 @@ class TestMlModelViews(controller_utils.ControllerAppTest):
             'value_type': 'int',
             'average_value': 123.45
         },
+        'conversion_rate_segments': 10,
         'class_imbalance': 5,
         'timespans': [
             {'name': 'training', 'value': 14, 'unit': 'month'},
@@ -244,6 +245,7 @@ class TestMlModelViews(controller_utils.ControllerAppTest):
             'source': 'FIRST_PARTY',
             'average_value': 0.0
         },
+        'conversion_rate_segments': 0,
         'class_imbalance': 7,
         'timespans': [
             {'name': 'training', 'value': 20, 'unit': 'day'},
