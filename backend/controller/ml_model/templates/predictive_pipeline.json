@@ -50,7 +50,7 @@
         "preceding_job_id": "{{output_job_id}}",
         "condition": "success"
       }],
-      {% if output_config.destination == Destination.GOOGLE_ANALYTICS_MP_EVENT %}
+      {% if output.destination.is_google_analytics_mp_event %}
         "worker_class": "{{Worker.BQ_TO_MEASUREMENT_PROTOCOL_GA4}}",
         "params": [
           {
@@ -99,7 +99,7 @@
             "value": false
           }
         ]
-      {% elif output_config.destination == Destination.GOOGLE_ADS_OFFLINE_CONVERSION %}
+      {% elif output.destination.is_google_ads_offline_conversion %}
         "worker_class": "{{Worker.BQ_TO_GOOGLE_ADS_OFFLINE_CONVERSION}}",
         "params": [
           {

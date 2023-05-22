@@ -103,11 +103,6 @@ class Timespan:
     return 1
 
 
-class Destination(shared.StrEnum):
-  GOOGLE_ANALYTICS_MP_EVENT = 'GOOGLE_ANALYTICS_MP_EVENT'
-  GOOGLE_ADS_OFFLINE_CONVERSION = 'GOOGLE_ADS_OFFLINE_CONVERSION'
-
-
 class Compiler():
   """Used to build out pipeline configurations.
 
@@ -120,6 +115,11 @@ class Compiler():
   ga4_measurement_id: str
   ga4_api_secret: str
   ml_model: models.MlModel
+
+  OUTPUT_DESTINATIONS: list[str] = [
+    'GOOGLE_ANALYTICS_MP_EVENT'
+    'GOOGLE_ADS_OFFLINE_CONVERSION'
+  ]
 
   def __init__(self,
                project_id: str,
@@ -178,13 +178,22 @@ class Compiler():
       'features': self.ml_model.features,
       'conversion_rate_segments': self.ml_model.conversion_rate_segments,
       'class_imbalance': self.ml_model.class_imbalance,
-      'output_config': self.ml_model.output_config
+      'output': {
+        'parameters': {
+            'customer_id': self.ml_model.output_config.customer_id,
+            'action_id': self.ml_model.output_config.action_id
+        },
+        'destination': {}
+      }
     }
+
+    for destination in self.OUTPUT_DESTINATIONS:
+      match: bool = self.ml_model.output.destination == destination
+      variables['output']['destination']['is_' + destination.lower()] = match
 
     constants = {
       'Worker': Worker,
       'ParamType': ParamType,
-      'Destination': Destination,
       'TemplateFile': TemplateFile,
       'Encoding': Encoding
     }
