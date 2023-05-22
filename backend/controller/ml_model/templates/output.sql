@@ -19,8 +19,8 @@ CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.output` AS (
     SELECT DISTINCT
       {{unique_id}}
     FROM events, UNNEST(params) AS params
-    WHERE name = "prop_score"
-    AND params.value.string_value = "Predicted_Value"
+    WHERE name = 'prop_score'
+    AND params.value.string_value = 'Predicted_Value'
   ),
   users_without_score AS (
     SELECT DISTINCT
@@ -85,9 +85,10 @@ CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.output` AS (
   ),
   consolidated_output AS (
     SELECT
+      p.* EXCEPT(user_pseudo_id),
+      p.user_pseudo_id AS client_id,
       g.gclid,
-      g.datetime,
-      p.value
+      g.datetime
     FROM prepared_predictions p
     INNER JOIN users_without_score wos
     ON p.{{unique_id}} = wos.{{unique_id}}

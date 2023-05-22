@@ -125,7 +125,7 @@
           {
             "name": "customer_id",
             "type": "{{ParamType.STRING}}",
-            "value": "{{output_config.customer_id}}"
+            "value": "{{output.parameters.customer_id}}"
           },
           {
             "name": "template",

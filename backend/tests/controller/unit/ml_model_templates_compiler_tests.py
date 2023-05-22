@@ -166,7 +166,7 @@ class TestCompiler(parameterized.TestCase):
 
     # timespan check
     self.assertIn(
-        'FORMAT_DATE("%Y%m%d", DATE_SUB(CURRENT_DATE(), INTERVAL 19 DAY))',
+        'FORMAT_DATE("%Y%m%d", DATE_SUB(CURRENT_DATE(), INTERVAL 20 DAY))',
         sql,
         'Timespan start check failed.')
 
@@ -418,7 +418,7 @@ class TestCompiler(parameterized.TestCase):
 
     # timespan check
     self.assertIn(
-        'FORMAT_DATE("%Y%m%d", DATE_SUB(CURRENT_DATE(), INTERVAL 19 DAY))',
+        'FORMAT_DATE("%Y%m%d", DATE_SUB(CURRENT_DATE(), INTERVAL 20 DAY))',
         sql,
         'Timespan start check failed.')
 
@@ -1034,6 +1034,78 @@ class TestCompiler(parameterized.TestCase):
         sql,
         'Failed user id check within prediction preparation step.')
 
+  def test_build_output_sql_google_analytics_mp_event(self):
+    test_model = self.model_config(
+        model_type='BOOSTED_TREE_CLASSIFIER',
+        uses_first_party_data=True,
+        unique_id='USER_ID',
+        label={
+            'name': 'purchase',
+            'source': 'GOOGLE_ANALYTICS',
+            'key': 'value',
+            'value_type': 'string,int',
+            'average_value': 1234.0
+        },
+        features=[
+            {'name': 'click', 'source': 'GOOGLE_ANALYTICS'},
+            {'name': 'subscribe', 'source': 'FIRST_PARTY'}
+        ],
+        class_imbalance=4,
+        destination='GOOGLE_ANALYTICS_MP_EVENT')
+
+    pipeline = self.compiler(test_model).build_predictive_pipeline()
+    self.assertEqual(pipeline['name'], 'Test Model - Predictive')
+
+    output_job = self.first(pipeline['jobs'], 'name', 'Test Model - Predictive Output')
+    self.assertIsNotNone(output_job)
+    params = output_job['params']
+
+    sql_param = self.first(params, 'name', 'script')
+    self.assertIsNotNone(sql_param)
+    sql = sql_param['value']
+
+    # consolidated output block check
+    self.assertIn(
+        '\'Predicted_Value\' AS type',
+        sql,
+        'Check for correct consolidated output block failed.')
+
+  def test_build_output_sql_google_ads_offline_conversion(self):
+    test_model = self.model_config(
+        model_type='BOOSTED_TREE_CLASSIFIER',
+        uses_first_party_data=True,
+        unique_id='USER_ID',
+        label={
+            'name': 'purchase',
+            'source': 'GOOGLE_ANALYTICS',
+            'key': 'value',
+            'value_type': 'string,int',
+            'average_value': 1234.0
+        },
+        features=[
+            {'name': 'click', 'source': 'GOOGLE_ANALYTICS'},
+            {'name': 'subscribe', 'source': 'FIRST_PARTY'}
+        ],
+        class_imbalance=4,
+        destination='GOOGLE_ADS_OFFLINE_CONVERSION')
+
+    pipeline = self.compiler(test_model).build_predictive_pipeline()
+    self.assertEqual(pipeline['name'], 'Test Model - Predictive')
+
+    output_job = self.first(pipeline['jobs'], 'name', 'Test Model - Predictive Output')
+    self.assertIsNotNone(output_job)
+    params = output_job['params']
+
+    sql_param = self.first(params, 'name', 'script')
+    self.assertIsNotNone(sql_param)
+    sql = sql_param['value']
+
+    # consolidated output block check
+    self.assertIn(
+        'g.gclid',
+        sql,
+        'Check for correct consolidated output block failed.')
+
   def test_build_ga4_request(self):
     test_model = self.model_config(
         model_type='BOOSTED_TREE_REGRESSOR',
@@ -1228,8 +1300,8 @@ class TestCompiler(parameterized.TestCase):
       'conversion_rate_segments': 10 if model_type.endswith('CLASSIFIER') else 0,
       'class_imbalance': class_imbalance,
       'timespans': [
-        {'name': 'training', 'value': 17, 'unit': 'month'},
-        {'name': 'predictive', 'value': 1, 'unit': 'month'}
+        {'name': 'training', 'value': 17, 'unit': 'day'},
+        {'name': 'predictive', 'value': 1, 'unit': 'day'}
       ],
       'output_config': {
         'destination': destination,

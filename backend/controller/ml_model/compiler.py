@@ -117,7 +117,7 @@ class Compiler():
   ml_model: models.MlModel
 
   OUTPUT_DESTINATIONS: list[str] = [
-    'GOOGLE_ANALYTICS_MP_EVENT'
+    'GOOGLE_ANALYTICS_MP_EVENT',
     'GOOGLE_ADS_OFFLINE_CONVERSION'
   ]
 
@@ -188,7 +188,7 @@ class Compiler():
     }
 
     for destination in self.OUTPUT_DESTINATIONS:
-      match: bool = self.ml_model.output.destination == destination
+      match: bool = self.ml_model.output_config.destination == destination
       variables['output']['destination']['is_' + destination.lower()] = match
 
     constants = {
