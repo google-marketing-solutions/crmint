@@ -12,10 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Add conversion rate segments field to ML Models.
+"""Add conversion rate segments field to ML models.
 
 Revision ID: 067ab7b58de0
-Revises: 8d8b3ebaf528
+Revises: 44df73ec10c2
 Create Date: 2023-05-18 15:31:23.805248
 
 """
@@ -25,7 +25,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision = '067ab7b58de0'
-down_revision = '8d8b3ebaf528'
+down_revision = '44df73ec10c2'
 branch_labels = None
 depends_on = None
 

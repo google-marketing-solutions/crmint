@@ -179,16 +179,13 @@ class Compiler():
       'conversion_rate_segments': self.ml_model.conversion_rate_segments,
       'class_imbalance': self.ml_model.class_imbalance,
       'output': {
-        'parameters': {
-            'customer_id': self.ml_model.output_config.customer_id,
-            'action_id': self.ml_model.output_config.action_id
-        },
-        'destination': {}
+        'destination': {},
+        'parameters': self.ml_model.output.parameters
       }
     }
 
     for destination in self.OUTPUT_DESTINATIONS:
-      match: bool = self.ml_model.output_config.destination == destination
+      match: bool = self.ml_model.output.destination == destination
       variables['output']['destination']['is_' + destination.lower()] = match
 
     constants = {

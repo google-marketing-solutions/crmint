@@ -129,10 +129,14 @@ export type Timespan = {
   range?: Range
 }
 
-export type OutputConfig = {
-  destination: Destination;
+type OutputParameters = {
   customer_id: number;
-  action_id: number;
+  conversion_action_id: number;
+}
+
+export type Output = {
+  destination: Destination;
+  parameters: OutputParameters;
 }
 
 export class MlModel {
@@ -148,7 +152,7 @@ export class MlModel {
   conversion_rate_segments: number;
   class_imbalance: number;
   timespans: Timespan[];
-  output_config: OutputConfig;
+  output: Output;
   pipelines: Pipeline[];
   updated_at: string;
 
@@ -322,7 +326,12 @@ export class MlModel {
           };
         }
       }),
-      features: this.features,
+      features: this.features.map(feature => {
+        return {
+          name: feature.name,
+          source: feature.source
+        }
+      }),
       label: this.label,
       conversion_rate_segments: this.conversion_rate_segments,
       class_imbalance: this.class_imbalance,
@@ -333,7 +342,7 @@ export class MlModel {
           unit: timespan.unit
         };
       }),
-      output_config: this.output_config
+      output: this.output
     }
   }
 }

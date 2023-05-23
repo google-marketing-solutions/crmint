@@ -509,22 +509,26 @@ class TestMlModel(controller_utils.ModelTestCase):
           'create',
           {
               'destination': 'GOOGLE_ANALTYICS_MP_EVENT',
-              'customer_id': 0,
-              'action_id': 0,
+              'parameters': {
+                'customer_id': 0,
+                'conversion_action_id': 0
+              }
           },
       ),
       (
           'update',
           {
-              'destination': 'GOOGLE_ANALTYICS_MP_EVENT',
-              'customer_id': 1234,
-              'action_id': 5678,
+              'destination': 'GOOGLE_ADS_OFFLINE_CONVERSION',
+              'parameters': {
+                  'customer_id': 1234,
+                  'conversion_action_id': 5678
+              }
           },
       ))
-  def test_save_relations_output_config(self, output_config):
-    self.assertIsNone(self.ml_model.output_config)
-    self.ml_model.save_relations({'output_config': output_config})
-    self.assertRelationSaved(models.MlModelOutputConfig, output_config)
+  def test_save_relations_output(self, output):
+    self.assertIsNone(self.ml_model.output)
+    self.ml_model.save_relations({'output': output})
+    self.assertRelationSaved(models.MlModelOutput, output)
 
   def test_save_relations_pipelines_create(self):
     self.assertLen(self.ml_model.pipelines, 0)
@@ -638,7 +642,11 @@ class TestMlModel(controller_utils.ModelTestCase):
     if type(assertions) == dict:
       row = db_model.where(ml_model_id=self.ml_model.id).first()
       for key, value in assertions.items():
-        self.assertEqual(getattr(row, key), value)
+        actualValue = getattr(row, key)
+        if isinstance(actualValue, extensions.db.Model):
+          self.assertRelationSaved(actualValue, value)
+        else:
+          self.assertEqual(actualValue, value)
     elif type(assertions) == list:
       rows = db_model.where(ml_model_id=self.ml_model.id).all()
       self.assertLen(rows, len(assertions))

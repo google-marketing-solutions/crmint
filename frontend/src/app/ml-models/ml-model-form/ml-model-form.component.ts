@@ -23,7 +23,7 @@ import { plainToClass } from 'class-transformer';
 import { MlModelsService } from '../shared/ml-models.service';
 import {
   MlModel, Type, ClassificationType, RegressionType, UniqueId, HyperParameter,
-  Feature, Label, Variable, BigQueryDataset, Timespan, Source, Destination, OutputConfig
+  Feature, Label, Variable, BigQueryDataset, Timespan, Source, Destination, Output
 } from 'app/models/ml-model';
 
 @Component({
@@ -82,10 +82,12 @@ export class MlModelFormComponent implements OnInit {
       conversionRateSegments: [0, [Validators.required, Validators.pattern(/^[0-9]*$/i)]],
       classImbalance: [4, [Validators.required, Validators.min(1), Validators.max(10)]],
       timespans: this._fb.array([]),
-      outputConfig: this._fb.group({
+      output: this._fb.group({
         destination: [null, [Validators.required, this.enumValidator(Destination)]],
-        customerId: [null, Validators.pattern(/^[0-9]*$/i)],
-        actionId: [null, Validators.pattern(/^[0-9]*$/i)]
+        parameters: this._fb.group({
+          customerId: [null, Validators.pattern(/^[0-9]*$/i)],
+          conversionActionId: [null, Validators.pattern(/^[0-9]*$/i)]
+        })
       })
     });
   }
@@ -157,10 +159,12 @@ export class MlModelFormComponent implements OnInit {
       },
       conversionRateSegments: this.mlModel.conversion_rate_segments,
       classImbalance: this.mlModel.class_imbalance,
-      outputConfig: {
-        destination: this.mlModel.output_config.destination,
-        customerId: this.mlModel.output_config.customer_id,
-        actionId: this.mlModel.output_config.action_id
+      output: {
+        destination: this.mlModel.output.destination,
+        parameters: {
+          customerId: this.mlModel.output.parameters.customer_id,
+          conversionActionId: this.mlModel.output.parameters.conversion_action_id
+        }
       }
     });
 
@@ -235,18 +239,18 @@ export class MlModelFormComponent implements OnInit {
     return label;
   }
 
-  get outputConfig() {
-    let outputConfig = this.mlModelForm.get('outputConfig').value;
+  get output() {
+    let output = this.mlModelForm.get('output').value;
 
     let requirements = [];
-    switch (outputConfig.destination) {
+    switch (output.destination) {
       case Destination.GOOGLE_ADS_OFFLINE_CONVERSION:
-        requirements = ['customerId', 'actionId'];
+        requirements = ['customerId', 'conversionActionId'];
         break;
     }
-    outputConfig.requirements = requirements;
+    output.requirements = requirements;
 
-    return outputConfig;
+    return output;
   }
 
   /**
@@ -438,24 +442,22 @@ export class MlModelFormComponent implements OnInit {
    * Handles ensuring the output config fields are updated appropriately when form fields that
    * affect what's allowed to be selected are changed.
    */
-  refreshOutputConfig() {
-    const outputConfig = this.outputConfig;
-    const allRequirementsFields = Object.keys(outputConfig)
-                                      .filter(field => !['requirements', 'destination']
-                                      .includes(field));
+  refreshOutput() {
+    const output = this.output;
+    const allRequirementsFields = Object.keys(output.parameters);
 
-    if (outputConfig.requirements.length > 0) {
-      for (const requirement of outputConfig.requirements) {
-        this.mlModelForm.get(['outputConfig', requirement]).addValidators(Validators.required);
+    if (output.requirements.length > 0) {
+      for (const requirement of output.requirements) {
+        this.mlModelForm.get(['output', 'parameters', requirement]).addValidators(Validators.required);
       }
     } else {
       for (const requirement of allRequirementsFields) {
-        this.mlModelForm.get(['outputConfig', requirement]).removeValidators(Validators.required);
+        this.mlModelForm.get(['output', 'parameters', requirement]).removeValidators(Validators.required);
       }
     }
 
     for (const requirement of allRequirementsFields) {
-      this.mlModelForm.get(['outputConfig', requirement]).setValue(null);
+      this.mlModelForm.get(['output', 'parameters', requirement]).setValue(null);
     }
   }
 
@@ -471,12 +473,7 @@ export class MlModelFormComponent implements OnInit {
     this.mlModel.unique_id = formModel.uniqueId as UniqueId;
     this.mlModel.uses_first_party_data = formModel.usesFirstPartyData as boolean;
     this.mlModel.hyper_parameters = formModel.hyperParameters as HyperParameter[];
-    this.mlModel.features = formModel.features.map(feature => {
-      return {
-        name: feature.name,
-        source: feature.source
-      }
-    });
+    this.mlModel.features = formModel.features as Feature[];
     this.mlModel.label = {
       name: formModel.label.name as string,
       source: formModel.label.source as Source,
@@ -487,11 +484,13 @@ export class MlModelFormComponent implements OnInit {
     this.mlModel.conversion_rate_segments = formModel.conversionRateSegments as number;
     this.mlModel.class_imbalance = formModel.classImbalance as number;
     this.mlModel.timespans = formModel.timespans as Timespan[];
-    this.mlModel.output_config = {
-      destination: formModel.outputConfig.destination as Destination,
-      customer_id: formModel.outputConfig.customerId as number,
-      action_id: formModel.outputConfig.actionId as number
-    } as OutputConfig;
+    this.mlModel.output = {
+      destination: formModel.output.destination as string,
+      parameters: {
+        customer_id: formModel.output.parameters.customerId as number,
+        conversion_action_id: formModel.output.parameters.conversionActionId as number
+      }
+    } as Output;
   }
 
   /**

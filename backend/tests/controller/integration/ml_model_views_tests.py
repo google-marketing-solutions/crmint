@@ -91,10 +91,12 @@ class TestMlModelViews(controller_utils.ControllerAppTest):
             {'name': 'training', 'value': 14, 'unit': 'month'},
             {'name': 'predictive', 'value': 2, 'unit': 'month'}
         ],
-        'output_config': {
+        'output': {
             'destination': 'GOOGLE_ADS_OFFLINE_CONVERSION',
-            'customer_id': 1234,
-            'action_id': 5678
+            'parameters': {
+                'customer_id': 1234,
+                'conversion_action_id': 5678
+            }
         }
     }
 
@@ -254,10 +256,12 @@ class TestMlModelViews(controller_utils.ControllerAppTest):
             {'name': 'training', 'value': 20, 'unit': 'day'},
             {'name': 'predictive', 'value': 1, 'unit': 'day'}
         ],
-        'output_config': {
+        'output': {
             'destination': 'GOOGLE_ANALYTICS_MP_EVENT',
-            'customer_id': 0,
-            'action_id': 0
+            'parameters': {
+                'customer_id': 0,
+                'conversion_action_id': 0
+            }
         }
     }
 

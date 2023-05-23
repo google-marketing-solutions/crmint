@@ -18,7 +18,6 @@
 # docker-compose down --volumes
 # docker-compose run controller python -m flask db upgrade
 # docker-compose run controller python -m flask db migrate
-# sudo chown ldap:primarygroup backend/migrations/versions/filename.py
 # docker-compose run controller python -m flask db upgrade
 
 """Models definitions."""
@@ -401,8 +400,8 @@ class MlModel(extensions.db.Model):
   timespans = orm.relationship(
       'MlModelTimespan',
       lazy='joined')
-  output_config = orm.relationship(
-      'MlModelOutputConfig',
+  output = orm.relationship(
+      'MlModelOutput',
       uselist=False,
       lazy='joined')
   pipelines = orm.relationship(
@@ -454,8 +453,8 @@ class MlModel(extensions.db.Model):
         self.assign_hyper_parameters(value)
       elif key == 'timespans':
         self.assign_timespans(value)
-      elif key == 'output_config':
-        self.assign_output_config(value)
+      elif key == 'output':
+        self.assign_output(value)
       elif key == 'pipelines':
         self.assign_pipelines(value)
 
@@ -493,10 +492,10 @@ class MlModel(extensions.db.Model):
       if isinstance(timespan, dict):
         MlModelTimespan.create(ml_model_id=self.id, **timespan)
 
-  def assign_output_config(self, output_config):
-    if self.output_config:
-      self.output_config.delete()
-    MlModelOutputConfig.create(ml_model_id=self.id, **output_config)
+  def assign_output(self, output):
+    if self.output:
+      self.output.delete()
+    MlModelOutput.create(ml_model_id=self.id, **output)
 
   def assign_pipelines(self, pipelines):
     for pipeline in self.pipelines:
@@ -527,8 +526,8 @@ class MlModel(extensions.db.Model):
     for timespan in self.timespans:
       timespan.delete()
 
-    if self.output_config:
-      self.output_config.delete()
+    if self.output:
+      self.output.delete()
 
     self.delete()
 
@@ -601,18 +600,49 @@ class MlModelTimespan(extensions.db.Model):
       'MlModel', foreign_keys=[ml_model_id], back_populates='timespans')
 
 
-class MlModelOutputConfig(extensions.db.Model):
+class MlModelOutput(extensions.db.Model):
   """Model for ml model output config."""
-  __tablename__ = 'ml_model_output_config'
+  __tablename__ = 'ml_model_output'
   __repr_attrs__ = ['name']
 
   ml_model_id = Column(Integer, ForeignKey('ml_models.id'), primary_key=True)
   destination = Column(String(255), nullable=False)
-  customer_id = Column(Integer, nullable=True)
-  action_id = Column(Integer, nullable=True)
+  parameters = orm.relationship(
+      'MlModelOutputParameters',
+      uselist=False,
+      lazy='joined')
 
   ml_model = orm.relationship(
-    'MlModel', foreign_keys=[ml_model_id], back_populates='output_config')
+      'MlModel', foreign_keys=[ml_model_id], back_populates='output')
+
+  @classmethod
+  def create(cls, **kwargs):
+    create = cls().fill(
+      ml_model_id=kwargs['ml_model_id'],
+      destination=kwargs['destination'])
+    db_model = create.save()
+    MlModelOutputParameters.create(
+      ml_model_id=db_model.ml_model_id,
+      **kwargs['parameters'])
+    return db_model
+
+  def delete(self):
+    self.session.delete(self.parameters)
+    self.session.delete(self)
+    self.session.commit()
+
+
+class MlModelOutputParameters(extensions.db.Model):
+  """Model for ml model output config parameters."""
+  __tablename__ = 'ml_model_output_parameters'
+
+  ml_model_id = Column(
+      Integer, ForeignKey('ml_model_output.ml_model_id'), primary_key=True)
+  customer_id = Column(Integer, nullable=True)
+  conversion_action_id = Column(Integer, nullable=True)
+
+  ml_model_output = orm.relationship(
+      'MlModelOutput', foreign_keys=[ml_model_id], back_populates='parameters')
 
 
 class TaskEnqueued(extensions.db.Model):

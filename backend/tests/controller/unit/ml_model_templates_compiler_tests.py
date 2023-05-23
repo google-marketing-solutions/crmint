@@ -1303,10 +1303,12 @@ class TestCompiler(parameterized.TestCase):
         {'name': 'training', 'value': 17, 'unit': 'day'},
         {'name': 'predictive', 'value': 1, 'unit': 'day'}
       ],
-      'output_config': {
+      'output': {
         'destination': destination,
-        'customer_id': 1234,
-        'action_id': 5678
+        'parameters': {
+            'customer_id': 1234,
+            'conversion_action_id': 5678
+        }
       }
     })
 
