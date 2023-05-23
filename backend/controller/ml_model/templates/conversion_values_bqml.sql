@@ -154,7 +154,7 @@ CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.conversion_values` AS 
       ON fe.{{unique_id}} = uv.{{unique_id}}
     )) AS p,
     UNNEST(predicted_label_probs) AS plp
-    WHERE plp.label = predicted_label
+    WHERE plp.label = 1
   )
   GROUP BY 1
 )
