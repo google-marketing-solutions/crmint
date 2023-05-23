@@ -13,7 +13,10 @@ class BQToAdsOfflineClickConversionTests(parameterized.TestCase):
     super().setUp()
 
   @mock.patch('jobs.workers.bigquery.bq_batch_worker.BQBatchDataWorker._execute')
-  def test_fails_if_required_params_not_provided(self, _):
+  @mock.patch('jobs.workers.worker.Worker.log_info')
+  def test_fails_if_required_params_not_provided(
+    self, mocked_logger, mocked_execute
+  ):
     parameters = {}
     worker = bq_to_ads_offline_click_conversion.BQToAdsOfflineClickConversion(
       parameters, 0, 0
@@ -31,7 +34,10 @@ class BQToAdsOfflineClickConversionTests(parameterized.TestCase):
     self.assertIn('"bq_table_id" is required.', str(err_context.exception))
 
   @mock.patch('jobs.workers.bigquery.bq_batch_worker.BQBatchDataWorker._execute')
-  def test_either_service_account_or_refresh_token_is_required(self, _):
+  @mock.patch('jobs.workers.worker.Worker.log_info')
+  def test_either_service_account_or_refresh_token_is_required(
+    self, mocked_logger, mocked_execute
+  ):
     """The Ad worker requires either a service account or refresh token."""
     parameters = {
       'google_ads_developer_token': 'token',
@@ -54,7 +60,10 @@ class BQToAdsOfflineClickConversionTests(parameterized.TestCase):
     )
 
   @mock.patch('jobs.workers.bigquery.bq_batch_worker.BQBatchDataWorker._execute')
-  def test_can_client_params_are_required_if_refresh_token_provided(self, _):
+  @mock.patch('jobs.workers.worker.Worker.log_info')
+  def test_can_client_params_are_required_if_refresh_token_provided(
+    self, mocked_logger, mocked_execute
+  ):
     """The worker requires client ID and secret if a refresh token was
     provided.
     """
@@ -78,9 +87,9 @@ class BQToAdsOfflineClickConversionTests(parameterized.TestCase):
     self.assertIn('"client_secret" is required.', str(err_context.exception))
 
   @mock.patch('jobs.workers.bigquery.bq_batch_worker.BQBatchDataWorker._execute')
+  @mock.patch('jobs.workers.worker.Worker.log_info')
   def test_calls_parent_bq_batch_worker_to_start_execution(
-    self,
-    mocked_parent_execute
+    self, mocked_logger, mocked_execute
   ):
     """The Ad requires client ID and secret if a refresh token was provided."""
     parameters = {
@@ -98,7 +107,7 @@ class BQToAdsOfflineClickConversionTests(parameterized.TestCase):
     )
     worker._execute()
 
-    mocked_parent_execute.assert_called()
+    mocked_execute.assert_called()
 
 
 if __name__ == '__main__':
