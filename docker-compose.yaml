@@ -86,7 +86,8 @@ services:
       FLASK_DEBUG: 1
       SQLALCHEMY_ECHO: 1
       PORT: 8080
-    entrypoint: >
+    entrypoint: []
+    command:
       /bin/bash -c "python setup_pubsub.py && flask run --host 0.0.0.0 --port 8080"
     depends_on:
       db:
