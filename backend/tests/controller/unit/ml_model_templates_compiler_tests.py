@@ -704,7 +704,7 @@ class TestCompiler(parameterized.TestCase):
         r'[\s\n]+'.join([
             'WHERE name = "purchase"',
             'AND params.key = "value"',
-            re.escape('AND COALESCE(params.value.string_value, params.value.int_value) NOT IN ("", "0", 0, NULL)')
+            re.escape('AND COALESCE(params.value.string_value, CAST(params.value.int_value AS STRING)) NOT IN ("", "0", NULL)')
         ]),
         'Google Analytics label pull check failed.')
 
@@ -830,7 +830,7 @@ class TestCompiler(parameterized.TestCase):
         r'[\s\n]+'.join([
             'WHERE name = "subscription"',
             'AND params.key = "value"',
-            re.escape('AND COALESCE(params.value.string_value, params.value.int_value) NOT IN ("", "0", 0, NULL)')
+            re.escape('AND COALESCE(params.value.string_value, CAST(params.value.int_value AS STRING)) NOT IN ("", "0", NULL)')
         ]),
         'Google Analytics label pull check failed.')
 

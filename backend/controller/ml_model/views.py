@@ -81,8 +81,8 @@ timespans_structure = fields.List(
 output_structure = fields.Nested({
     'destination': fields.String,
     'parameters': fields.Nested({
-        'customer_id': fields.Integer,
-        'conversion_action_id': fields.Integer
+        'customer_id': fields.String,
+        'conversion_action_id': fields.String
     })
 })
 

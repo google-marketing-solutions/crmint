@@ -12,11 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Add output and output parameters to Ml models.
+"""Add ouput and output parameters to ML models
 
-Revision ID: 10998cb7df6d
+Revision ID: 2bf97a4419d7
 Revises: 067ab7b58de0
-Create Date: 2023-05-23 15:07:25.314071
+Create Date: 2023-05-25 19:29:27.848917
 
 """
 from alembic import op
@@ -24,7 +24,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = '10998cb7df6d'
+revision = '2bf97a4419d7'
 down_revision = '067ab7b58de0'
 branch_labels = None
 depends_on = None
@@ -44,8 +44,8 @@ def upgrade():
     sa.Column('created_at', sa.DateTime(), nullable=False),
     sa.Column('updated_at', sa.DateTime(), nullable=False),
     sa.Column('ml_model_id', sa.Integer(), nullable=False),
-    sa.Column('customer_id', sa.Integer(), nullable=True),
-    sa.Column('conversion_action_id', sa.Integer(), nullable=True),
+    sa.Column('customer_id', sa.String(length=255), nullable=True),
+    sa.Column('conversion_action_id', sa.String(length=255), nullable=True),
     sa.ForeignKeyConstraint(['ml_model_id'], ['ml_model_output.ml_model_id'], ),
     sa.PrimaryKeyConstraint('ml_model_id')
     )

@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Add conversion rate segments field to ML models.
+"""Add conversion rate segments field to ML models
 
 Revision ID: 067ab7b58de0
 Revises: 44df73ec10c2

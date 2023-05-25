@@ -94,8 +94,8 @@ class TestMlModelViews(controller_utils.ControllerAppTest):
         'output': {
             'destination': 'GOOGLE_ADS_OFFLINE_CONVERSION',
             'parameters': {
-                'customer_id': 1234,
-                'conversion_action_id': 5678
+                'customer_id': '1234567890',
+                'conversion_action_id': '0987654321'
             }
         }
     }
@@ -259,8 +259,8 @@ class TestMlModelViews(controller_utils.ControllerAppTest):
         'output': {
             'destination': 'GOOGLE_ANALYTICS_MP_EVENT',
             'parameters': {
-                'customer_id': 0,
-                'conversion_action_id': 0
+                'customer_id': '0',
+                'conversion_action_id': '0'
             }
         }
     }

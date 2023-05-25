@@ -91,7 +91,7 @@ analytics_variables AS (
     WHERE name = "{{label.name}}"
     AND params.key = "{{label.key}}"
     {% if 'string' in label.value_type %}
-    AND COALESCE(params.value.string_value, params.value.int_value) NOT IN ("", "0", 0, NULL)
+    AND COALESCE(params.value.string_value, CAST(params.value.int_value AS STRING)) NOT IN ("", "0", NULL)
     {% else %}
     AND COALESCE(params.value.int_value, params.value.float_value, params.value.double_value, 0) > 0
     {% endif %}

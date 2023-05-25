@@ -487,8 +487,8 @@ export class MlModelFormComponent implements OnInit {
     this.mlModel.output = {
       destination: formModel.output.destination as string,
       parameters: {
-        customer_id: formModel.output.parameters.customerId as number,
-        conversion_action_id: formModel.output.parameters.conversionActionId as number
+        customer_id: formModel.output.parameters.customerId as string,
+        conversion_action_id: formModel.output.parameters.conversionActionId as string
       }
     } as Output;
   }

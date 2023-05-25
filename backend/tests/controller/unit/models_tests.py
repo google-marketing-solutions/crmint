@@ -510,8 +510,8 @@ class TestMlModel(controller_utils.ModelTestCase):
           {
               'destination': 'GOOGLE_ANALTYICS_MP_EVENT',
               'parameters': {
-                'customer_id': 0,
-                'conversion_action_id': 0
+                'customer_id': '0',
+                'conversion_action_id': '0'
               }
           },
       ),
@@ -520,8 +520,8 @@ class TestMlModel(controller_utils.ModelTestCase):
           {
               'destination': 'GOOGLE_ADS_OFFLINE_CONVERSION',
               'parameters': {
-                  'customer_id': 1234,
-                  'conversion_action_id': 5678
+                  'customer_id': '123456789',
+                  'conversion_action_id': '987654321'
               }
           },
       ))
@@ -578,6 +578,13 @@ class TestMlModel(controller_utils.ModelTestCase):
             'key': 'CR-KEY',
             'value_type': 'CR-VT',
         },
+        'output': {
+            'destination': 'GOOGLE_ADS_OFFLINE_CONVERSION',
+            'parameters': {
+                'customer_id': '123456789',
+                'conversion_action_id': '987654321'
+            }
+        },
         'pipelines': [{
             'name': 'Test Model - Training Pipeline',
             'params': [],
@@ -611,6 +618,8 @@ class TestMlModel(controller_utils.ModelTestCase):
     )
     self.assertIsNone(models.MlModelFeature.where(ml_model_id=model_id).first())
     self.assertIsNone(models.MlModelLabel.where(ml_model_id=model_id).first())
+    self.assertIsNone(models.MlModelOutput.where(ml_model_id=model_id).first())
+    self.assertIsNone(models.MlModelOutputParameters.where(ml_model_id=model_id).first())
     self.assertIsNone(models.Pipeline.where(ml_model_id=model_id).first())
 
   def assertAttributesSaved(self, assertions: dict[str, Any]):

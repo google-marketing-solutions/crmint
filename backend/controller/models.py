@@ -494,8 +494,12 @@ class MlModel(extensions.db.Model):
 
   def assign_output(self, output):
     if self.output:
-      self.output.delete()
-    MlModelOutput.create(ml_model_id=self.id, **output)
+      self.output.destroy()
+
+    MlModelOutput.create(ml_model_id=self.id,
+                         destination=output['destination'])
+    MlModelOutputParameters.create(ml_model_id=self.id,
+                                   **output['parameters'])
 
   def assign_pipelines(self, pipelines):
     for pipeline in self.pipelines:
@@ -527,7 +531,7 @@ class MlModel(extensions.db.Model):
       timespan.delete()
 
     if self.output:
-      self.output.delete()
+      self.output.destroy()
 
     self.delete()
 
@@ -615,21 +619,10 @@ class MlModelOutput(extensions.db.Model):
   ml_model = orm.relationship(
       'MlModel', foreign_keys=[ml_model_id], back_populates='output')
 
-  @classmethod
-  def create(cls, **kwargs):
-    create = cls().fill(
-      ml_model_id=kwargs['ml_model_id'],
-      destination=kwargs['destination'])
-    db_model = create.save()
-    MlModelOutputParameters.create(
-      ml_model_id=db_model.ml_model_id,
-      **kwargs['parameters'])
-    return db_model
-
-  def delete(self):
-    self.session.delete(self.parameters)
-    self.session.delete(self)
-    self.session.commit()
+  def destroy(self):
+    if self.parameters:
+      self.parameters.delete()
+    self.delete()
 
 
 class MlModelOutputParameters(extensions.db.Model):
@@ -638,8 +631,8 @@ class MlModelOutputParameters(extensions.db.Model):
 
   ml_model_id = Column(
       Integer, ForeignKey('ml_model_output.ml_model_id'), primary_key=True)
-  customer_id = Column(Integer, nullable=True)
-  conversion_action_id = Column(Integer, nullable=True)
+  customer_id = Column(String(255), nullable=True)
+  conversion_action_id = Column(String(255), nullable=True)
 
   ml_model_output = orm.relationship(
       'MlModelOutput', foreign_keys=[ml_model_id], back_populates='parameters')

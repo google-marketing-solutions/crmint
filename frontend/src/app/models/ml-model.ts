@@ -130,8 +130,8 @@ export type Timespan = {
 }
 
 type OutputParameters = {
-  customer_id: number;
-  conversion_action_id: number;
+  customer_id: string;
+  conversion_action_id: string;
 }
 
 export type Output = {
