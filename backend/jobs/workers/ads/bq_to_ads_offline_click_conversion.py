@@ -167,14 +167,10 @@ class AdsOfflineClickPageResultsWorker(bq_batch_worker.TablePageResultsProcessor
     client_params = {'developer_token': self._params[DEVELOPER_TOKEN]}
     client_params['use_proto_plus'] = 'True'
 
-    if SERVICE_ACCOUNT_FILE in self._params:
-      self.log_info('Setting up Ads client for service account.')
-      client_params['json_key_file_path'] = self._params[SERVICE_ACCOUNT_FILE]
-    else:
-      self.log_info('Setting up Ads client for user flow.')
-      client_params['client_id'] = self._params[CLIENT_ID]
-      client_params['client_secret'] = self._params[CLIENT_SECRET]
-      client_params['refresh_token'] = self._params[REFRESH_TOKEN]
+    self.log_info('Setting up Ads client for user flow.')
+    client_params['client_id'] = self._params[CLIENT_ID]
+    client_params['client_secret'] = self._params[CLIENT_SECRET]
+    client_params['refresh_token'] = self._params[REFRESH_TOKEN]
 
     return client.GoogleAdsClient.load_from_dict(client_params)
 

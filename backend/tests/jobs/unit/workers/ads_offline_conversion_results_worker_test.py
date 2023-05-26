@@ -64,29 +64,29 @@ class AdsOfflineClickPageResultsWorkerTest(parameterized.TestCase):
       'template': 'template_value',
     }
 
-
-  @mock.patch('jobs.workers.worker.Worker.log_info')
-  def test_creates_ad_client_for_service_account(self, _):
-    """The ad conversion page results worker can be configured to create a
-    service account client."""
-    params = {
-      'google_ads_developer_token': 'token',
-      'google_ads_bigquery_conversions_table': 'bq_table_name',
-      'google_ads_refresh_token': 'a_refresh_token',
-      'google_ads_service_account_file': '/file/path',
-      'customer_id': 'a_customer_id',
-      'template': 'template_value',
-    }
-
-    worker = bq_to_ads_offline_click_conversion.AdsOfflineClickPageResultsWorker(
-      params, 1, 1
-    )
-
-    worker._process_page_results(mock.MagicMock())
-
-    expected = {'developer_token': 'token',
-                'json_key_file_path': '/file/path'}
-    self.patched_loads_from_dict.assert_called_with(expected)
+  #
+  # @mock.patch('jobs.workers.worker.Worker.log_info')
+  # def test_creates_ad_client_for_service_account(self, _):
+  #   """The ad conversion page results worker can be configured to create a
+  #   service account client."""
+  #   params = {
+  #     'google_ads_developer_token': 'token',
+  #     'google_ads_bigquery_conversions_table': 'bq_table_name',
+  #     'google_ads_refresh_token': 'a_refresh_token',
+  #     'google_ads_service_account_file': '/file/path',
+  #     'customer_id': 'a_customer_id',
+  #     'template': 'template_value',
+  #   }
+  #
+  #   worker = bq_to_ads_offline_click_conversion.AdsOfflineClickPageResultsWorker(
+  #     params, 1, 1
+  #   )
+  #
+  #   worker._process_page_results(mock.MagicMock())
+  #
+  #   expected = {'developer_token': 'token',
+  #               'json_key_file_path': '/file/path'}
+  #   self.patched_loads_from_dict.assert_called_with(expected)
 
   @mock.patch('jobs.workers.worker.Worker.log_info')
   def test_creates_ad_client_for_refresh_token(self, _):
@@ -103,6 +103,7 @@ class AdsOfflineClickPageResultsWorkerTest(parameterized.TestCase):
       'refresh_token': 'a_refresh_token',
       'client_id': 'a_client_id',
       'client_secret': 'a_client_secret',
+      'use_proto_plus': 'True'
     }
     self.patched_loads_from_dict.assert_called_with(expected)
 
