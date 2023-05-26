@@ -1,4 +1,4 @@
-# Copyright 2020 Google Inc. All rights reserved.
+# Copyright 2023 Google Inc. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -158,10 +158,10 @@ class AdsOfflineClickPageResultsWorker(bq_batch_worker.TablePageResultsProcessor
 
       if idx % (math.ceil(num_rows / 10)) == 0:
         progress = idx / num_rows
-        self.log_info(f'Completed {progress:.2%} of the ads conversions.')
+        self.log_info(f'Completed {progress:.2%} of the google ads conversion uploads.')
 
     self._send_payload(conversion_objs, ads_client)
-    self.log_info('Done with measurement protocol hits.')
+    self.log_info('Done with google ads conversion uploads.')
 
   def _get_ads_client(self) -> client.GoogleAdsClient:
     client_params = {'developer_token': self._params[DEVELOPER_TOKEN]}
