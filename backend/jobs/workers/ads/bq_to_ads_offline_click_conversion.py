@@ -200,7 +200,7 @@ class AdsOfflineClickPageResultsWorker(bq_batch_worker.TablePageResultsProcessor
     request.partial_failure = True
 
     conversion_upload_service = ads_client.get_service(
-      "ConversionActionService"
+      "ConversionUploadService"
     )
     conversion_upload_response = (
       conversion_upload_service.upload_click_conversions(request=request)
