@@ -165,6 +165,7 @@ class AdsOfflineClickPageResultsWorker(bq_batch_worker.TablePageResultsProcessor
 
   def _get_ads_client(self) -> client.GoogleAdsClient:
     client_params = {'developer_token': self._params[DEVELOPER_TOKEN]}
+    client_params['use_proto_plus'] = 'True'
 
     if SERVICE_ACCOUNT_FILE in self._params:
       self.log_info('Setting up Ads client for service account.')
