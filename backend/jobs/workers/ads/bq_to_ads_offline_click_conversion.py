@@ -138,7 +138,7 @@ class BQToAdsOfflineClickConversion(bq_batch_worker.BQBatchDataWorker):
     super()._execute()
 
   def _get_sub_worker_name(self) -> str:
-    return AdsOfflineClickPageResultsWorker.__class__.__name__
+    return AdsOfflineClickPageResultsWorker.__name__
 
 
 class AdsOfflineClickPageResultsWorker(bq_batch_worker.TablePageResultsProcessorWorker):
