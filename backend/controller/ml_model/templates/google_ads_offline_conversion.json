@@ -3,5 +3,6 @@
   "gclid": "${gclid}",
   "conversionAction": "customers/{{output.parameters.customer_id}}/conversionActions/{{output.parameters.conversion_action_id}}",
   "conversionDateTime": "${datetime}",
-  "conversionValue": ${value}
+  "conversionValue": ${value},
+  "currencyCode": "USD"
 }
