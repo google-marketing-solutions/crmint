@@ -119,10 +119,6 @@ class TablePageResultsProcessorWorker(bq_worker.BQWorker, abc.ABC):
   """
   def _extract_parameters(self) -> Tuple[str, str, int]:
     page_token = self._params.get('bq_page_token', None)
-    if not page_token:
-      raise ValueError('Param \'' + BQ_PAGE_TOKEN_PARAM + '\' needs to be set'
-                       ' for batch processing.')
-
     batch_size = self._params.get(BQ_BATCH_SIZE_PARAM, None)
     if not batch_size:
       raise ValueError('Param \'' + BQ_BATCH_SIZE_PARAM + '\' needs to be set'
