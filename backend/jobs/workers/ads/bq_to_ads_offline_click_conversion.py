@@ -32,6 +32,7 @@ SERVICE_ACCOUNT_FILE = 'google_ads_service_account_file'
 REFRESH_TOKEN = 'google_ads_refresh_token'
 CLIENT_ID = 'client_id'
 CLIENT_SECRET = 'client_secret'
+LOG_UPLOAD_RESPONSE_DETAILS = 'log_upload_response_details'
 
 
 class BQToAdsOfflineClickConversion(bq_batch_worker.BQBatchDataWorker):
@@ -69,6 +70,11 @@ class BQToAdsOfflineClickConversion(bq_batch_worker.BQBatchDataWorker):
      True,
      '',
      'Customer ID of the account the conversions will be uploaded for.'),
+    (LOG_UPLOAD_RESPONSE_DETAILS,
+     'bool',
+     False,
+     False,
+     'Flag determining if each conversion upload response should be logged'),
   ]
 
   GLOBAL_SETTINGS = [
@@ -205,3 +211,18 @@ class AdsOfflineClickPageResultsWorker(bq_batch_worker.TablePageResultsProcessor
     conversion_upload_response = (
       conversion_upload_service.upload_click_conversions(request=request)
     )
+
+    upload_status = conversion_upload_response.status
+    self.log_info(
+      f'[Conversion Upload] Response status code:  {upload_status.code}')
+    self.log_info(
+      f'[Conversion Upload] Response status message:  {upload_status.message}')
+
+    if self._params.get(LOG_UPLOAD_RESPONSE_DETAILS, False):
+      self._log_upload_response_error_details(conversion_upload_response)
+
+  def _log_upload_response_error_details(self, upload_response: Any) -> None:
+    error_details = upload_response.status.details
+    for detail in error_details:
+      self.log_info(f'Error detail:  {detail}')
+
