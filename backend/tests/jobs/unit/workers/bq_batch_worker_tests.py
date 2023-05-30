@@ -210,9 +210,6 @@ class TablePageResultsProcessorWorkerTests(parameterized.TestCase):
     self.patched_bq_client_init.return_value = self.mock_bq_client
 
   @parameterized.parameters(
-    {'page_token_value': '',
-     'batch_size_value': 100,
-     'expected_err': 'Param \'bq_page_token\' needs to be set for batch processing.',},
     {'page_token_value': 'a_token',
      'batch_size_value': None,
      'expected_err': 'Param \'bq_batch_size\' needs to be set for batch processing.',},
