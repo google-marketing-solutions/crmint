@@ -212,17 +212,17 @@ class AdsOfflineClickPageResultsWorker(bq_batch_worker.TablePageResultsProcessor
       conversion_upload_service.upload_click_conversions(request=request)
     )
 
-    upload_status = conversion_upload_response.status
+    upload_status = conversion_upload_response.partial_failure_error
     self.log_info(
       f'[Conversion Upload] Response status code:  {upload_status.code}')
     self.log_info(
       f'[Conversion Upload] Response status message:  {upload_status.message}')
 
     if self._params.get(LOG_UPLOAD_RESPONSE_DETAILS, False):
-      self._log_upload_response_error_details(conversion_upload_response)
+      self._log_upload_response_error_details(upload_status)
 
-  def _log_upload_response_error_details(self, upload_response: Any) -> None:
-    error_details = upload_response.status.details
+  def _log_upload_response_error_details(self, status: Any) -> None:
+    error_details = status.details
     for detail in error_details:
       self.log_info(f'Error detail:  {detail}')
 
