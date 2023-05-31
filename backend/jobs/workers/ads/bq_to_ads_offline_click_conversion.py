@@ -71,10 +71,10 @@ class BQToAdsOfflineClickConversion(bq_batch_worker.BQBatchDataWorker):
      '',
      'Customer ID of the account the conversions will be uploaded for.'),
     (LOG_UPLOAD_RESPONSE_DETAILS,
-     'bool',
+     'boolean',
      False,
      False,
-     'Flag determining if each conversion upload response should be logged'),
+     'Log each failure detail?'),
   ]
 
   GLOBAL_SETTINGS = [
