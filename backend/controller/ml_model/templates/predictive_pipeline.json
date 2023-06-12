@@ -1,0 +1,147 @@
+{% set setup_job_id = uuid() %}
+{% set output_job_id = uuid() %}
+{
+  "name": "{{name}} - Predictive",
+  "params": [],
+  "jobs": [
+    {
+      "id": "{{setup_job_id}}",
+      "name": "{{name}} - Predictive Setup",
+      "hash_start_conditions": [],
+      "worker_class": "{{Worker.BQ_SCRIPT_EXECUTOR}}",
+      "params": [
+        {
+          "name": "script",
+          "type": "{{ParamType.SQL}}",
+          "value": "{{compile_template(TemplateFile.PREDICTIVE_BQML, Encoding.JSON)}}"
+        },
+        {
+          "name": "bq_dataset_location",
+          "type": "{{ParamType.STRING}}",
+          "value": "{{dataset_location}}"
+        }
+      ]
+    },
+    {
+      "id": "{{output_job_id}}",
+      "name": "{{name}} - Predictive Output",
+      "hash_start_conditions": [{
+        "preceding_job_id": "{{setup_job_id}}",
+        "condition": "success"
+      }],
+      "worker_class": "{{Worker.BQ_SCRIPT_EXECUTOR}}",
+      "params": [
+        {
+          "name": "script",
+          "type": "{{ParamType.SQL}}",
+          "value": "{{compile_template(TemplateFile.OUTPUT, Encoding.JSON)}}"
+        },
+        {
+          "name": "bq_dataset_location",
+          "type": "{{ParamType.STRING}}",
+          "value": "{{dataset_location}}"
+        }
+      ]
+    },
+    {
+      "id": "{{uuid()}}",
+      "name": "{{name}} - Predictive Upload",
+      "hash_start_conditions": [{
+        "preceding_job_id": "{{output_job_id}}",
+        "condition": "success"
+      }],
+      {% if output.destination.is_google_analytics_mp_event %}
+        "worker_class": "{{Worker.BQ_TO_MEASUREMENT_PROTOCOL_GA4}}",
+        "params": [
+          {
+            "name": "bq_project_id",
+            "type": "{{ParamType.STRING}}",
+            "value": "{{project_id}}"
+          },
+          {
+            "name": "bq_dataset_id",
+            "type": "{{ParamType.STRING}}",
+            "value": "{{model_dataset}}"
+          },
+          {
+            "name": "bq_dataset_location",
+            "type": "{{ParamType.STRING}}",
+            "value": "{{dataset_location}}"
+          },
+          {
+            "name": "bq_table_id",
+            "type": "{{ParamType.STRING}}",
+            "value": "output"
+          },
+          {
+            "name": "measurement_id",
+            "type": "{{ParamType.STRING}}",
+            "value": "{{ga4_measurement_id}}"
+          },
+          {
+            "name": "api_secret",
+            "type": "{{ParamType.STRING}}",
+            "value": "{{ga4_api_secret}}"
+          },
+          {
+            "name": "template",
+            "type": "{{ParamType.TEXT}}",
+            "value": "{{compile_template(TemplateFile.GOOGLE_ANALYTICS_MP_EVENT, Encoding.JSON)}}"
+          },
+          {
+            "name": "mp_batch_size",
+            "type": "{{ParamType.NUMBER}}",
+            "value": "20"
+          },
+          {
+            "name": "debug",
+            "type": "{{ParamType.BOOLEAN}}",
+            "value": false
+          }
+        ]
+      {% elif output.destination.is_google_ads_offline_conversion %}
+        "worker_class": "{{Worker.BQ_TO_GOOGLE_ADS_OFFLINE_CONVERSION}}",
+        "params": [
+          {
+            "name": "bq_project_id",
+            "type": "{{ParamType.STRING}}",
+            "value": "{{project_id}}"
+          },
+          {
+            "name": "bq_dataset_id",
+            "type": "{{ParamType.STRING}}",
+            "value": "{{model_dataset}}"
+          },
+          {
+            "name": "bq_dataset_location",
+            "type": "{{ParamType.STRING}}",
+            "value": "{{dataset_location}}"
+          },
+          {
+            "name": "bq_table_id",
+            "type": "{{ParamType.STRING}}",
+            "value": "output"
+          },
+          {
+            "name": "customer_id",
+            "type": "{{ParamType.STRING}}",
+            "value": "{{output.parameters.customer_id}}"
+          },
+          {
+            "name": "template",
+            "type": "{{ParamType.TEXT}}",
+            "value": "{{compile_template(TemplateFile.GOOGLE_ADS_OFFLINE_CONVERSION, Encoding.JSON)}}"
+          },
+          {
+            "name": "debug",
+            "type": "{{ParamType.BOOLEAN}}",
+            "value": false
+          }
+        ]
+      {% endif %}
+    }
+  ],
+  "schedules": [{
+    "cron": "0 0 * * *"
+  }]
+}

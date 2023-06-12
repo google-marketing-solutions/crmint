@@ -1,4 +1,4 @@
-CREATE OR REPLACE MODEL `{{project_id}}.{{model_dataset}}.model`
+CREATE OR REPLACE MODEL `{{project_id}}.{{model_dataset}}.predictive_model`
 OPTIONS (
   MODEL_TYPE = "{{type.name}}",
   -- inject the selected hyper parameters
@@ -16,7 +16,7 @@ OPTIONS (
 WITH events AS (
   SELECT
     event_timestamp AS timestamp,
-    event_date AS date,
+    CAST(event_date AS DATE FORMAT 'YYYYMMDD') AS date,
     event_name AS name,
     event_params AS params,
     {{unique_id}},
@@ -31,8 +31,8 @@ WITH events AS (
     EXTRACT(HOUR FROM(TIMESTAMP_MICROS(user_first_touch_timestamp))) AS first_touch_hour
   FROM `{{project_id}}.{{ga4_dataset}}.events_*`
   WHERE _TABLE_SUFFIX BETWEEN
-    FORMAT_DATE("%Y%m%d", DATE_SUB(CURRENT_DATE(), INTERVAL {{timespan.training_start}} MONTH)) AND
-    FORMAT_DATE("%Y%m%d", DATE_SUB(DATE_SUB(CURRENT_DATE(), INTERVAL {{timespan.predictive_start}} MONTH), INTERVAL 1 DAY))
+    FORMAT_DATE("%Y%m%d", DATE_SUB(CURRENT_DATE(), INTERVAL {{timespan.training_start}} DAY)) AND
+    FORMAT_DATE("%Y%m%d", DATE_SUB(CURRENT_DATE(), INTERVAL {{timespan.training_end}} DAY))
   {% if type.is_classification %}
   -- get 90% of the events in this time-range (the other 10% is used to calculate conversion values)
   AND MOD(ABS(FARM_FINGERPRINT({{unique_id}})), 100) < 90
@@ -91,7 +91,7 @@ analytics_variables AS (
     WHERE name = "{{label.name}}"
     AND params.key = "{{label.key}}"
     {% if 'string' in label.value_type %}
-    AND COALESCE(params.value.string_value, params.value.int_value) NOT IN ("", "0", 0, NULL)
+    AND COALESCE(params.value.string_value, CAST(params.value.int_value AS STRING)) NOT IN ("", "0", NULL)
     {% else %}
     AND COALESCE(params.value.int_value, params.value.float_value, params.value.double_value, 0) > 0
     {% endif %}
@@ -192,5 +192,5 @@ UNION ALL
 SELECT * EXCEPT({{unique_id}})
 FROM training_dataset
 WHERE label = 0
-AND MOD(ABS(FARM_FINGERPRINT({{unique_id}})), 100) > ((1 / {{class_imbalance}}) * 100)
+AND MOD(ABS(FARM_FINGERPRINT({{unique_id}})), 100) <= ((1 / {{class_imbalance}}) * 100)
 {% endif %}

@@ -8,12 +8,12 @@ CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.conversion_values` AS 
     SELECT
       p.label,
       plp.prob AS probability,
-      NTILE(10) OVER (ORDER BY plp.prob ASC) AS normalized_probability
-    FROM ML.PREDICT(MODEL `{{project_id}}.{{model_dataset}}.model`, (
+      NTILE({{conversion_rate_segments}}) OVER (ORDER BY plp.prob ASC) AS normalized_probability
+    FROM ML.PREDICT(MODEL `{{project_id}}.{{model_dataset}}.predictive_model`, (
       WITH events AS (
         SELECT
           event_timestamp AS timestamp,
-          event_date AS date,
+          CAST(event_date AS DATE FORMAT 'YYYYMMDD') AS date,
           event_name AS name,
           event_params AS params,
           user_id,
@@ -29,8 +29,8 @@ CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.conversion_values` AS 
           EXTRACT(HOUR FROM(TIMESTAMP_MICROS(user_first_touch_timestamp))) AS first_touch_hour
           FROM `{{project_id}}.{{ga4_dataset}}.events_*`
           WHERE _TABLE_SUFFIX BETWEEN
-            FORMAT_DATE("%Y%m%d", DATE_SUB(CURRENT_DATE(), INTERVAL {{timespan.training_start}} MONTH)) AND
-            FORMAT_DATE("%Y%m%d", DATE_SUB(DATE_SUB(CURRENT_DATE(), INTERVAL {{timespan.predictive_start}} MONTH), INTERVAL 1 DAY))
+            FORMAT_DATE("%Y%m%d", DATE_SUB(CURRENT_DATE(), INTERVAL {{timespan.training_start}} DAY)) AND
+            FORMAT_DATE("%Y%m%d", DATE_SUB(CURRENT_DATE(), INTERVAL {{timespan.training_end}} DAY))
           -- select the remaining 10% of the data not used in the training dataset
           AND MOD(ABS(FARM_FINGERPRINT({{unique_id}})), 100) >= 90
       ),
@@ -154,7 +154,7 @@ CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.conversion_values` AS 
       ON fe.{{unique_id}} = uv.{{unique_id}}
     )) AS p,
     UNNEST(predicted_label_probs) AS plp
-    WHERE plp.label = predicted_label
+    WHERE plp.label = 1
   )
   GROUP BY 1
 )
