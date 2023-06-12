@@ -114,7 +114,7 @@ class TestClient(absltest.TestCase):
         },
     ])
 
-    variables = self.client.get_analytics_variables('test-ga4-dataset')
+    variables = self.client.get_analytics_variables('test-ga4-dataset', 90, 30)
     _, args = query_mock.call_args
 
     # query check
@@ -122,6 +122,14 @@ class TestClient(absltest.TestCase):
         args['query'],
         r',[\s\n]+'.join([
             re.escape('FROM `test-project-id.test-ga4-dataset.events_*`')
+        ]),
+        'Query check failed. Missing project or analytics dataset name.')
+
+    self.assertRegex(
+        args['query'],
+        r'[\s\n]+'.join([
+            re.escape('FORMAT_DATE("%Y%m%d", DATE_SUB(CURRENT_DATE(), INTERVAL 90 DAY)) AND'),
+            re.escape('FORMAT_DATE("%Y%m%d", DATE_SUB(CURRENT_DATE(), INTERVAL 30 DAY))')
         ]),
         'Query check failed. Missing project or analytics dataset name.')
 
@@ -194,6 +202,3 @@ class TestClient(absltest.TestCase):
       return temp
 
     return collection
-
-
-

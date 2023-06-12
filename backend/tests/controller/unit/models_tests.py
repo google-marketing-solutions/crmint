@@ -23,8 +23,9 @@ from absl.testing import parameterized
 from freezegun import freeze_time
 import jinja2
 
-from controller import extensions
 from controller import models
+from controller import extensions
+
 from tests import controller_utils
 
 
@@ -399,37 +400,38 @@ class TestTaskEnqueued(controller_utils.ModelTestCase):
     models.TaskEnqueued.create(task_namespace='abc')
     self.assertEqual(models.TaskEnqueued.count_in_namespace('xyz'), 1)
 
-
 class TestMlModel(controller_utils.ModelTestCase):
 
   def setUp(self):
     setup = super().setUp()
-    self.ml_model = models.MlModel.create(
-        name='Test Model', type='LOGISTIC_REG', unique_id='CLIENT_ID'
-    )
+    self.ml_model = models.MlModel.create(name='Test Model',
+                                          type='LOGISTIC_REG',
+                                          unique_id='CLIENT_ID')
     return setup
 
   def test_ml_model_create(self):
     self.assertLen(models.MlModel.all(), 1)
-    self.assertAttributesSaved(
-        {'name': 'Test Model', 'type': 'LOGISTIC_REG', 'unique_id': 'CLIENT_ID'}
-    )
+    self.assertAttributesSaved({
+      'name': 'Test Model',
+      'type': 'LOGISTIC_REG',
+      'unique_id': 'CLIENT_ID'
+    })
 
   def test_assign_attributes(self):
     attributes = {
-        'name': 'Attribute Assigned',
-        'type': 'BOOSTED_TREE_REGRESSOR',
-        'unique_id': 'USER_ID',
-        'uses_first_party_data': True,
-        'class_imbalance': 7,
+      'name': 'Attribute Assigned',
+      'type': 'BOOSTED_TREE_REGRESSOR',
+      'unique_id': 'USER_ID',
+      'uses_first_party_data': True,
+      'conversion_rate_segments': 10,
+      'class_imbalance': 7
     }
     self.ml_model.assign_attributes(attributes)
     self.assertAttributesSaved(attributes)
 
   @parameterized.named_parameters(
       ('create', {'name': 'CR-NAME', 'location': 'CR-LOC'}),
-      ('update', {'name': 'UP-NAME', 'location': 'UP-LOC'}),
-  )
+      ('update', {'name': 'UP-NAME', 'location': 'UP-LOC'}))
   def test_save_relations_bigquery_dataset(self, dataset):
     self.assertIsNone(self.ml_model.bigquery_dataset)
     self.ml_model.save_relations({'bigquery_dataset': dataset})
@@ -444,8 +446,7 @@ class TestMlModel(controller_utils.ModelTestCase):
               {'name': 'subscribe', 'source': 'FIRST_PARTY'},
           ],
       ),
-      ('delete', []),
-  )
+      ('delete', []))
   def test_save_relations_features(self, features):
     self.assertLen(self.ml_model.features, 0)
     self.ml_model.save_relations({'features': features})
@@ -470,8 +471,7 @@ class TestMlModel(controller_utils.ModelTestCase):
               'key': 'UP-KEY',
               'value_type': 'UP-VT',
           },
-      ),
-  )
+      ))
   def test_save_relations_label(self, label):
     self.assertIsNone(self.ml_model.label)
     self.ml_model.save_relations({'label': label})
@@ -483,8 +483,7 @@ class TestMlModel(controller_utils.ModelTestCase):
           'update',
           [{'name': 'L1_REG', 'value': '2'}, {'name': 'L2_REG', 'value': '1'}],
       ),
-      ('delete', []),
-  )
+      ('delete', []))
   def test_save_relations_hyper_parameters(self, hyper_parameters):
     self.assertLen(self.ml_model.hyper_parameters, 0)
     self.ml_model.save_relations({'hyper_parameters': hyper_parameters})
@@ -499,9 +498,39 @@ class TestMlModel(controller_utils.ModelTestCase):
               {'name': 'predictive', 'value': 1, 'unit': 'month'},
           ],
       ),
-      ('delete', []),
-  )
-  def test_save_relations_pipelines(self, expected_objects):
+      ('delete', []))
+  def test_save_relations_timespans(self, timespans):
+    self.assertLen(self.ml_model.timespans, 0)
+    self.ml_model.save_relations({'timespans': timespans})
+    self.assertRelationSaved(models.MlModelTimespan, timespans)
+
+  @parameterized.named_parameters(
+      (
+          'create',
+          {
+              'destination': 'GOOGLE_ANALTYICS_MP_EVENT',
+              'parameters': {
+                'customer_id': '0',
+                'conversion_action_id': '0'
+              }
+          },
+      ),
+      (
+          'update',
+          {
+              'destination': 'GOOGLE_ADS_OFFLINE_CONVERSION',
+              'parameters': {
+                  'customer_id': '123456789',
+                  'conversion_action_id': '987654321'
+              }
+          },
+      ))
+  def test_save_relations_output(self, output):
+    self.assertIsNone(self.ml_model.output)
+    self.ml_model.save_relations({'output': output})
+    self.assertRelationSaved(models.MlModelOutput, output)
+
+  def test_save_relations_pipelines_create(self):
     self.assertLen(self.ml_model.pipelines, 0)
 
     self.ml_model.save_relations(
@@ -530,9 +559,6 @@ class TestMlModel(controller_utils.ModelTestCase):
 
     pipeline = models.Pipeline.where(ml_model_id=self.ml_model.id).first()
     self.assertIsNotNone(pipeline)
-
-    pipeline = models.Pipeline.where(ml_model_id=self.ml_model.id).first()
-    self.assertIsNotNone(pipeline)
     self.assertEqual(pipeline.name, 'Test Model - Training Pipeline')
     self.assertLen(pipeline.jobs, 1)
     self.assertLen(pipeline.jobs[0].params, 2)
@@ -551,6 +577,13 @@ class TestMlModel(controller_utils.ModelTestCase):
             'source': 'FIRST_PARTY',
             'key': 'CR-KEY',
             'value_type': 'CR-VT',
+        },
+        'output': {
+            'destination': 'GOOGLE_ADS_OFFLINE_CONVERSION',
+            'parameters': {
+                'customer_id': '123456789',
+                'conversion_action_id': '987654321'
+            }
         },
         'pipelines': [{
             'name': 'Test Model - Training Pipeline',
@@ -585,10 +618,13 @@ class TestMlModel(controller_utils.ModelTestCase):
     )
     self.assertIsNone(models.MlModelFeature.where(ml_model_id=model_id).first())
     self.assertIsNone(models.MlModelLabel.where(ml_model_id=model_id).first())
+    self.assertIsNone(models.MlModelOutput.where(ml_model_id=model_id).first())
+    self.assertIsNone(models.MlModelOutputParameters.where(ml_model_id=model_id).first())
     self.assertIsNone(models.Pipeline.where(ml_model_id=model_id).first())
 
   def assertAttributesSaved(self, assertions: dict[str, Any]):
-    """Custom assertion that checks the MlModel.
+    """
+    Custom assertion that checks the MlModel.
 
     Using find and ensures the assertions provided match what's saved.
 
@@ -601,24 +637,34 @@ class TestMlModel(controller_utils.ModelTestCase):
 
   def assertRelationSaved(
       self,
-      model: extensions.db.Model,
+      db_model: extensions.db.Model,
       assertions: Union[dict[str, Any], list[Any]],
   ):
-    """Custom assertion that checks the saved model matches expectations."""
-    if isinstance(assertions, dict):
-      row = model.where(ml_model_id=self.ml_model.id).first()
+    """
+    Custom assertion that checks the model provided using where and
+    ensures the assertions provided match what's saved.
+
+    Args:
+      db_model: The database model to check.
+      assertions: What to compare against the database model provided.
+    """
+    if type(assertions) == dict:
+      row = db_model.where(ml_model_id=self.ml_model.id).first()
       for key, value in assertions.items():
-        self.assertEqual(getattr(row, key), value)
-    elif isinstance(assertions, list):
-      rows = model.where(ml_model_id=self.ml_model.id).all()
+        actualValue = getattr(row, key)
+        if isinstance(actualValue, extensions.db.Model):
+          self.assertRelationSaved(actualValue, value)
+        else:
+          self.assertEqual(actualValue, value)
+    elif type(assertions) == list:
+      rows = db_model.where(ml_model_id=self.ml_model.id).all()
       self.assertLen(rows, len(assertions))
-      if rows:
-        assertions.sort(key=lambda c: c['name'])
-        rows.sort(key=lambda c: c.name)
+      if len(rows):
+        assertions.sort(key = lambda c : c['name'])
+        rows.sort(key = lambda c : c.name)
         for index, assertion in enumerate(assertions):
           row_dict = rows[index].__dict__
           self.assertDictEqual(row_dict, row_dict | assertion)
-
 
 if __name__ == '__main__':
   absltest.main()
