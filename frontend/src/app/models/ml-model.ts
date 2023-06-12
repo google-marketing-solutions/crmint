@@ -44,6 +44,11 @@ export enum Source {
   FIRST_PARTY = 'FIRST_PARTY'
 }
 
+export enum Destination {
+  GOOGLE_ANALYTICS_MP_EVENT = 'GOOGLE_ANALYTICS_MP_EVENT',
+  GOOGLE_ADS_OFFLINE_CONVERSION = 'GOOGLE_ADS_OFFLINE_CONVERSION'
+}
+
 export type Range = {
   min: number
   max: number
@@ -124,6 +129,16 @@ export type Timespan = {
   range?: Range
 }
 
+type OutputParameters = {
+  customer_id: string;
+  conversion_action_id: string;
+}
+
+export type Output = {
+  destination: Destination;
+  parameters: OutputParameters;
+}
+
 export class MlModel {
   id: number;
   name: string;
@@ -134,8 +149,10 @@ export class MlModel {
   hyper_parameters: HyperParameter[];
   features: Feature[];
   label: Label;
+  conversion_rate_segments: number;
   class_imbalance: number;
   timespans: Timespan[];
+  output: Output;
   pipelines: Pipeline[];
   updated_at: string;
 
@@ -274,15 +291,15 @@ export class MlModel {
     let configs = [
       {
         name: 'training',
-        value: 6,
-        unit: 'month',
-        range: {min: 1, max: 24, step: 1}
+        value: 30,
+        unit: 'day',
+        range: {min: 1, max: 1825, step: 1}
       },
       {
         name: 'predictive',
         value: 1,
-        unit: 'month',
-        range: {min: 1, max: 12, step: 1}
+        unit: 'day',
+        range: {min: 1, max: 365, step: 1}
       }
     ];
 
@@ -309,8 +326,14 @@ export class MlModel {
           };
         }
       }),
-      features: this.features,
+      features: this.features.map(feature => {
+        return {
+          name: feature.name,
+          source: feature.source
+        }
+      }),
       label: this.label,
+      conversion_rate_segments: this.conversion_rate_segments,
       class_imbalance: this.class_imbalance,
       timespans: this.timespans.map(timespan => {
         return {
@@ -319,6 +342,7 @@ export class MlModel {
           unit: timespan.unit
         };
       }),
+      output: this.output
     }
   }
 }

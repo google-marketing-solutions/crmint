@@ -23,7 +23,7 @@ import { plainToClass } from 'class-transformer';
 import { MlModelsService } from '../shared/ml-models.service';
 import {
   MlModel, Type, ClassificationType, RegressionType, UniqueId, HyperParameter,
-  Feature, Label, Variable, BigQueryDataset, Timespan, Source
+  Feature, Label, Variable, BigQueryDataset, Timespan, Source, Destination, Output
 } from 'app/models/ml-model';
 
 @Component({
@@ -40,6 +40,7 @@ export class MlModelFormComponent implements OnInit {
   errorMessage: string = '';
   uniqueIds: string[];
   types: string[];
+  destinations: string[];
   variables: Variable[] = [];
   fetchingVariables: boolean = false;
   submitting: boolean = false;
@@ -53,6 +54,7 @@ export class MlModelFormComponent implements OnInit {
       this.createForm();
       this.types = Object.values(Type).filter(type => type !== Type.LOGISTIC_REG);
       this.uniqueIds = Object.values(UniqueId);
+      this.destinations = Object.values(Destination).filter(destination => destination === Destination.GOOGLE_ANALYTICS_MP_EVENT);
     }
 
   /**
@@ -72,13 +74,21 @@ export class MlModelFormComponent implements OnInit {
       features: this._fb.array([]),
       label: this._fb.group({
         name: ['', [Validators.required, Validators.pattern(/^[a-z][a-z0-9_-]*$/i)]],
-        source: ['', [Validators.required, Validators.pattern(/^[A-Z_]*$/i)]],
+        source: ['', [Validators.required, Validators.pattern(/^[a-z_]*$/i)]],
         key: ['', [Validators.required, Validators.pattern(/^[a-z][a-z0-9_-]*$/i)]],
         valueType: ['', Validators.pattern(/^[a-z,]*$/i)],
-        averageValue: [0.0, Validators.required]
+        averageValue: [0.0, [Validators.required, Validators.pattern(/^[0-9\.]*$/i)]]
       }),
+      conversionRateSegments: [0, [Validators.required, Validators.pattern(/^[0-9]*$/i)]],
       classImbalance: [4, [Validators.required, Validators.min(1), Validators.max(10)]],
-      timespans: this._fb.array([])
+      timespans: this._fb.array([]),
+      output: this._fb.group({
+        destination: [null, [Validators.required, this.enumValidator(Destination)]],
+        parameters: this._fb.group({
+          customerId: [null, Validators.pattern(/^[0-9]*$/i)],
+          conversionActionId: [null, Validators.pattern(/^[0-9]*$/i)]
+        })
+      })
     });
   }
 
@@ -116,7 +126,7 @@ export class MlModelFormComponent implements OnInit {
     try {
       const mlModel = await this.mlModelsService.get(id);
       this.mlModel = plainToClass(MlModel, mlModel as MlModel);
-      await this.fetchVariables(this.mlModel.bigquery_dataset);
+      await this.fetchVariables(this.mlModel.bigquery_dataset, this.mlModel.timespans);
       this.assignMlModelToForm();
     } catch (error) {
       if (error && error.status === 404) {
@@ -147,7 +157,15 @@ export class MlModelFormComponent implements OnInit {
         valueType: this.mlModel.label.value_type,
         averageValue: this.mlModel.label.average_value
       },
-      classImbalance: this.mlModel.class_imbalance
+      conversionRateSegments: this.mlModel.conversion_rate_segments,
+      classImbalance: this.mlModel.class_imbalance,
+      output: {
+        destination: this.mlModel.output.destination,
+        parameters: {
+          customerId: this.mlModel.output.parameters.customer_id,
+          conversionActionId: this.mlModel.output.parameters.conversion_action_id
+        }
+      }
     });
 
     this.setHyperParameters(this.mlModel.hyper_parameters, this.mlModel.type);
@@ -221,17 +239,59 @@ export class MlModelFormComponent implements OnInit {
     return label;
   }
 
+  get output() {
+    let output = this.mlModelForm.get('output').value;
+
+    let requirements = [];
+    switch (output.destination) {
+      case Destination.GOOGLE_ADS_OFFLINE_CONVERSION:
+        requirements = ['customerId', 'conversionActionId'];
+        break;
+    }
+    output.requirements = requirements;
+
+    return output;
+  }
+
+  /**
+   * Provides a quick unified way to check all the necessary parameters exist
+   * that are required to properly fetch the ml model variables.
+   */
+  get variableRequirementsProvided() {
+    const bigQueryDatasetName = this.value('bigQueryDataset', 'name');
+    const bigQueryDatasetLocation = this.value('bigQueryDataset', 'location');
+    const usesFirstPartyData = this.value('usesFirstPartyData');
+    const timespans = this.value('timespans');
+
+    if (!bigQueryDatasetName || !bigQueryDatasetLocation) {
+      return false;
+    }
+
+    if (usesFirstPartyData === null) {
+      return false;
+    }
+
+    for (const timespan of timespans) {
+      if (timespan.value <= 0) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
   /**
    * Fetch variables (feature and label options) from GA4 Events and First Party tables in BigQuery.
    *
    * @param bigQueryDataset The dataset to use when fetching first party variables
    *                        (only required for loading an existing model).
    */
-  async fetchVariables(bigQueryDataset: Object = null) {
+  async fetchVariables(bigQueryDataset: object = null, timespans: Timespan[] = []) {
     this.fetchingVariables = true;
     try {
       const dataset = bigQueryDataset || this.value('bigQueryDataset');
-      let variables = await this.mlModelsService.getVariables(dataset);
+      const ts = timespans.length ? timespans : this.value('timespans');
+      let variables = await this.mlModelsService.getVariables(dataset, ts);
       this.variables = variables as Variable[];
       this.errorMessage = '';
     } catch (error) {
@@ -239,6 +299,14 @@ export class MlModelFormComponent implements OnInit {
     } finally {
       this.fetchingVariables = false;
     }
+  }
+
+  /**
+   * Reset variables to empty array. Necessary when modifying parameters that affect
+   * which variables are available for selection and requires a manual refresh.
+   */
+  resetVariables() {
+    this.variables = [];
   }
 
   /**
@@ -282,7 +350,10 @@ export class MlModelFormComponent implements OnInit {
    */
   toggleFeature(feature: Feature, toggled: boolean) {
     if (toggled) {
-      this.features.push(this._fb.control(feature as Feature));
+      // only allow toggling features that (still) exist.
+      if (this.variables.find(v => v.name === feature.name && v.source === feature.source)) {
+        this.features.push(this._fb.control(feature as Feature));
+      }
     } else {
       const features = this.features.value as Feature[];
       for (const index of features.keys()) {
@@ -368,6 +439,29 @@ export class MlModelFormComponent implements OnInit {
   }
 
   /**
+   * Handles ensuring the output config fields are updated appropriately when form fields that
+   * affect what's allowed to be selected are changed.
+   */
+  refreshOutput() {
+    const output = this.output;
+    const allRequirementsFields = Object.keys(output.parameters);
+
+    if (output.requirements.length > 0) {
+      for (const requirement of output.requirements) {
+        this.mlModelForm.get(['output', 'parameters', requirement]).addValidators(Validators.required);
+      }
+    } else {
+      for (const requirement of allRequirementsFields) {
+        this.mlModelForm.get(['output', 'parameters', requirement]).removeValidators(Validators.required);
+      }
+    }
+
+    for (const requirement of allRequirementsFields) {
+      this.mlModelForm.get(['output', 'parameters', requirement]).setValue(null);
+    }
+  }
+
+  /**
    * Translate the form data and update the ml model with these prepared values.
    */
   prepareSaveMlModel() {
@@ -379,12 +473,7 @@ export class MlModelFormComponent implements OnInit {
     this.mlModel.unique_id = formModel.uniqueId as UniqueId;
     this.mlModel.uses_first_party_data = formModel.usesFirstPartyData as boolean;
     this.mlModel.hyper_parameters = formModel.hyperParameters as HyperParameter[];
-    this.mlModel.features = formModel.features.map(feature => {
-      return {
-        name: feature.name,
-        source: feature.source
-      }
-    });
+    this.mlModel.features = formModel.features as Feature[];
     this.mlModel.label = {
       name: formModel.label.name as string,
       source: formModel.label.source as Source,
@@ -392,8 +481,16 @@ export class MlModelFormComponent implements OnInit {
       value_type: formModel.label.valueType as string,
       average_value: parseFloat(formModel.label.averageValue)
     } as Label;
+    this.mlModel.conversion_rate_segments = formModel.conversionRateSegments as number;
     this.mlModel.class_imbalance = formModel.classImbalance as number;
     this.mlModel.timespans = formModel.timespans as Timespan[];
+    this.mlModel.output = {
+      destination: formModel.output.destination as string,
+      parameters: {
+        customer_id: formModel.output.parameters.customerId as string,
+        conversion_action_id: formModel.output.parameters.conversionActionId as string
+      }
+    } as Output;
   }
 
   /**
