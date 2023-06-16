@@ -22,6 +22,16 @@ from google.cloud import bigquery
 from jobs.workers import worker
 
 
+# Param name used to specify a BQ project ID
+BQ_PROJECT_ID_PARAM_NAME = 'bq_project_id'
+
+# Param name used to specify a BQ data set name
+BQ_DATASET_NAME_PARAM_NAME = 'bq_dataset_id'
+
+# Param name used to specify a BQ table name
+BQ_TABLE_NAME_PARAM_NAME = 'bq_table_id'
+
+
 class BQWorker(worker.Worker):
   """Abstract BigQuery worker."""
 
@@ -39,6 +49,13 @@ class BQWorker(worker.Worker):
 
   def _get_dry_run_job_config(self):
     return bigquery.QueryJobConfig(dry_run=True, use_query_cache=False)
+
+  def _generate_qualified_bq_table_name(self):
+    return '.'.join([
+      self._params.get(BQ_PROJECT_ID_PARAM_NAME, None),
+      self._params.get(BQ_DATASET_NAME_PARAM_NAME, None),
+      self._params.get(BQ_TABLE_NAME_PARAM_NAME, None),
+    ])
 
   def _wait(self, job):
     """Waits for job completion and relays to BQWaiter if it takes too long."""

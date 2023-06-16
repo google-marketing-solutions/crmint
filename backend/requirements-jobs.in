@@ -1,4 +1,5 @@
 -r common/requirements.in
+google-ads
 google-analytics-admin
 google-api-python-client
 google-cloud-aiplatform
@@ -6,5 +7,5 @@ google-cloud-bigquery
 google-cloud-storage
 
 # Pin a loose requirement from "google-api-core"
-google-api-core[grpc]==2.11.0
-googleapis-common-protos[grpc]==1.59.0
+google-api-core[grpc]
+googleapis-common-protos[grpc]
