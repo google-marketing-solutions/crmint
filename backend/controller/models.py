@@ -395,25 +395,19 @@ class MlModel(extensions.db.Model):
       'MlModelLabel',
       uselist=False,
       lazy='joined')
+  conversion_rate_segments = Column(Integer, nullable=True)
   class_imbalance = Column(Integer, nullable=False, default=4)
   timespans = orm.relationship(
       'MlModelTimespan',
+      lazy='joined')
+  output = orm.relationship(
+      'MlModelOutput',
+      uselist=False,
       lazy='joined')
   pipelines = orm.relationship(
       'Pipeline',
       lazy='joined',
       order_by='asc(Pipeline.id)')
-
-  TYPES = [
-      'LOGISTIC_REG',
-      'BOOSTED_TREE_REGRESSOR',
-      'BOOSTED_TREE_CLASSIFIER'
-  ]
-
-  UNIQUE_IDS = [
-      'CLIENT_ID',
-      'USER_ID'
-  ]
 
   def __init__(self, name=None):
     super().__init__()
@@ -421,14 +415,30 @@ class MlModel(extensions.db.Model):
 
   def assign_attributes(self, attributes):
     available_attributes = [
-        'name', 'type', 'unique_id', 'uses_first_party_data', 'class_imbalance',
+        'name',
+        'type',
+        'unique_id',
+        'uses_first_party_data',
+        'conversion_rate_segments',
+        'class_imbalance'
     ]
 
+    enum_attribute_options = {
+        'type': [
+            'LOGISTIC_REG',
+            'BOOSTED_TREE_REGRESSOR',
+            'BOOSTED_TREE_CLASSIFIER'
+        ],
+        'unique_id': [
+            'CLIENT_ID',
+            'USER_ID'
+        ]
+    }
+
     for key, value in attributes.items():
-      if key == 'type' and value not in self.TYPES:
-        continue
-      if key == 'unique_id' and value not in self.UNIQUE_IDS:
-        continue
+      if key in enum_attribute_options.keys():
+        if value not in enum_attribute_options[key]:
+          raise ValueError(f'Attribute {key} cannot have value {value}.')
       if key in available_attributes:
         self.__setattr__(key, value)
 
@@ -444,6 +454,8 @@ class MlModel(extensions.db.Model):
         self.assign_hyper_parameters(value)
       elif key == 'timespans':
         self.assign_timespans(value)
+      elif key == 'output':
+        self.assign_output(value)
       elif key == 'pipelines':
         self.assign_pipelines(value)
 
@@ -481,6 +493,15 @@ class MlModel(extensions.db.Model):
       if isinstance(timespan, dict):
         MlModelTimespan.create(ml_model_id=self.id, **timespan)
 
+  def assign_output(self, output):
+    if self.output:
+      self.output.destroy()
+
+    MlModelOutput.create(ml_model_id=self.id,
+                         destination=output['destination'])
+    MlModelOutputParameters.create(ml_model_id=self.id,
+                                   **output['parameters'])
+
   def assign_pipelines(self, pipelines):
     for pipeline in self.pipelines:
       pipeline.destroy()
@@ -509,6 +530,9 @@ class MlModel(extensions.db.Model):
 
     for timespan in self.timespans:
       timespan.delete()
+
+    if self.output:
+      self.output.destroy()
 
     self.delete()
 
@@ -579,6 +603,40 @@ class MlModelTimespan(extensions.db.Model):
 
   ml_model = orm.relationship(
       'MlModel', foreign_keys=[ml_model_id], back_populates='timespans')
+
+
+class MlModelOutput(extensions.db.Model):
+  """Model for ml model output config."""
+  __tablename__ = 'ml_model_output'
+  __repr_attrs__ = ['name']
+
+  ml_model_id = Column(Integer, ForeignKey('ml_models.id'), primary_key=True)
+  destination = Column(String(255), nullable=False)
+  parameters = orm.relationship(
+      'MlModelOutputParameters',
+      uselist=False,
+      lazy='joined')
+
+  ml_model = orm.relationship(
+      'MlModel', foreign_keys=[ml_model_id], back_populates='output')
+
+  def destroy(self):
+    if self.parameters:
+      self.parameters.delete()
+    self.delete()
+
+
+class MlModelOutputParameters(extensions.db.Model):
+  """Model for ml model output config parameters."""
+  __tablename__ = 'ml_model_output_parameters'
+
+  ml_model_id = Column(
+      Integer, ForeignKey('ml_model_output.ml_model_id'), primary_key=True)
+  customer_id = Column(String(255), nullable=True)
+  conversion_action_id = Column(String(255), nullable=True)
+
+  ml_model_output = orm.relationship(
+      'MlModelOutput', foreign_keys=[ml_model_id], back_populates='parameters')
 
 
 class TaskEnqueued(extensions.db.Model):

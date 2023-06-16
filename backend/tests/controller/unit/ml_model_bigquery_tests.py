@@ -20,6 +20,7 @@ from typing import Any, Union
 from unittest import mock
 
 from absl.testing import absltest
+from google.cloud.exceptions import NotFound
 
 from controller import ml_model
 
@@ -33,12 +34,8 @@ class TestClient(absltest.TestCase):
     self.client = ml_model.bigquery.CustomClient('US')
     self.client.project = 'test-project-id'
 
-  @mock.patch('google.cloud.bigquery.Client.get_table')
   @mock.patch('google.cloud.bigquery.Client.query')
-  def test_get_analytics_variables(
-      self, query_mock: mock.Mock, get_table_mock: mock.Mock
-  ):
-    get_table_mock.return_value = None
+  def test_get_analytics_variables(self, query_mock: mock.Mock):
     query_mock.return_value.result.return_value = self.convert_to_object([
         {
             'name': 'nm_1',
@@ -114,7 +111,7 @@ class TestClient(absltest.TestCase):
         },
     ])
 
-    variables = self.client.get_analytics_variables('test-ga4-dataset')
+    variables = self.client.get_analytics_variables('test-ga4-dataset', 90, 30)
     _, args = query_mock.call_args
 
     # query check
@@ -122,6 +119,16 @@ class TestClient(absltest.TestCase):
         args['query'],
         r',[\s\n]+'.join([
             re.escape('FROM `test-project-id.test-ga4-dataset.events_*`')
+        ]),
+        'Query check failed. Missing project or analytics dataset name.')
+
+    self.assertRegex(
+        args['query'],
+        r'[\s\n]+'.join([
+            re.escape('FORMAT_DATE("%Y%m%d", DATE_SUB(CURRENT_DATE(), '
+                      'INTERVAL 90 DAY)) AND'),
+            re.escape('FORMAT_DATE("%Y%m%d", DATE_SUB(CURRENT_DATE(), '
+                      'INTERVAL 30 DAY))')
         ]),
         'Query check failed. Missing project or analytics dataset name.')
 
@@ -152,6 +159,12 @@ class TestClient(absltest.TestCase):
     self.assertEqual(parameters[1].key, 'pk_2')
     self.assertEqual(parameters[1].value_type, 'pvt_3')
 
+  @mock.patch('google.cloud.bigquery.Client.query')
+  def test_get_analytics_variables_not_found(self, query_mock: mock.Mock):
+    query_mock.side_effect = NotFound('not found.')
+    variables = self.client.get_analytics_variables('test-ga4-dataset', 90, 30)
+    self.assertEmpty(variables)
+
   @mock.patch('google.cloud.bigquery.Client.get_table')
   def test_get_first_party_variables(self, get_table_mock: mock.Mock):
     get_table_mock.return_value.schema = self.convert_to_object([
@@ -180,6 +193,13 @@ class TestClient(absltest.TestCase):
     self.assertEqual(parameters[0].key, 'value')
     self.assertEqual(parameters[0].value_type, 'type_1')
 
+  @mock.patch('google.cloud.bigquery.Client.get_table')
+  def test_get_first_party_variables_not_found(self, get_table_mock: mock.Mock):
+    get_table_mock.side_effect = NotFound('not found.')
+    variables = self.client.get_first_party_variables(
+        'test-first-party-dataset')
+    self.assertEmpty(variables)
+
   def convert_to_object(self, collection: Union[dict[str, Any], list[Any]]):
     class TempObject:
       pass
@@ -194,6 +214,3 @@ class TestClient(absltest.TestCase):
       return temp
 
     return collection
-
-
-
