@@ -20,8 +20,8 @@ from absl.testing import absltest
 from absl.testing import parameterized
 from freezegun import freeze_time
 
-from google3.third_party.professional_services.solutions.crmint.backend.controller.ml_model import compiler
-from google3.third_party.professional_services.solutions.crmint.backend.controller.models import MlModel
+from controller import ml_model
+from controller import models
 
 
 class TestCompiler(parameterized.TestCase):
@@ -1311,7 +1311,7 @@ class TestCompiler(parameterized.TestCase):
         ],
         'label': label,
         'features': features,
-        'conversion_rate_segments': 
+        'conversion_rate_segments':
             10 if model_type.endswith('CLASSIFIER') else 0,
         'class_imbalance': class_imbalance,
         'timespans': [
@@ -1327,13 +1327,13 @@ class TestCompiler(parameterized.TestCase):
         }
     })
 
-  def compiler(self, ml_model: MlModel):
-    return compiler.Compiler(
+  def compiler(self, model: models.MlModel):
+    return ml_model.compiler.Compiler(
         project_id='test-project-id-1234',
         ga4_dataset='test-ga4-dataset-loc',
         ga4_measurement_id='test-ga4-measurement-id',
         ga4_api_secret='test-ga4-api-secret',
-        ml_model=ml_model)
+        ml_model=model)
 
   def convert_to_object(
       self,
@@ -1342,7 +1342,7 @@ class TestCompiler(parameterized.TestCase):
       for key, value in enumerate(collection):
         collection[key] = self.convert_to_object(value)
     elif isinstance(collection, dict):
-      temp = MlModel()
+      temp = models.MlModel()
       for key, value in collection.items():
         temp.__dict__[key] = self.convert_to_object(value)
       return temp
@@ -1359,7 +1359,7 @@ class TestCompiler(parameterized.TestCase):
         iterable: List of elements.
         key: Key to find.
         value: Value to compare.
-        
+
     Returns:
       The matching dictionary.
     """
