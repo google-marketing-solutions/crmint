@@ -157,9 +157,9 @@ class TestMlModelViews(controller_utils.ControllerAppTest):
   def test_error_during_create_ml_model_causes_rollback(
       self, save_patch: mock.Mock
     ):
-    save_patch.side_effect = Exception('oops.')
+    save_patch.side_effect = ValueError('oops.')
 
-    with self.assertRaises(Exception):
+    with self.assertRaises(ValueError):
       self.post_test_model()
 
     response = self.client.get('/api/ml-models/1')

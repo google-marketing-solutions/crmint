@@ -25,11 +25,11 @@ from flask_restful import fields
 from flask_restful import marshal_with
 from flask_restful import reqparse
 from flask_restful import Resource
+from sqlalchemy import exc
 
 from common import insight
+from controller import ml_model
 from controller import models
-from google3.third_party.professional_services.solutions.crmint.backend.controller.ml_model import bigquery
-from google3.third_party.professional_services.solutions.crmint.backend.controller.ml_model import compiler
 
 project_id = os.getenv('GOOGLE_CLOUD_PROJECT')
 
@@ -138,18 +138,18 @@ class MlModelSingle(Resource):
     tracker = insight.GAProvider()
     tracker.track_event(category='ml-models', action='get')
 
-    ml_model = models.MlModel.find(id)
-    abort_when_not_found(ml_model)
-    return ml_model
+    model = models.MlModel.find(id)
+    abort_when_not_found(model)
+    return model
 
   @marshal_with(ml_model_structure)
   def delete(self, id):  # pylint: disable=redefined-builtin
-    ml_model = models.MlModel.find(id)
+    model = models.MlModel.find(id)
 
-    abort_when_not_found(ml_model)
-    abort_when_pipeline_active(ml_model)
+    abort_when_not_found(model)
+    abort_when_pipeline_active(model)
 
-    ml_model.destroy()
+    model.destroy()
 
     tracker = insight.GAProvider()
     tracker.track_event(category='ml-models', action='delete')
@@ -158,23 +158,23 @@ class MlModelSingle(Resource):
 
   @marshal_with(ml_model_structure)
   def put(self, id):  # pylint: disable=redefined-builtin
-    ml_model = models.MlModel.find(id)
+    model = models.MlModel.find(id)
 
-    abort_when_not_found(ml_model)
-    abort_when_pipeline_active(ml_model)
+    abort_when_not_found(model)
+    abort_when_pipeline_active(model)
 
     args = parser.parse_args()
-    ml_model.assign_attributes(args)
-    ml_model.save()
-    ml_model.save_relations(args)
+    model.assign_attributes(args)
+    model.save()
+    model.save_relations(args)
 
-    pipelines = build_pipelines(ml_model)
-    ml_model.save_relations({'pipelines': pipelines})
+    pipelines = build_pipelines(model)
+    model.save_relations({'pipelines': pipelines})
 
     tracker = insight.GAProvider()
     tracker.track_event(category='ml-models', action='update')
 
-    return ml_model, 200
+    return model, 200
 
 
 class MlModelList(Resource):
@@ -185,32 +185,32 @@ class MlModelList(Resource):
     tracker = insight.GAProvider()
     tracker.track_event(category='ml-models', action='list')
 
-    ml_models = models.MlModel.all()
-    return ml_models
+    model_list = models.MlModel.all()
+    return model_list
 
   @marshal_with(ml_model_structure)
   def post(self):
     tracker = insight.GAProvider()
     args = parser.parse_args()
 
-    ml_model = models.MlModel(name=args['name'])
+    model = models.MlModel(name=args['name'])
     try:
-      ml_model.assign_attributes(args)
-      ml_model.save()
-      ml_model.save_relations(args)
+      model.assign_attributes(args)
+      model.save()
+      model.save_relations(args)
 
       # Automatically build and assign training pipeline upon ml model creation.
-      pipelines = build_pipelines(ml_model)
-      ml_model.save_relations({'pipelines': pipelines})
-    except:
+      pipelines = build_pipelines(model)
+      model.save_relations({'pipelines': pipelines})
+    except (exc.SQLAlchemyError, ValueError):
       # Ensures that, in the event of an error, a half-implemented
       # ml model isn't created.
-      ml_model.destroy()
+      model.destroy()
       raise
 
     tracker.track_event(category='ml-models', action='create')
 
-    return ml_model, 201
+    return model, 201
 
 
 variables_parser = reqparse.RequestParser()
@@ -244,9 +244,9 @@ class MlModelVariables(Resource):
 
     args = variables_parser.parse_args()
     dataset = json.loads(args['dataset'])
-    timespan = compiler.Timespan(json.loads(args['timespans']))
+    timespan = ml_model.compiler.Timespan(json.loads(args['timespans']))
 
-    bigquery_client = bigquery.CustomClient(dataset['location'])
+    bigquery_client = ml_model.bigquery.CustomClient(dataset['location'])
     variables = []
 
     ga4_dataset = setting('google_analytics_4_bigquery_dataset')
@@ -273,29 +273,29 @@ class MlModelVariables(Resource):
     return variables
 
 
-def abort_when_not_found(ml_model: models.MlModel):
+def abort_when_not_found(model: models.MlModel):
   """Abort with an appropriate error if the model provided does not exist.
 
   Args:
-    ml_model: The model to check.
+    model: The model to check.
 
   Raises:
     HTTPException: If the ml model id provided in the request was not found.
   """
-  if ml_model is None:
+  if model is None:
     abort(404, message=f'MlModel {id} doesn\'t exist')
 
 
-def abort_when_pipeline_active(ml_model: models.MlModel):
+def abort_when_pipeline_active(model: models.MlModel):
   """Abort with an appropriate error if the pipeline is active.
 
   Args:
-    ml_model: The model to check.
+    model: The model to check.
 
   Raises:
     HTTPException: if the pipeline is considered "blocked".
   """
-  for pipeline in ml_model.pipelines:
+  for pipeline in model.pipelines:
     if pipeline.is_blocked():
       abort(422, message='Removing or editing of ml model with '
                          'active pipeline is unavailable')
@@ -314,22 +314,22 @@ def setting(name: str) -> str:
   return s.value if s else ''
 
 
-def build_pipelines(ml_model: models.MlModel) -> list[dict[str, Any]]:
+def build_pipelines(model: models.MlModel) -> list[dict[str, Any]]:
   """Builds training and predictive pipelines.
 
   Args:
-    ml_model: The ml model configuration necessary to build the BQML
+    model: The ml model configuration necessary to build the BQML
     and pipelines.
 
   Returns:
     The newly built training and predictive pipeline objects.
   """
-  c = compiler.Compiler(
+  c = ml_model.compiler.Compiler(
       project_id=project_id,
       ga4_dataset=setting('google_analytics_4_bigquery_dataset'),
       ga4_measurement_id=setting('google_analytics_4_measurement_id'),
       ga4_api_secret=setting('google_analytics_4_api_secret'),
-      ml_model=ml_model)
+      ml_model=model)
 
   training_pipeline = c.build_training_pipeline()
   predictive_pipeline = c.build_predictive_pipeline()
