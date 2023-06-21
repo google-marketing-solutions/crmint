@@ -8,7 +8,6 @@ from absl.testing import parameterized
 from google.api_core import page_iterator
 from google.cloud import bigquery
 
-from jobs.workers import worker
 from jobs.workers.bigquery import bq_batch_worker
 
 
