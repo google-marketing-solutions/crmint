@@ -17,7 +17,10 @@ def _make_credentials():
 
 class BQScriptExecutorTest(absltest.TestCase):
 
-  def test_starts_query_job(self):
+  # TODO: If enough, consider making this less fragile by just testing to
+  # make sure the client "query" method was called with correct params.
+  @mock.patch('google.cloud.bigquery.job._AsyncJob._set_properties')
+  def test_starts_query_job(self, set_properties_mock):
     worker_inst = bq_script_executor.BQScriptExecutor(
         {
             'job_id': 'JOBID',
@@ -67,16 +70,28 @@ class BQScriptExecutorTest(absltest.TestCase):
         project='PROJECT', credentials=_make_credentials())
     self.enter_context(
         mock.patch.object(
-            bq_client, '_call_api', autospec=True, return_value=api_response))
-    self.enter_context(mock.patch.object(worker_inst, '_log', autospec=True))
+            worker_inst,
+            '_get_client',
+            autospec=True,
+            return_value=bq_client))
     self.enter_context(
         mock.patch.object(
-            worker_inst, '_get_client', autospec=True, return_value=bq_client))
+            bq_client,
+            '_call_api',
+            autospec=True,
+            return_value=api_response))
     patched_wait = self.enter_context(
-        mock.patch.object(worker_inst, '_wait', autospec=True))
+        mock.patch.object(
+            worker_inst,
+            '_wait',
+            autospec=True))
+    self.enter_context(
+        mock.patch.object(worker_inst, 'log_info', autospec=True))
+
     worker_inst.execute()
+
     patched_wait.assert_called_once()
-    call_job: bigquery.QueryJob = patched_wait.call_args[0][0]
+    call_job: bigquery.QueryJob = patched_wait.call_args.args[0]
     self.assertIsInstance(call_job, bigquery.QueryJob)
     with self.subTest('Ensures query is passed with standard SQL config'):
       self.assertEqual(call_job.query,
