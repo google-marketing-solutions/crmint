@@ -265,14 +265,14 @@ class TestPipeline(controller_utils.ModelTestCase):
 
   def test_assign_schedules_update_or_create_or_delete_relation(self):
     pipeline = models.Pipeline.create()
-    sc1 = models.Schedule.create(pipeline_id=pipeline.id, cron='OLD')
-    sc2 = models.Schedule.create(pipeline_id=pipeline.id, cron='NEW')
+    sc1 = models.Schedule.create(pipeline_id=pipeline.id, cron='0 0 13 6 *')
+    sc2 = models.Schedule.create(pipeline_id=pipeline.id, cron='0 0 13 7 *')
 
     # Update 1, Delete 1 and Create 2
     schedules_to_assign = [
-        {'id': sc2.id, 'cron': 'UPDATED'},
-        {'id': None, 'cron': 'NEW1'},
-        {'id': None, 'cron': 'NEW2'},
+        {'id': sc2.id, 'cron': '0 0 13 8 *'},
+        {'id': None, 'cron': '0 0 13 9 *'},
+        {'id': None, 'cron': '0 0 13 10 *'},
     ]
 
     self.assertLen(models.Pipeline.all(), 1)
@@ -283,9 +283,9 @@ class TestPipeline(controller_utils.ModelTestCase):
     pipeline.assign_schedules(schedules_to_assign)
     self.assertLen(pipeline.schedules, 3)
     self.assertEqual(pipeline.schedules[0].id, sc2.id)
-    self.assertEqual(pipeline.schedules[0].cron, 'UPDATED')
-    self.assertEqual(pipeline.schedules[1].cron, 'NEW1')
-    self.assertEqual(pipeline.schedules[2].cron, 'NEW2')
+    self.assertEqual(pipeline.schedules[0].cron, '0 0 13 8 *')
+    self.assertEqual(pipeline.schedules[1].cron, '0 0 13 9 *')
+    self.assertEqual(pipeline.schedules[2].cron, '0 0 13 10 *')
 
   def test_assign_params(self):
     pipeline = models.Pipeline.create()
@@ -326,7 +326,7 @@ class TestPipeline(controller_utils.ModelTestCase):
   def test_save_relations(self):
     pipeline = models.Pipeline.create()
     schedules = [
-        {'id': None, 'cron': 'NEW1'}
+        {'id': None, 'cron': '0 0 13 10 *'}
     ]
     params = [
         {'id': None, 'name': 'desc', 'label': 'Description', 'type': 'text',
