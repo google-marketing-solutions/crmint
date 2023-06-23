@@ -30,6 +30,7 @@ CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.predictions` AS (
         WHERE _TABLE_SUFFIX BETWEEN
           FORMAT_DATE("%Y%m%d", DATE_SUB(CURRENT_DATE(), INTERVAL {{timespan.predictive_start}} DAY)) AND
           FORMAT_DATE("%Y%m%d", DATE_SUB(CURRENT_DATE(), INTERVAL {{timespan.predictive_end}} DAY))
+        AND LOWER(platform) = 'web'
     ),
     first_engagement AS (
       SELECT * EXCEPT(row_num)
