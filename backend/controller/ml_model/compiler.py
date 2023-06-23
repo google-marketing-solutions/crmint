@@ -170,7 +170,7 @@ class Compiler():
         'type': {
             'name': self.ml_model.type,
             'is_regression': self.ml_model.type in ModelTypes.REGRESSION,
-            'is_classification': 
+            'is_classification':
                 self.ml_model.type in ModelTypes.CLASSIFICATION,
         },
         'uses_first_party_data': self.ml_model.uses_first_party_data,
@@ -267,7 +267,7 @@ class Compiler():
     current_month = datetime.date.today().month
     months = ''
     for month in range(current_month, current_month + 11, 3):
-      months += f'{month % 12 if month < 12 else month},'
+      months += f'{month % 12 if month > 12 else month},'
     return months.removesuffix(',')
 
   def _absolute_path(self, file: str) -> str:

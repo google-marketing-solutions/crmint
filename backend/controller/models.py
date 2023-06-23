@@ -44,6 +44,7 @@ from common import crmint_logging
 from common import task
 from controller import extensions
 from controller import inline
+from controller import cron_utils
 from controller import shared
 
 
@@ -142,6 +143,9 @@ class Pipeline(extensions.db.Model):
     # Remove if records not in list ids for update
     arg_schedule_ids = []
     for arg_schedule in arg_schedules:
+      if not cron_utils.cron_valid((arg_schedule['cron'])):
+        raise ValueError('"{}" is not a valid cron schedule.'.format(arg_schedule['cron']))
+
       if arg_schedule.get('id') is not None:
         # Updating
         schedule = Schedule.find(arg_schedule.get('id'))

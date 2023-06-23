@@ -5,6 +5,7 @@ Source: https://github.com/kipe/pycron
 License: MIT
 """
 
+import croniter
 import datetime
 
 
@@ -68,3 +69,6 @@ def cron_match(cron: str, dt: datetime.datetime = None) -> bool:
       _parse_arg(dow, 0 if weekday == 7 else weekday),
   ]
   return all(conditions)
+
+def cron_valid(cron: str) -> bool:
+  return croniter.croniter.is_valid(cron)
