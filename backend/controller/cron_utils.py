@@ -71,4 +71,9 @@ def cron_match(cron: str, dt: datetime.datetime = None) -> bool:
   return all(conditions)
 
 def cron_valid(cron: str) -> bool:
+  """Returns True if cron schedule string is valid.
+
+  Args:
+    cron: Cron-like string (minute, hour, day of month, month, day of week).
+  """
   return croniter.croniter.is_valid(cron)
