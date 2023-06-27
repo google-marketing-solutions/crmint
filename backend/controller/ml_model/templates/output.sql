@@ -1,19 +1,20 @@
+DECLARE _LATEST_TABLE_SUFFIX STRING;
+SET _LATEST_TABLE_SUFFIX = (
+  SELECT MAX(SPLIT(table_id, 'events_')[OFFSET(1)])
+  FROM `{{project_id}}.{{ga4_dataset}}.__TABLES_SUMMARY__`
+  WHERE REGEXP_CONTAINS(table_id, r'^(events_[0-9]{8})$')
+);
+
 CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.output` AS (
-  WITH prior_table AS (
-    SELECT SPLIT(table_id, 'events_')[OFFSET(1)] AS suffix
-    FROM `{{project_id}}.{{ga4_dataset}}.__TABLES_SUMMARY__`
-    WHERE REGEXP_CONTAINS(table_id, r'^(events_[0-9]{8})$')
-    ORDER BY table_id DESC
-    LIMIT 1 OFFSET 1
-  ),
-  events AS (
+  WITH events AS (
     SELECT
       {{unique_id}},
       event_name AS name,
       event_timestamp AS timestamp,
       event_params AS params
     FROM `{{project_id}}.{{ga4_dataset}}.events_*`
-    WHERE _TABLE_SUFFIX = (SELECT suffix FROM prior_table)
+    WHERE _TABLE_SUFFIX = _LATEST_TABLE_SUFFIX
+    AND LOWER(platform) = 'web'
   ),
   users_with_score AS (
     SELECT DISTINCT

@@ -33,6 +33,7 @@ CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.conversion_values` AS 
             FORMAT_DATE("%Y%m%d", DATE_SUB(CURRENT_DATE(), INTERVAL {{timespan.training_end}} DAY))
           -- select the remaining 10% of the data not used in the training dataset
           AND MOD(ABS(FARM_FINGERPRINT({{unique_id}})), 100) >= 90
+          AND LOWER(platform) = 'web'
       ),
       first_engagement AS (
         SELECT * EXCEPT(row_num)

@@ -37,6 +37,7 @@ WITH events AS (
   -- get 90% of the events in this time-range (the other 10% is used to calculate conversion values)
   AND MOD(ABS(FARM_FINGERPRINT({{unique_id}})), 100) < 90
   {% endif %}
+  AND LOWER(platform) = 'web'
 ),
 -- pull together a list of first engagements and associated metadata that will be useful for the model
 first_engagement AS (
