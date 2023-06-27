@@ -25,7 +25,7 @@ export class PrettycronPipe implements PipeTransform {
       return cronstrue.toString(value);
     } catch(err) {
       console.log('Cannot parse cron:', err);
-      return undefined;
+      return err;
     }
   }
 

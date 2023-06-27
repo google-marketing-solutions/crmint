@@ -285,11 +285,11 @@ class TestPipelineFinishingStatus(ModelTestCase):
         pipeline_id=pipeline.id, status=job2_status)
     job3 = models.Job.create(
         pipeline_id=pipeline.id, status=job3_status)
-    cond1 = models.StartCondition.create(
+    models.StartCondition.create(
         job_id=job2.id,
         preceding_job_id=job1.id,
         condition=models.StartCondition.CONDITION.SUCCESS)
-    cond2 = models.StartCondition.create(
+    models.StartCondition.create(
         job_id=job3.id,
         preceding_job_id=job2.id,
         condition=job3_starting_condition)
@@ -392,8 +392,8 @@ class TestPipelineImport(ModelTestCase):
             {'name': 'p2', 'label': 'P2', 'type': 'string', 'value': 'bar'},
         ],
         'schedules': [
-            {'id': None, 'cron': 'NEW1'},
-            {'id': None, 'cron': 'NEW2'},
+            {'id': None, 'cron': '0 0 13 10 *'},
+            {'id': None, 'cron': '0 0 13 11 *'},
         ],
         'jobs': [
             {'id': job1.id, 'name': 'j1', 'hash_start_conditions': []},
