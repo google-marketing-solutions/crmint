@@ -18,6 +18,7 @@ import dataclasses
 from google.cloud import bigquery
 from google.cloud.exceptions import NotFound
 from controller import shared
+import time
 
 
 @dataclasses.dataclass
@@ -67,6 +68,8 @@ class CustomClient(bigquery.Client):
     """
 
     variables: list[Variable] = []
+
+    time.sleep(120)
 
     event_exclude_list = [
         'user_engagement',
