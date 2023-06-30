@@ -103,6 +103,51 @@ class Timespan:
     return 1
 
 
+class VariableSource(shared.StrEnum):
+  FIRST_PARTY = 'FIRST_PARTY'
+  GOOGLE_ANALYTICS = 'GOOGLE_ANALYTICS'
+
+
+class VariableRole(shared.StrEnum):
+  FEATURE = 'FEATURE',
+  LABEL = 'LABEL',
+  TRIGGER_DATE = 'TRIGGER_DATE',
+  FIRST_VALUE = 'FIRST_VALUE',
+  USER_ID = 'USER_ID',
+  CLIENT_ID = 'CLIENT_ID'
+
+
+class VariableSet():
+  features: list[models.MlModelVariable]
+  label: models.MlModelVariable
+  trigger_date: models.MlModelVariable
+  first_value: models.MlModelVariable
+  _unique_id: str
+  user_id: models.MlModelVariable
+  client_id: models.MlModelVariable
+
+  def __init__(self, unique_id: UniqueId) -> None:
+    self.features = []
+    self.label = None
+    self.trigger_date = None
+    self.first_value = None
+    self._unique_id = unique_id.lower()
+    self.user_id = 'user_id'
+    self.client_id = 'user_pseudo_id'
+
+  @property
+  def unique_id(self):
+    return self.__getattribute__(self._unique_id)
+
+  def add(self, variable: models.MlModelVariable) -> None:
+    if variable.role == VariableRole.FEATURE:
+      self.features.append(variable)
+    elif variable.role == VariableRole.LABEL:
+      self.__setattr__(str(variable.role).lower(), variable)
+    else:
+      self.__setattr__(str(variable.role).lower(), variable.name)
+
+
 class Compiler():
   """Used to build out pipeline configurations.
 
@@ -174,11 +219,11 @@ class Compiler():
                 self.ml_model.type in ModelTypes.CLASSIFICATION,
         },
         'uses_first_party_data': self.ml_model.uses_first_party_data,
-        'unique_id': self._get_unique_id(self.ml_model.unique_id),
         'hyper_parameters': self.ml_model.hyper_parameters,
         'timespan': self._get_timespan(self.ml_model.timespans),
-        'label': self.ml_model.label,
-        'features': self.ml_model.features,
+        'unique_id_type': self.ml_model.unique_id,
+        'first_party': VariableSet(self.ml_model.unique_id),
+        'google_analytics': VariableSet(self.ml_model.unique_id),
         'conversion_rate_segments': self.ml_model.conversion_rate_segments,
         'class_imbalance': self.ml_model.class_imbalance,
         'output': {
@@ -191,11 +236,16 @@ class Compiler():
       match: bool = self.ml_model.output.destination == destination
       variables['output']['destination']['is_' + destination.lower()] = match
 
+    for variable in self.ml_model.variables:
+      source: str = str(variable.source).lower()
+      variables[source].add(variable)
+
     constants = {
         'Worker': Worker,
         'ParamType': ParamType,
         'TemplateFile': TemplateFile,
-        'Encoding': Encoding
+        'Encoding': Encoding,
+        'UniqueId': UniqueId
     }
 
     for key, value in constants.items():
@@ -229,13 +279,6 @@ class Compiler():
     with open(self._absolute_path('templates/' + template_file), 'r') as file:
       return jinja2.Template(
           file.read(), **options, undefined=jinja2.StrictUndefined)
-
-  def _get_unique_id(self, id_type: UniqueId) -> str:
-    """Get the actual unique identifier column name based on unique id type."""
-    if id_type == UniqueId.USER_ID:
-      return 'user_id'
-    if id_type == UniqueId.CLIENT_ID:
-      return 'user_pseudo_id'
 
   def _get_timespan(self, timespans: list[models.MlModelTimespan]) -> Timespan:
     """Returns model timespan including both training and predictive start and end."""

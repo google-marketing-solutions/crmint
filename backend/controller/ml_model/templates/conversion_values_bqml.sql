@@ -1,7 +1,7 @@
 CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.conversion_values` AS (
   SELECT
     normalized_probability,
-    (SUM(label) / COUNT(1)) * {{label.average_value}} AS value,
+    (SUM(label) / COUNT(1)) * {{output.parameters.average_conversion_value}} AS value,
     MIN(probability) AS probability_range_start,
     MAX(probability) AS probability_range_end
   FROM (

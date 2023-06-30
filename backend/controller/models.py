@@ -393,12 +393,8 @@ class MlModel(extensions.db.Model):
   hyper_parameters = orm.relationship(
       'MlModelHyperParameter',
       lazy='joined')
-  features = orm.relationship(
-      'MlModelFeature',
-      lazy='joined')
-  label = orm.relationship(
-      'MlModelLabel',
-      uselist=False,
+  variables = orm.relationship(
+      'MlModelVariable',
       lazy='joined')
   conversion_rate_segments = Column(Integer, nullable=True)
   class_imbalance = Column(Integer, nullable=False, default=4)
@@ -451,10 +447,8 @@ class MlModel(extensions.db.Model):
     for key, value in relations.items():
       if key == 'bigquery_dataset':
         self.assign_bigquery_dataset(value)
-      elif key == 'features':
-        self.assign_features(value)
-      elif key == 'label':
-        self.assign_label(value)
+      elif key == 'variables':
+        self.assign_variables(value)
       elif key == 'hyper_parameters':
         self.assign_hyper_parameters(value)
       elif key == 'timespans':
@@ -469,18 +463,13 @@ class MlModel(extensions.db.Model):
       self.bigquery_dataset.delete()
     MlModelBigQueryDataset.create(ml_model_id=self.id, **dataset)
 
-  def assign_features(self, features):
-    for feature in self.features:
-      feature.delete()
+  def assign_variables(self, variables):
+    for variable in self.variables:
+      variable.delete()
 
-    for feature in features:
-      if isinstance(feature, dict):
-        MlModelFeature.create(ml_model_id=self.id, **feature)
-
-  def assign_label(self, label):
-    if self.label:
-      self.label.delete()
-    MlModelLabel.create(ml_model_id=self.id, **label)
+    for variable in variables:
+      if isinstance(variable, dict):
+        MlModelVariable.create(ml_model_id=self.id, **variable)
 
   def assign_hyper_parameters(self, hyper_parameters):
     for param in self.hyper_parameters:
@@ -524,11 +513,8 @@ class MlModel(extensions.db.Model):
     if self.bigquery_dataset:
       self.bigquery_dataset.delete()
 
-    for feature in self.features:
-      feature.delete()
-
-    if self.label:
-      self.label.delete()
+    for variable in self.variables:
+      variable.delete()
 
     for param in self.hyper_parameters:
       param.delete()
@@ -555,32 +541,19 @@ class MlModelBigQueryDataset(extensions.db.Model):
       'MlModel', foreign_keys=[ml_model_id], back_populates='bigquery_dataset')
 
 
-class MlModelLabel(extensions.db.Model):
-  """Model for ml model label."""
-  __tablename__ = 'ml_model_label'
-  __repr_attrs__ = ['name', 'source', 'key']
-
-  ml_model_id = Column(Integer, ForeignKey('ml_models.id'), primary_key=True)
-  name = Column(String(255), nullable=False)
-  source = Column(String(255), nullable=False)
-  key = Column(String(255), nullable=True)
-  value_type = Column(String(255), nullable=True)
-  average_value = Column(Float, nullable=True, default=0.0)
-
-  ml_model = orm.relationship(
-      'MlModel', foreign_keys=[ml_model_id], back_populates='label')
-
-
-class MlModelFeature(extensions.db.Model):
-  """Model for ml model feature."""
-  __tablename__ = 'ml_model_features'
+class MlModelVariable(extensions.db.Model):
+  """Model for ml model variable."""
+  __tablename__ = 'ml_model_variables'
 
   ml_model_id = Column(Integer, ForeignKey('ml_models.id'), primary_key=True)
   name = Column(String(255), nullable=False, primary_key=True)
   source = Column(String(255), nullable=False)
+  role = Column(String(255), nullable=True)
+  key = Column(String(255), nullable=True)
+  value_type = Column(String(255), nullable=True)
 
   ml_model = orm.relationship(
-      'MlModel', foreign_keys=[ml_model_id], back_populates='features')
+      'MlModel', foreign_keys=[ml_model_id], back_populates='variables')
 
 
 class MlModelHyperParameter(extensions.db.Model):
@@ -639,6 +612,7 @@ class MlModelOutputParameters(extensions.db.Model):
       Integer, ForeignKey('ml_model_output.ml_model_id'), primary_key=True)
   customer_id = Column(String(255), nullable=True)
   conversion_action_id = Column(String(255), nullable=True)
+  average_conversion_value = Column(Float, nullable=True, default=1.0)
 
   ml_model_output = orm.relationship(
       'MlModelOutput', foreign_keys=[ml_model_id], back_populates='parameters')

@@ -60,17 +60,15 @@ hyper_parameters_structure = fields.List(
     fields.Nested({'name': fields.String, 'value': fields.String})
 )
 
-features_structure = fields.List(
-    fields.Nested({'name': fields.String, 'source': fields.String})
+variables_structure = fields.List(
+    fields.Nested({
+        'name': fields.String,
+        'source': fields.String,
+        'role': fields.String,
+        'key': fields.String,
+        'value_type': fields.String,
+    })
 )
-
-label_structure = fields.Nested({
-    'name': fields.String,
-    'source': fields.String,
-    'key': fields.String,
-    'value_type': fields.String,
-    'average_value': fields.Float,
-})
 
 timespans_structure = fields.List(
     fields.Nested(
@@ -82,7 +80,8 @@ output_structure = fields.Nested({
     'destination': fields.String,
     'parameters': fields.Nested({
         'customer_id': fields.String,
-        'conversion_action_id': fields.String
+        'conversion_action_id': fields.String,
+        'average_conversion_value': fields.Float
     })
 })
 
@@ -119,8 +118,7 @@ ml_model_structure = {
     'unique_id': fields.String,
     'uses_first_party_data': fields.Boolean,
     'hyper_parameters': hyper_parameters_structure,
-    'features': features_structure,
-    'label': label_structure,
+    'variables': variables_structure,
     'conversion_rate_segments': fields.Integer,
     'class_imbalance': fields.Integer,
     'timespans': timespans_structure,
