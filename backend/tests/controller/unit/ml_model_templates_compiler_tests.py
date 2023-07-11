@@ -23,7 +23,6 @@ import freezegun
 from controller import ml_model
 from controller import models
 
-
 class TestCompiler(parameterized.TestCase):
 
   @freezegun.freeze_time('2023-04-06T00:00:00')
@@ -166,7 +165,7 @@ class TestCompiler(parameterized.TestCase):
 
     self.assertRegex(
         sql,
-        re.escape('IFNULL(av.label, 0) AS label'),
+        re.escape('av.label,'),
         'Google Analytics label join check failed.')
 
     # feature check
@@ -208,6 +207,16 @@ class TestCompiler(parameterized.TestCase):
             'value_type': 'int'
           },
           {
+            'role': 'FIRST_VALUE',
+            'name': 'first_purchase',
+            'source': 'FIRST_PARTY'
+          },
+          {
+            'role': 'TRIGGER_DATE',
+            'name': 'first_purchase_date',
+            'source': 'FIRST_PARTY'
+          },
+          {
             'role': 'FEATURE',
             'name': 'call',
             'source': 'FIRST_PARTY'
@@ -239,6 +248,16 @@ class TestCompiler(parameterized.TestCase):
         r',[\s\n]+'.join([
             re.escape('fp.call'),
             re.escape('fp.request_for_info'),
+        ]),
+        'First party feature check failed.',
+    )
+
+    # other variable check
+    self.assertRegex(
+        sql,
+        r',[\s\n]+'.join([
+            re.escape('fp.first_purchase AS first_value'),
+            re.escape('fp.first_purchase_date AS trigger_event_date'),
         ]),
         'First party feature check failed.',
     )
@@ -324,6 +343,13 @@ class TestCompiler(parameterized.TestCase):
             'value_type': 'int'
           },
           {
+            'role': 'FIRST_VALUE',
+            'name': 'first_purchase',
+            'source': 'GOOGLE_ANALYTICS',
+            'key': 'value',
+            'value_type': 'int'
+          },
+          {
             'role': 'FEATURE',
             'name': 'click',
             'source': 'GOOGLE_ANALYTICS'
@@ -349,6 +375,58 @@ class TestCompiler(parameterized.TestCase):
         r'[\s\S]*'.join([
             re.escape('analytics_variables AS ('),
             re.escape('LEFT OUTER JOIN ('),
+            re.escape('WHERE name = "first_purchase"'),
+            re.escape('AND params.key = "value"'),
+            re.escape(') fv')
+        ]),
+        'Google Analytics first value join check failed.')
+
+    # proper label and total value assignment check
+    self.assertIn(
+        '(label - first_value) AS label',
+        sql,
+        'Output label check failed.')
+
+  def test_build_model_sql_google_analytics_regression_model_label_as_first_value(self):
+    test_model = self.model_config(
+        model_type='BOOSTED_TREE_REGRESSOR',
+        uses_first_party_data=False,
+        variables=[
+          {
+            'role': 'LABEL',
+            'name': 'purchase',
+            'source': 'GOOGLE_ANALYTICS',
+            'key': 'value',
+            'value_type': 'int'
+          },
+          {
+            'role': 'FEATURE',
+            'name': 'click',
+            'source': 'GOOGLE_ANALYTICS'
+          },
+          {
+            'role': 'FEATURE',
+            'name': 'subscribe',
+            'source': 'GOOGLE_ANALYTICS'
+          }
+        ],
+        class_imbalance=4)
+
+    pipeline = self.compiler(test_model).build_training_pipeline()
+    params = pipeline['jobs'][0]['params']
+
+    sql_param = self.first(params, 'name', 'script')
+    self.assertIsNotNone(sql_param)
+    sql = sql_param['value']
+
+    # first value join check
+    self.assertRegex(
+        sql,
+        r'[\s\S]*'.join([
+            re.escape('analytics_variables AS ('),
+            re.escape('LEFT OUTER JOIN ('),
+            re.escape('WHERE name = "purchase"'),
+            re.escape('AND params.key = "value"'),
             re.escape(') fv')
         ]),
         'Google Analytics first value join check failed.')
@@ -519,6 +597,16 @@ class TestCompiler(parameterized.TestCase):
             'value_type': 'int'
           },
           {
+            'role': 'FIRST_VALUE',
+            'name': 'first_purchase',
+            'source': 'FIRST_PARTY'
+          },
+          {
+            'role': 'TRIGGER_DATE',
+            'name': 'first_purchase_date',
+            'source': 'FIRST_PARTY'
+          },
+          {
             'role': 'FEATURE',
             'name': 'purchase',
             'source': 'FIRST_PARTY'
@@ -555,6 +643,16 @@ class TestCompiler(parameterized.TestCase):
             re.escape('fp.request_for_info'),
         ]),
         'First party feature check failed.')
+
+    # other variable check
+    self.assertRegex(
+        sql,
+        r',[\s\n]+'.join([
+            re.escape('fp.first_purchase AS first_value'),
+            re.escape('fp.first_purchase_date AS trigger_event_date'),
+        ]),
+        'First party feature check failed.',
+    )
 
   def test_build_conversion_values_sql_google_analytics(self):
     test_model = self.model_config(
@@ -843,6 +941,16 @@ class TestCompiler(parameterized.TestCase):
             'value_type': 'int'
           },
           {
+            'role': 'FIRST_VALUE',
+            'name': 'first_purchase',
+            'source': 'FIRST_PARTY'
+          },
+          {
+            'role': 'TRIGGER_DATE',
+            'name': 'first_purchase_date',
+            'source': 'FIRST_PARTY'
+          },
+          {
             'role': 'FEATURE',
             'name': 'purchase',
             'source': 'FIRST_PARTY'
@@ -897,6 +1005,16 @@ class TestCompiler(parameterized.TestCase):
             re.escape('fp.request_for_info'),
         ]),
         'First party feature check failed.')
+
+    # other variable check
+    self.assertRegex(
+        sql,
+        r',[\s\n]+'.join([
+            re.escape('fp.first_purchase AS first_value'),
+            re.escape('fp.first_purchase_date AS trigger_event_date'),
+        ]),
+        'First party feature check failed.',
+    )
 
   def test_build_predictive_sql_google_analytics(self):
     test_model = self.model_config(

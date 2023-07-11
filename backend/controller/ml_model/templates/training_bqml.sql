@@ -128,17 +128,17 @@ user_variables AS (
     {% if first_party.label %}
     fp.{{first_party.label.name}} AS label,
     {% elif google_analytics.label %}
-    IFNULL(av.label, 0) AS label,
+    av.label,
     {% endif %}
     -- inject the selected first value
     {% if first_party.first_value %}
-    fp.{{first_party.first_value}} AS first_value,
+    fp.{{first_party.first_value.name}} AS first_value,
     {% elif google_analytics.first_value %}
     av.first_value,
     {% endif %}
     -- inject the selected first party trigger date
     {% if first_party.trigger_date %}
-    fp.{{first_party.trigger_date}} AS trigger_event_date
+    fp.{{first_party.trigger_date.name}} AS trigger_event_date
     -- or inject the selected google analytics trigger date
     {% elif google_analytics.first_value %}
     av.trigger_event_date

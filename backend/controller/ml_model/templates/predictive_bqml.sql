@@ -126,13 +126,13 @@ CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.predictions` AS (
         {% endif %}
         -- inject the selected first value
         {% if first_party.first_value %}
-        fp.{{first_party.first_value}} AS first_value,
+        fp.{{first_party.first_value.name}} AS first_value,
         {% elif google_analytics.first_value %}
         av.first_value,
         {% endif %}
         -- inject the selected first party trigger date
         {% if first_party.trigger_date %}
-        fp.{{first_party.trigger_date}} AS trigger_event_date
+        fp.{{first_party.trigger_date.name}} AS trigger_event_date
         -- or inject the selected google analytics trigger date
         {% elif google_analytics.trigger_date %}
         av.trigger_event_date
