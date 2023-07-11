@@ -72,15 +72,15 @@ export class MlModelFormComponent implements OnInit {
       usesFirstPartyData: [null, Validators.required],
       hyperParameters: this._fb.array([]),
       variables: this._fb.array([]),
-      conversionRateSegments: [0, [Validators.required, Validators.pattern(/^[0-9]*$/i)]],
+      conversionRateSegments: [0, [Validators.required, Validators.pattern(/^[0-9]*$/)]],
       classImbalance: [4, [Validators.required, Validators.min(1), Validators.max(10)]],
       timespans: this._fb.array([]),
       output: this._fb.group({
         destination: [null, [Validators.required, this.enumValidator(Destination)]],
         parameters: this._fb.group({
-          customerId: [null, Validators.pattern(/^[0-9]*$/i)],
-          conversionActionId: [null, Validators.pattern(/^[0-9]*$/i)],
-          averageConversionValue: [null, Validators.pattern(/^[0-9]*\.{0,1}[0-9]*$/i)]
+          customerId: [null, Validators.pattern(/^[0-9]*$/)],
+          conversionActionId: [null, Validators.pattern(/^[0-9]*$/)],
+          averageConversionValue: [null, Validators.pattern(/^[0-9]*\.{0,1}[0-9]*$/)]
         })
       })
     });
@@ -283,6 +283,9 @@ export class MlModelFormComponent implements OnInit {
       const existingVariable = existingVariables?.find(v => v.name === variable.name && v.source === variable.source);
 
       variable.roles = variable.source === Source.FIRST_PARTY ? firstPartyRoles : googleAnalyticsRoles;
+      if (this.type.isClassification) {
+        variable.roles = variable.roles.filter(r => ![Role.FIRST_VALUE].includes(r));
+      }
       variable.role = existingVariable ? existingVariable.role : null;
       if (variable.role === Role.LABEL) {
         if (existingVariable.key) {
@@ -293,7 +296,6 @@ export class MlModelFormComponent implements OnInit {
           variable.value_type = variable.parameters[0].value_type;
         }
       }
-      // TODO: find a way to remove Label as a role option if one label is already selected.
 
       controls.push(this._fb.group({
         name: [variable.name],
@@ -411,7 +413,7 @@ export class MlModelFormComponent implements OnInit {
     this.mlModel.unique_id = formModel.uniqueId as UniqueId;
     this.mlModel.uses_first_party_data = formModel.usesFirstPartyData as boolean;
     this.mlModel.hyper_parameters = formModel.hyperParameters as HyperParameter[];
-    this.mlModel.variables = formModel.variables as Variable[];
+    this.mlModel.variables = formModel.variables.filter(v => v.role !== null) as Variable[];
     this.mlModel.conversion_rate_segments = formModel.conversionRateSegments as number;
     this.mlModel.class_imbalance = formModel.classImbalance as number;
     this.mlModel.timespans = formModel.timespans as Timespan[];
@@ -420,7 +422,7 @@ export class MlModelFormComponent implements OnInit {
       parameters: {
         customer_id: formModel.output.parameters.customerId as string,
         conversion_action_id: formModel.output.parameters.conversionActionId as string,
-        average_conversion_value: parseFloat(formModel.label.averageConversionValue)
+        average_conversion_value: parseFloat(formModel.output.parameters.averageConversionValue)
       }
     } as Output;
   }
@@ -434,6 +436,7 @@ export class MlModelFormComponent implements OnInit {
 
     if (this.mlModel.id) {
       try {
+        this.mlModel.validate();
         await this.mlModelsService.update(this.mlModel);
         this.router.navigate(['ml-models', this.mlModel.id]);
         this.errorMessage = '';
@@ -467,7 +470,7 @@ export class MlModelFormComponent implements OnInit {
    */
   private enumValidator(e: object): ValidatorFn {
     return (control: AbstractControl): ValidationErrors | null => {
-      return !Object.values(e).includes(control.value) ? {invalidSelection: {value: control.value}} : null;
+      return !Object.values(e).includes(control.value) && control.value !== null ? {invalidSelection: {value: control.value}} : null;
     };
   }
 }

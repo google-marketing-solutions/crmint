@@ -81,7 +81,7 @@
         <div class="crmi-form-group">
           <label class="crmi-form-label">Type</label>
           <mat-select placeholder="Type" formControlName="type"
-                      (selectionChange)="refreshHyperParameters()">
+                      (selectionChange)="refreshHyperParameters(); refreshVariables()">
             <mat-option *ngFor="let type of types" [value]="type">{{ type | labelcase }}</mat-option>
           </mat-select>
         </div>

@@ -310,6 +310,23 @@ export class MlModel {
     return timespans;
   }
 
+  /**
+   * Checks the data in the model to ensure it's valid.
+   *
+   * @throws {Error} Error message with the details of why it failed validation.
+   */
+  validate() {
+    let labelCount = 0;
+    for (const variable of this.variables) {
+      if (variable.role === Role.LABEL) {
+        if (++labelCount > 1) {
+          throw new Error('The role of "Label" can only be applied to one variable.');
+        }
+      }
+    }
+    // TODO: if using first party data validate client or user id is selected based on unique id selection
+  }
+
   toJSON() {
     return {
       id: this.id,

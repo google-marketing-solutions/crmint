@@ -31,16 +31,24 @@ class TestCompiler(parameterized.TestCase):
     test_model = self.model_config(
         model_type='BOOSTED_TREE_CLASSIFIER',
         uses_first_party_data=True,
-        label={
+        variables=[
+          {
+            'role': 'LABEL',
             'name': 'purchase',
             'source': 'GOOGLE_ANALYTICS',
             'key': 'value',
-            'value_type': 'int',
-            'average_value': 1234.0
-        },
-        features=[
-            {'name': 'click', 'source': 'GOOGLE_ANALYTICS'},
-            {'name': 'subscribe', 'source': 'FIRST_PARTY'}
+            'value_type': 'int'
+          },
+          {
+            'role': 'FEATURE',
+            'name': 'click',
+            'source': 'GOOGLE_ANALYTICS'
+          },
+          {
+            'role': 'FEATURE',
+            'name': 'subscribe',
+            'source': 'FIRST_PARTY'
+          }
         ],
         class_imbalance=4)
 
@@ -87,16 +95,24 @@ class TestCompiler(parameterized.TestCase):
     test_model = self.model_config(
         model_type='BOOSTED_TREE_CLASSIFIER',
         uses_first_party_data=True,
-        label={
+        variables=[
+          {
+            'role': 'LABEL',
             'name': 'purchase',
             'source': 'GOOGLE_ANALYTICS',
             'key': 'value',
-            'value_type': 'int',
-            'average_value': 1234.0
-        },
-        features=[
-            {'name': 'click', 'source': 'GOOGLE_ANALYTICS'},
-            {'name': 'subscribe', 'source': 'FIRST_PARTY'}
+            'value_type': 'int'
+          },
+          {
+            'role': 'FEATURE',
+            'name': 'click',
+            'source': 'GOOGLE_ANALYTICS'
+          },
+          {
+            'role': 'FEATURE',
+            'name': 'subscribe',
+            'source': 'FIRST_PARTY'
+          }
         ],
         class_imbalance=4)
 
@@ -164,7 +180,7 @@ class TestCompiler(parameterized.TestCase):
 
     # class-imbalance check
     self.assertIn(
-        'MOD(ABS(FARM_FINGERPRINT(user_pseudo_id)), 100) <= ((1 / 4) * 100)',
+        'MOD(ABS(FARM_FINGERPRINT(unique_id)), 100) <= ((1 / 4) * 100)',
         sql,
         'Class-Imbalance check failed.')
 
@@ -183,16 +199,24 @@ class TestCompiler(parameterized.TestCase):
     test_model = self.model_config(
         model_type='BOOSTED_TREE_CLASSIFIER',
         uses_first_party_data=True,
-        label={
+        variables=[
+          {
+            'role': 'LABEL',
             'name': 'enroll',
             'source': 'FIRST_PARTY',
             'key': 'value',
-            'value_type': 'int',
-            'average_value': 1234.0
-        },
-        features=[
-            {'name': 'call', 'source': 'FIRST_PARTY'},
-            {'name': 'request_for_info', 'source': 'FIRST_PARTY'}
+            'value_type': 'int'
+          },
+          {
+            'role': 'FEATURE',
+            'name': 'call',
+            'source': 'FIRST_PARTY'
+          },
+          {
+            'role': 'FEATURE',
+            'name': 'request_for_info',
+            'source': 'FIRST_PARTY'
+          }
         ],
         class_imbalance=1)
 
@@ -231,16 +255,24 @@ class TestCompiler(parameterized.TestCase):
     test_model = self.model_config(
         model_type='BOOSTED_TREE_CLASSIFIER',
         uses_first_party_data=False,
-        label={
+        variables=[
+          {
+            'role': 'LABEL',
             'name': 'purchase',
             'source': 'GOOGLE_ANALYTICS',
             'key': 'value',
-            'value_type': 'int',
-            'average_value': 1234.0
-        },
-        features=[
-            {'name': 'click', 'source': 'GOOGLE_ANALYTICS'},
-            {'name': 'subscribe', 'source': 'GOOGLE_ANALYTICS'}
+            'value_type': 'int'
+          },
+          {
+            'role': 'FEATURE',
+            'name': 'click',
+            'source': 'GOOGLE_ANALYTICS'
+          },
+          {
+            'role': 'FEATURE',
+            'name': 'subscribe',
+            'source': 'GOOGLE_ANALYTICS'
+          }
         ],
         class_imbalance=4)
 
@@ -283,15 +315,24 @@ class TestCompiler(parameterized.TestCase):
     test_model = self.model_config(
         model_type='BOOSTED_TREE_REGRESSOR',
         uses_first_party_data=False,
-        label={
+        variables=[
+          {
+            'role': 'LABEL',
             'name': 'purchase',
             'source': 'GOOGLE_ANALYTICS',
             'key': 'value',
             'value_type': 'int'
-        },
-        features=[
-            {'name': 'click', 'source': 'GOOGLE_ANALYTICS'},
-            {'name': 'subscribe', 'source': 'GOOGLE_ANALYTICS'}
+          },
+          {
+            'role': 'FEATURE',
+            'name': 'click',
+            'source': 'GOOGLE_ANALYTICS'
+          },
+          {
+            'role': 'FEATURE',
+            'name': 'subscribe',
+            'source': 'GOOGLE_ANALYTICS'
+          }
         ],
         class_imbalance=4)
 
@@ -308,7 +349,6 @@ class TestCompiler(parameterized.TestCase):
         r'[\s\S]*'.join([
             re.escape('analytics_variables AS ('),
             re.escape('LEFT OUTER JOIN ('),
-            re.escape('COALESCE(params.value.int_value, params.value.float_value, params.value.double_value, 0) AS value'),
             re.escape(') fv')
         ]),
         'Google Analytics first value join check failed.')
@@ -323,16 +363,24 @@ class TestCompiler(parameterized.TestCase):
     test_model = self.model_config(
         model_type='BOOSTED_TREE_CLASSIFIER',
         uses_first_party_data=False,
-        label={
+        variables=[
+          {
+            'role': 'LABEL',
             'name': 'purchase',
             'source': 'GOOGLE_ANALYTICS',
             'key': 'value',
-            'value_type': 'int',
-            'average_value': 1234.0
-        },
-        features=[
-            {'name': 'click', 'source': 'GOOGLE_ANALYTICS'},
-            {'name': 'subscribe', 'source': 'GOOGLE_ANALYTICS'}
+            'value_type': 'int'
+          },
+          {
+            'role': 'FEATURE',
+            'name': 'click',
+            'source': 'GOOGLE_ANALYTICS'
+          },
+          {
+            'role': 'FEATURE',
+            'name': 'subscribe',
+            'source': 'GOOGLE_ANALYTICS'
+          }
         ],
         class_imbalance=4)
 
@@ -353,16 +401,24 @@ class TestCompiler(parameterized.TestCase):
     test_model = self.model_config(
         model_type='BOOSTED_TREE_CLASSIFIER',
         uses_first_party_data=True,
-        label={
+        variables=[
+          {
+            'role': 'LABEL',
             'name': 'purchase',
             'source': 'GOOGLE_ANALYTICS',
             'key': 'value',
-            'value_type': 'string,int',
-            'average_value': 1234.0
-        },
-        features=[
-            {'name': 'click', 'source': 'GOOGLE_ANALYTICS'},
-            {'name': 'subscribe', 'source': 'FIRST_PARTY'}
+            'value_type': 'string,int'
+          },
+          {
+            'role': 'FEATURE',
+            'name': 'click',
+            'source': 'GOOGLE_ANALYTICS'
+          },
+          {
+            'role': 'FEATURE',
+            'name': 'subscribe',
+            'source': 'FIRST_PARTY'
+          }
         ],
         class_imbalance=4)
 
@@ -400,13 +456,13 @@ class TestCompiler(parameterized.TestCase):
         r'[\s\n]+'.join([
             'WHERE name = "purchase"',
             'AND params.key = "value"',
-            re.escape('AND COALESCE(params.value.string_value, params.value.int_value) NOT IN ("", "0", 0, NULL)')
+            re.escape('AND COALESCE(params.value.string_value, CAST(params.value.int_value AS STRING)) NOT IN ("", "0", NULL)')
         ]),
         'Google Analytics label pull check failed.')
 
     self.assertRegex(
         sql,
-        re.escape('IFNULL(av.label, 0) AS label'),
+        re.escape('av.label,'),
         'Google Analytics label join check failed.')
 
     # feature check
@@ -439,7 +495,7 @@ class TestCompiler(parameterized.TestCase):
 
     # average value check
     self.assertIn(
-        '(SUM(label) / COUNT(1)) * 1234.0 AS value,',
+        '(SUM(label) / COUNT(1)) * 1234.5 AS value,',
         sql,
         'Average value check failed.')
 
@@ -454,16 +510,24 @@ class TestCompiler(parameterized.TestCase):
         model_type='BOOSTED_TREE_CLASSIFIER',
         uses_first_party_data=True,
         unique_id='USER_ID',
-        label={
+        variables=[
+          {
+            'role': 'LABEL',
             'name': 'premium_subscription',
             'source': 'FIRST_PARTY',
             'key': 'value',
-            'value_type': 'int',
-            'average_value': 1234.0
-        },
-        features=[
-            {'name': 'purchase', 'source': 'FIRST_PARTY'},
-            {'name': 'request_for_info', 'source': 'FIRST_PARTY'}
+            'value_type': 'int'
+          },
+          {
+            'role': 'FEATURE',
+            'name': 'purchase',
+            'source': 'FIRST_PARTY'
+          },
+          {
+            'role': 'FEATURE',
+            'name': 'request_for_info',
+            'source': 'FIRST_PARTY'
+          }
         ],
         class_imbalance=4)
 
@@ -496,16 +560,24 @@ class TestCompiler(parameterized.TestCase):
     test_model = self.model_config(
         model_type='BOOSTED_TREE_CLASSIFIER',
         uses_first_party_data=False,
-        label={
+        variables=[
+          {
+            'role': 'LABEL',
             'name': 'subscription',
             'source': 'GOOGLE_ANALYTICS',
             'key': 'value',
-            'value_type': 'string',
-            'average_value': 1234.0
-        },
-        features=[
-            {'name': 'click', 'source': 'GOOGLE_ANALYTICS'},
-            {'name': 'scroll', 'source': 'GOOGLE_ANALYTICS'}
+            'value_type': 'string'
+          },
+          {
+            'role': 'FEATURE',
+            'name': 'click',
+            'source': 'GOOGLE_ANALYTICS'
+          },
+          {
+            'role': 'FEATURE',
+            'name': 'scroll',
+            'source': 'GOOGLE_ANALYTICS'
+          }
         ],
         class_imbalance=4)
 
@@ -525,7 +597,7 @@ class TestCompiler(parameterized.TestCase):
         r'[\s\n]+'.join([
             'WHERE name = "subscription"',
             'AND params.key = "value"',
-            re.escape('AND COALESCE(params.value.string_value, params.value.int_value) NOT IN ("", "0", 0, NULL)')
+            re.escape('AND COALESCE(params.value.string_value, CAST(params.value.int_value AS STRING)) NOT IN ("", "0", NULL)')
         ]),
         'Google Analytics label pull check failed.')
 
@@ -553,16 +625,24 @@ class TestCompiler(parameterized.TestCase):
     test_model = self.model_config(
         model_type='BOOSTED_TREE_CLASSIFIER',
         uses_first_party_data=True,
-        label={
+        variables=[
+          {
+            'role': 'LABEL',
             'name': 'purchase',
             'source': 'GOOGLE_ANALYTICS',
             'key': 'value',
-            'value_type': 'string,int',
-            'average_value': 1234.0
-        },
-        features=[
-            {'name': 'click', 'source': 'GOOGLE_ANALYTICS'},
-            {'name': 'subscribe', 'source': 'FIRST_PARTY'}
+            'value_type': 'string,int'
+          },
+          {
+            'role': 'FEATURE',
+            'name': 'click',
+            'source': 'GOOGLE_ANALYTICS'
+          },
+          {
+            'role': 'FEATURE',
+            'name': 'subscribe',
+            'source': 'FIRST_PARTY'
+          }
         ],
         class_imbalance=4,
         destination=destination)
@@ -662,16 +742,24 @@ class TestCompiler(parameterized.TestCase):
     test_model = self.model_config(
         model_type='BOOSTED_TREE_CLASSIFIER',
         uses_first_party_data=True,
-        label={
+        variables=[
+          {
+            'role': 'LABEL',
             'name': 'purchase',
             'source': 'GOOGLE_ANALYTICS',
             'key': 'value',
-            'value_type': 'string,int',
-            'average_value': 1234.0
-        },
-        features=[
-            {'name': 'click', 'source': 'GOOGLE_ANALYTICS'},
-            {'name': 'subscribe', 'source': 'FIRST_PARTY'}
+            'value_type': 'string,int'
+          },
+          {
+            'role': 'FEATURE',
+            'name': 'click',
+            'source': 'GOOGLE_ANALYTICS'
+          },
+          {
+            'role': 'FEATURE',
+            'name': 'subscribe',
+            'source': 'FIRST_PARTY'
+          }
         ],
         class_imbalance=4)
 
@@ -716,7 +804,7 @@ class TestCompiler(parameterized.TestCase):
 
     self.assertRegex(
         sql,
-        re.escape('IFNULL(av.label, 0) AS label'),
+        re.escape('av.label,'),
         'Google Analytics label join check failed.')
 
     # feature check
@@ -746,16 +834,24 @@ class TestCompiler(parameterized.TestCase):
         model_type='BOOSTED_TREE_CLASSIFIER',
         uses_first_party_data=True,
         unique_id='USER_ID',
-        label={
+        variables=[
+          {
+            'role': 'LABEL',
             'name': 'premium_subscription',
             'source': 'FIRST_PARTY',
             'key': 'value',
-            'value_type': 'int',
-            'average_value': 1234.0
-        },
-        features=[
-            {'name': 'purchase', 'source': 'FIRST_PARTY'},
-            {'name': 'request_for_info', 'source': 'FIRST_PARTY'}
+            'value_type': 'int'
+          },
+          {
+            'role': 'FEATURE',
+            'name': 'purchase',
+            'source': 'FIRST_PARTY'
+          },
+          {
+            'role': 'FEATURE',
+            'name': 'request_for_info',
+            'source': 'FIRST_PARTY'
+          }
         ],
         class_imbalance=4)
 
@@ -781,8 +877,8 @@ class TestCompiler(parameterized.TestCase):
         sql,
         r'[\s\S]+'.join([
             'SELECT',
-            'user_id,',
             'user_pseudo_id,',
+            'user_id,',
             re.escape('ML.PREDICT')
         ]),
         'User ids check failed.')
@@ -806,16 +902,24 @@ class TestCompiler(parameterized.TestCase):
     test_model = self.model_config(
         model_type='BOOSTED_TREE_CLASSIFIER',
         uses_first_party_data=False,
-        label={
+        variables=[
+          {
+            'role': 'LABEL',
             'name': 'subscription',
             'source': 'GOOGLE_ANALYTICS',
             'key': 'value',
-            'value_type': 'string',
-            'average_value': 1234.0
-        },
-        features=[
-            {'name': 'click', 'source': 'GOOGLE_ANALYTICS'},
-            {'name': 'scroll', 'source': 'GOOGLE_ANALYTICS'}
+            'value_type': 'string'
+          },
+          {
+            'role': 'FEATURE',
+            'name': 'click',
+            'source': 'GOOGLE_ANALYTICS'
+          },
+          {
+            'role': 'FEATURE',
+            'name': 'scroll',
+            'source': 'GOOGLE_ANALYTICS'
+          }
         ],
         class_imbalance=4)
 
@@ -858,15 +962,24 @@ class TestCompiler(parameterized.TestCase):
     test_model = self.model_config(
         model_type='BOOSTED_TREE_REGRESSOR',
         uses_first_party_data=False,
-        label={
+        variables=[
+          {
+            'role': 'LABEL',
             'name': 'subscription',
             'source': 'GOOGLE_ANALYTICS',
             'key': 'value',
             'value_type': 'string'
-        },
-        features=[
-            {'name': 'click', 'source': 'GOOGLE_ANALYTICS'},
-            {'name': 'scroll', 'source': 'GOOGLE_ANALYTICS'}
+          },
+          {
+            'role': 'FEATURE',
+            'name': 'click',
+            'source': 'GOOGLE_ANALYTICS'
+          },
+          {
+            'role': 'FEATURE',
+            'name': 'scroll',
+            'source': 'GOOGLE_ANALYTICS'
+          }
         ],
         class_imbalance=4)
 
@@ -909,16 +1022,24 @@ class TestCompiler(parameterized.TestCase):
         model_type='BOOSTED_TREE_CLASSIFIER',
         uses_first_party_data=True,
         unique_id='USER_ID',
-        label={
+        variables=[
+          {
+            'role': 'LABEL',
             'name': 'purchase',
             'source': 'GOOGLE_ANALYTICS',
             'key': 'value',
-            'value_type': 'string,int',
-            'average_value': 1234.0
-        },
-        features=[
-            {'name': 'click', 'source': 'GOOGLE_ANALYTICS'},
-            {'name': 'subscribe', 'source': 'FIRST_PARTY'}
+            'value_type': 'string,int'
+          },
+          {
+            'role': 'FEATURE',
+            'name': 'click',
+            'source': 'GOOGLE_ANALYTICS'
+          },
+          {
+            'role': 'FEATURE',
+            'name': 'subscribe',
+            'source': 'FIRST_PARTY'
+          }
         ],
         class_imbalance=4)
 
@@ -982,15 +1103,24 @@ class TestCompiler(parameterized.TestCase):
         model_type='BOOSTED_TREE_REGRESSOR',
         uses_first_party_data=True,
         unique_id='USER_ID',
-        label={
+        variables=[
+          {
+            'role': 'LABEL',
             'name': 'purchase',
             'source': 'GOOGLE_ANALYTICS',
             'key': 'value',
             'value_type': 'float'
-        },
-        features=[
-            {'name': 'click', 'source': 'GOOGLE_ANALYTICS'},
-            {'name': 'subscribe', 'source': 'FIRST_PARTY'}
+          },
+          {
+            'role': 'FEATURE',
+            'name': 'click',
+            'source': 'GOOGLE_ANALYTICS'
+          },
+          {
+            'role': 'FEATURE',
+            'name': 'subscribe',
+            'source': 'FIRST_PARTY'
+          }
         ],
         class_imbalance=4)
 
@@ -1047,16 +1177,24 @@ class TestCompiler(parameterized.TestCase):
         model_type='BOOSTED_TREE_CLASSIFIER',
         uses_first_party_data=True,
         unique_id='USER_ID',
-        label={
+        variables=[
+          {
+            'role': 'LABEL',
             'name': 'purchase',
             'source': 'GOOGLE_ANALYTICS',
             'key': 'value',
-            'value_type': 'string,int',
-            'average_value': 1234.0
-        },
-        features=[
-            {'name': 'click', 'source': 'GOOGLE_ANALYTICS'},
-            {'name': 'subscribe', 'source': 'FIRST_PARTY'}
+            'value_type': 'string,int'
+          },
+          {
+            'role': 'FEATURE',
+            'name': 'click',
+            'source': 'GOOGLE_ANALYTICS'
+          },
+          {
+            'role': 'FEATURE',
+            'name': 'subscribe',
+            'source': 'FIRST_PARTY'
+          }
         ],
         class_imbalance=4,
         destination='GOOGLE_ANALYTICS_MP_EVENT')
@@ -1084,16 +1222,24 @@ class TestCompiler(parameterized.TestCase):
         model_type='BOOSTED_TREE_CLASSIFIER',
         uses_first_party_data=True,
         unique_id='USER_ID',
-        label={
+        variables=[
+          {
+            'role': 'LABEL',
             'name': 'purchase',
             'source': 'GOOGLE_ANALYTICS',
             'key': 'value',
-            'value_type': 'string,int',
-            'average_value': 1234.0
-        },
-        features=[
-            {'name': 'click', 'source': 'GOOGLE_ANALYTICS'},
-            {'name': 'subscribe', 'source': 'FIRST_PARTY'}
+            'value_type': 'string,int'
+          },
+          {
+            'role': 'FEATURE',
+            'name': 'click',
+            'source': 'GOOGLE_ANALYTICS'
+          },
+          {
+            'role': 'FEATURE',
+            'name': 'subscribe',
+            'source': 'FIRST_PARTY'
+          }
         ],
         class_imbalance=4,
         destination='GOOGLE_ADS_OFFLINE_CONVERSION')
@@ -1120,13 +1266,15 @@ class TestCompiler(parameterized.TestCase):
     test_model = self.model_config(
         model_type='BOOSTED_TREE_REGRESSOR',
         uses_first_party_data=False,
-        label={
+        variables=[
+          {
+            'role': 'LABEL',
             'name': 'purchase',
             'source': 'GOOGLE_ANALYTICS',
             'key': 'value',
             'value_type': 'float'
-        },
-        features=[],
+          }
+        ],
         class_imbalance=0)
 
     pipeline = self.compiler(test_model).build_predictive_pipeline()
@@ -1162,14 +1310,15 @@ class TestCompiler(parameterized.TestCase):
         model_type='BOOSTED_TREE_CLASSIFIER',
         uses_first_party_data=True,
         unique_id='USER_ID',
-        label={
+        variables=[
+          {
+            'role': 'LABEL',
             'name': 'purchase',
             'source': 'GOOGLE_ANALYTICS',
             'key': 'value',
-            'value_type': 'float',
-            'average_value': 1234.0
-        },
-        features=[],
+            'value_type': 'float'
+          }
+        ],
         class_imbalance=0)
 
     pipeline = self.compiler(test_model).build_predictive_pipeline()
@@ -1211,13 +1360,15 @@ class TestCompiler(parameterized.TestCase):
         model_type='BOOSTED_TREE_REGRESSOR',
         uses_first_party_data=True,
         unique_id='USER_ID',
-        label={
+        variables=[
+          {
+            'role': 'LABEL',
             'name': 'purchase',
             'source': 'GOOGLE_ANALYTICS',
             'key': 'value',
             'value_type': 'float'
-        },
-        features=[],
+          }
+        ],
         class_imbalance=0)
 
     pipeline = self.compiler(test_model).build_predictive_pipeline()
@@ -1258,13 +1409,15 @@ class TestCompiler(parameterized.TestCase):
         model_type='BOOSTED_TREE_REGRESSOR',
         uses_first_party_data=True,
         unique_id='USER_ID',
-        label={
+        variables=[
+          {
+            'role': 'LABEL',
             'name': 'purchase',
             'source': 'GOOGLE_ANALYTICS',
             'key': 'value',
             'value_type': 'float'
-        },
-        features=[],
+          }
+        ],
         class_imbalance=0,
         destination='GOOGLE_ADS_OFFLINE_CONVERSION')
 
@@ -1288,8 +1441,7 @@ class TestCompiler(parameterized.TestCase):
   def model_config(self,
                    model_type: str,
                    uses_first_party_data: bool,
-                   label: dict[str, Any],
-                   features: list[dict[str, Any]],
+                   variables: list[dict[str, Any]],
                    class_imbalance: int,
                    unique_id: str = 'CLIENT_ID',
                    destination: str = 'GOOGLE_ANALYTICS_MP_EVENT'):
@@ -1309,8 +1461,7 @@ class TestCompiler(parameterized.TestCase):
             {'name': 'HP4-NAME', 'value': 'true'},
             {'name': 'HP5-NAME', 'value': 'false'}
         ],
-        'label': label,
-        'features': features,
+        'variables': variables,
         'conversion_rate_segments':
             10 if model_type.endswith('CLASSIFIER') else 0,
         'class_imbalance': class_imbalance,
@@ -1322,7 +1473,8 @@ class TestCompiler(parameterized.TestCase):
             'destination': destination,
             'parameters': {
                 'customer_id': 1234,
-                'conversion_action_id': 5678
+                'conversion_action_id': 5678,
+                'average_conversion_value': 1234.5
             }
         }
     })

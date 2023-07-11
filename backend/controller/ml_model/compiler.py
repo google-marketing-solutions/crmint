@@ -121,7 +121,7 @@ class VariableSet():
   features: list[models.MlModelVariable]
   label: models.MlModelVariable
   trigger_date: models.MlModelVariable
-  first_value: models.MlModelVariable
+  _first_value: models.MlModelVariable
   _unique_id: str
   user_id: models.MlModelVariable
   client_id: models.MlModelVariable
@@ -130,10 +130,14 @@ class VariableSet():
     self.features = []
     self.label = None
     self.trigger_date = None
-    self.first_value = None
+    self._first_value = None
     self._unique_id = unique_id.lower()
     self.user_id = 'user_id'
     self.client_id = 'user_pseudo_id'
+
+  @property
+  def first_value(self):
+    return self._first_value if self._first_value else self.label
 
   @property
   def unique_id(self):
@@ -142,6 +146,8 @@ class VariableSet():
   def add(self, variable: models.MlModelVariable) -> None:
     if variable.role == VariableRole.FEATURE:
       self.features.append(variable)
+    elif variable.role == VariableRole.FIRST_VALUE:
+      self._first_value = variable
     elif variable.role == VariableRole.LABEL:
       self.__setattr__(str(variable.role).lower(), variable)
     else:

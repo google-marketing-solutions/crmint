@@ -35,7 +35,7 @@ WITH events AS (
     FORMAT_DATE("%Y%m%d", DATE_SUB(CURRENT_DATE(), INTERVAL {{timespan.training_end}} DAY))
   {% if type.is_classification %}
   -- get 90% of the events in this time-range (the other 10% is used to calculate conversion values)
-  AND MOD(ABS(FARM_FINGERPRINT({{unique_id}})), 100) < 90
+  AND MOD(ABS(FARM_FINGERPRINT({{google_analytics.unique_id}})), 100) < 90
   {% endif %}
   AND LOWER(platform) = 'web'
 ),
@@ -140,7 +140,7 @@ user_variables AS (
     {% if first_party.trigger_date %}
     fp.{{first_party.trigger_date}} AS trigger_event_date
     -- or inject the selected google analytics trigger date
-    {% elif google_analytics.trigger_date %}
+    {% elif google_analytics.first_value %}
     av.trigger_event_date
     {% endif %}
   FROM `{{project_id}}.{{model_dataset}}.first_party` fp

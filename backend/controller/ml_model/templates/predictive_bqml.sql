@@ -56,7 +56,7 @@ CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.predictions` AS (
             WHEN first_touch_hour >= 19 AND first_touch_hour < 22 THEN "evening_19_23"
             WHEN first_touch_hour >= 22 OR first_touch_hour = 0 THEN "latenight_23_1"
           END AS daypart,
-          ROW_NUMBER() OVER (PARTITION BY {{unique_id}} ORDER BY timestamp ASC) AS row_num
+          ROW_NUMBER() OVER (PARTITION BY unique_id ORDER BY timestamp ASC) AS row_num
         FROM events
         WHERE name = "user_engagement"
       )
@@ -122,7 +122,7 @@ CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.predictions` AS (
         {% if first_party.label %}
         fp.{{first_party.label.name}} AS label,
         {% elif google_analytics.label %}
-        IFNULL(av.label, 0) AS label,
+        av.label,
         {% endif %}
         -- inject the selected first value
         {% if first_party.first_value %}
