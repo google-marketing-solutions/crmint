@@ -138,7 +138,7 @@ CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.predictions` AS (
         av.trigger_event_date
         {% endif %}
       FROM `{{project_id}}.{{model_dataset}}.first_party` fp
-      {% if google_analytics.label or google_analytics.trigger_date %}
+      {% if google_analytics.label %}
       LEFT OUTER JOIN analytics_variables av
       ON fp.{{first_party.unique_id}} = av.unique_id
       {% endif %}
