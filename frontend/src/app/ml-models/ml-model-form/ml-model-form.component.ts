@@ -175,8 +175,8 @@ export class MlModelFormComponent implements OnInit {
   get type() {
     const type = this.value('type');
     return {
-      isClassification: Object.values(ClassificationType).includes(type),
-      isRegression: Object.values(RegressionType).includes(type)
+      isClassification: Object.keys(ClassificationType).includes(type),
+      isRegression: Object.keys(RegressionType).includes(type)
     }
   }
 
@@ -295,6 +295,10 @@ export class MlModelFormComponent implements OnInit {
           variable.key = variable.parameters[0].key;
           variable.value_type = variable.parameters[0].value_type;
         }
+
+        if (variable.source == Source.GOOGLE_ANALYTICS) {
+          variable.hint = 'Trigger date is derrived from the date associated with the first value and the first value (if not selected) defaults to the first label value.';
+        }
       }
 
       controls.push(this._fb.group({
@@ -308,7 +312,8 @@ export class MlModelFormComponent implements OnInit {
           variable.key,
           variable.role === Role.LABEL && variable.source === Source.GOOGLE_ANALYTICS ? [Validators.required] : []
         ],
-        value_type: [variable.value_type]
+        value_type: [variable.value_type],
+        hint: variable.hint
       }));
     }
 

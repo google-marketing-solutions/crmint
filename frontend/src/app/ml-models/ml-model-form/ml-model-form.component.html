@@ -122,7 +122,10 @@
             <tbody>
               <tr *ngFor="let variable of variables.controls; index as i" [formGroupName]="i">
                 <td class="source">{{ value(variable, 'source') | labelcase }}</td>
-                <td>{{ value(variable, 'name') }}</td>
+                <td>
+                  {{ value(variable, 'name') }}
+                  <mat-icon *ngIf="value(variable, 'hint')" class="tooltip" [title]="value(variable, 'hint')">help</mat-icon>
+                </td>
                 <td class="count" [hidden]="!value(variable, 'count')">
                   <mat-icon>bar_chart</mat-icon> {{ value(variable, 'count') }}
                 </td>

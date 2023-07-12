@@ -115,6 +115,7 @@ export type Variable = {
   parameters?: Parameter[];
   key?: string;
   value_type?: string;
+  hint?: string;
 }
 
 export type BigQueryDataset = {
@@ -316,15 +317,58 @@ export class MlModel {
    * @throws {Error} Error message with the details of why it failed validation.
    */
   validate() {
-    let labelCount = 0;
-    for (const variable of this.variables) {
-      if (variable.role === Role.LABEL) {
-        if (++labelCount > 1) {
-          throw new Error('The role of "Label" can only be applied to one variable.');
-        }
+    // ensure that one variable has the LABEL role.
+    if (this.variables.filter(v => v.role === Role.LABEL).length !== 1) {
+      throw new Error('The role of "Label" must be applied to one variable.');
+    }
+
+    // ensure there is no more than one variable assigned the role TRIGGER_DATE.
+    if (this.variables.filter(v => v.role === Role.TRIGGER_DATE).length > 1) {
+      throw new Error('The role of "Trigger Date" must only be applied to one variable.');
+    }
+
+    // ensure there is no more than one variable assigned the role FIRST_VALUE.
+    if (this.variables.filter(v => v.role === Role.FIRST_VALUE).length > 1) {
+      throw new Error('The role of "First Value" must only be applied to one variable.');
+    }
+
+    // if using first party data, validate client or user id is selected based on unique id selection.
+    if (this.uses_first_party_data) {
+      switch (this.unique_id) {
+        case UniqueId.CLIENT_ID:
+          if (this.variables.filter(v => v.role === Role.CLIENT_ID).length !== 1) {
+            throw new Error('The role of "Client ID" must be applied to one variable.');
+          }
+        case UniqueId.USER_ID:
+          if (this.variables.filter(v => v.role === Role.USER_ID).length !== 1) {
+            throw new Error('The role of "User ID" must be applied to one variable.');
+          }
       }
     }
-    // TODO: if using first party data validate client or user id is selected based on unique id selection
+
+    // if regression model and a first party label is selected then a first party first value and trigger date and if you use GA4 label then you can select a GA4 first_value, but not a first_party one.
+    // for regression models a first value and trigger date are required.
+    // if using a label sourced from Google Analytics trigger date is derrived from the date associated with the first value and the first value (if not selected) defaults to the first label value.
+    if (Object.keys(RegressionType).includes(this.type)) {
+      const label: Variable = this.variables.filter(v => v.role === Role.LABEL)[0];
+      switch (label.source) {
+        case Source.FIRST_PARTY:
+          if (this.variables.filter(v => v.role === Role.FIRST_VALUE).length !== 1) {
+            throw new Error('The role of "First Value" must be applied to one variable.');
+          }
+
+          if (this.variables.filter(v => v.role === Role.TRIGGER_DATE).length !== 1) {
+            throw new Error('The role of "Trigger Date" must be applied to one variable.');
+          }
+          break;
+        case Source.GOOGLE_ANALYTICS:
+          const firstValue: Variable = this.variables.filter(v => v.role === Role.FIRST_VALUE)[0];
+          if (firstValue.source === Source.FIRST_PARTY) {
+            throw new Error('The role of "First Value" must be applied to one variable sourced from Google Analytics since the selected label is sourced from there.');
+          }
+          break;
+      }
+    }
   }
 
   toJSON() {
