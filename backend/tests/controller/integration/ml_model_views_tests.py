@@ -74,17 +74,36 @@ class TestMlModelViews(controller_utils.ControllerAppTest):
             {'name': 'DATA_SPLIT_METHOD', 'value': 'AUTO_SPLIT'},
             {'name': 'EARLY_STOP', 'value': 'true'}
         ],
-        'features': [{
+        'variables': [
+          {
+            'name': 'first_purchase',
+            'source': 'FIRST_PARTY',
+            'role': 'FIRST_VALUE',
+            'key': None,
+            'value_type': None
+          },
+          {
+            'name': 'first_purchase_date',
+            'source': 'FIRST_PARTY',
+            'role': 'TRIGGER_DATE',
+            'key': None,
+            'value_type': None
+          },
+          {
             'name': 'enrollment',
-            'source': 'FIRST_PARTY'
-        }],
-        'label': {
+            'source': 'FIRST_PARTY',
+            'role': 'FEATURE',
+            'key': None,
+            'value_type': None
+          },
+          {
             'name': 'purchase',
             'source': 'GOOGLE_ANALYTICS',
+            'role': 'LABEL',
             'key': 'value',
-            'value_type': 'int',
-            'average_value': 123.45
-        },
+            'value_type': 'int'
+          }
+        ],
         'conversion_rate_segments': 10,
         'class_imbalance': 5,
         'timespans': [
@@ -95,7 +114,8 @@ class TestMlModelViews(controller_utils.ControllerAppTest):
             'destination': 'GOOGLE_ADS_OFFLINE_CONVERSION',
             'parameters': {
                 'customer_id': '1234567890',
-                'conversion_action_id': '0987654321'
+                'conversion_action_id': '0987654321',
+                'average_conversion_value': 1234.5
             }
         }
     }
@@ -245,17 +265,22 @@ class TestMlModelViews(controller_utils.ControllerAppTest):
             {'name': 'DATA_SPLIT_METHOD', 'value': 'AUTO_SPLIT'},
             {'name': 'EARLY_STOP', 'value': 'false'}
         ],
-        'features': [{
+        'variables': [
+          {
             'name': 'click',
-            'source': 'GOOGLE_ANALYTICS'
-        }],
-        'label': {
+            'source': 'GOOGLE_ANALYTICS',
+            'role': 'FEATURE',
+            'key': None,
+            'value_type': None
+          },
+          {
             'name': 'purchase',
-            'key': '',
-            'value_type': '',
             'source': 'FIRST_PARTY',
-            'average_value': 0.0
-        },
+            'role': 'LABEL',
+            'key': None,
+            'value_type': None
+          }
+        ],
         'conversion_rate_segments': 0,
         'class_imbalance': 7,
         'timespans': [
@@ -266,7 +291,8 @@ class TestMlModelViews(controller_utils.ControllerAppTest):
             'destination': 'GOOGLE_ANALYTICS_MP_EVENT',
             'parameters': {
                 'customer_id': '0',
-                'conversion_action_id': '0'
+                'conversion_action_id': '0',
+                'average_conversion_value': 0.0
             }
         }
     }

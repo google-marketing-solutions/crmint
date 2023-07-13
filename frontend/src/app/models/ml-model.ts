@@ -116,6 +116,7 @@ export type Variable = {
   key?: string;
   value_type?: string;
   hint?: string;
+  keyRequired?: boolean;
 }
 
 export type BigQueryDataset = {

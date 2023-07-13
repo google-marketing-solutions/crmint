@@ -286,19 +286,29 @@ export class MlModelFormComponent implements OnInit {
       if (this.type.isClassification) {
         variable.roles = variable.roles.filter(r => ![Role.FIRST_VALUE].includes(r));
       }
-      variable.role = existingVariable ? existingVariable.role : null;
-      if (variable.role === Role.LABEL) {
-        if (existingVariable.key) {
-          variable.key = existingVariable.key;
-          variable.value_type = variable.parameters.find(p => p.key === variable.key).value_type;
-        } else if (variable.parameters.length === 1) {
-          variable.key = variable.parameters[0].key;
-          variable.value_type = variable.parameters[0].value_type;
-        }
 
+      variable.role = existingVariable ? existingVariable.role : null;
+      variable.keyRequired = false;
+      variable.hint = null;
+
+      if (existingVariable && existingVariable.key) {
+        variable.key = existingVariable.key;
+        variable.value_type = variable.parameters.find(p => p.key === variable.key).value_type;
+      } else if (variable.parameters.length === 1) {
+        variable.key = variable.parameters[0].key;
+        variable.value_type = variable.parameters[0].value_type;
+      }
+
+      if (variable.role === Role.LABEL) {
         if (variable.source == Source.GOOGLE_ANALYTICS) {
-          variable.hint = 'Trigger date is derrived from the date associated with the first value and the first value (if not selected) defaults to the first label value.';
+          variable.keyRequired = true;
+          variable.hint = 'Due to your selection, trigger date will be derrived from the date associated with the first value ' +
+                          'and the first value (if not selected) defaults to the first label value.';
         }
+      }
+
+      if (variable.role === Role.FIRST_VALUE && variable.source === Source.GOOGLE_ANALYTICS) {
+        variable.keyRequired = true;
       }
 
       controls.push(this._fb.group({
@@ -307,10 +317,10 @@ export class MlModelFormComponent implements OnInit {
         count: [variable.count],
         roles: [variable.roles],
         role: [variable.role, this.enumValidator(Role)],
-        parameters: [[Role.LABEL, Role.FIRST_VALUE].includes(variable.role) ? variable.parameters : null],
+        parameters: [variable.keyRequired ? variable.parameters : null],
         key: [
           variable.key,
-          variable.role === Role.LABEL && variable.source === Source.GOOGLE_ANALYTICS ? [Validators.required] : []
+          variable.keyRequired ? [Validators.required] : []
         ],
         value_type: [variable.value_type],
         hint: variable.hint

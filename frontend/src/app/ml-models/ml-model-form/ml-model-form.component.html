@@ -122,10 +122,7 @@
             <tbody>
               <tr *ngFor="let variable of variables.controls; index as i" [formGroupName]="i">
                 <td class="source">{{ value(variable, 'source') | labelcase }}</td>
-                <td>
-                  {{ value(variable, 'name') }}
-                  <mat-icon *ngIf="value(variable, 'hint')" class="tooltip" [title]="value(variable, 'hint')">help</mat-icon>
-                </td>
+                <td>{{ value(variable, 'name') }}</td>
                 <td class="count" [hidden]="!value(variable, 'count')">
                   <mat-icon>bar_chart</mat-icon> {{ value(variable, 'count') }}
                 </td>
@@ -139,6 +136,9 @@
                   <mat-select placeholder="Key" formControlName="key">
                     <mat-option *ngFor="let parameter of parameters" [value]="parameter.key">{{ parameter.key }}</mat-option>
                   </mat-select>
+                </td>
+                <td class='hint' *ngIf="value(variable, 'hint')">
+                  <mat-icon class="tooltip" [title]="value(variable, 'hint')">warning</mat-icon>
                 </td>
               </tr>
             </tbody>

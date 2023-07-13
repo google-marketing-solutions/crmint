@@ -45,8 +45,7 @@ parser.add_argument('uses_first_party_data', type=bool, required=False)
 parser.add_argument(
     'hyper_parameters', type=list, location='json', required=False
 )
-parser.add_argument('features', type=list, location='json', required=False)
-parser.add_argument('label', type=dict, required=False)
+parser.add_argument('variables', type=list, location='json', required=False)
 parser.add_argument('conversion_rate_segments', type=int, required=False)
 parser.add_argument('class_imbalance', type=int, required=False)
 parser.add_argument('timespans', type=list, location='json', required=False)
