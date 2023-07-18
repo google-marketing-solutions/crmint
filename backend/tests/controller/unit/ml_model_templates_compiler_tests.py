@@ -29,7 +29,6 @@ class TestCompiler(parameterized.TestCase):
   def test_build_training_pipeline(self):
     test_model = self.model_config(
         model_type='BOOSTED_TREE_CLASSIFIER',
-        uses_first_party_data=True,
         variables=[
           {
             'role': 'LABEL',
@@ -49,6 +48,7 @@ class TestCompiler(parameterized.TestCase):
             'source': 'FIRST_PARTY'
           }
         ],
+        source='GOOGLE_ANALYTICS_AND_FIRST_PARTY',
         class_imbalance=4)
 
     pipeline = self.compiler(test_model).build_training_pipeline()
@@ -93,7 +93,6 @@ class TestCompiler(parameterized.TestCase):
   def test_build_model_sql_first_party_and_google_analytics(self):
     test_model = self.model_config(
         model_type='BOOSTED_TREE_CLASSIFIER',
-        uses_first_party_data=True,
         variables=[
           {
             'role': 'LABEL',
@@ -113,6 +112,7 @@ class TestCompiler(parameterized.TestCase):
             'source': 'FIRST_PARTY'
           }
         ],
+        source='GOOGLE_ANALYTICS_AND_FIRST_PARTY',
         class_imbalance=4)
 
     pipeline = self.compiler(test_model).build_training_pipeline()
@@ -136,6 +136,12 @@ class TestCompiler(parameterized.TestCase):
         'FROM `test-project-id-1234.test-ga4-dataset-loc.events_*`',
         sql,
         'Event table name check failed.')
+
+    # first party table name check
+    self.assertIn(
+        'FROM `test-project-id-1234.FP_DATASET.FP_DATA_TABLE`',
+        sql,
+        'First party table name check failed.')
 
     # hyper-parameter check
     self.assertRegex(
@@ -197,7 +203,6 @@ class TestCompiler(parameterized.TestCase):
   def test_build_model_sql_first_party(self):
     test_model = self.model_config(
         model_type='BOOSTED_TREE_CLASSIFIER',
-        uses_first_party_data=True,
         variables=[
           {
             'role': 'LABEL',
@@ -227,6 +232,7 @@ class TestCompiler(parameterized.TestCase):
             'source': 'FIRST_PARTY'
           }
         ],
+        source='FIRST_PARTY',
         class_imbalance=1)
 
     pipeline = self.compiler(test_model).build_training_pipeline()
@@ -235,6 +241,12 @@ class TestCompiler(parameterized.TestCase):
     sql_param = self.first(params, 'name', 'script')
     self.assertIsNotNone(sql_param)
     sql = sql_param['value']
+
+    # first party table name check
+    self.assertIn(
+        'FROM `test-project-id-1234.FP_DATASET.FP_DATA_TABLE`',
+        sql,
+        'First party table name check failed.')
 
     # label check
     self.assertRegex(
@@ -273,7 +285,6 @@ class TestCompiler(parameterized.TestCase):
   def test_build_model_sql_google_analytics(self):
     test_model = self.model_config(
         model_type='BOOSTED_TREE_CLASSIFIER',
-        uses_first_party_data=False,
         variables=[
           {
             'role': 'LABEL',
@@ -333,7 +344,6 @@ class TestCompiler(parameterized.TestCase):
   def test_build_model_sql_google_analytics_regression_model(self):
     test_model = self.model_config(
         model_type='BOOSTED_TREE_REGRESSOR',
-        uses_first_party_data=False,
         variables=[
           {
             'role': 'LABEL',
@@ -390,7 +400,6 @@ class TestCompiler(parameterized.TestCase):
   def test_build_model_sql_google_analytics_regression_model_label_as_first_value(self):
     test_model = self.model_config(
         model_type='BOOSTED_TREE_REGRESSOR',
-        uses_first_party_data=False,
         variables=[
           {
             'role': 'LABEL',
@@ -440,7 +449,6 @@ class TestCompiler(parameterized.TestCase):
   def test_build_model_sql_google_analytics_classification_model(self):
     test_model = self.model_config(
         model_type='BOOSTED_TREE_CLASSIFIER',
-        uses_first_party_data=False,
         variables=[
           {
             'role': 'LABEL',
@@ -478,7 +486,6 @@ class TestCompiler(parameterized.TestCase):
   def test_build_conversion_values_sql_first_party_and_google_analytics(self):
     test_model = self.model_config(
         model_type='BOOSTED_TREE_CLASSIFIER',
-        uses_first_party_data=True,
         variables=[
           {
             'role': 'LABEL',
@@ -498,6 +505,7 @@ class TestCompiler(parameterized.TestCase):
             'source': 'FIRST_PARTY'
           }
         ],
+        source='GOOGLE_ANALYTICS_AND_FIRST_PARTY',
         class_imbalance=4)
 
     pipeline = self.compiler(test_model).build_training_pipeline()
@@ -527,6 +535,12 @@ class TestCompiler(parameterized.TestCase):
         'FROM `test-project-id-1234.test-ga4-dataset-loc.events_*`',
         sql,
         'Event table name check failed.')
+
+    # first party table name check
+    self.assertIn(
+        'FROM `test-project-id-1234.FP_DATASET.FP_DATA_TABLE`',
+        sql,
+        'First party table name check failed.')
 
     # label check
     self.assertRegex(
@@ -586,7 +600,6 @@ class TestCompiler(parameterized.TestCase):
   def test_build_conversion_values_sql_first_party(self):
     test_model = self.model_config(
         model_type='BOOSTED_TREE_CLASSIFIER',
-        uses_first_party_data=True,
         unique_id='USER_ID',
         variables=[
           {
@@ -617,6 +630,7 @@ class TestCompiler(parameterized.TestCase):
             'source': 'FIRST_PARTY'
           }
         ],
+        source='FIRST_PARTY',
         class_imbalance=4)
 
     pipeline = self.compiler(test_model).build_training_pipeline()
@@ -628,6 +642,12 @@ class TestCompiler(parameterized.TestCase):
     sql_param = self.first(params, 'name', 'script')
     self.assertIsNotNone(sql_param)
     sql = sql_param['value']
+
+    # first party table name check
+    self.assertIn(
+        'FROM `test-project-id-1234.FP_DATASET.FP_DATA_TABLE`',
+        sql,
+        'First party table name check failed.')
 
     # label check
     self.assertIn(
@@ -657,7 +677,6 @@ class TestCompiler(parameterized.TestCase):
   def test_build_conversion_values_sql_google_analytics(self):
     test_model = self.model_config(
         model_type='BOOSTED_TREE_CLASSIFIER',
-        uses_first_party_data=False,
         variables=[
           {
             'role': 'LABEL',
@@ -722,7 +741,6 @@ class TestCompiler(parameterized.TestCase):
   def test_build_predictive_pipeline(self, destination: str):
     test_model = self.model_config(
         model_type='BOOSTED_TREE_CLASSIFIER',
-        uses_first_party_data=True,
         variables=[
           {
             'role': 'LABEL',
@@ -743,6 +761,7 @@ class TestCompiler(parameterized.TestCase):
           }
         ],
         class_imbalance=4,
+        source='GOOGLE_ANALYTICS_AND_FIRST_PARTY',
         destination=destination)
 
     pipeline = self.compiler(test_model).build_predictive_pipeline()
@@ -839,7 +858,6 @@ class TestCompiler(parameterized.TestCase):
   def test_build_predictive_sql_first_party_and_google_analytics(self):
     test_model = self.model_config(
         model_type='BOOSTED_TREE_CLASSIFIER',
-        uses_first_party_data=True,
         variables=[
           {
             'role': 'LABEL',
@@ -859,6 +877,7 @@ class TestCompiler(parameterized.TestCase):
             'source': 'FIRST_PARTY'
           }
         ],
+        source='GOOGLE_ANALYTICS_AND_FIRST_PARTY',
         class_imbalance=4)
 
     pipeline = self.compiler(test_model).build_predictive_pipeline()
@@ -889,6 +908,12 @@ class TestCompiler(parameterized.TestCase):
         'FROM `test-project-id-1234.test-ga4-dataset-loc.events_*`',
         sql,
         'Event table name check failed.')
+
+    # first party table name check
+    self.assertIn(
+        'FROM `test-project-id-1234.FP_DATASET.FP_DATA_TABLE`',
+        sql,
+        'First party table name check failed.')
 
     # label check
     self.assertRegex(
@@ -930,7 +955,6 @@ class TestCompiler(parameterized.TestCase):
   def test_build_predictive_sql_first_party(self):
     test_model = self.model_config(
         model_type='BOOSTED_TREE_CLASSIFIER',
-        uses_first_party_data=True,
         unique_id='USER_ID',
         variables=[
           {
@@ -961,6 +985,7 @@ class TestCompiler(parameterized.TestCase):
             'source': 'FIRST_PARTY'
           }
         ],
+        source='FIRST_PARTY',
         class_imbalance=4)
 
     pipeline = self.compiler(test_model).build_predictive_pipeline()
@@ -973,6 +998,12 @@ class TestCompiler(parameterized.TestCase):
     sql_param = self.first(params, 'name', 'script')
     self.assertIsNotNone(sql_param)
     sql = sql_param['value']
+
+    # first party table name check
+    self.assertIn(
+        'FROM `test-project-id-1234.FP_DATASET.FP_DATA_TABLE`',
+        sql,
+        'First party table name check failed.')
 
     # probability check
     self.assertIn(
@@ -1019,7 +1050,6 @@ class TestCompiler(parameterized.TestCase):
   def test_build_predictive_sql_google_analytics(self):
     test_model = self.model_config(
         model_type='BOOSTED_TREE_CLASSIFIER',
-        uses_first_party_data=False,
         variables=[
           {
             'role': 'LABEL',
@@ -1079,7 +1109,6 @@ class TestCompiler(parameterized.TestCase):
   def test_build_predictive_sql_google_analytics_regression_model(self):
     test_model = self.model_config(
         model_type='BOOSTED_TREE_REGRESSOR',
-        uses_first_party_data=False,
         variables=[
           {
             'role': 'LABEL',
@@ -1138,7 +1167,6 @@ class TestCompiler(parameterized.TestCase):
   def test_build_output_sql_classification_model(self):
     test_model = self.model_config(
         model_type='BOOSTED_TREE_CLASSIFIER',
-        uses_first_party_data=True,
         unique_id='USER_ID',
         variables=[
           {
@@ -1159,6 +1187,7 @@ class TestCompiler(parameterized.TestCase):
             'source': 'FIRST_PARTY'
           }
         ],
+        source='GOOGLE_ANALYTICS_AND_FIRST_PARTY',
         class_imbalance=4)
 
     pipeline = self.compiler(test_model).build_predictive_pipeline()
@@ -1219,7 +1248,6 @@ class TestCompiler(parameterized.TestCase):
   def test_build_output_sql_regression_model(self):
     test_model = self.model_config(
         model_type='BOOSTED_TREE_REGRESSOR',
-        uses_first_party_data=True,
         unique_id='USER_ID',
         variables=[
           {
@@ -1240,6 +1268,7 @@ class TestCompiler(parameterized.TestCase):
             'source': 'FIRST_PARTY'
           }
         ],
+        source='GOOGLE_ANALYTICS_AND_FIRST_PARTY',
         class_imbalance=4)
 
     pipeline = self.compiler(test_model).build_predictive_pipeline()
@@ -1293,7 +1322,6 @@ class TestCompiler(parameterized.TestCase):
   def test_build_output_sql_google_analytics_mp_event(self):
     test_model = self.model_config(
         model_type='BOOSTED_TREE_CLASSIFIER',
-        uses_first_party_data=True,
         unique_id='USER_ID',
         variables=[
           {
@@ -1315,6 +1343,7 @@ class TestCompiler(parameterized.TestCase):
           }
         ],
         class_imbalance=4,
+        source='GOOGLE_ANALYTICS_AND_FIRST_PARTY',
         destination='GOOGLE_ANALYTICS_MP_EVENT')
 
     pipeline = self.compiler(test_model).build_predictive_pipeline()
@@ -1338,7 +1367,6 @@ class TestCompiler(parameterized.TestCase):
   def test_build_output_sql_google_ads_offline_conversion(self):
     test_model = self.model_config(
         model_type='BOOSTED_TREE_CLASSIFIER',
-        uses_first_party_data=True,
         unique_id='USER_ID',
         variables=[
           {
@@ -1360,6 +1388,7 @@ class TestCompiler(parameterized.TestCase):
           }
         ],
         class_imbalance=4,
+        source='GOOGLE_ANALYTICS_AND_FIRST_PARTY',
         destination='GOOGLE_ADS_OFFLINE_CONVERSION')
 
     pipeline = self.compiler(test_model).build_predictive_pipeline()
@@ -1383,7 +1412,6 @@ class TestCompiler(parameterized.TestCase):
   def test_build_ga4_request(self):
     test_model = self.model_config(
         model_type='BOOSTED_TREE_REGRESSOR',
-        uses_first_party_data=False,
         variables=[
           {
             'role': 'LABEL',
@@ -1426,7 +1454,6 @@ class TestCompiler(parameterized.TestCase):
   def test_build_google_analytics_mp_event_score(self):
     test_model = self.model_config(
         model_type='BOOSTED_TREE_CLASSIFIER',
-        uses_first_party_data=True,
         unique_id='USER_ID',
         variables=[
           {
@@ -1476,7 +1503,6 @@ class TestCompiler(parameterized.TestCase):
   def test_build_google_analytics_mp_event_revenue(self):
     test_model = self.model_config(
         model_type='BOOSTED_TREE_REGRESSOR',
-        uses_first_party_data=True,
         unique_id='USER_ID',
         variables=[
           {
@@ -1525,7 +1551,6 @@ class TestCompiler(parameterized.TestCase):
   def test_build_google_ads_offline_conversion(self):
     test_model = self.model_config(
         model_type='BOOSTED_TREE_REGRESSOR',
-        uses_first_party_data=True,
         unique_id='USER_ID',
         variables=[
           {
@@ -1558,19 +1583,25 @@ class TestCompiler(parameterized.TestCase):
 
   def model_config(self,
                    model_type: str,
-                   uses_first_party_data: bool,
                    variables: list[dict[str, Any]],
                    class_imbalance: int,
                    unique_id: str = 'CLIENT_ID',
+                   source: str = 'GOOGLE_ANALYTICS',
                    destination: str = 'GOOGLE_ANALYTICS_MP_EVENT'):
     return self.convert_to_object({
         'name': 'Test Model',
+        'input': {
+          'source': source,
+          'parameters': {
+            'first_party_dataset': 'FP_DATASET',
+            'first_party_table': 'FP_DATA_TABLE'
+          }
+        },
         'bigquery_dataset': {
             'location': 'US',
             'name': 'test-dataset'
         },
         'type': model_type,
-        'uses_first_party_data': uses_first_party_data,
         'unique_id': unique_id,
         'hyper_parameters': [
             {'name': 'HP1-NAME', 'value': 'HP1-STRING'},

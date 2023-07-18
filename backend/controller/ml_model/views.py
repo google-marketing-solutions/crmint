@@ -38,10 +38,10 @@ api = Api(blueprint)
 
 parser = reqparse.RequestParser()
 parser.add_argument('name', type=str, required=False)
+parser.add_argument('input', type=dict, required=False)
 parser.add_argument('bigquery_dataset', type=dict, required=False)
 parser.add_argument('type', type=str, required=False)
 parser.add_argument('unique_id', type=str, required=False)
-parser.add_argument('uses_first_party_data', type=bool, required=False)
 parser.add_argument(
     'hyper_parameters', type=list, location='json', required=False
 )
@@ -50,6 +50,14 @@ parser.add_argument('conversion_rate_segments', type=int, required=False)
 parser.add_argument('class_imbalance', type=int, required=False)
 parser.add_argument('timespans', type=list, location='json', required=False)
 parser.add_argument('output', type=dict, required=False)
+
+input_structure = fields.Nested({
+    'source': fields.String,
+    'parameters': fields.Nested({
+        'first_party_dataset': fields.String,
+        'first_party_table': fields.String
+    })
+})
 
 bigquery_dataset_structure = fields.Nested(
     {'name': fields.String, 'location': fields.String}
@@ -112,10 +120,10 @@ pipelines_structure = fields.List(
 ml_model_structure = {
     'id': fields.Integer,
     'name': fields.String,
+    'input': input_structure,
     'bigquery_dataset': bigquery_dataset_structure,
     'type': fields.String,
     'unique_id': fields.String,
-    'uses_first_party_data': fields.Boolean,
     'hyper_parameters': hyper_parameters_structure,
     'variables': variables_structure,
     'conversion_rate_segments': fields.Integer,

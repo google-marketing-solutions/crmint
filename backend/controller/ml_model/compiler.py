@@ -103,7 +103,7 @@ class Timespan:
     return 1
 
 
-class VariableSource(shared.StrEnum):
+class Source(shared.StrEnum):
   FIRST_PARTY = 'FIRST_PARTY'
   GOOGLE_ANALYTICS = 'GOOGLE_ANALYTICS'
 
@@ -141,17 +141,16 @@ class VariableSet():
 
   @property
   def unique_id(self):
-    return self.__getattribute__(self._unique_id)
+    unique_id = self.__getattribute__(self._unique_id)
+    return unique_id.name if isinstance(unique_id, models.MlModelVariable) else unique_id
 
   def add(self, variable: models.MlModelVariable) -> None:
     if variable.role == VariableRole.FEATURE:
       self.features.append(variable)
     elif variable.role == VariableRole.FIRST_VALUE:
       self._first_value = variable
-    elif variable.role == VariableRole.LABEL:
-      self.__setattr__(str(variable.role).lower(), variable)
     else:
-      self.__setattr__(str(variable.role).lower(), variable.name)
+      self.__setattr__(str(variable.role).lower(), variable)
 
 
 class Compiler():
@@ -212,6 +211,13 @@ class Compiler():
     """Uses the template and data provided to render the result."""
     variables = {
         'name': self.ml_model.name,
+        'input': {
+            'source': {
+              'includes_first_party':
+                  Source.FIRST_PARTY in self.ml_model.input.source
+            },
+            'parameters': self.ml_model.input.parameters
+        },
         'project_id': self.project_id,
         'model_dataset': self.ml_model.bigquery_dataset.name,
         'ga4_dataset': self.ga4_dataset,
@@ -224,7 +230,6 @@ class Compiler():
             'is_classification':
                 self.ml_model.type in ModelTypes.CLASSIFICATION,
         },
-        'uses_first_party_data': self.ml_model.uses_first_party_data,
         'hyper_parameters': self.ml_model.hyper_parameters,
         'timespan': self._get_timespan(self.ml_model.timespans),
         'unique_id_type': self.ml_model.unique_id,

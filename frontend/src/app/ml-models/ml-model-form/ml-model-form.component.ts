@@ -23,7 +23,7 @@ import { plainToClass } from 'class-transformer';
 import { MlModelsService } from '../shared/ml-models.service';
 import {
   MlModel, Type, ClassificationType, RegressionType, UniqueId, HyperParameter,
-  Variable, BigQueryDataset, Timespan, Source, Destination, Output, Role
+  Variable, BigQueryDataset, Timespan, Source, Destination, Input, Output, Role
 } from 'app/models/ml-model';
 
 @Component({
@@ -40,6 +40,7 @@ export class MlModelFormComponent implements OnInit {
   errorMessage: string = '';
   uniqueIds: string[];
   types: string[];
+  sources: string[];
   destinations: string[];
   cachedVariables: Variable[] = [];
   fetchingVariables: boolean = false;
@@ -52,9 +53,10 @@ export class MlModelFormComponent implements OnInit {
     private route: ActivatedRoute) {
       this.title = this.router.url.endsWith('new') ? 'New Machine-Learning Model' : 'Edit Machine-Learning Model';
       this.createForm();
-      this.types = Object.values(Type).filter(type => type !== Type.LOGISTIC_REG);
-      this.uniqueIds = Object.values(UniqueId);
-      this.destinations = Object.values(Destination);
+      this.types = Object.keys(Type).filter(type => type !== Type.LOGISTIC_REG);
+      this.uniqueIds = Object.keys(UniqueId);
+      this.destinations = Object.keys(Destination);
+      this.sources = Object.keys(Source).filter(source => source !== Source.FIRST_PARTY);
     }
 
   /**
@@ -63,20 +65,26 @@ export class MlModelFormComponent implements OnInit {
   createForm() {
     this.mlModelForm = this._fb.group({
       name: ['', [Validators.required, Validators.pattern(/^[a-z][a-z0-9 _-]*$/i)]],
+      input: this._fb.group({
+        source: ['', [Validators.required, this.enumValidator(Source)]],
+        parameters: this._fb.group({
+          firstPartyDataset: [null, Validators.pattern(/^[a-z][a-z0-9 _-]*$/i)],
+          firstPartyTable: [null, Validators.pattern(/^[a-z][a-z0-9 _-]*$/i)]
+        })
+      }),
       bigQueryDataset: this._fb.group({
         name: ['', [Validators.required, Validators.pattern(/^[a-z][a-z0-9_-]*$/i)]],
         location: ['US', [Validators.required, Validators.pattern(/^[a-z]{2,}$/i)]]
       }),
       type: [null, [Validators.required, this.enumValidator(Type)]],
       uniqueId: [null, [Validators.required, this.enumValidator(UniqueId)]],
-      usesFirstPartyData: [null, Validators.required],
       hyperParameters: this._fb.array([]),
       variables: this._fb.array([]),
       conversionRateSegments: [0, [Validators.required, Validators.pattern(/^[0-9]*$/)]],
       classImbalance: [4, [Validators.required, Validators.min(1), Validators.max(10)]],
       timespans: this._fb.array([]),
       output: this._fb.group({
-        destination: [null, [Validators.required, this.enumValidator(Destination)]],
+        destination: ['', [Validators.required, this.enumValidator(Destination)]],
         parameters: this._fb.group({
           customerId: [null, Validators.pattern(/^[0-9]*$/)],
           conversionActionId: [null, Validators.pattern(/^[0-9]*$/)],
@@ -90,23 +98,28 @@ export class MlModelFormComponent implements OnInit {
    * If an id param exists pull and load the configuration associated with it.
    * Otherwise load any necessary data required to configure a new model.
    */
-  ngOnInit() {
-    this.route.params.subscribe(params => {
+  async ngOnInit() {
+    this.route.params.subscribe(async params => {
       const id = params['id'];
-      if (id) {
-        this.loadConfiguration(id)
-          .then(() => this.state = 'loaded')
-          .catch(error => {
-            if (error === 'model-not-found') {
-              this.router.navigate(['ml-models']);
-            } else {
-              this.errorMessage = error.toString();
-              this.state = 'error';
-            }
-          });
-      } else {
-        this.refreshTimespans();
+      try {
+        if (id) {
+          await this.loadConfiguration(id);
+          this.refreshInput();
+          this.refreshTimespans();
+          this.refreshHyperParameters();
+          this.refreshOutput();
+          await this.refreshVariables();
+        } else {
+          this.refreshTimespans();
+        }
         this.state = 'loaded';
+      } catch (error) {
+        if (error === 'model-not-found') {
+          this.router.navigate(['ml-models']);
+        } else {
+          this.errorMessage = error.toString();
+          this.state = 'error';
+        }
       }
     });
   }
@@ -136,13 +149,19 @@ export class MlModelFormComponent implements OnInit {
   assignMlModelToForm() {
     this.mlModelForm.reset({
       name: this.mlModel.name,
+      input: {
+        source: this.mlModel.input.source,
+        parameters: {
+          firstPartyDataset: this.mlModel.input.parameters.first_party_dataset,
+          firstPartyTable: this.mlModel.input.parameters.first_party_table
+        }
+      },
       bigQueryDataset: {
         name: this.mlModel.bigquery_dataset.name,
         location: this.mlModel.bigquery_dataset.location
       },
       type: this.mlModel.type,
       uniqueId: this.mlModel.unique_id,
-      usesFirstPartyData: this.mlModel.uses_first_party_data,
       conversionRateSegments: this.mlModel.conversion_rate_segments,
       classImbalance: this.mlModel.class_imbalance,
       output: {
@@ -154,10 +173,6 @@ export class MlModelFormComponent implements OnInit {
         }
       }
     });
-
-    this.refreshTimespans();
-    this.refreshHyperParameters();
-    this.refreshVariables();
   }
 
   /**
@@ -173,11 +188,22 @@ export class MlModelFormComponent implements OnInit {
   }
 
   get type() {
-    const type = this.value('type');
+    const type: Type = this.mlModelForm.get('type').value;
     return {
       isClassification: Object.keys(ClassificationType).includes(type),
       isRegression: Object.keys(RegressionType).includes(type)
     }
+  }
+
+  get input() {
+    let input: Input = this.mlModelForm.get('input').value;
+
+    input.requirements = [];
+    if (input.source.includes(Source.FIRST_PARTY)) {
+      input.requirements = ['firstPartyDataset', 'firstPartyTable']
+    }
+
+    return input;
   }
 
   get variables() {
@@ -193,17 +219,18 @@ export class MlModelFormComponent implements OnInit {
   }
 
   get output() {
-    let output = this.mlModelForm.get('output').value;
-    let requirements = [];
+    let output: Output = this.mlModelForm.get('output').value;
+    const isClassificationModel = this.type.isClassification;
+
+    output.requirements = [];
     switch (output.destination) {
       case Destination.GOOGLE_ADS_OFFLINE_CONVERSION:
-        requirements = ['customerId', 'conversionActionId'];
+        output.requirements = ['customerId', 'conversionActionId'];
         break;
     }
-    if (this.type.isClassification) {
-      requirements.push('averageConversionValue');
+    if (isClassificationModel) {
+      output.requirements.push('averageConversionValue');
     }
-    output.requirements = requirements;
 
     return output;
   }
@@ -212,17 +239,17 @@ export class MlModelFormComponent implements OnInit {
    * Provides a quick unified way to check all the necessary parameters exist
    * that are required to properly fetch the ml model variables.
    */
-  get variableRequirementsProvided() {
-    const bigQueryDatasetName = this.value('bigQueryDataset', 'name');
-    const bigQueryDatasetLocation = this.value('bigQueryDataset', 'location');
-    const usesFirstPartyData = this.value('usesFirstPartyData');
-    const timespans = this.value('timespans');
+  get variableRequirementsProvided(): boolean {
+    const bigQueryDatasetName: string = this.value('bigQueryDataset', 'name');
+    const bigQueryDatasetLocation: string = this.value('bigQueryDataset', 'location');
+    const includesFirstPartyData: boolean = this.input.source.includes(Source.FIRST_PARTY);
+    const timespans: Timespan[] = this.value('timespans');
 
     if (!bigQueryDatasetName || !bigQueryDatasetLocation) {
       return false;
     }
 
-    if (usesFirstPartyData === null) {
+    if (includesFirstPartyData === null) {
       return false;
     }
 
@@ -236,15 +263,40 @@ export class MlModelFormComponent implements OnInit {
   }
 
   /**
+   * Dynamically updates required input parameters based on the input destination selected.
+   */
+  refreshInput() {
+    const input: Input = this.input;
+    const allRequirementsFields: string[] = Object.keys(input.parameters);
+
+    if (input.requirements.length > 0) {
+      for (const requirement of input.requirements) {
+        this.mlModelForm.get(['input', 'parameters', requirement]).addValidators(Validators.required);
+      }
+    } else {
+      for (const requirement of allRequirementsFields) {
+        this.mlModelForm.get(['input', 'parameters', requirement]).removeValidators(Validators.required);
+      }
+    }
+
+    for (const requirement of allRequirementsFields) {
+      this.mlModelForm.get(['input', 'parameters', requirement]).setValue(null);
+    }
+  }
+
+  /**
    * Get variables (feature, label, and other options) from GA4 Events and First Party tables in BigQuery.
    */
-  async getVariables() {
-    if (this.cachedVariables.length === 0) {
+  async getVariables(): Promise<Variable[]> {
+    this.fetchingVariables = true;
+    const includesFirstPartyData: boolean = this.input.source.includes(Source.FIRST_PARTY);
+    let variables: Variable[] = this.cachedVariables;
+
+    if (variables.length === 0) {
       try {
-        this.fetchingVariables = true;
         const dataset = this.value('bigQueryDataset');
         const ts = this.value('timespans');
-        const variables = await this.mlModelsService.getVariables(dataset, ts);
+        variables = await this.mlModelsService.getVariables(dataset, ts);
         variables.sort((a: Variable, b: Variable) => {
           return a.source.localeCompare(b.source);
         });
@@ -252,43 +304,40 @@ export class MlModelFormComponent implements OnInit {
         this.errorMessage = '';
       } catch (error) {
         this.errorMessage = error || 'An error occurred';
-      } finally {
-        this.fetchingVariables = false;
       }
     }
 
-    const usesFirstPartyData = this.value('usesFirstPartyData');
-    if (!usesFirstPartyData) {
-      return this.cachedVariables.filter(v => v.source !== Source.FIRST_PARTY);
+    this.fetchingVariables = false;
+    if (!includesFirstPartyData) {
+      return variables.filter(v => v.source !== Source.FIRST_PARTY);
     }
-    return this.cachedVariables;
+    return variables;
   }
 
   /**
-   * Take the provided variables and toggle the requisite checkboxes
-   * and set the variable roles within the form.
-   *
-   * @param variables
+   * Attaches existing variable configuration for a model to the form.
+   * Updates variable form fields based on related/linked form field changes.
    */
   async refreshVariables() {
-    const formVariables = this.value('variables');
-    const roles = Object.values(Role);
-    const firstPartyRoles = roles;
-    const googleAnalyticsRoles = roles.filter(r => ![Role.TRIGGER_DATE, Role.CLIENT_ID, Role.USER_ID].includes(r));
-    const existingVariables = formVariables.length ? formVariables : this.mlModel.variables;
-    const variables = await this.getVariables();
+    const formVariables: Variable[] = this.value('variables');
+    const roles: Role[] = Object.values(Role);
+    const firstPartyRoles: Role[] = roles;
+    const googleAnalyticsRoles: Role[] = roles.filter(r => ![Role.TRIGGER_DATE, Role.CLIENT_ID, Role.USER_ID].includes(r));
+    const existingVariables: Variable[] = formVariables.length ? formVariables : this.mlModel.variables;
+    const variables: Variable[] = await this.getVariables();
+    const isClassificationModel = this.type.isClassification;
     let controls = [];
 
     for (const variable of variables) {
       const existingVariable = existingVariables?.find(v => v.name === variable.name && v.source === variable.source);
 
       variable.roles = variable.source === Source.FIRST_PARTY ? firstPartyRoles : googleAnalyticsRoles;
-      if (this.type.isClassification) {
+      if (isClassificationModel) {
         variable.roles = variable.roles.filter(r => ![Role.FIRST_VALUE].includes(r));
       }
 
       variable.role = existingVariable ? existingVariable.role : null;
-      variable.keyRequired = false;
+      variable.key_required = false;
       variable.hint = null;
 
       if (existingVariable && existingVariable.key) {
@@ -301,14 +350,14 @@ export class MlModelFormComponent implements OnInit {
 
       if (variable.role === Role.LABEL) {
         if (variable.source == Source.GOOGLE_ANALYTICS) {
-          variable.keyRequired = true;
+          variable.key_required = true;
           variable.hint = 'Due to your selection, trigger date will be derrived from the date associated with the first value ' +
                           'and the first value (if not selected) defaults to the first label value.';
         }
       }
 
       if (variable.role === Role.FIRST_VALUE && variable.source === Source.GOOGLE_ANALYTICS) {
-        variable.keyRequired = true;
+        variable.key_required = true;
       }
 
       controls.push(this._fb.group({
@@ -317,10 +366,10 @@ export class MlModelFormComponent implements OnInit {
         count: [variable.count],
         roles: [variable.roles],
         role: [variable.role, this.enumValidator(Role)],
-        parameters: [variable.keyRequired ? variable.parameters : null],
+        parameters: [variable.key_required ? variable.parameters : null],
         key: [
           variable.key,
-          variable.keyRequired ? [Validators.required] : []
+          variable.key_required ? [Validators.required] : []
         ],
         value_type: [variable.value_type],
         hint: variable.hint
@@ -340,12 +389,13 @@ export class MlModelFormComponent implements OnInit {
   }
 
   /**
-   * Take the provided hyper parameters and set/update associated controls within the form.
+   * Attaches existing hyper parameter configuration for a model to the form.
+   * Updates hyper parameter form fields based on related/linked form field changes.
    */
   refreshHyperParameters() {
     const formHyperParameters = this.value('hyperParameters');
+    const modelType: Type = this.value('type');
     const existingParams = formHyperParameters.length ? formHyperParameters : this.mlModel.hyper_parameters;
-    const modelType = this.value('type');
     const params = MlModel.getDefaultHyperParameters(modelType);
     let controls = [];
 
@@ -367,13 +417,11 @@ export class MlModelFormComponent implements OnInit {
   }
 
   /**
-   * Take the provided timespans and set/update associated controls within the form.
-   *
-   * @param existingTimespans The list of existing timespans returned from the backend.
+   * Attaches existing timespan configuration for a model to the form.
    */
   refreshTimespans() {
-    const existingTimespans = this.mlModel.timespans;
-    const timespans = MlModel.getDefaultTimespans();
+    const existingTimespans: Timespan[] = this.mlModel.timespans;
+    const timespans: Timespan[] = MlModel.getDefaultTimespans();
     let controls = [];
 
     for (const timespan of timespans) {
@@ -394,12 +442,11 @@ export class MlModelFormComponent implements OnInit {
   }
 
   /**
-   * Handles ensuring the output config fields are updated appropriately when form fields that
-   * affect what's allowed to be selected are changed.
+   * Dynamically updates required output parameters based on the output destination selected.
    */
   refreshOutput() {
-    const output = this.output;
-    const allRequirementsFields = Object.keys(output.parameters);
+    const output: Output = this.output;
+    const allRequirementsFields: string[] = Object.keys(output.parameters);
 
     if (output.requirements.length > 0) {
       for (const requirement of output.requirements) {
@@ -426,7 +473,13 @@ export class MlModelFormComponent implements OnInit {
     this.mlModel.bigquery_dataset = formModel.bigQueryDataset as BigQueryDataset;
     this.mlModel.type = formModel.type as Type;
     this.mlModel.unique_id = formModel.uniqueId as UniqueId;
-    this.mlModel.uses_first_party_data = formModel.usesFirstPartyData as boolean;
+    this.mlModel.input = {
+      source: formModel.input.source as string,
+      parameters: {
+        first_party_dataset: formModel.input.parameters.firstPartyDataset as string,
+        first_party_table: formModel.input.parameters.firstPartyTable as string
+      }
+    } as Input;
     this.mlModel.hyper_parameters = formModel.hyperParameters as HyperParameter[];
     this.mlModel.variables = formModel.variables.filter(v => v.role !== null) as Variable[];
     this.mlModel.conversion_rate_segments = formModel.conversionRateSegments as number;
@@ -485,7 +538,7 @@ export class MlModelFormComponent implements OnInit {
    */
   private enumValidator(e: object): ValidatorFn {
     return (control: AbstractControl): ValidationErrors | null => {
-      return !Object.values(e).includes(control.value) && control.value !== null ? {invalidSelection: {value: control.value}} : null;
+      return !Object.keys(e).includes(control.value) && control.value !== null ? {invalidSelection: {value: control.value}} : null;
     };
   }
 }

@@ -422,7 +422,6 @@ class TestMlModel(controller_utils.ModelTestCase):
         'name': 'Attribute Assigned',
         'type': 'BOOSTED_TREE_REGRESSOR',
         'unique_id': 'USER_ID',
-        'uses_first_party_data': True,
         'conversion_rate_segments': 10,
         'class_imbalance': 7
     }
@@ -434,7 +433,6 @@ class TestMlModel(controller_utils.ModelTestCase):
         'name': 'Attribute Assigned',
         'type': 'BOOSTED_TREE_UNKNOWN',
         'unique_id': 'UNKNOWN_ID',
-        'uses_first_party_data': True,
         'conversion_rate_segments': 10,
         'class_imbalance': 7
     }
@@ -451,44 +449,38 @@ class TestMlModel(controller_utils.ModelTestCase):
     self.assertRelationSaved(models.MlModelBigQueryDataset, dataset)
 
   @parameterized.named_parameters(
-      ('create', [{'name': 'click', 'source': 'FIRST_PARTY'}]),
+      (
+          'create',
+          [
+              {'name': 'click', 'source': 'FIRST_PARTY', 'role': 'FEATURE'},
+              {
+                  'name': 'CR-NAME',
+                  'source': 'FIRST_PARTY',
+                  'role': 'LABEL',
+                  'key': 'CR-KEY',
+                  'value_type': 'CR-VT'
+              }
+          ]
+      ),
       (
           'update',
           [
-              {'name': 'click', 'source': 'GOOGLE_ANALYTICS'},
-              {'name': 'subscribe', 'source': 'FIRST_PARTY'},
+              {'name': 'click', 'source': 'GOOGLE_ANALYTICS', 'role': 'FEATURE'},
+              {'name': 'subscribe', 'source': 'FIRST_PARTY', 'role': 'FEATURE'},
+              {
+                  'name': 'UP-NAME',
+                  'source': 'GOOGLE_ANALYTICS',
+                  'role': 'LABEL',
+                  'key': 'UP-KEY',
+                  'value_type': 'UP-VT'
+              }
           ],
       ),
       ('delete', []))
-  def test_save_relations_features(self, features):
-    self.assertEmpty(self.ml_model.features)
-    self.ml_model.save_relations({'features': features})
-    self.assertRelationSaved(models.MlModelFeature, features)
-
-  @parameterized.named_parameters(
-      (
-          'create',
-          {
-              'name': 'CR-NAME',
-              'source': 'FIRST_PARTY',
-              'key': 'CR-KEY',
-              'value_type': 'CR-VT',
-              'average_value': 1234,
-          },
-      ),
-      (
-          'update',
-          {
-              'name': 'UP-NAME',
-              'source': 'GOOGLE_ANALYTICS',
-              'key': 'UP-KEY',
-              'value_type': 'UP-VT',
-          },
-      ))
-  def test_save_relations_label(self, label):
-    self.assertIsNone(self.ml_model.label)
-    self.ml_model.save_relations({'label': label})
-    self.assertRelationSaved(models.MlModelLabel, label)
+  def test_save_relations_variables(self, variables):
+    self.assertEmpty(self.ml_model.variables)
+    self.ml_model.save_relations({'variables': variables})
+    self.assertRelationSaved(models.MlModelVariable, variables)
 
   @parameterized.named_parameters(
       ('create', [{'name': 'L1_REG', 'value': '1'}]),
@@ -516,6 +508,29 @@ class TestMlModel(controller_utils.ModelTestCase):
     self.assertEmpty(self.ml_model.timespans)
     self.ml_model.save_relations({'timespans': timespans})
     self.assertRelationSaved(models.MlModelTimespan, timespans)
+
+  @parameterized.named_parameters(
+      (
+          'create',
+          {
+              'source': 'GOOGLE_ANALYTICS',
+              'parameters': {}
+          },
+      ),
+      (
+          'update',
+          {
+              'source': 'GOOGLE_ANALYTICS_AND_FIRST_PARTY',
+              'parameters': {
+                  'first_party_dataset': 'FP_DATASET',
+                  'first_party_table': 'FP_DATA_TABLE'
+              }
+          },
+      ))
+  def test_save_relations_input(self, input):
+    self.assertIsNone(self.ml_model.input)
+    self.ml_model.save_relations({'input': input})
+    self.assertRelationSaved(models.MlModelInput, input)
 
   @parameterized.named_parameters(
       (
@@ -579,18 +594,34 @@ class TestMlModel(controller_utils.ModelTestCase):
 
   def test_destroy_removes_all_relations(self):
     self.ml_model.save_relations({
+        'input': {
+            'source': 'GOOGLE_ANALYTICS_AND_FIRST_PARTY',
+            'parameters': {
+                'first_party_dataset': 'FP_DATASET',
+                'first_party_table': 'FP_DATA_TABLE'
+            }
+        },
         'bigquery_dataset': {'name': 'CR-NAME', 'location': 'CR-LOC'},
         'hyper_parameters': [{'name': 'L1_REG', 'value': '1'}],
-        'features': [
-            {'name': 'click', 'source': 'GOOGLE_ANALYTICS'},
-            {'name': 'subscribe', 'source': 'FIRST_PARTY'},
+        'variables': [
+            {
+              'name': 'click',
+              'source': 'GOOGLE_ANALYTICS',
+              'role': 'FEATURE'
+            },
+            {
+              'name': 'subscribe',
+              'source': 'FIRST_PARTY',
+              'role': 'FEATURE'
+            },
+            {
+              'name': 'CR-NAME',
+              'source': 'FIRST_PARTY',
+              'role': 'LABEL',
+              'key': 'CR-KEY',
+              'value_type': 'CR-VT',
+            }
         ],
-        'label': {
-            'name': 'CR-NAME',
-            'source': 'FIRST_PARTY',
-            'key': 'CR-KEY',
-            'value_type': 'CR-VT',
-        },
         'output': {
             'destination': 'GOOGLE_ADS_OFFLINE_CONVERSION',
             'parameters': {
@@ -623,14 +654,17 @@ class TestMlModel(controller_utils.ModelTestCase):
 
     self.ml_model.destroy()
 
+    self.assertIsNone(models.MlModelInput.where(ml_model_id=model_id).first())
+    self.assertIsNone(
+        models.MlModelInputParameters.where(ml_model_id=model_id).first())
+
     self.assertIsNone(
         models.MlModelBigQueryDataset.where(ml_model_id=model_id).first()
     )
     self.assertIsNone(
         models.MlModelHyperParameter.where(ml_model_id=model_id).first()
     )
-    self.assertIsNone(models.MlModelFeature.where(ml_model_id=model_id).first())
-    self.assertIsNone(models.MlModelLabel.where(ml_model_id=model_id).first())
+    self.assertIsNone(models.MlModelVariable.where(ml_model_id=model_id).first())
     self.assertIsNone(models.MlModelOutput.where(ml_model_id=model_id).first())
     self.assertIsNone(
         models.MlModelOutputParameters.where(ml_model_id=model_id).first())

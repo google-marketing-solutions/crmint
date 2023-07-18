@@ -383,13 +383,16 @@ class MlModel(extensions.db.Model):
 
   id = Column(Integer, primary_key=True, autoincrement=True)
   name = Column(String(255), nullable=False)
+  input = orm.relationship(
+      'MlModelInput',
+      uselist=False,
+      lazy='joined')
   bigquery_dataset = orm.relationship(
       'MlModelBigQueryDataset',
       uselist=False,
       lazy='joined')
   type = Column(String(255), nullable=False)
   unique_id = Column(String(255), nullable=False)
-  uses_first_party_data = Column(Boolean, nullable=False, default=False)
   hyper_parameters = orm.relationship(
       'MlModelHyperParameter',
       lazy='joined')
@@ -419,7 +422,6 @@ class MlModel(extensions.db.Model):
         'name',
         'type',
         'unique_id',
-        'uses_first_party_data',
         'conversion_rate_segments',
         'class_imbalance'
     ]
@@ -445,7 +447,9 @@ class MlModel(extensions.db.Model):
 
   def save_relations(self, relations):
     for key, value in relations.items():
-      if key == 'bigquery_dataset':
+      if key == 'input':
+        self.assign_input(value)
+      elif key == 'bigquery_dataset':
         self.assign_bigquery_dataset(value)
       elif key == 'variables':
         self.assign_variables(value)
@@ -457,6 +461,15 @@ class MlModel(extensions.db.Model):
         self.assign_output(value)
       elif key == 'pipelines':
         self.assign_pipelines(value)
+
+  def assign_input(self, input):
+    if self.input:
+      self.input.destroy()
+
+    MlModelInput.create(ml_model_id=self.id,
+                        source=input['source'])
+    MlModelInputParameters.create(ml_model_id=self.id,
+                                  **input['parameters'])
 
   def assign_bigquery_dataset(self, dataset):
     if self.bigquery_dataset:
@@ -510,6 +523,9 @@ class MlModel(extensions.db.Model):
     for pipeline in self.pipelines:
       pipeline.destroy()
 
+    if self.input:
+      self.input.destroy()
+
     if self.bigquery_dataset:
       self.bigquery_dataset.delete()
 
@@ -526,6 +542,40 @@ class MlModel(extensions.db.Model):
       self.output.destroy()
 
     self.delete()
+
+
+class MlModelInput(extensions.db.Model):
+  """Model for ml model input config."""
+  __tablename__ = 'ml_model_input'
+  __repr_attrs__ = ['source']
+
+  ml_model_id = Column(Integer, ForeignKey('ml_models.id'), primary_key=True)
+  source = Column(String(255), nullable=False)
+  parameters = orm.relationship(
+      'MlModelInputParameters',
+      uselist=False,
+      lazy='joined')
+
+  ml_model = orm.relationship(
+      'MlModel', foreign_keys=[ml_model_id], back_populates='input')
+
+  def destroy(self):
+    if self.parameters:
+      self.parameters.delete()
+    self.delete()
+
+
+class MlModelInputParameters(extensions.db.Model):
+  """Model for ml model input config parameters."""
+  __tablename__ = 'ml_model_input_parameters'
+
+  ml_model_id = Column(
+      Integer, ForeignKey('ml_model_input.ml_model_id'), primary_key=True)
+  first_party_dataset = Column(String(255), nullable=True)
+  first_party_table = Column(String(255), nullable=True)
+
+  ml_model_input = orm.relationship(
+      'MlModelInput', foreign_keys=[ml_model_id], back_populates='parameters')
 
 
 class MlModelBigQueryDataset(extensions.db.Model):
@@ -586,7 +636,7 @@ class MlModelTimespan(extensions.db.Model):
 class MlModelOutput(extensions.db.Model):
   """Model for ml model output config."""
   __tablename__ = 'ml_model_output'
-  __repr_attrs__ = ['name']
+  __repr_attrs__ = ['destination']
 
   ml_model_id = Column(Integer, ForeignKey('ml_models.id'), primary_key=True)
   destination = Column(String(255), nullable=False)

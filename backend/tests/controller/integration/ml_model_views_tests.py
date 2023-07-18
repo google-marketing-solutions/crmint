@@ -55,13 +55,19 @@ class TestMlModelViews(controller_utils.ControllerAppTest):
 
     request = {
         'name': 'Test Model - Update',
+        'input': {
+            'source': 'GOOGLE_ANALYTICS',
+            'parameters': {
+              'first_party_dataset': 'FP_DATASET',
+              'first_party_table': 'FP_DATA_TABLE'
+            }
+        },
         'bigquery_dataset': {
             'name': 'test-dataset-update',
             'location': 'UK'
         },
         'type': 'BOOSTED_TREE_CLASSIFIER',
         'unique_id': 'USER_ID',
-        'uses_first_party_data': False,
         'hyper_parameters': [
             {'name': 'L1_REG', 'value': '2'},
             {'name': 'L2_REG', 'value': '4'},
@@ -246,13 +252,19 @@ class TestMlModelViews(controller_utils.ControllerAppTest):
   def post_test_model(self):
     request = {
         'name': 'Test Model',
+        'input': {
+            'source': 'GOOGLE_ANALYTICS',
+            'parameters': {
+              'first_party_dataset': '',
+              'first_party_table': ''
+            }
+        },
         'bigquery_dataset': {
             'name': 'test-dataset',
             'location': 'US'
         },
         'type': 'BOOSTED_TREE_REGRESSOR',
         'unique_id': 'CLIENT_ID',
-        'uses_first_party_data': False,
         'hyper_parameters': [
             {'name': 'L1_REG', 'value': '1'},
             {'name': 'L2_REG', 'value': '1'},

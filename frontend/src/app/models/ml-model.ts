@@ -41,7 +41,8 @@ export enum UniqueId {
 
 export enum Source {
   GOOGLE_ANALYTICS = 'GOOGLE_ANALYTICS',
-  FIRST_PARTY = 'FIRST_PARTY'
+  FIRST_PARTY = 'FIRST_PARTY',
+  GOOGLE_ANALYTICS_AND_FIRST_PARTY = 'GOOGLE_ANALYTICS_AND_FIRST_PARTY'
 }
 
 export enum Destination {
@@ -116,7 +117,7 @@ export type Variable = {
   key?: string;
   value_type?: string;
   hint?: string;
-  keyRequired?: boolean;
+  key_required?: boolean;
 }
 
 export type BigQueryDataset = {
@@ -131,6 +132,17 @@ export type Timespan = {
   range?: Range;
 }
 
+type InputParameters = {
+  first_party_dataset: string;
+  first_party_table: string;
+}
+
+export type Input = {
+  source: Source;
+  parameters: InputParameters;
+  requirements?: string[];
+}
+
 type OutputParameters = {
   customer_id: string;
   conversion_action_id: string;
@@ -140,15 +152,16 @@ type OutputParameters = {
 export type Output = {
   destination: Destination;
   parameters: OutputParameters;
+  requirements?: string[];
 }
 
 export class MlModel {
   id: number;
   name: string;
+  input: Input;
   bigquery_dataset: BigQueryDataset;
   type: Type;
   unique_id: UniqueId;
-  uses_first_party_data: boolean;
   hyper_parameters: HyperParameter[];
   variables: Variable[];
   conversion_rate_segments: number;
@@ -334,7 +347,7 @@ export class MlModel {
     }
 
     // if using first party data, validate client or user id is selected based on unique id selection.
-    if (this.uses_first_party_data) {
+    if (this.input.source.includes(Source.FIRST_PARTY)) {
       switch (this.unique_id) {
         case UniqueId.CLIENT_ID:
           if (this.variables.filter(v => v.role === Role.CLIENT_ID).length !== 1) {
@@ -376,10 +389,10 @@ export class MlModel {
     return {
       id: this.id,
       name: this.name,
+      input: this.input,
       bigquery_dataset: this.bigquery_dataset,
       type: this.type,
       unique_id: this.unique_id,
-      uses_first_party_data: this.uses_first_party_data,
       hyper_parameters: this.hyper_parameters.map(param => {
         if (param.toggled) {
           return {

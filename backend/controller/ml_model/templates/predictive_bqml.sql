@@ -110,7 +110,7 @@ CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.predictions` AS (
       {% endif %}
     ),
     {% endif %}
-    {% if uses_first_party_data %}
+    {% if input.source.includes_first_party %}
     user_variables AS (
       SELECT
         fp.{{first_party.unique_id}} AS unique_id,
@@ -137,7 +137,7 @@ CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.predictions` AS (
         {% elif google_analytics.trigger_date %}
         av.trigger_event_date
         {% endif %}
-      FROM `{{project_id}}.{{model_dataset}}.first_party` fp
+      FROM `{{project_id}}.{{input.parameters.first_party_dataset}}.{{input.parameters.first_party_table}}` fp
       {% if google_analytics.label %}
       LEFT OUTER JOIN analytics_variables av
       ON fp.{{first_party.unique_id}} = av.unique_id
