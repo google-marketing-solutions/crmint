@@ -55,7 +55,7 @@ def upgrade():
       SELECT
         created_at,
         updated_at,
-        ml_model_id,
+        id,
         IF(uses_first_party_data, 'GOOGLE_ANALYTICS_AND_FIRST_PARTY', 'GOOGLE_ANALYTICS')
       FROM ml_models
     """)
@@ -63,12 +63,14 @@ def upgrade():
       INSERT INTO ml_model_input_parameters
       (created_at, updated_at, ml_model_id, first_party_dataset, first_party_table)
       SELECT
-        created_at,
-        updated_at,
-        ml_model_id,
-        bigquery_dataset.name,
+        m.created_at,
+        m.updated_at,
+        m.id,
+        d.name,
         'first_party'
-      FROM ml_models
+      FROM ml_models m
+      JOIN ml_model_bigquery_dataset d
+      ON m.id = d.ml_model_id
     """)
 
     with op.batch_alter_table('ml_models', schema=None) as batch_op:
