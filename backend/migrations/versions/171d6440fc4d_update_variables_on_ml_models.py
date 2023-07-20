@@ -44,6 +44,7 @@ def upgrade():
     sa.ForeignKeyConstraint(['ml_model_id'], ['ml_models.id'], ),
     sa.PrimaryKeyConstraint('ml_model_id', 'name')
     )
+
     op.execute("""
       INSERT INTO ml_model_variables
       (created_at, updated_at, ml_model_id, name, source, role)
@@ -70,8 +71,10 @@ def upgrade():
         value_type
       FROM ml_model_label
     """)
+
     with op.batch_alter_table('ml_model_output_parameters', schema=None) as batch_op:
         batch_op.add_column(sa.Column('average_conversion_value', sa.Float(), nullable=True))
+
     op.execute("""
       CREATE PROCEDURE MigrateACV()
         BEGIN
