@@ -234,8 +234,8 @@ class TestMlModelViews(controller_utils.ControllerAppTest):
     self, client_mock: mock.Mock):
     request = {
         'input': '{\"source\":\"GOOGLE_ANALYTICS_AND_FIRST_PARTY\",\"parameters\":'
-                 '{\"first_party_dataset\":\"1p_dataset\",'
-                 '\"first_party_table\":\"1p_table\"}}',
+                 '{\"firstPartyDataset\":\"1p_dataset\",'
+                 '\"firstPartyTable\":\"1p_table\"}}',
         'dataset': '{\"name\":\"test-dataset\",\"location\":\"US\"}',
         'timespans': '[{\"name\":\"training\",\"value\":90},'
                      '{\"name\":\"predictive\",\"value\":30}]',

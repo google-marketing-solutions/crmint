@@ -275,8 +275,8 @@ class MlModelVariables(Resource):
       variables.extend(analytics_variables)
 
     if Source.FIRST_PARTY in input['source']:
-      dataset = input['parameters']['first_party_dataset']
-      table = input['parameters']['first_party_table']
+      dataset = input['parameters']['firstPartyDataset']
+      table = input['parameters']['firstPartyTable']
       first_party_columns = bigquery_client.get_first_party_variables(dataset, table)
       if first_party_columns:
         variables.extend(first_party_columns)
