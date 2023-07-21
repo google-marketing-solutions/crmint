@@ -353,10 +353,12 @@ export class MlModel {
           if (this.variables.filter(v => v.role === Role.CLIENT_ID).length !== 1) {
             throw new Error('The role of "Client ID" must be applied to one variable.');
           }
+          break;
         case UniqueId.USER_ID:
           if (this.variables.filter(v => v.role === Role.USER_ID).length !== 1) {
             throw new Error('The role of "User ID" must be applied to one variable.');
           }
+          break;
       }
     }
 

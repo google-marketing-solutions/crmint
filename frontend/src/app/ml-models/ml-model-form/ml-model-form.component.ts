@@ -21,6 +21,7 @@ import { Router, ActivatedRoute } from '@angular/router';
 import { plainToClass } from 'class-transformer';
 
 import { MlModelsService } from '../shared/ml-models.service';
+import { State } from 'app/models/shared';
 import {
   MlModel, Type, ClassificationType, RegressionType, UniqueId, HyperParameter,
   Variable, BigQueryDataset, Timespan, Source, Destination, Input, Output, Role
@@ -35,7 +36,7 @@ export class MlModelFormComponent implements OnInit {
 
   mlModelForm: UntypedFormGroup;
   mlModel: MlModel = new MlModel();
-  state: string = 'loading'; // state has one of values: loading, loaded or error
+  state: string = State.LOADING;
   title: string = '';
   errorMessage: string = '';
   uniqueIds: string[];
@@ -44,7 +45,6 @@ export class MlModelFormComponent implements OnInit {
   destinations: string[];
   cachedVariables: Variable[] = [];
   fetchingVariables: boolean = false;
-  submitting: boolean = false;
 
   constructor(
     private _fb: UntypedFormBuilder,
@@ -81,7 +81,7 @@ export class MlModelFormComponent implements OnInit {
       hyperParameters: this._fb.array([]),
       variables: this._fb.array([]),
       conversionRateSegments: [0, [Validators.required, Validators.pattern(/^[0-9]*$/)]],
-      classImbalance: [4, [Validators.required, Validators.min(1), Validators.max(10)]],
+      classImbalance: [4, [Validators.required, Validators.min(1), Validators.max(100)]],
       timespans: this._fb.array([]),
       output: this._fb.group({
         destination: ['', [Validators.required, this.enumValidator(Destination)]],
@@ -112,13 +112,13 @@ export class MlModelFormComponent implements OnInit {
         } else {
           this.refreshTimespans();
         }
-        this.state = 'loaded';
+        this.state = State.LOADED;
       } catch (error) {
         if (error === 'model-not-found') {
           this.router.navigate(['ml-models']);
         } else {
           this.errorMessage = error.toString();
-          this.state = 'error';
+          this.state = State.ERROR;
         }
       }
     });
@@ -263,24 +263,20 @@ export class MlModelFormComponent implements OnInit {
   }
 
   /**
-   * Dynamically updates required input parameters based on the input destination selected.
+   * Dynamically updates required input parameters based on the input source selected.
    */
   refreshInput() {
     const input: Input = this.input;
     const allRequirementsFields: string[] = Object.keys(input.parameters);
 
-    if (input.requirements.length > 0) {
-      for (const requirement of input.requirements) {
-        this.mlModelForm.get(['input', 'parameters', requirement]).addValidators(Validators.required);
-      }
-    } else {
-      for (const requirement of allRequirementsFields) {
-        this.mlModelForm.get(['input', 'parameters', requirement]).removeValidators(Validators.required);
-      }
-    }
-
     for (const requirement of allRequirementsFields) {
-      this.mlModelForm.get(['input', 'parameters', requirement]).setValue(null);
+      const field = this.mlModelForm.get(['input', 'parameters', requirement]);
+      if (input.requirements.includes(requirement)) {
+        field.addValidators(Validators.required);
+      } else {
+        field.removeValidators(Validators.required);
+        field.setValue(null);
+      }
     }
   }
 
@@ -326,6 +322,7 @@ export class MlModelFormComponent implements OnInit {
     const existingVariables: Variable[] = formVariables.length ? formVariables : this.mlModel.variables;
     const variables: Variable[] = await this.getVariables();
     const isClassificationModel = this.type.isClassification;
+    const isRegressionModel = this.type.isRegression;
     let controls = [];
 
     for (const variable of variables) {
@@ -351,8 +348,10 @@ export class MlModelFormComponent implements OnInit {
       if (variable.role === Role.LABEL) {
         if (variable.source == Source.GOOGLE_ANALYTICS) {
           variable.key_required = true;
-          variable.hint = 'Due to your selection, trigger date will be derrived from the date associated with the first value ' +
-                          'and the first value (if not selected) defaults to the first label value.';
+          if (isRegressionModel) {
+            variable.hint = 'Due to your selection, trigger date will be derived from the date associated with the first value ' +
+                            'and the first value (if not selected) defaults to the first label value.';
+          }
         }
       }
 
@@ -448,18 +447,14 @@ export class MlModelFormComponent implements OnInit {
     const output: Output = this.output;
     const allRequirementsFields: string[] = Object.keys(output.parameters);
 
-    if (output.requirements.length > 0) {
-      for (const requirement of output.requirements) {
-        this.mlModelForm.get(['output', 'parameters', requirement]).addValidators(Validators.required);
-      }
-    } else {
-      for (const requirement of allRequirementsFields) {
-        this.mlModelForm.get(['output', 'parameters', requirement]).removeValidators(Validators.required);
-      }
-    }
-
     for (const requirement of allRequirementsFields) {
-      this.mlModelForm.get(['output', 'parameters', requirement]).setValue(null);
+      const field = this.mlModelForm.get(['output', 'parameters', requirement]);
+      if (output.requirements.includes(requirement)) {
+        field.addValidators(Validators.required);
+      } else {
+        field.removeValidators(Validators.required);
+        field.setValue(null);
+      }
     }
   }
 
@@ -499,7 +494,7 @@ export class MlModelFormComponent implements OnInit {
    * Update the ml model object using the form data and send it to the backend to persist.
    */
   async save() {
-    this.submitting = true;
+    this.state = State.LOADING;
     this.prepareSaveMlModel();
 
     if (this.mlModel.id) {
@@ -516,7 +511,7 @@ export class MlModelFormComponent implements OnInit {
       this.router.navigate(['ml-models', mlModel.id]);
     }
 
-    this.submitting = false;
+    this.state = State.LOADED;
   }
 
   /**

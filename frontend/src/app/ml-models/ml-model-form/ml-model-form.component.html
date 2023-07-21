@@ -11,7 +11,7 @@
           style="width:100px;height:100px;"
           mode="indeterminate">
         </mat-progress-spinner>
-        Loading data...
+        Loading...
       </div>
     </ng-template>
     <!-- LOADED -->
@@ -185,7 +185,7 @@
 
         <div class="crmi-form-group">
           <label class="crmi-form-label">Class Imbalance Ratio</label>
-          <mat-slider formControlName="classImbalance" [min]="1" [max]="10" [step]="1" [thumbLabel]="true"></mat-slider>
+          <mat-slider formControlName="classImbalance" [min]="1" [max]="100" [step]="1" [thumbLabel]="true"></mat-slider>
           <span>1:{{ value('classImbalance') }}</span>
         </div>
 
@@ -208,7 +208,7 @@
           <div class="crmi-form-message crmi-form-message-error">{{ errorMessage }}</div>
           <button mat-raised-button
                   type="submit"
-                  [disabled]="!mlModelForm.valid || submitting"
+                  [disabled]="!mlModelForm.valid"
                   color="primary">
             {{ mlModel.id ? 'Save' : 'Create' }}
           </button>
