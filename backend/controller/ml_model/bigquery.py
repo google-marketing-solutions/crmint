@@ -96,7 +96,7 @@ class CustomClient(bigquery.Client):
           FROM `{self.project}.{dataset}.events_*`
           WHERE _TABLE_SUFFIX BETWEEN
             FORMAT_DATE("%Y%m%d", DATE_SUB(CURRENT_DATE(), INTERVAL {start} DAY)) AND
-            FORMAT_DATE("%Y%m%d", DATE_SUB(CURRENT_DATE(), INTERVAL {augmented_end} DAY))
+            FORMAT_DATE("%Y%m%d", DATE_SUB(CURRENT_DATE(), INTERVAL {end} DAY))
           AND event_name NOT IN ({event_exclude_list})
         ), UNNEST(event_counts) AS c
       );
