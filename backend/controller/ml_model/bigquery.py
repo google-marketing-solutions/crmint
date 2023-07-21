@@ -117,12 +117,12 @@ class CustomClient(bigquery.Client):
         ) AS parameter_value_type
       FROM `{self.project}.{dataset}.events_*` e,
       UNNEST(event_params) AS p
+      JOIN temp__counts c
+        ON e.event_name = c.event_name
       WHERE _TABLE_SUFFIX BETWEEN
         FORMAT_DATE("%Y%m%d", DATE_SUB(CURRENT_DATE(), INTERVAL {start} DAY)) AND
         FORMAT_DATE("%Y%m%d", DATE_SUB(CURRENT_DATE(), INTERVAL {augmented_end} DAY))
       AND p.key NOT IN ({key_exclude_list})
-      JOIN temp__counts c
-        ON e.event_name = c.event_name
       GROUP BY 1,2,3
       HAVING parameter_value_type IS NOT NULL
       ORDER BY
