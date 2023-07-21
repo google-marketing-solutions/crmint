@@ -73,22 +73,23 @@ first_engagement AS (
 analytics_variables AS (
   SELECT
     fe.unique_id,
-    {% if type.is_regression %}
-    IFNULL(fv.value, 0) AS first_value,
-    {% endif %}
     IFNULL(l.label, 0) AS label,
+    {% if type.is_classification %}
     l.date AS trigger_event_date
+    {% elif type.is_regression %}
+    IFNULL(fv.value, 0) AS first_value,
+    fv.date AS trigger_event_date
+    {% endif %}
   FROM first_engagement fe
   LEFT OUTER JOIN (
     SELECT
       e.unique_id,
       {% if type.is_classification %}
       1 AS label,
-      MIN(e.date) AS date
       {% elif type.is_regression %}
       SUM(COALESCE(params.value.int_value, params.value.float_value, params.value.double_value, 0)) AS label,
-      MIN(fv.date) AS date
       {% endif %}
+      MIN(e.date) AS date
     FROM events AS e, UNNEST(params) AS params
     WHERE name = "{{google_analytics.label.name}}"
     AND params.key = "{{google_analytics.label.key}}"
