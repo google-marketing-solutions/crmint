@@ -15,9 +15,11 @@
 """MlModel bigquery helpers."""
 
 import dataclasses
+from typing import Any
 from google.cloud import bigquery
 from google.cloud.exceptions import NotFound
-from controller import shared
+
+from controller.ml_model.shared import Source
 
 
 @dataclasses.dataclass
@@ -39,11 +41,6 @@ class Variable:
   parameters: list[Parameter]
 
 
-class Source(shared.StrEnum):
-  GOOGLE_ANALYTICS = 'GOOGLE_ANALYTICS'
-  FIRST_PARTY = 'FIRST_PARTY'
-
-
 class CustomClient(bigquery.Client):
   """BigQuery client wrapper that adds custom methods for easy access to necessary data."""
 
@@ -51,9 +48,9 @@ class CustomClient(bigquery.Client):
     super().__init__(location=location)
 
   def get_analytics_variables(self,
-                              dataset_name: str,
-                              start_day: int,
-                              end_day: int) -> list[Variable]:
+                              dataset: str,
+                              start: int,
+                              end: int) -> list[Variable]:
     """Get approximate counts for all GA4 events timeboxed by start and end days.
 
     Args:
@@ -68,15 +65,16 @@ class CustomClient(bigquery.Client):
 
     variables: list[Variable] = []
 
-    event_exclude_list = [
+    augmented_end = start - 90 if start - end > 90 else end
+
+    event_exclude_list = self._quoted_list([
         'user_engagement',
         'scroll',
         'session_start',
         'first_visit',
-        'page_view'
-    ]
+        'page_view'])
 
-    key_exclude_list = [
+    key_exclude_list = self._quoted_list([
         'debug_mode',
         'ga_session_id',
         'ga_session_number',
@@ -86,39 +84,45 @@ class CustomClient(bigquery.Client):
         'session_engaged',
         'engaged_session_event',
         'content_group',
-        'engagement_time_msec'
-    ]
+        'engagement_time_msec'])
 
     query = f"""
-      WITH event AS (
+      CREATE TEMP TABLE temp__counts(event_name STRING, event_count INT64) AS (
         SELECT
-          event.value AS name,
-          event.count
+          c.value AS event_name,
+          c.count AS event_count
         FROM (
           SELECT APPROX_TOP_COUNT(event_name, 100) AS event_counts
-          FROM `{self.project}.{dataset_name}.events_*`
+          FROM `{self.project}.{dataset}.events_*`
           WHERE _TABLE_SUFFIX BETWEEN
-            FORMAT_DATE("%Y%m%d", DATE_SUB(CURRENT_DATE(), INTERVAL {start_day} DAY)) AND
-            FORMAT_DATE("%Y%m%d", DATE_SUB(CURRENT_DATE(), INTERVAL {end_day} DAY))
-        ), UNNEST(event_counts) AS event
-      )
+            FORMAT_DATE("%Y%m%d", DATE_SUB(CURRENT_DATE(), INTERVAL {start} DAY)) AND
+            FORMAT_DATE("%Y%m%d", DATE_SUB(CURRENT_DATE(), INTERVAL {augmented_end} DAY))
+          AND event_name NOT IN ({event_exclude_list})
+        ), UNNEST(event_counts) AS c
+      );
+
       SELECT
-        event.name AS name,
-        event.count AS count,
-        params.key AS parameter_key,
+        c.event_name AS name,
+        c.event_count AS count,
+        p.key AS parameter_key,
         STRING_AGG(
           DISTINCT
           CASE
-            WHEN params.value.string_value IS NOT NULL THEN 'string'
-            WHEN params.value.int_value IS NOT NULL THEN 'int'
-            WHEN params.value.double_value IS NOT NULL THEN 'double'
-            WHEN params.value.float_value IS NOT NULL THEN 'float'
+            WHEN p.value.string_value IS NOT NULL THEN 'string'
+            WHEN p.value.int_value IS NOT NULL THEN 'int'
+            WHEN p.value.double_value IS NOT NULL THEN 'double'
+            WHEN p.value.float_value IS NOT NULL THEN 'float'
             ELSE NULL
           END
         ) AS parameter_value_type
-      FROM `{self.project}.{dataset_name}.events_*`,
-            UNNEST(event_params) AS params
-      JOIN event ON event.name = event_name
+      FROM `{self.project}.{dataset}.events_*` e,
+      UNNEST(event_params) AS p
+      WHERE _TABLE_SUFFIX BETWEEN
+        FORMAT_DATE("%Y%m%d", DATE_SUB(CURRENT_DATE(), INTERVAL {start} DAY)) AND
+        FORMAT_DATE("%Y%m%d", DATE_SUB(CURRENT_DATE(), INTERVAL {augmented_end} DAY))
+      AND p.key NOT IN ({key_exclude_list})
+      JOIN temp__counts c
+        ON e.event_name = c.event_name
       GROUP BY 1,2,3
       HAVING parameter_value_type IS NOT NULL
       ORDER BY
@@ -141,8 +145,7 @@ class CustomClient(bigquery.Client):
         if not existing_variable:
           variable = Variable(
               event.name, Source.GOOGLE_ANALYTICS, event.count, [])
-          if parameter.key not in key_exclude_list:
-            variable.parameters.append(parameter)
+          variable.parameters.append(parameter)
           # Since rows are ordered, event data for a single event name is
           # grouped together and as such it's faster to insert new events at
           # the beginning so the loop on the next row finds the matching event
@@ -150,12 +153,12 @@ class CustomClient(bigquery.Client):
           # and basically flipping the events as it processes them they will
           # come out in descending order.
           variables.insert(0, variable)
-        elif parameter.key not in key_exclude_list:
+        else:
           existing_variable.parameters.append(parameter)
 
     return variables
 
-  def get_first_party_variables(self, dataset_name: str) -> list[Variable]:
+  def get_first_party_variables(self, dataset: str, table: str) -> list[Variable]:
     """Look up and return the field names for use in feature/label selection.
 
     Args:
@@ -167,12 +170,6 @@ class CustomClient(bigquery.Client):
 
     variables: list[Variable] = []
 
-    exclude_list = [
-        'user_id',
-        'user_pseudo_id',
-        'trigger_event_date'
-    ]
-
     exclude_type_list = [
         'DATE',
         'DATETIME',
@@ -182,16 +179,25 @@ class CustomClient(bigquery.Client):
     ]
 
     try:
-      table = self.get_table(f'{dataset_name}.first_party')
+      table = self.get_table(f'{dataset}.{table}')
     except NotFound:
       return variables
 
     for column in table.schema:
-      excluded_column: bool = column.name in exclude_list
-      excluded_field_type: bool = column.field_type in exclude_type_list
-      if not excluded_column and not excluded_field_type:
+      if not column.field_type in exclude_type_list:
         parameter = Parameter('value', column.field_type)
         variable = Variable(column.name, Source.FIRST_PARTY, 0, [parameter])
         variables.append(variable)
 
     return variables
+
+  def _quoted_list(self, list: list[str]):
+    """Return a quoted list in string format.
+
+    Args:
+      list: The array/list of strings to convert.
+
+    Returns:
+      A quoted list of strings in string format (e.g. "value1","value2")
+    """
+    return '"' + str.join('","', list) + '"'

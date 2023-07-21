@@ -204,12 +204,13 @@ class TestMlModelViews(controller_utils.ControllerAppTest):
     self.assertEqual(response.status_code, 400)
 
   @mock.patch.object(ml_model.bigquery, 'CustomClient')
-  def test_retrieve_variables_with_required_fields(self,
-                                                   client_mock: mock.Mock):
+  def test_retrieve_variables_with_required_fields_google_analytics(
+    self, client_mock: mock.Mock):
     request = {
-        'dataset': '{\"name\": \"test-dataset\", \"location\": \"US\"}',
-        'timespans': '[{\"name\": \"training\", \"value\": 90},'
-                     '{\"name\": \"predictive\", \"value\": 30}]',
+        'input': '{\"source\":\"GOOGLE_ANALYTICS\",\"parameters\":{}}',
+        'dataset': '{\"name\":\"test-dataset\",\"location\":\"US\"}',
+        'timespans': '[{\"name\":\"training\",\"value\":90},'
+                     '{\"name\":\"predictive\",\"value\":30}]',
     }
     models.GeneralSetting.where(
         name='google_analytics_4_bigquery_dataset'
@@ -229,10 +230,46 @@ class TestMlModelViews(controller_utils.ControllerAppTest):
     self.assertEqual(response.status_code, 200)
 
   @mock.patch.object(ml_model.bigquery, 'CustomClient')
-  def test_retrieve_variables_with_dataset_events_not_found(
-      self, client_mock: mock.Mock
-  ):
+  def test_retrieve_variables_with_required_fields_first_party(
+    self, client_mock: mock.Mock):
     request = {
+        'input': '{\"source\":\"GOOGLE_ANALYTICS_AND_FIRST_PARTY\",\"parameters\":'
+                 '{\"first_party_dataset\":\"1p_dataset\",'
+                 '\"first_party_table\":\"1p_table\"}}',
+        'dataset': '{\"name\":\"test-dataset\",\"location\":\"US\"}',
+        'timespans': '[{\"name\":\"training\",\"value\":90},'
+                     '{\"name\":\"predictive\",\"value\":30}]',
+    }
+    models.GeneralSetting.where(
+        name='google_analytics_4_bigquery_dataset'
+    ).first().update(value='test-ga4-dataset')
+
+    # Required due to uncertainty around how to do actual integration
+    # test with big query locally.
+    variables: list[ml_model.bigquery.Variable] = []
+    variable = ml_model.bigquery.Variable(
+        'test-name', 'GOOGLE_ANALYTICS', 100, [])
+    variable.parameters.append(
+        ml_model.bigquery.Parameter('test-key', 'test-value-type'))
+    variables.append(variable)
+    client_mock.return_value.get_analytics_variables.return_value = variables
+
+    variables: list[ml_model.bigquery.Variable] = []
+    variable = ml_model.bigquery.Variable(
+        'test-name', 'FIRST_PARTY', 0, [])
+    variable.parameters.append(
+        ml_model.bigquery.Parameter('test-key', 'test-value-type'))
+    variables.append(variable)
+    client_mock.return_value.get_first_party_variables.return_value = variables
+
+    response = self.client.get('/api/ml-models/variables', query_string=request)
+    self.assertEqual(response.status_code, 200)
+
+  @mock.patch.object(ml_model.bigquery, 'CustomClient')
+  def test_retrieve_variables_with_dataset_events_not_found(
+      self, client_mock: mock.Mock):
+    request = {
+        'input': '{\"source\": \"GOOGLE_ANALYTICS\", \"parameters\": {}}',
         'dataset': '{\"name\": \"test-dataset\", \"location\": \"US\"}',
         'timespans': '[{\"name\": \"training\", \"value\": 90},'
                      '{\"name\": \"predictive\", \"value\": 30}]',

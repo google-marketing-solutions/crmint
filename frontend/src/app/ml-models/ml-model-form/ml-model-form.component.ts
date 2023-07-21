@@ -290,9 +290,10 @@ export class MlModelFormComponent implements OnInit {
 
     if (variables.length === 0) {
       try {
+        const input = this.value('input');
         const dataset = this.value('bigQueryDataset');
         const ts = this.value('timespans');
-        variables = await this.mlModelsService.getVariables(dataset, ts);
+        variables = await this.mlModelsService.getVariables(input, dataset, ts);
         variables.sort((a: Variable, b: Variable) => {
           return a.source.localeCompare(b.source);
         });

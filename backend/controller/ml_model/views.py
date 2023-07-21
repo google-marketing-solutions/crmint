@@ -31,6 +31,8 @@ from common import insight
 from controller import ml_model
 from controller import models
 
+from controller.ml_model.shared import Source, Timespan
+
 project_id = os.getenv('GOOGLE_CLOUD_PROJECT')
 
 blueprint = flask.Blueprint('ml_model', __name__)
@@ -219,6 +221,7 @@ class MlModelList(Resource):
 
 
 variables_parser = reqparse.RequestParser()
+variables_parser.add_argument('input', type=str, required=True)
 variables_parser.add_argument('dataset', type=str, required=True)
 variables_parser.add_argument('timespans', type=str, required=True)
 
@@ -248,32 +251,35 @@ class MlModelVariables(Resource):
     tracker.track_event(category='ml-models', action='variables')
 
     args = variables_parser.parse_args()
+    input = json.loads(args['input'])
     dataset = json.loads(args['dataset'])
-    timespan = ml_model.compiler.Timespan(json.loads(args['timespans']))
+    timespan = Timespan(json.loads(args['timespans']))
 
     bigquery_client = ml_model.bigquery.CustomClient(dataset['location'])
     variables = []
 
-    ga4_dataset = setting('google_analytics_4_bigquery_dataset')
+    if Source.GOOGLE_ANALYTICS in input['source']:
+      dataset = setting('google_analytics_4_bigquery_dataset')
 
-    # Timebox the variables/events to the training dataset timespan.
-    analytics_variables = bigquery_client.get_analytics_variables(
-        ga4_dataset, timespan.training_start, timespan.training_end)
-    if not analytics_variables:
-      abort(
-          400,
-          message=(
-              'GA4 BigQuery Dataset does not include expected events tables.'
-              ' Check configuration in Settings tab and try again.'
-          ),
-      )
-    variables.extend(analytics_variables)
+      # Timebox the variables/events to the training dataset timespan.
+      analytics_variables = bigquery_client.get_analytics_variables(
+          dataset, timespan.training_start, timespan.training_end)
+      if not analytics_variables:
+        abort(
+            400,
+            message=(
+                'GA4 BigQuery Dataset does not include expected events tables.'
+                ' Check configuration in Settings tab and try again.'
+            ),
+        )
+      variables.extend(analytics_variables)
 
-    first_party_columns = bigquery_client.get_first_party_variables(
-        dataset['name']
-    )
-    if first_party_columns:
-      variables.extend(first_party_columns)
+    if Source.FIRST_PARTY in input['source']:
+      dataset = input['parameters']['first_party_dataset']
+      table = input['parameters']['first_party_table']
+      first_party_columns = bigquery_client.get_first_party_variables(dataset, table)
+      if first_party_columns:
+        variables.extend(first_party_columns)
 
     return variables
 

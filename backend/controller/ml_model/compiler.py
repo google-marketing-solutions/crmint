@@ -25,6 +25,8 @@ import jinja2
 from controller import models
 from controller import shared
 
+from controller.ml_model.shared import Source, Timespan
+
 
 class TemplateFile(shared.StrEnum):
   TRAINING_PIPELINE = 'training_pipeline.json'
@@ -74,38 +76,6 @@ class Worker(shared.StrEnum):
 class UniqueId(shared.StrEnum):
   USER_ID = 'USER_ID'
   CLIENT_ID = 'CLIENT_ID'
-
-
-class Timespan:
-  """Encapsulates a timespan."""
-
-  _training: int
-  _predictive: int
-
-  def __init__(self, timespans: list[dict[str, Any]]) -> None:
-    for timespan in timespans:
-      setattr(self, '_' + timespan['name'], int(timespan['value']))
-
-  @property
-  def training_start(self) -> int:
-    return self.predictive_start + self._training + 1
-
-  @property
-  def training_end(self) -> int:
-    return self.predictive_start + 1
-
-  @property
-  def predictive_start(self) -> int:
-    return self._predictive + 1
-
-  @property
-  def predictive_end(self) -> int:
-    return 1
-
-
-class Source(shared.StrEnum):
-  FIRST_PARTY = 'FIRST_PARTY'
-  GOOGLE_ANALYTICS = 'GOOGLE_ANALYTICS'
 
 
 class VariableRole(shared.StrEnum):
