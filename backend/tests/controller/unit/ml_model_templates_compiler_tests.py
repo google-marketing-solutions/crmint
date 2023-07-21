@@ -18,7 +18,7 @@ import re
 from typing import Union, Iterable, Any
 from absl.testing import absltest
 from absl.testing import parameterized
-from freezegun import freeze_time
+import freezegun
 
 from controller import ml_model
 from controller import models
@@ -26,7 +26,7 @@ from controller import models
 
 class TestCompiler(parameterized.TestCase):
 
-  @freeze_time('2023-02-06T00:00:00')
+  @freezegun.freeze_time('2023-04-06T00:00:00')
   def test_build_training_pipeline(self):
     test_model = self.model_config(
         model_type='BOOSTED_TREE_CLASSIFIER',
@@ -48,7 +48,7 @@ class TestCompiler(parameterized.TestCase):
     self.assertEqual(pipeline['name'], 'Test Model - Training')
 
     # schedule check
-    self.assertEqual(pipeline['schedules'][0]['cron'], '0 0 6 2,5,8,11 *')
+    self.assertEqual(pipeline['schedules'][0]['cron'], '0 0 6 4,7,10,1 *')
 
     # setup job check
     self.assertEqual(pipeline['jobs'][0]['name'], 'Test Model - Training Setup')

@@ -20,7 +20,7 @@ from typing import Any, Union
 
 from absl.testing import absltest
 from absl.testing import parameterized
-from freezegun import freeze_time
+import freezegun
 import jinja2
 
 from controller import extensions
@@ -209,7 +209,7 @@ class TestParamRuntimeValues(controller_utils.ModelTestCase):
     with self.assertRaises(jinja2.TemplateError):
       param.populate_runtime_value(context={'bar': 'abc'})
 
-  @freeze_time('2022-05-15T00:00:00')
+  @freezegun.freeze_time('2022-05-15T00:00:00')
   def test_job_param_runtime_value_can_render_inline_function_today(self):
     pipeline = models.Pipeline.create(name='pipeline1')
     job = models.Job.create(name='job1', pipeline_id=pipeline.id)
@@ -221,7 +221,7 @@ class TestParamRuntimeValues(controller_utils.ModelTestCase):
     param.populate_runtime_value(context={'foo': 'bar'})
     self.assertEqual(param.runtime_value, '2022 05 15')
 
-  @freeze_time('2022-05-15T00:00:00')
+  @freezegun.freeze_time('2022-05-15T00:00:00')
   def test_job_param_runtime_value_can_render_inline_function_days_ago(self):
     pipeline = models.Pipeline.create(name='pipeline1')
     job = models.Job.create(name='job1', pipeline_id=pipeline.id)
@@ -265,14 +265,14 @@ class TestPipeline(controller_utils.ModelTestCase):
 
   def test_assign_schedules_update_or_create_or_delete_relation(self):
     pipeline = models.Pipeline.create()
-    sc1 = models.Schedule.create(pipeline_id=pipeline.id, cron='OLD')
-    sc2 = models.Schedule.create(pipeline_id=pipeline.id, cron='NEW')
+    sc1 = models.Schedule.create(pipeline_id=pipeline.id, cron='0 0 13 6 *')
+    sc2 = models.Schedule.create(pipeline_id=pipeline.id, cron='0 0 13 7 *')
 
     # Update 1, Delete 1 and Create 2
     schedules_to_assign = [
-        {'id': sc2.id, 'cron': 'UPDATED'},
-        {'id': None, 'cron': 'NEW1'},
-        {'id': None, 'cron': 'NEW2'},
+        {'id': sc2.id, 'cron': '0 0 13 8 *'},
+        {'id': None, 'cron': '0 0 13 9 *'},
+        {'id': None, 'cron': '0 0 13 10 *'},
     ]
 
     self.assertLen(models.Pipeline.all(), 1)
@@ -283,9 +283,9 @@ class TestPipeline(controller_utils.ModelTestCase):
     pipeline.assign_schedules(schedules_to_assign)
     self.assertLen(pipeline.schedules, 3)
     self.assertEqual(pipeline.schedules[0].id, sc2.id)
-    self.assertEqual(pipeline.schedules[0].cron, 'UPDATED')
-    self.assertEqual(pipeline.schedules[1].cron, 'NEW1')
-    self.assertEqual(pipeline.schedules[2].cron, 'NEW2')
+    self.assertEqual(pipeline.schedules[0].cron, '0 0 13 8 *')
+    self.assertEqual(pipeline.schedules[1].cron, '0 0 13 9 *')
+    self.assertEqual(pipeline.schedules[2].cron, '0 0 13 10 *')
 
   def test_assign_params(self):
     pipeline = models.Pipeline.create()
@@ -326,7 +326,7 @@ class TestPipeline(controller_utils.ModelTestCase):
   def test_save_relations(self):
     pipeline = models.Pipeline.create()
     schedules = [
-        {'id': None, 'cron': 'NEW1'}
+        {'id': None, 'cron': '0 0 13 10 *'}
     ]
     params = [
         {'id': None, 'name': 'desc', 'label': 'Description', 'type': 'text',
@@ -461,7 +461,7 @@ class TestMlModel(controller_utils.ModelTestCase):
       ),
       ('delete', []))
   def test_save_relations_features(self, features):
-    self.assertLen(self.ml_model.features, 0)
+    self.assertEmpty(self.ml_model.features)
     self.ml_model.save_relations({'features': features})
     self.assertRelationSaved(models.MlModelFeature, features)
 
@@ -498,7 +498,7 @@ class TestMlModel(controller_utils.ModelTestCase):
       ),
       ('delete', []))
   def test_save_relations_hyper_parameters(self, hyper_parameters):
-    self.assertLen(self.ml_model.hyper_parameters, 0)
+    self.assertEmpty(self.ml_model.hyper_parameters)
     self.ml_model.save_relations({'hyper_parameters': hyper_parameters})
     self.assertRelationSaved(models.MlModelHyperParameter, hyper_parameters)
 
@@ -513,7 +513,7 @@ class TestMlModel(controller_utils.ModelTestCase):
       ),
       ('delete', []))
   def test_save_relations_timespans(self, timespans):
-    self.assertLen(self.ml_model.timespans, 0)
+    self.assertEmpty(self.ml_model.timespans)
     self.ml_model.save_relations({'timespans': timespans})
     self.assertRelationSaved(models.MlModelTimespan, timespans)
 
@@ -544,7 +544,7 @@ class TestMlModel(controller_utils.ModelTestCase):
     self.assertRelationSaved(models.MlModelOutput, output)
 
   def test_save_relations_pipelines_create(self):
-    self.assertLen(self.ml_model.pipelines, 0)
+    self.assertEmpty(self.ml_model.pipelines)
 
     self.ml_model.save_relations(
         {

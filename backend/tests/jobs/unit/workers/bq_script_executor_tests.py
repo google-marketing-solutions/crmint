@@ -20,7 +20,7 @@ class BQScriptExecutorTest(absltest.TestCase):
   # TODO: If enough, consider making this less fragile by just testing to
   # make sure the client "query" method was called with correct params.
   @mock.patch('google.cloud.bigquery.job._AsyncJob._set_properties')
-  def test_starts_query_job(self, set_properties_mock):
+  def test_starts_query_job(self, _):
     worker_inst = bq_script_executor.BQScriptExecutor(
         {
             'job_id': 'JOBID',

@@ -33,6 +33,41 @@ class TestPipelineViews(controller_utils.ControllerAppTest):
     response = self.client.get('/api/pipelines')
     self.assertEqual(response.status_code, 200)
 
+  def test_put_pipeline(self):
+    pipeline = models.Pipeline.create()
+    models.Job.create(pipeline_id=pipeline.id)
+    models.Schedule.create(pipeline_id=pipeline.id)
+    request = {
+        'name': 'Scenario 1 - Training',
+        'run_on_schedule': 'False',
+        'schedules': [{'id': 1, 'pipeline_id': 1, 'cron': '0 0 13 6,9,12,3 *'}],
+        'params': []
+    }
+    response = self.client.put('/api/pipelines/1', json=request)
+    self.assertEqual(response.status_code, 200)
+
+  def test_put_active_pipeline(self):
+    pipeline = models.Pipeline.create()
+    pipeline.status = models.Pipeline.STATUS.RUNNING
+    pipeline.save()
+    models.Job.create(pipeline_id=pipeline.id)
+    response = self.client.put('/api/pipelines/1')
+    self.assertEqual(response.status_code, 422)
+
+  def test_put_pipeline_invalid_schedule(self):
+    pipeline = models.Pipeline.create()
+    models.Job.create(pipeline_id=pipeline.id)
+    models.Schedule.create(pipeline_id=pipeline.id)
+    request = {
+        'name': 'Scenario 1 - Training',
+        'run_on_schedule': 'False',
+        'schedules': [
+            {'id': 1, 'pipeline_id': 1, 'cron': '0 0 13 6,9,12,15 *'}],
+        'params': []
+    }
+    response = self.client.put('/api/pipelines/1', json=request)
+    self.assertEqual(response.status_code, 400)
+
   def test_missing_pipeline(self):
     response = self.client.get('/api/pipelines/1')
     self.assertEqual(response.status_code, 404)
