@@ -171,9 +171,6 @@ class CustomClient(bigquery.Client):
     variables: list[Variable] = []
 
     exclude_type_list = [
-        'DATE',
-        'DATETIME',
-        'TIME',
         'JSON',
         'RECORD'
     ]
