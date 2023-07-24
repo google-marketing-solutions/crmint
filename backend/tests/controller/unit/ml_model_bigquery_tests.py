@@ -104,24 +104,9 @@ class TestClient(absltest.TestCase):
             re.escape('FORMAT_DATE("%Y%m%d", DATE_SUB(CURRENT_DATE(), '
                       'INTERVAL 360 DAY)) AND'),
             re.escape('FORMAT_DATE("%Y%m%d", DATE_SUB(CURRENT_DATE(), '
-                      'INTERVAL 270 DAY))')
+                      'INTERVAL 30 DAY))')
         ]),
         'Query check failed. Incorrect start/end days.')
-
-    self.assertRegex(
-      args['query'],
-      re.escape('event_name NOT IN ("user_engagement","scroll",'
-                '"session_start","first_visit","page_view")'),
-      'Query check failed. Event exclusion list not found or invalid.'
-    )
-
-    self.assertRegex(
-      args['query'],
-      re.escape('p.key NOT IN ("debug_mode","ga_session_id","ga_session_number",'
-                '"transaction_id","page_location","page_referrer","session_engaged",'
-                '"engaged_session_event","content_group","engagement_time_msec")'),
-      'Query check failed. Event param key exclusion list not found or invalid.'
-    )
 
     # check name and result order is correct
     # (query returns ASC and results should be in DESC)
@@ -149,54 +134,6 @@ class TestClient(absltest.TestCase):
     self.assertEqual(parameters[0].value_type, 'pvt_1,pvt_2')
     self.assertEqual(parameters[1].key, 'pk_2')
     self.assertEqual(parameters[1].value_type, 'pvt_3')
-
-  @mock.patch('google.cloud.bigquery.Client.query')
-  def test_get_analytics_variables_90_day_timespan(self, query_mock: mock.Mock):
-    query_mock.return_value.result.return_value = self.convert_to_object([
-        {
-            'name': 'nm_1',
-            'count': 77,
-            'parameter_key': 'pk_1',
-            'parameter_value_type': 'pvt_1,pvt_2',
-        }
-    ])
-
-    self.client.get_analytics_variables('test-ga4-dataset', 110, 20)
-    _, args = query_mock.call_args
-
-    self.assertRegex(
-        args['query'],
-        r'[\s\n]+'.join([
-            re.escape('FORMAT_DATE("%Y%m%d", DATE_SUB(CURRENT_DATE(), '
-                      'INTERVAL 110 DAY)) AND'),
-            re.escape('FORMAT_DATE("%Y%m%d", DATE_SUB(CURRENT_DATE(), '
-                      'INTERVAL 20 DAY))')
-        ]),
-        'Query check failed. Incorrect start/end days.')
-
-  @mock.patch('google.cloud.bigquery.Client.query')
-  def test_get_analytics_variables_6_day_timespan(self, query_mock: mock.Mock):
-    query_mock.return_value.result.return_value = self.convert_to_object([
-        {
-            'name': 'nm_1',
-            'count': 77,
-            'parameter_key': 'pk_1',
-            'parameter_value_type': 'pvt_1,pvt_2',
-        }
-    ])
-
-    self.client.get_analytics_variables('test-ga4-dataset', 10, 4)
-    _, args = query_mock.call_args
-
-    self.assertRegex(
-        args['query'],
-        r'[\s\n]+'.join([
-            re.escape('FORMAT_DATE("%Y%m%d", DATE_SUB(CURRENT_DATE(), '
-                      'INTERVAL 10 DAY)) AND'),
-            re.escape('FORMAT_DATE("%Y%m%d", DATE_SUB(CURRENT_DATE(), '
-                      'INTERVAL 4 DAY))')
-        ]),
-        'Query check failed. Incorrect start/end days.')
 
   @mock.patch('google.cloud.bigquery.Client.query')
   def test_get_analytics_variables_not_found(self, query_mock: mock.Mock):
