@@ -109,27 +109,23 @@ class CustomClient(bigquery.Client):
         ORDER BY count DESC
         LIMIT 100
       )
-      SELECT * FROM (
-        SELECT
-          e.name,
-          e.count,
-          p.key AS parameter_key,
-          STRING_AGG(
-            DISTINCT
-            CASE
-              WHEN p.value.string_value IS NOT NULL THEN "string"
-              WHEN p.value.int_value IS NOT NULL THEN "int"
-              WHEN p.value.double_value IS NOT NULL THEN "double"
-              WHEN p.value.float_value IS NOT NULL THEN "float"
-              ELSE NULL
-            END
-          ) AS parameter_value_type
-        FROM events e,
-        UNNEST(e.params) AS p
-        WHERE p.key NOT IN ({key_exclude_list})
-        GROUP BY 1,2,3
-      )
-      WHERE parameter_value_type IS NOT NULL
+      SELECT
+        e.name,
+        e.count,
+        p.key AS parameter_key,
+        STRING_AGG(
+          DISTINCT
+          CASE
+            WHEN p.value.string_value IS NOT NULL THEN "string"
+            WHEN p.value.int_value IS NOT NULL THEN "int"
+            WHEN p.value.double_value IS NOT NULL THEN "double"
+            WHEN p.value.float_value IS NOT NULL THEN "float"
+            ELSE NULL
+          END
+        ) AS parameter_value_type
+      FROM events e, UNNEST(e.params) AS p
+      WHERE p.key NOT IN ({key_exclude_list})
+      GROUP BY 1,2,3
       ORDER BY
         count DESC,
         name ASC,
