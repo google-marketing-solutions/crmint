@@ -317,8 +317,19 @@ export class MlModelFormComponent implements OnInit {
    */
   async refreshVariables() {
     const formVariables: Variable[] = this.value('variables');
+    const uniqueId: UniqueId = this.value('uniqueId');
     const roles: Role[] = Object.values(Role);
-    const firstPartyRoles: Role[] = roles;
+    const firstPartyRoles: Role[] = roles.filter(r => {
+      if (uniqueId === UniqueId.CLIENT_ID && r === Role.USER_ID) {
+        return false;
+      }
+
+      if (uniqueId === UniqueId.USER_ID && r === Role.CLIENT_ID) {
+        return false;
+      }
+
+      return true;
+    });
     const googleAnalyticsRoles: Role[] = roles.filter(r => ![Role.TRIGGER_DATE, Role.CLIENT_ID, Role.USER_ID].includes(r));
     const existingVariables: Variable[] = formVariables.length ? formVariables : this.mlModel.variables;
     const variables: Variable[] = await this.getVariables();

@@ -79,7 +79,7 @@
 
         <div class="crmi-form-group">
           <label class="crmi-form-label">User Identifier</label>
-          <mat-select placeholder="Unique ID" formControlName="uniqueId">
+          <mat-select placeholder="Unique ID" formControlName="uniqueId" (selectionChange)="refreshVariables()">
             <mat-option *ngFor="let uniqueId of uniqueIds" [value]="uniqueId">{{ uniqueId | labelcase }}</mat-option>
           </mat-select>
         </div>
