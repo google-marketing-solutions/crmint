@@ -61,7 +61,7 @@ class BQToAdsOfflineClickConversion(bq_batch_worker.BQBatchDataWorker):
      '',
      'Table name where the BQ conversion data lives.'),
     (CONVERSION_UPLOAD_JSON_TEMPLATE,
-     'string',
+     'text',
      True,
      '',
      'JSON template of a conversion upload request.'),
