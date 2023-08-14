@@ -86,6 +86,24 @@ class BQBatchDataWorkerTest(parameterized.TestCase):
       page_size=mock.ANY
     )
 
+  @mock.patch('jobs.workers.worker.Worker.log_info')
+  def test_loads_data_with_batch_size_provided_in_params(self, _):
+    """Batch worker loads data using the provided page token."""
+    params = {
+      'bq_project_id': 'a_project',
+      'bq_dataset_id': 'a_dataset_id',
+      'bq_table_id': 'a_table_id',
+      'bq_batch_size': 5000
+    }
+    worker = MockImplBatchWorker(params, 0, 0)
+    worker._execute()
+
+    self.mock_bq_client.list_rows.assert_called_with(
+      table=self.mock_bq_table,
+      page_token=mock.ANY,
+      page_size=5000
+    )
+
   @mock.patch('jobs.workers.worker.Worker._enqueue')
   @mock.patch('jobs.workers.worker.Worker.log_info')
   def test_enqueues_sub_worker_for_every_page_of_results(
@@ -98,7 +116,8 @@ class BQBatchDataWorkerTest(parameterized.TestCase):
       'bq_project_id': 'a_project',
       'bq_dataset_id': 'a_dataset_id',
       'bq_table_id': 'a_table_id',
-      'bq_page_token': 'a_token'
+      'bq_page_token': 'a_token',
+      'bq_batch_size': 500
     }
     self.mock_row_iterator.next_page_token = 'next_token'
     self.mock_row_iterator.pages = iter(['results_page_1', 'results_page_2'])
@@ -111,14 +130,14 @@ class BQBatchDataWorkerTest(parameterized.TestCase):
       'bq_dataset_id': 'a_dataset_id',
       'bq_table_id': 'a_table_id',
       'bq_page_token': 'a_token',
-      'bq_batch_size': 1000
+      'bq_batch_size': 500
     }
     expected_params_second_page = {
       'bq_project_id': 'a_project',
       'bq_dataset_id': 'a_dataset_id',
       'bq_table_id': 'a_table_id',
       'bq_page_token': 'next_token',
-      'bq_batch_size': 1000
+      'bq_batch_size': 500
     }
     calls = [
       mock.call('sub_worker_name', expected_params_first_page),

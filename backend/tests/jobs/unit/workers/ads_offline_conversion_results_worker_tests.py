@@ -107,7 +107,7 @@ class AdsOfflineClickPageResultsWorkerTest(parameterized.TestCase):
       'conversion_action': '/a/conversion/action',
     }
     page_data = mock.MagicMock()
-    page_data.num_items.return_value = 1
+    page_data.num_items = 1
     page_data.__iter__.return_value = [conversion_record_data]
 
     params = self._generate_default_params()
@@ -132,14 +132,14 @@ class AdsOfflineClickPageResultsWorkerTest(parameterized.TestCase):
       'conversion_action': '/a/conversion/action',
     }
     conversion_record_data_2 = {
-      'gclid': 'another_gclid',
+      'gclid': 'b_gclid',
       'conversion_value': 20.0,
       'conversion_date_time': '2023-05-10 10:10:10-08:00',
       'currency_code': 'USD',
-      'conversion_action': '/a/conversion/action',
+      'conversion_action': '/b/conversion/action',
     }
     page_data = mock.MagicMock()
-    page_data.num_items.return_value = 1
+    page_data.num_items = 2
     page_data.__iter__.return_value = [
       conversion_record_data_1, conversion_record_data_2
     ]
@@ -160,11 +160,11 @@ class AdsOfflineClickPageResultsWorkerTest(parameterized.TestCase):
     expected_click_conversion_1.conversion_action = '/a/conversion/action'
 
     expected_click_conversion_2 = conversion_upload_service.ClickConversion()
-    expected_click_conversion_2.gclid = 'another_gclid'
+    expected_click_conversion_2.gclid = 'b_gclid'
     expected_click_conversion_2.conversion_value = 20.0
     expected_click_conversion_2.conversion_date_time = '2023-05-10 10:10:10-08:00'
     expected_click_conversion_2.currency_code = 'USD'
-    expected_click_conversion_2.conversion_action = '/a/conversion/action'
+    expected_click_conversion_2.conversion_action = '/b/conversion/action'
 
     expected_results = [
       expected_click_conversion_1, expected_click_conversion_2

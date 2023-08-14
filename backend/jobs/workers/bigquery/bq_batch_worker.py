@@ -66,12 +66,13 @@ class BQBatchDataWorker(bq_worker.BQWorker, abc.ABC):
     self.log_info(
       f'About to query BQ table for conversions: {table_name_to_process}')
     page_token = self._params.get(BQ_PAGE_TOKEN_PARAM, None)
+    batch_size = self._params.get(BQ_BATCH_SIZE_PARAM, self.DEFAULT_BQ_BATCH_SIZE)
     client = self._get_client()
 
     row_iterator = client.list_rows(
       table=client.get_table(table_name_to_process),
       page_token=page_token,
-      page_size=self.DEFAULT_BQ_BATCH_SIZE
+      page_size=batch_size
     )
 
     enqueued_jobs_count = 0
@@ -80,7 +81,7 @@ class BQBatchDataWorker(bq_worker.BQWorker, abc.ABC):
       # Enqueue job for this page
       worker_params = self._params.copy()
       worker_params[BQ_PAGE_TOKEN_PARAM] = page_token
-      worker_params[BQ_BATCH_SIZE_PARAM] = self.DEFAULT_BQ_BATCH_SIZE
+      worker_params[BQ_BATCH_SIZE_PARAM] = batch_size
 
       self.log_info(
         f'Enqueueing a conversion data page worker: {worker_params}.')
@@ -118,7 +119,7 @@ class TablePageResultsProcessorWorker(bq_worker.BQWorker, abc.ABC):
   _execute function.
   """
   def _extract_parameters(self) -> Tuple[str, str, int]:
-    page_token = self._params.get('bq_page_token', None)
+    page_token = self._params.get(BQ_PAGE_TOKEN_PARAM, None)
     batch_size = self._params.get(BQ_BATCH_SIZE_PARAM, None)
     if not batch_size:
       raise ValueError('Param \'' + BQ_BATCH_SIZE_PARAM + '\' needs to be set'

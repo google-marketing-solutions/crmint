@@ -34,6 +34,9 @@ CLIENT_ID = 'client_id'
 CLIENT_SECRET = 'client_secret'
 LOG_UPLOAD_RESPONSE_DETAILS = 'log_upload_response_details'
 
+# https://developers.google.com/google-ads/api/docs/best-practices/quotas#conversion_upload_service
+MAX_ALLOWED_CONVERSIONS_PER_REQUEST = 2000
+
 
 class BQToAdsOfflineClickConversion(bq_batch_worker.BQBatchDataWorker):
   """Worker that reads conversions from a BQ table and uploading into Ads.
@@ -100,15 +103,15 @@ class BQToAdsOfflineClickConversion(bq_batch_worker.BQBatchDataWorker):
 
     if not self._params.get(bq_worker.BQ_PROJECT_ID_PARAM_NAME, None):
       err_messages.append(
-        '"'+bq_worker.BQ_PROJECT_ID_PARAM_NAME+'" is required.')
+        f'"{bq_worker.BQ_PROJECT_ID_PARAM_NAME}" is required.')
 
     if not self._params.get(bq_worker.BQ_DATASET_NAME_PARAM_NAME, None):
       err_messages.append(
-        '"'+bq_worker.BQ_DATASET_NAME_PARAM_NAME+'" is required.')
+        f'"{bq_worker.BQ_DATASET_NAME_PARAM_NAME}" is required.')
 
     if not self._params.get(bq_worker.BQ_TABLE_NAME_PARAM_NAME, None):
       err_messages.append(
-        '"'+bq_worker.BQ_TABLE_NAME_PARAM_NAME+'" is required.')
+        f'"{bq_worker.BQ_TABLE_NAME_PARAM_NAME}" is required.')
 
     return err_messages
 
@@ -118,22 +121,22 @@ class BQToAdsOfflineClickConversion(bq_batch_worker.BQBatchDataWorker):
 
     if not self._params.get(SERVICE_ACCOUNT_FILE, None) and not self._params.get(REFRESH_TOKEN, None):
       err_messages.append(
-        'Either "'+SERVICE_ACCOUNT_FILE+'" or "'+REFRESH_TOKEN+'" are required')
+        f'Either "{SERVICE_ACCOUNT_FILE}" or "{REFRESH_TOKEN}" are required')
 
     if not self._params.get(CONVERSION_UPLOAD_JSON_TEMPLATE, None):
-      err_messages.append('"'+CONVERSION_UPLOAD_JSON_TEMPLATE+'" is required.')
+      err_messages.append(f'"{CONVERSION_UPLOAD_JSON_TEMPLATE}" is required.')
 
     if not self._params.get(CONVERSIONS_CUSTOMER_ID, None):
-      err_messages.append('"'+CONVERSIONS_CUSTOMER_ID+'" is required.')
+      err_messages.append(f'"{CONVERSIONS_CUSTOMER_ID}" is required.')
 
     if not self._params.get(DEVELOPER_TOKEN, None):
-      err_messages.append('"'+DEVELOPER_TOKEN+'" is required.')
+      err_messages.append(f'"{DEVELOPER_TOKEN}" is required.')
 
     if not is_service_account and not self._params.get(CLIENT_ID, None) :
-      err_messages.append('"'+CLIENT_ID+'" is required.')
+      err_messages.append(f'"{CLIENT_ID}" is required.')
 
     if not is_service_account and not self._params.get(CLIENT_SECRET, None):
-      err_messages.append('"'+CLIENT_SECRET+'" is required.')
+      err_messages.append(f'"{CLIENT_SECRET}" is required.')
 
     return err_messages
 
@@ -162,21 +165,24 @@ class AdsOfflineClickPageResultsWorker(bq_batch_worker.TablePageResultsProcessor
         self._generate_conversion_object(json.loads(payload), ads_client)
       )
 
-      if idx % (math.ceil(num_rows / 10)) == 0:
-        progress = idx / num_rows
+      progress = (idx + 1) / num_rows
+      if (len(conversion_objs) == MAX_ALLOWED_CONVERSIONS_PER_REQUEST) or (progress == 1):
+        self._send_payload(conversion_objs, ads_client)
         self.log_info(f'Completed {progress:.2%} of the google ads conversion uploads.')
+        conversion_objs = []
 
-    self._send_payload(conversion_objs, ads_client)
     self.log_info('Done with google ads conversion uploads.')
 
   def _get_ads_client(self) -> client.GoogleAdsClient:
-    client_params = {'developer_token': self._params[DEVELOPER_TOKEN]}
-    client_params['use_proto_plus'] = 'True'
-
     self.log_info('Setting up Ads client for user flow.')
-    client_params['client_id'] = self._params[CLIENT_ID]
-    client_params['client_secret'] = self._params[CLIENT_SECRET]
-    client_params['refresh_token'] = self._params[REFRESH_TOKEN]
+
+    client_params = {
+      'developer_token': self._params[DEVELOPER_TOKEN],
+      'use_proto_plus': 'True',
+      'client_id': self._params[CLIENT_ID],
+      'client_secret': self._params[CLIENT_SECRET],
+      'refresh_token': self._params[REFRESH_TOKEN]
+    }
 
     return client.GoogleAdsClient.load_from_dict(client_params)
 
@@ -186,12 +192,11 @@ class AdsOfflineClickPageResultsWorker(bq_batch_worker.TablePageResultsProcessor
     ads_client: client.GoogleAdsClient
   ) -> Any:
     """Generates an Ads API conversion object."""
-    click_conversion = ads_client.get_type("ClickConversion")
+    click_conversion = ads_client.get_type('ClickConversion')
 
     click_conversion.gclid = conversion_data['gclid']
     click_conversion.conversion_value = conversion_data['conversionValue']
-    click_conversion.conversion_date_time = conversion_data[
-      'conversionDateTime']
+    click_conversion.conversion_date_time = conversion_data['conversionDateTime']
     click_conversion.currency_code = conversion_data['currencyCode']
     click_conversion.conversion_action = conversion_data['conversionAction']
 
@@ -200,14 +205,13 @@ class AdsOfflineClickPageResultsWorker(bq_batch_worker.TablePageResultsProcessor
   def _send_payload(
     self, payload: List[Any], ads_client: client.GoogleAdsClient
   ) -> None:
-    request = ads_client.get_type("UploadClickConversionsRequest")
+    conversion_upload_service = ads_client.get_service('ConversionUploadService')
+
+    request = ads_client.get_type('UploadClickConversionsRequest')
     request.customer_id = self._params[CONVERSIONS_CUSTOMER_ID]
     request.conversions.extend(payload)
     request.partial_failure = True
 
-    conversion_upload_service = ads_client.get_service(
-      "ConversionUploadService"
-    )
     conversion_upload_response = (
       conversion_upload_service.upload_click_conversions(request=request)
     )
