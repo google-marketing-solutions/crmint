@@ -183,8 +183,14 @@ export class MlModelFormComponent implements OnInit {
    * @returns The value of the control.
    */
   value(control: string|AbstractControl, key: string = ''): any {
-    let formControl = control instanceof AbstractControl ? control : this.mlModelForm.get(control);
+    const formControl = control instanceof AbstractControl ? control : this.mlModelForm.get(control);
     return key ? formControl.get(key).value : formControl.value;
+  }
+
+  error(control: string|AbstractControl, key: string = ''): string {
+    const formControl = control instanceof AbstractControl ? control : this.mlModelForm.get(control);
+    const errors = key ? formControl.get(key).errors : formControl.errors;
+    return errors ? Object.keys(errors)[0] : '';
   }
 
   get type() {
@@ -357,21 +363,21 @@ export class MlModelFormComponent implements OnInit {
         variable.value_type = variable.parameters[0].value_type;
       }
 
-      if (variable.role === Role.LABEL) {
-        if (variable.source == Source.GOOGLE_ANALYTICS) {
-          variable.key_required = true;
-          if (isRegressionModel) {
-            variable.hint = 'Due to your selection, trigger date will be derived from the date associated with the first value ' +
-                            'and the first value (if not selected) defaults to the first label value.';
-          }
+      if (variable.role === Role.LABEL && variable.source == Source.GOOGLE_ANALYTICS) {
+        variable.key_required = true;
+        if (isRegressionModel) {
+          variable.hint = 'First value will be automatically derived from the first occurrence of this event if not assigned.';
         }
       }
 
       if (variable.role === Role.FIRST_VALUE && variable.source === Source.GOOGLE_ANALYTICS) {
         variable.key_required = true;
+        if (isRegressionModel) {
+          variable.hint = 'Trigger date will be automatically derived from the first date associated with this event.';
+        }
       }
 
-      controls.push(this._fb.group({
+      const control = this._fb.group({
         name: [variable.name],
         source: [variable.source, this.enumValidator(Source)],
         count: [variable.count],
@@ -384,7 +390,10 @@ export class MlModelFormComponent implements OnInit {
         ],
         value_type: [variable.value_type],
         hint: variable.hint
-      }));
+      });
+
+      control.setValidators(this.variableValidator(existingVariables));
+      controls.push(control);
     }
 
     this.mlModelForm.setControl('variables', this._fb.array(controls));
@@ -511,7 +520,6 @@ export class MlModelFormComponent implements OnInit {
 
     if (this.mlModel.id) {
       try {
-        this.mlModel.validate();
         await this.mlModelsService.update(this.mlModel);
         this.router.navigate(['ml-models', this.mlModel.id]);
         this.errorMessage = '';
@@ -547,5 +555,58 @@ export class MlModelFormComponent implements OnInit {
     return (control: AbstractControl): ValidationErrors | null => {
       return !Object.keys(e).includes(control.value) && control.value !== null ? {invalidSelection: {value: control.value}} : null;
     };
+  }
+
+  /**
+   * Validate variable based a complex set of requirements.
+   *
+   * @param existingVariables The existing variables (what's currently set in the form).
+   * @returns Any error that resulted from a requirement check step.
+   */
+  private variableValidator(existingVariables: Variable[]): ValidatorFn {
+    return (control: AbstractControl): ValidationErrors | null => {
+      const variableSource = control.get('source').value;
+      const variableRole = control.get('role').value;
+
+      for (const role of Object.keys(Role)) {
+        if (role !== Role.FEATURE) {
+          const variablesWithRole = existingVariables.filter(v => v.role === role);
+          if (variablesWithRole.length > 1) {
+            return {roleNotUnique: true};
+          }
+        }
+      }
+
+      if (!variableRole) {
+        const uniqueId = this.value('uniqueId');
+        const includesFirstPartyData = this.input.source.includes(Source.FIRST_PARTY);
+        const includesGoogleAnalyticsData = this.input.source.includes(Source.GOOGLE_ANALYTICS);
+
+        const selectedLabel: Variable = existingVariables.filter(v => v.role === Role.LABEL)[0];
+        const selectedFirstValue: Variable = existingVariables.filter(v => v.role === Role.FIRST_VALUE)[0];
+
+        if (existingVariables.filter(v => v.role === Role.LABEL).length === 0) {
+          return {labelNotSelected: true};
+        }
+
+        if (variableSource === Source.FIRST_PARTY) {
+          if (includesFirstPartyData && uniqueId === UniqueId.CLIENT_ID && existingVariables.filter(v => v.role === Role.CLIENT_ID).length === 0) {
+            return {clientIdNotSelected: true};
+          }
+
+          if (includesFirstPartyData && uniqueId === UniqueId.USER_ID && existingVariables.filter(v => v.role === Role.USER_ID).length === 0) {
+            return {userIdNotSelected: true};
+          }
+
+          if (includesFirstPartyData && includesGoogleAnalyticsData) {
+            if ((selectedLabel.source === Source.FIRST_PARTY && !selectedFirstValue) || (selectedFirstValue && selectedFirstValue.source === Source.FIRST_PARTY)) {
+              return {triggerDateNotSelected: true};
+            }
+          }
+        }
+      }
+
+      return null;
+    }
   }
 }
