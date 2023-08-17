@@ -81,8 +81,9 @@ class UniqueId(shared.StrEnum):
 class VariableRole(shared.StrEnum):
   FEATURE = 'FEATURE',
   LABEL = 'LABEL',
-  TRIGGER_DATE = 'TRIGGER_DATE',
+  TRIGGER_EVENT = 'TRIGGER_EVENT',
   FIRST_VALUE = 'FIRST_VALUE',
+  TRIGGER_DATE = 'TRIGGER_DATE',
   USER_ID = 'USER_ID',
   CLIENT_ID = 'CLIENT_ID'
 
@@ -90,35 +91,46 @@ class VariableRole(shared.StrEnum):
 class VariableSet():
   features: list[models.MlModelVariable]
   label: models.MlModelVariable
-  trigger_date: models.MlModelVariable
-  _first_value: models.MlModelVariable
+  trigger_event: models.MlModelVariable
+  first_value: models.MlModelVariable
+  _trigger_date: models.MlModelVariable
   _unique_id: str
   user_id: models.MlModelVariable
   client_id: models.MlModelVariable
 
-  def __init__(self, unique_id: UniqueId) -> None:
+  def __init__(self, source: Source, unique_id: UniqueId) -> None:
+    self.source = source
     self.features = []
     self.label = None
-    self.trigger_date = None
-    self._first_value = None
+    self.trigger_event = None
+    self.first_value = None
+    self._trigger_date = None
     self._unique_id = unique_id.lower()
     self.user_id = 'user_id'
     self.client_id = 'user_pseudo_id'
-
-  @property
-  def first_value(self):
-    return self._first_value if self._first_value else self.label
 
   @property
   def unique_id(self):
     unique_id = self.__getattribute__(self._unique_id)
     return unique_id.name if isinstance(unique_id, models.MlModelVariable) else unique_id
 
+  @property
+  def trigger_date(self):
+    if self.source == Source.FIRST_PARTY:
+      return self._trigger_date
+    elif self.source == Source.GOOGLE_ANALYTICS:
+      if self.trigger_event:
+        return self.trigger_event
+      elif self.first_value:
+        return self.first_value
+      else:
+        return self.label
+
   def add(self, variable: models.MlModelVariable) -> None:
     if variable.role == VariableRole.FEATURE:
       self.features.append(variable)
-    elif variable.role == VariableRole.FIRST_VALUE:
-      self._first_value = variable
+    elif variable.role == VariableRole.TRIGGER_DATE:
+      self._trigger_date = variable
     else:
       self.__setattr__(str(variable.role).lower(), variable)
 
@@ -184,7 +196,9 @@ class Compiler():
         'input': {
             'source': {
               'includes_first_party':
-                  Source.FIRST_PARTY in self.ml_model.input.source
+                  Source.FIRST_PARTY in self.ml_model.input.source,
+              'includes_google_analytics':
+                  Source.GOOGLE_ANALYTICS in self.ml_model.input.source
             },
             'parameters': self.ml_model.input.parameters
         },
@@ -203,8 +217,8 @@ class Compiler():
         'hyper_parameters': self.ml_model.hyper_parameters,
         'timespan': self._get_timespan(self.ml_model.timespans),
         'unique_id_type': self.ml_model.unique_id,
-        'first_party': VariableSet(self.ml_model.unique_id),
-        'google_analytics': VariableSet(self.ml_model.unique_id),
+        'first_party': VariableSet(Source.FIRST_PARTY, self.ml_model.unique_id),
+        'google_analytics': VariableSet(Source.GOOGLE_ANALYTICS, self.ml_model.unique_id),
         'conversion_rate_segments': self.ml_model.conversion_rate_segments,
         'class_imbalance': self.ml_model.class_imbalance,
         'output': {

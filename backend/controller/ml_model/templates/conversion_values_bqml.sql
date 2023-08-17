@@ -10,7 +10,28 @@ CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.conversion_values` AS 
       plp.prob AS probability,
       NTILE({{conversion_rate_segments}}) OVER (ORDER BY plp.prob ASC) AS normalized_probability
     FROM ML.PREDICT(MODEL `{{project_id}}.{{model_dataset}}.predictive_model`, (
-      WITH events AS (
+      WITH
+      {% if input.source.includes_first_party %}
+      first_party_variables AS (
+        SELECT
+          {{first_party.unique_id}} AS unique_id,
+          {% for feature in first_party.features %}
+          {{feature.name}},
+          {% endfor %}
+          {% if first_party.label %}
+          {{first_party.label.name}} AS label,
+          {% endif %}
+          {% if first_party.first_value %}
+          {{first_party.first_value.name}} AS first_value,
+          {% endif %}
+          {% if first_party.trigger_date %}
+          {{first_party.trigger_date.name}} AS trigger_date
+          {% endif %}
+        FROM `{{project_id}}.{{input.parameters.first_party_dataset}}.{{input.parameters.first_party_table}}`
+      ),
+      {% endif %}
+      {% if input.source.includes_google_analytics %}
+      events AS (
         SELECT
           event_timestamp AS timestamp,
           CAST(event_date AS DATE FORMAT 'YYYYMMDD') AS date,
@@ -67,19 +88,31 @@ CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.conversion_values` AS 
         WHERE row_num = 1
       ),
       -- if the selected label is a google analytics event then pull these per user
-      {% if google_analytics.label %}
+      {% if google_analytics.label or google_analytics.trigger_event %}
       analytics_variables AS (
         SELECT
           fe.unique_id,
+          {% if google_analytics.label %}
           IFNULL(l.label, 0) AS label,
-          l.date AS trigger_event_date
+          {% endif %}
+          {% if google_analytics.trigger_event or not first_party.trigger_date %}
+          IFNULL(fv.value, 0) AS first_value,
+          fv.date AS trigger_date
+          {% else %}
+          l.date AS trigger_date
+          {% endif %}
         FROM first_engagement fe
+        {% if google_analytics.label %}
         LEFT OUTER JOIN (
           SELECT
-            unique_id,
+            e.unique_id,
+            {% if type.is_classification %}
             1 AS label,
-            MIN(date) AS date,
-          FROM events, UNNEST(params) AS params
+            {% elif type.is_regression %}
+            SUM(COALESCE(params.value.int_value, params.value.float_value, params.value.double_value, 0)) AS label,
+            {% endif %}
+            MIN(e.date) AS date
+          FROM events AS e, UNNEST(params) AS params
           WHERE name = "{{google_analytics.label.name}}"
           AND params.key = "{{google_analytics.label.key}}"
           {% if 'string' in google_analytics.label.value_type %}
@@ -90,47 +123,39 @@ CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.conversion_values` AS 
           GROUP BY 1
         ) l
         ON fe.unique_id = l.unique_id
-      ),
-      {% endif %}
-      {% if input.source.includes_first_party %}
-      user_variables AS (
-        SELECT
-          fp.{{first_party.unique_id}} AS unique_id,
-          -- inject the selected features
-          {% for feature in first_party.features %}
-          fp.{{feature.name}},
-          {% endfor %}
-          -- inject the selected label
-          {% if first_party.label %}
-          fp.{{first_party.label.name}} AS label,
-          {% elif google_analytics.label %}
-          av.label,
-          {% endif %}
-          -- inject the selected first value
-          {% if first_party.first_value %}
-          fp.{{first_party.first_value.name}} AS first_value,
-          {% elif google_analytics.first_value %}
-          av.first_value,
-          {% endif %}
-          -- inject the selected first party trigger date
-          {% if first_party.trigger_date %}
-          fp.{{first_party.trigger_date.name}} AS trigger_event_date
-          -- or inject the selected google analytics trigger date
-          {% elif google_analytics.trigger_date %}
-          av.trigger_event_date
-          {% endif %}
-        FROM `{{project_id}}.{{input.parameters.first_party_dataset}}.{{input.parameters.first_party_table}}` fp
-        {% if google_analytics.label %}
-        LEFT OUTER JOIN analytics_variables av
-        ON fp.{{first_party.unique_id}} = av.unique_id
+        {% endif %}
+        {% if google_analytics.trigger_event or not first_party.trigger_date %}
+        LEFT OUTER JOIN (
+          SELECT
+            e.unique_id,
+            e.date,
+            COALESCE(params.value.int_value, params.value.float_value, params.value.double_value, 0) AS value,
+            ROW_NUMBER() OVER (PARTITION BY e.unique_id ORDER BY e.timestamp ASC) AS row_num
+          FROM events AS e, UNNEST(params) AS params
+          WHERE name = "{{google_analytics.trigger_date.name}}"
+          AND params.key = "{{google_analytics.trigger_date.key}}"
+          AND COALESCE(params.value.int_value, params.value.float_value, params.value.double_value, 0) > 0
+        ) fv
+        ON fe.unique_id = fv.unique_id
+        AND fv.row_num = 1
         {% endif %}
       ),
-      {% else %}
-      user_variables AS (
-        SELECT * FROM analytics_variables
-      ),
       {% endif %}
-      user_aggregate_behavior AS (
+      user_variables AS (
+        {% if input.source.includes_first_party and (google_analytics.label or google_analytics.trigger_event) %}
+        SELECT
+          fpv.*,
+          av.* EXCEPT(unique_id)
+        FROM first_party_variables fpv
+        INNER JOIN analytics_variables av
+        ON fpv.unique_id = av.unique_id
+        {% elif google_analytics.label or google_analytics.trigger_event % }
+        FROM analytics_variables
+        {% elif input.source.includes_first_party % }
+        FROM first_party_variables
+        {% endif %}
+      ),
+      aggregate_behavior AS (
         SELECT
           e.unique_id,
           SUM((SELECT value.int_value FROM UNNEST(e.params) WHERE key = "engagement_time_msec")) AS engagement_time,
@@ -146,19 +171,29 @@ CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.conversion_values` AS 
         FROM events AS e
         INNER JOIN user_variables AS uv
           ON e.unique_id = uv.unique_id
-        WHERE (uv.label > 0 AND e.date <= uv.trigger_event_date)
+        WHERE (uv.label > 0 AND e.date <= uv.trigger_date)
         OR uv.label = 0
         GROUP BY 1
+      ),
+      conversion_values_dataset AS (
+        SELECT
+          fe.*,
+          ab.* EXCEPT(unique_id),
+          uv.* EXCEPT(unique_id, trigger_date)
+        FROM first_engagement AS fe
+        INNER JOIN aggregate_behavior AS ab
+        ON fe.unique_id = ab.unique_id
+        INNER JOIN user_variables AS uv
+        ON fe.unique_id = uv.unique_id
       )
+      {% else %}
+      conversion_values_dataset AS (
+        SELECT * FROM first_party_variables
+      )
+      {% endif %}
       SELECT
-        fe.*,
-        uab.* EXCEPT (unique_id),
-        uv.* EXCEPT(unique_id, trigger_event_date)
-      FROM first_engagement AS fe
-      INNER JOIN user_aggregate_behavior AS uab
-      ON fe.unique_id = uab.unique_id
-      INNER JOIN user_variables AS uv
-      ON fe.unique_id = uv.unique_id
+        * EXCEPT(unique_id, trigger_date)
+      FROM conversion_values_dataset
     )) AS p,
     UNNEST(predicted_label_probs) AS plp
     WHERE plp.label = 1
