@@ -96,8 +96,9 @@ export class HyperParameter {
 export enum Role {
   FEATURE = 'FEATURE',
   LABEL = 'LABEL',
-  TRIGGER_DATE = 'TRIGGER_DATE',
+  TRIGGER_EVENT = 'TRIGGER_EVENT',
   FIRST_VALUE = 'FIRST_VALUE',
+  TRIGGER_DATE = 'TRIGGER_DATE',
   USER_ID = 'USER_ID',
   CLIENT_ID = 'CLIENT_ID'
 }
@@ -109,7 +110,7 @@ type Parameter = {
 
 export type Variable = {
   name: string;
-  source: string;
+  source: Source;
   count: number;
   roles?: Role[];
   role?: Role;

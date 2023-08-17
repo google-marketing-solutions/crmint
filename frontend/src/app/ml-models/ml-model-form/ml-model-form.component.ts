@@ -323,34 +323,15 @@ export class MlModelFormComponent implements OnInit {
    */
   async refreshVariables() {
     const formVariables: Variable[] = this.value('variables');
-    const uniqueId: UniqueId = this.value('uniqueId');
-    const roles: Role[] = Object.values(Role);
-    const firstPartyRoles: Role[] = roles.filter(r => {
-      if (uniqueId === UniqueId.CLIENT_ID && r === Role.USER_ID) {
-        return false;
-      }
-
-      if (uniqueId === UniqueId.USER_ID && r === Role.CLIENT_ID) {
-        return false;
-      }
-
-      return true;
-    });
-    const googleAnalyticsRoles: Role[] = roles.filter(r => ![Role.TRIGGER_DATE, Role.CLIENT_ID, Role.USER_ID].includes(r));
     const existingVariables: Variable[] = formVariables.length ? formVariables : this.mlModel.variables;
     const variables: Variable[] = await this.getVariables();
-    const isClassificationModel = this.type.isClassification;
-    const isRegressionModel = this.type.isRegression;
+    const isRegressionModel: boolean = this.type.isRegression;
     let controls = [];
 
     for (const variable of variables) {
-      const existingVariable = existingVariables?.find(v => v.name === variable.name && v.source === variable.source);
+      const existingVariable: Variable = existingVariables?.find(v => v.name === variable.name && v.source === variable.source);
 
-      variable.roles = variable.source === Source.FIRST_PARTY ? firstPartyRoles : googleAnalyticsRoles;
-      if (isClassificationModel) {
-        variable.roles = variable.roles.filter(r => ![Role.FIRST_VALUE].includes(r));
-      }
-
+      variable.roles = this.getVariableRoles(existingVariables, variable);
       variable.role = existingVariable ? existingVariable.role : null;
       variable.key_required = false;
       variable.hint = null;
@@ -365,16 +346,16 @@ export class MlModelFormComponent implements OnInit {
 
       if (variable.role === Role.LABEL && variable.source == Source.GOOGLE_ANALYTICS) {
         variable.key_required = true;
-        if (isRegressionModel) {
-          variable.hint = 'First value will be automatically derived from the first occurrence of this event if not assigned.';
-        }
+        variable.hint = `${isRegressionModel ? 'First value' : 'Trigger event'} will be automatically derived from the first occurrence of this event if not assigned.`;
       }
 
-      if (variable.role === Role.FIRST_VALUE && variable.source === Source.GOOGLE_ANALYTICS) {
+      if ([Role.FIRST_VALUE, Role.TRIGGER_EVENT].includes(variable.role) && variable.source === Source.GOOGLE_ANALYTICS) {
         variable.key_required = true;
-        if (isRegressionModel) {
-          variable.hint = 'Trigger date will be automatically derived from the first date associated with this event.';
-        }
+        variable.hint = 'Trigger date will be automatically derived from the first date associated with this event.';
+      }
+
+      if (!variable.roles.includes(variable.role)) {
+        variable.role = null;
       }
 
       const control = this._fb.group({
@@ -397,6 +378,41 @@ export class MlModelFormComponent implements OnInit {
     }
 
     this.mlModelForm.setControl('variables', this._fb.array(controls));
+  }
+
+  /**
+   * Get variable roles based on set form parameters and variable source.
+   *
+   * @param existingVariables The list of variables already assigned a role in the form.
+   * @param variable The variable for which the roles will be assigned (used to filter specific roles).
+   * @returns The list of roles that should be available for selection.
+   */
+  getVariableRoles(existingVariables: Variable[], variable: Variable): Role[] {
+    let roles: Role[] = Object.values(Role);
+    const uniqueId: UniqueId = this.value('uniqueId');
+    const isRegressionModel: boolean = this.type.isRegression;
+    const isClassificationModel: boolean = this.type.isClassification;
+
+    if (variable.source === Source.FIRST_PARTY) {
+      roles = roles.filter(r => !(uniqueId === UniqueId.CLIENT_ID && r === Role.USER_ID) && !(uniqueId === UniqueId.USER_ID && r === Role.CLIENT_ID));
+    } else if (variable.source === Source.GOOGLE_ANALYTICS) {
+      roles = roles.filter(r => ![Role.TRIGGER_DATE, Role.CLIENT_ID, Role.USER_ID].includes(r));
+    }
+
+    if (isRegressionModel || variable.source === Source.FIRST_PARTY) {
+      roles = roles.filter(r => r !== Role.TRIGGER_EVENT);
+    }
+
+    if (isClassificationModel) {
+      roles = roles.filter(r => r !== Role.FIRST_VALUE);
+    }
+
+    const triggerDateDerived: Variable = existingVariables?.find(v => [Role.FIRST_VALUE, Role.TRIGGER_EVENT].includes(v.role));
+    if (triggerDateDerived) {
+      roles = roles.filter(r => r !== Role.TRIGGER_DATE);
+    }
+
+    return roles;
   }
 
   /**
@@ -582,8 +598,9 @@ export class MlModelFormComponent implements OnInit {
         const includesFirstPartyData = this.input.source.includes(Source.FIRST_PARTY);
         const includesGoogleAnalyticsData = this.input.source.includes(Source.GOOGLE_ANALYTICS);
 
-        const selectedLabel: Variable = existingVariables.filter(v => v.role === Role.LABEL)[0];
-        const selectedFirstValue: Variable = existingVariables.filter(v => v.role === Role.FIRST_VALUE)[0];
+        const selectedLabel: Variable = existingVariables.find(v => v.role === Role.LABEL);
+        const selectedFirstValue: Variable = existingVariables.find(v => v.role === Role.FIRST_VALUE);
+        const selectedTriggerEvent: Variable = existingVariables.find(v => v.role === Role.TRIGGER_EVENT);
 
         if (existingVariables.filter(v => v.role === Role.LABEL).length === 0) {
           return {labelNotSelected: true};
@@ -598,8 +615,9 @@ export class MlModelFormComponent implements OnInit {
             return {userIdNotSelected: true};
           }
 
+          // no way to derive the trigger date so it must be specified.
           if (includesFirstPartyData && includesGoogleAnalyticsData) {
-            if ((selectedLabel.source === Source.FIRST_PARTY && !selectedFirstValue) || (selectedFirstValue && selectedFirstValue.source === Source.FIRST_PARTY)) {
+            if ((!selectedFirstValue && !selectedTriggerEvent && selectedLabel.source === Source.FIRST_PARTY) || (selectedFirstValue && selectedFirstValue.source === Source.FIRST_PARTY)) {
               return {triggerDateNotSelected: true};
             }
           }
