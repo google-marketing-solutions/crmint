@@ -14,7 +14,6 @@ CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.conversion_values` AS 
       {% if input.source.includes_first_party %}
       first_party_variables AS (
         SELECT
-          {{first_party.unique_id}} AS unique_id,
           {% for feature in first_party.features %}
           {{feature.name}},
           {% endfor %}
@@ -25,8 +24,9 @@ CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.conversion_values` AS 
           {{first_party.first_value.name}} AS first_value,
           {% endif %}
           {% if first_party.trigger_date %}
-          {{first_party.trigger_date.name}} AS trigger_date
+          {{first_party.trigger_date.name}} AS trigger_date,
           {% endif %}
+          {{first_party.unique_id}} AS unique_id
         FROM `{{project_id}}.{{input.parameters.first_party_dataset}}.{{input.parameters.first_party_table}}`
       ),
       {% endif %}
@@ -149,9 +149,9 @@ CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.conversion_values` AS 
         FROM first_party_variables fpv
         INNER JOIN analytics_variables av
         ON fpv.unique_id = av.unique_id
-        {% elif google_analytics.label or google_analytics.trigger_event % }
+        {% elif google_analytics.label or google_analytics.trigger_event %}
         FROM analytics_variables
-        {% elif input.source.includes_first_party % }
+        {% elif input.source.includes_first_party %}
         FROM first_party_variables
         {% endif %}
       ),

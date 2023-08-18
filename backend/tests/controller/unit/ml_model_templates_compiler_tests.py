@@ -171,8 +171,8 @@ class TestCompiler(parameterized.TestCase):
 
     self.assertRegex(
         sql,
-        re.escape('av.label,'),
-        'Google Analytics label join check failed.')
+        re.escape('INNER JOIN analytics_variables'),
+        'Google Analytics variables join check failed.')
 
     # feature check
     self.assertRegex(
@@ -181,7 +181,12 @@ class TestCompiler(parameterized.TestCase):
         'Google Analytics feature check failed.')
 
     self.assertRegex(
-        sql, re.escape('fp.subscribe'), 'First party feature check failed.')
+        sql,
+        r'[\s\S]+'.join([
+          re.escape('first_party_variables AS ('),
+          re.escape('subscribe,')
+        ]),
+        'First party feature check failed.')
 
     # class-imbalance check
     self.assertIn(
@@ -251,15 +256,19 @@ class TestCompiler(parameterized.TestCase):
     # label check
     self.assertRegex(
         sql,
-        re.escape('fp.enroll'),
+        r'[\s\S]+'.join([
+            re.escape('first_party_variables AS ('),
+            re.escape('enroll AS label,')
+        ]),
         'First party label check failed.')
 
     # feature check
     self.assertRegex(
         sql,
-        r',[\s\n]+'.join([
-            re.escape('fp.call'),
-            re.escape('fp.request_for_info'),
+        r'[\s\S]+'.join([
+            re.escape('first_party_variables AS ('),
+            re.escape('call,'),
+            re.escape('request_for_info,'),
         ]),
         'First party feature check failed.',
     )
@@ -267,9 +276,10 @@ class TestCompiler(parameterized.TestCase):
     # other variable check
     self.assertRegex(
         sql,
-        r',[\s\n]+'.join([
-            re.escape('fp.first_purchase AS first_value'),
-            re.escape('fp.first_purchase_date AS trigger_event_date'),
+        r'[\s\S]+'.join([
+            re.escape('first_party_variables AS ('),
+            re.escape('first_purchase AS first_value'),
+            re.escape('first_purchase_date AS trigger_date'),
         ]),
         'First party feature check failed.',
     )
@@ -329,8 +339,8 @@ class TestCompiler(parameterized.TestCase):
 
     self.assertRegex(
         sql,
-        re.escape('SELECT * FROM analytics_variables'),
-        'Google Analytics label join check failed.')
+        re.escape('FROM analytics_variables'),
+        'Google Analytics variables pull check failed.')
 
     # feature check
     self.assertRegex(
@@ -554,8 +564,8 @@ class TestCompiler(parameterized.TestCase):
 
     self.assertRegex(
         sql,
-        re.escape('av.label,'),
-        'Google Analytics label join check failed.')
+        re.escape('INNER JOIN analytics_variables'),
+        'Google Analytics variables join check failed.')
 
     # feature check
     self.assertRegex(
@@ -565,7 +575,10 @@ class TestCompiler(parameterized.TestCase):
 
     self.assertRegex(
         sql,
-        re.escape('fp.subscribe'),
+        r'[\s\S]+'.join([
+          re.escape('first_party_variables AS ('),
+          re.escape('subscribe,')
+        ]),
         'First party feature check failed.')
 
     # timespan check
@@ -650,26 +663,31 @@ class TestCompiler(parameterized.TestCase):
         'First party table name check failed.')
 
     # label check
-    self.assertIn(
-        'fp.premium_subscription AS label,',
+    self.assertRegex(
         sql,
+        r'[\s\S]+'.join([
+            re.escape('first_party_variables AS ('),
+            re.escape('premium_subscription AS label,')
+        ]),
         'First party label check failed.')
 
     # feature check
     self.assertRegex(
         sql,
-        r',[\s\n]+'.join([
-            re.escape('fp.purchase'),
-            re.escape('fp.request_for_info'),
+        r'[\s\S]+'.join([
+            re.escape('first_party_variables AS ('),
+            re.escape('purchase,'),
+            re.escape('request_for_info,'),
         ]),
         'First party feature check failed.')
 
     # other variable check
     self.assertRegex(
         sql,
-        r',[\s\n]+'.join([
-            re.escape('fp.first_purchase AS first_value'),
-            re.escape('fp.first_purchase_date AS trigger_event_date'),
+        r'[\s\S]+'.join([
+            re.escape('first_party_variables AS ('),
+            re.escape('first_purchase AS first_value,'),
+            re.escape('first_purchase_date AS trigger_date,'),
         ]),
         'First party feature check failed.',
     )
@@ -720,8 +738,8 @@ class TestCompiler(parameterized.TestCase):
 
     self.assertRegex(
         sql,
-        re.escape('SELECT * FROM analytics_variables'),
-        'Google Analytics label join check failed.')
+        re.escape('FROM analytics_variables'),
+        'Google Analytics variables pull check failed.')
 
     # feature check
     self.assertRegex(
@@ -927,8 +945,8 @@ class TestCompiler(parameterized.TestCase):
 
     self.assertRegex(
         sql,
-        re.escape('av.label,'),
-        'Google Analytics label join check failed.')
+        re.escape('INNER JOIN analytics_variables'),
+        'Google Analytics variables join check failed.')
 
     # feature check
     self.assertRegex(
@@ -938,7 +956,10 @@ class TestCompiler(parameterized.TestCase):
 
     self.assertRegex(
         sql,
-        re.escape('fp.subscribe'),
+        r'[\s\S]+'.join([
+            re.escape('first_party_variables AS ('),
+            re.escape('subscribe,')
+        ]),
         'First party feature check failed.')
 
     # timespan check
@@ -1023,26 +1044,31 @@ class TestCompiler(parameterized.TestCase):
         'User ids check failed.')
 
     # label check
-    self.assertIn(
-        'fp.premium_subscription AS label,',
-        sql,
-        'First party label check failed.')
+    self.assertRegex(
+      sql,
+      r'[\s\S]+'.join([
+          re.escape('first_party_variables AS ('),
+          re.escape('premium_subscription AS label,')
+      ]),
+      'First party label check failed.')
 
     # feature check
     self.assertRegex(
-        sql,
-        r',[\s\n]+'.join([
-            re.escape('fp.purchase'),
-            re.escape('fp.request_for_info'),
+      sql,
+      r'[\s\S]+'.join([
+            re.escape('first_party_variables AS ('),
+            re.escape('purchase,'),
+            re.escape('request_for_info,'),
         ]),
         'First party feature check failed.')
 
     # other variable check
     self.assertRegex(
-        sql,
-        r',[\s\n]+'.join([
-            re.escape('fp.first_purchase AS first_value'),
-            re.escape('fp.first_purchase_date AS trigger_event_date'),
+      sql,
+      r'[\s\S]+'.join([
+            re.escape('first_party_variables AS ('),
+            re.escape('first_purchase AS first_value,'),
+            re.escape('first_purchase_date AS trigger_date,'),
         ]),
         'First party feature check failed.',
     )
@@ -1094,8 +1120,8 @@ class TestCompiler(parameterized.TestCase):
 
     self.assertRegex(
         sql,
-        re.escape('SELECT * FROM analytics_variables'),
-        'Google Analytics label join check failed.')
+        re.escape('FROM analytics_variables'),
+        'Google Analytics pull check failed.')
 
     # feature check
     self.assertRegex(

@@ -407,7 +407,9 @@ export class MlModelFormComponent implements OnInit {
       roles = roles.filter(r => r !== Role.FIRST_VALUE);
     }
 
-    const triggerDateDerived: Variable = existingVariables?.find(v => [Role.FIRST_VALUE, Role.TRIGGER_EVENT].includes(v.role));
+    const triggerDateDerived: Variable = existingVariables?.find(v =>
+      v.source === Source.GOOGLE_ANALYTICS && [Role.FIRST_VALUE, Role.TRIGGER_EVENT].includes(v.role)
+    );
     if (triggerDateDerived) {
       roles = roles.filter(r => r !== Role.TRIGGER_DATE);
     }

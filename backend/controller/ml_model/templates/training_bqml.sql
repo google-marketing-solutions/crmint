@@ -17,7 +17,6 @@ WITH
 {% if input.source.includes_first_party %}
 first_party_variables AS (
   SELECT
-    {{first_party.unique_id}} AS unique_id,
     {% for feature in first_party.features %}
     {{feature.name}},
     {% endfor %}
@@ -28,8 +27,9 @@ first_party_variables AS (
     {{first_party.first_value.name}} AS first_value,
     {% endif %}
     {% if first_party.trigger_date %}
-    {{first_party.trigger_date.name}} AS trigger_event_date
+    {{first_party.trigger_date.name}} AS trigger_date,
     {% endif %}
+    {{first_party.unique_id}} AS unique_id
   FROM `{{project_id}}.{{input.parameters.first_party_dataset}}.{{input.parameters.first_party_table}}`
 ),
 {% endif %}
@@ -37,7 +37,7 @@ first_party_variables AS (
 events AS (
   SELECT
     event_timestamp AS timestamp,
-    CAST(event_date AS DATE FORMAT 'YYYYMMDD') AS date,
+    CAST(event_date AS DATE FORMAT "YYYYMMDD") AS date,
     event_name AS name,
     event_params AS params,
     {{google_analytics.unique_id}} AS unique_id,
@@ -58,7 +58,7 @@ events AS (
   -- get 90% of the events in this time-range (the other 10% is used to calculate conversion values)
   AND MOD(ABS(FARM_FINGERPRINT({{google_analytics.unique_id}})), 100) < 90
   {% endif %}
-  AND LOWER(platform) = 'web'
+  AND LOWER(platform) = "web"
 ),
 -- pull together a list of first engagements and associated metadata that will be useful for the model
 first_engagement AS (
@@ -98,9 +98,9 @@ analytics_variables AS (
     {% endif %}
     {% if google_analytics.first_value or google_analytics.trigger_event or not first_party.trigger_date %}
     IFNULL(fv.value, 0) AS first_value,
-    fv.date AS trigger_event_date
+    fv.date AS trigger_date
     {% else %}
-    l.date AS trigger_event_date
+    l.date AS trigger_date
     {% endif %}
   FROM first_engagement fe
   {% if google_analytics.label %}
@@ -150,9 +150,9 @@ user_variables AS (
   FROM first_party_variables fpv
   INNER JOIN analytics_variables av
   ON fpv.unique_id = av.unique_id
-  {% elif google_analytics.label or google_analytics.first_value or google_analytics.trigger_event % }
+  {% elif google_analytics.label or google_analytics.first_value or google_analytics.trigger_event %}
   FROM analytics_variables
-  {% elif input.source.includes_first_party % }
+  {% elif input.source.includes_first_party %}
   FROM first_party_variables
   {% endif %}
 ),
@@ -172,7 +172,7 @@ aggregate_behavior AS (
   FROM events AS e
   INNER JOIN user_variables AS uv
     ON e.unique_id = uv.unique_id
-  WHERE (uv.label > 0 AND e.date <= uv.trigger_event_date)
+  WHERE (uv.label > 0 AND e.date <= uv.trigger_date)
   OR uv.label = 0
   GROUP BY 1
 ),
@@ -180,7 +180,7 @@ training_dataset AS (
   SELECT
     fe.*,
     ab.* EXCEPT(unique_id),
-    uv.* EXCEPT(unique_id, trigger_event_date)
+    uv.* EXCEPT(unique_id, trigger_date)
   FROM first_engagement AS fe
   INNER JOIN aggregate_behavior AS ab
   ON fe.unique_id = ab.unique_id
@@ -192,7 +192,7 @@ training_dataset AS (
   SELECT * FROM first_party_variables
 )
 {% endif %}
-{% if type.is_classification or not (first_party.first_value or google_analytics.first_value) %}
+{% if type.is_classification or not (google_analytics.first_value or google_analytics.trigger_event or (google_analytics.label and not first_party.trigger_date)) %}
 SELECT * EXCEPT(unique_id)
 {% elif type.is_regression %}
 SELECT
