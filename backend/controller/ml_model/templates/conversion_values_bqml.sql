@@ -34,7 +34,7 @@ CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.conversion_values` AS 
       events AS (
         SELECT
           event_timestamp AS timestamp,
-          CAST(event_date AS DATE FORMAT 'YYYYMMDD') AS date,
+          CAST(event_date AS DATE FORMAT "YYYYMMDD") AS date,
           event_name AS name,
           event_params AS params,
           user_id,
@@ -55,7 +55,7 @@ CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.conversion_values` AS 
             FORMAT_DATE("%Y%m%d", DATE_SUB(CURRENT_DATE(), INTERVAL {{timespan.training_end}} DAY))
           -- select the remaining 10% of the data not used in the training dataset
           AND MOD(ABS(FARM_FINGERPRINT({{google_analytics.unique_id}})), 100) >= 90
-          AND LOWER(platform) = 'web'
+          AND LOWER(platform) = "web"
       ),
       first_engagement AS (
         SELECT * EXCEPT(row_num)
