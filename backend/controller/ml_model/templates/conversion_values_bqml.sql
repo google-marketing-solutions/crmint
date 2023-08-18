@@ -94,7 +94,7 @@ CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.conversion_values` AS 
           {% if google_analytics.label %}
           IFNULL(l.label, 0) AS label,
           {% endif %}
-          {% if google_analytics.trigger_event or not first_party.trigger_date %}
+          {% if google_analytics.trigger_event %}
           t.date AS trigger_date
           {% else %}
           l.date AS trigger_date
@@ -118,7 +118,7 @@ CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.conversion_values` AS 
         ) l
         ON fe.unique_id = l.unique_id
         {% endif %}
-        {% if google_analytics.trigger_event or not first_party.trigger_date %}
+        {% if google_analytics.trigger_event %}
         LEFT OUTER JOIN (
           SELECT
             e.unique_id,
