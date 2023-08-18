@@ -179,7 +179,7 @@ export class MlModelFormComponent implements OnInit {
    * Helper for quickly getting a control's value.
    *
    * @param control The name of the control or the control itself.
-   * @param key The key within the control to lookup the value for.
+   * @param key The key within the control to lookup the value for (optional).
    * @returns The value of the control.
    */
   value(control: string|AbstractControl, key: string = ''): any {
@@ -187,6 +187,13 @@ export class MlModelFormComponent implements OnInit {
     return key ? formControl.get(key).value : formControl.value;
   }
 
+  /**
+   * Return any error for a given control.
+   *
+   * @param control The name of the control or the control itself.
+   * @param key The key within the control to lookup the value for (optional).
+   * @returns The error associated with the control (if any).
+   */
   error(control: string|AbstractControl, key: string = ''): string {
     const formControl = control instanceof AbstractControl ? control : this.mlModelForm.get(control);
     const errors = key ? formControl.get(key).errors : formControl.errors;
@@ -246,17 +253,20 @@ export class MlModelFormComponent implements OnInit {
    * that are required to properly fetch the ml model variables.
    */
   get variableRequirementsProvided(): boolean {
-    const bigQueryDatasetName: string = this.value('bigQueryDataset', 'name');
-    const bigQueryDatasetLocation: string = this.value('bigQueryDataset', 'location');
-    const includesFirstPartyData: boolean = this.input.source.includes(Source.FIRST_PARTY);
+    const bigQueryDataset = this.value('bigQueryDataset');
+    const input = this.value('input');
     const timespans: Timespan[] = this.value('timespans');
 
-    if (!bigQueryDatasetName || !bigQueryDatasetLocation) {
+    if (!bigQueryDataset.name || !bigQueryDataset.location) {
       return false;
     }
 
-    if (includesFirstPartyData === null) {
+    if (input.source === null) {
       return false;
+    } else if (input.source.includes(Source.FIRST_PARTY)) {
+      if (!input.parameters.firstPartyDataset || !input.parameters.firstPartyTable) {
+        return false;
+      }
     }
 
     for (const timespan of timespans) {
@@ -294,7 +304,7 @@ export class MlModelFormComponent implements OnInit {
     const includesFirstPartyData: boolean = this.input.source.includes(Source.FIRST_PARTY);
     let variables: Variable[] = this.cachedVariables;
 
-    if (variables.length === 0) {
+    if (variables.length === 0 && this.variableRequirementsProvided) {
       try {
         const input = this.value('input');
         const dataset = this.value('bigQueryDataset');
@@ -314,7 +324,7 @@ export class MlModelFormComponent implements OnInit {
     if (!includesFirstPartyData) {
       return variables.filter(v => v.source !== Source.FIRST_PARTY);
     }
-    return variables;
+    return this.copy(variables) as Variable[];
   }
 
   /**
@@ -323,20 +333,20 @@ export class MlModelFormComponent implements OnInit {
    */
   async refreshVariables() {
     const formVariables: Variable[] = this.value('variables');
-    const existingVariables: Variable[] = formVariables.length ? formVariables : this.mlModel.variables;
+    const existingVariables: Variable[] = (formVariables.length ? formVariables : this.mlModel.variables) || [];
     const variables: Variable[] = await this.getVariables();
     const isRegressionModel: boolean = this.type.isRegression;
     let controls = [];
 
     for (const variable of variables) {
-      const existingVariable: Variable = existingVariables?.find(v => v.name === variable.name && v.source === variable.source);
+      const existingVariable: Variable = existingVariables.find(v => v.name === variable.name && v.source === variable.source);
 
       variable.roles = this.getVariableRoles(existingVariables, variable);
-      variable.role = existingVariable ? existingVariable.role : null;
+      variable.role = existingVariable && variable.roles.includes(existingVariable.role) ? existingVariable.role : null;
       variable.key_required = false;
       variable.hint = null;
 
-      if (existingVariable && existingVariable.key) {
+      if (existingVariable && existingVariable.key && variable.role) {
         variable.key = existingVariable.key;
         variable.value_type = variable.parameters.find(p => p.key === variable.key).value_type;
       } else if (variable.parameters.length === 1) {
@@ -352,10 +362,6 @@ export class MlModelFormComponent implements OnInit {
       if ([Role.FIRST_VALUE, Role.TRIGGER_EVENT].includes(variable.role) && variable.source === Source.GOOGLE_ANALYTICS) {
         variable.key_required = true;
         variable.hint = 'Trigger date will be automatically derived from the first date associated with this event.';
-      }
-
-      if (!variable.roles.includes(variable.role)) {
-        variable.role = null;
       }
 
       const control = this._fb.group({
@@ -586,23 +592,17 @@ export class MlModelFormComponent implements OnInit {
       const variableSource = control.get('source').value;
       const variableRole = control.get('role').value;
 
-      for (const role of Object.keys(Role)) {
-        if (role !== Role.FEATURE) {
-          const variablesWithRole = existingVariables.filter(v => v.role === role);
+      if (variableRole) {
+        if (variableRole !== Role.FEATURE) {
+          const variablesWithRole = existingVariables.filter(v => v.role === variableRole);
           if (variablesWithRole.length > 1) {
-            return {roleNotUnique: true};
+            return {cannotAssignThisRoleToMultipleVariables: true};
           }
         }
-      }
-
-      if (!variableRole) {
+      } else {
         const uniqueId = this.value('uniqueId');
         const includesFirstPartyData = this.input.source.includes(Source.FIRST_PARTY);
         const includesGoogleAnalyticsData = this.input.source.includes(Source.GOOGLE_ANALYTICS);
-
-        const selectedLabel: Variable = existingVariables.find(v => v.role === Role.LABEL);
-        const selectedFirstValue: Variable = existingVariables.find(v => v.role === Role.FIRST_VALUE);
-        const selectedTriggerEvent: Variable = existingVariables.find(v => v.role === Role.TRIGGER_EVENT);
 
         if (existingVariables.filter(v => v.role === Role.LABEL).length === 0) {
           return {labelNotSelected: true};
@@ -619,8 +619,15 @@ export class MlModelFormComponent implements OnInit {
 
           // no way to derive the trigger date so it must be specified.
           if (includesFirstPartyData && includesGoogleAnalyticsData) {
-            if ((!selectedFirstValue && !selectedTriggerEvent && selectedLabel.source === Source.FIRST_PARTY) || (selectedFirstValue && selectedFirstValue.source === Source.FIRST_PARTY)) {
-              return {triggerDateNotSelected: true};
+            const selectedLabel: Variable = existingVariables.find(v => v.role === Role.LABEL);
+            const selectedFirstValue: Variable = existingVariables.find(v => v.role === Role.FIRST_VALUE);
+            const selectedTriggerEvent: Variable = existingVariables.find(v => v.role === Role.TRIGGER_EVENT);
+            const multipleTriggers: boolean = existingVariables.filter(v => [Role.FIRST_VALUE, Role.TRIGGER_EVENT].includes(v.role)).length > 1;
+
+            if (!multipleTriggers) {
+              if ((!selectedFirstValue && !selectedTriggerEvent && selectedLabel && selectedLabel.source === Source.FIRST_PARTY) || (selectedFirstValue && selectedFirstValue.source === Source.FIRST_PARTY)) {
+                return {triggerDateNotSelected: true};
+              }
             }
           }
         }
@@ -628,5 +635,15 @@ export class MlModelFormComponent implements OnInit {
 
       return null;
     }
+  }
+
+  /**
+   * Return a deep copy of anything passed to it.
+   *
+   * @param item The thing to copy.
+   * @returns The copy.
+   */
+  private copy(item: any): any {
+    return JSON.parse(JSON.stringify(item));
   }
 }

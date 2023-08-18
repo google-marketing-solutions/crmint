@@ -155,20 +155,20 @@
                     <mat-option *ngFor="let parameter of parameters" [value]="parameter.key">{{ parameter.key }}</mat-option>
                   </mat-select>
                 </td>
-                <td class='hint' *ngIf="value(variable, 'hint')">
-                  <mat-icon class="tooltip-icon"
-                            [matTooltip]="value(variable, 'hint')"
-                            matTooltipPosition="after"
-                            matTooltipClass="crmi-tooltip">
-                    help
-                  </mat-icon>
-                </td>
                 <td class='hint' *ngIf="error(variable)">
                   <mat-icon class="tooltip-icon"
                             [matTooltip]="error(variable) | labelcase"
                             matTooltipPosition="after"
                             matTooltipClass="crmi-tooltip">
                     warning
+                  </mat-icon>
+                </td>
+                <td class='hint' *ngIf="!error(variable) && value(variable, 'hint')">
+                  <mat-icon class="tooltip-icon"
+                            [matTooltip]="value(variable, 'hint')"
+                            matTooltipPosition="after"
+                            matTooltipClass="crmi-tooltip">
+                    help
                   </mat-icon>
                 </td>
               </tr>
@@ -180,10 +180,10 @@
           <label class="crmi-form-label">Variables</label>
           <div *ngIf="variableRequirementsProvided" class="notice green">
             <span>
-              Use above <strong>BigQuery Dataset</strong>, <strong>Data Source</strong>, and<br>
+              Use above <strong>Input Configuration</strong>, <strong>BigQuery Dataset</strong>, and<br>
               <strong>Timespan</strong> to fetch available variables.
               <br>
-              <small>(<strong>Note:</strong> Re-fetch required when BigQuery Dataset or Timespan change.)</small>
+              <small>(<strong>Note:</strong> Re-fetch required when any of these change.)</small>
             </span>
             <button mat-raised-button
                     (click)="refreshVariables()"
@@ -194,7 +194,7 @@
             </button>
           </div>
           <div *ngIf="!variableRequirementsProvided" class="notice">
-            Must first enter <strong>BigQuery Dataset</strong>, <strong>Data Source</strong>, and<br>
+            Must first enter <strong>Input Configuration</strong>, <strong>BigQuery Dataset</strong>, and<br>
             <strong>Timespan</strong> values to see available variables.
           </div>
         </div>
