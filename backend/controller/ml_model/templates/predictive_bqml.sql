@@ -83,7 +83,6 @@ CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.predictions` AS (
       )
       WHERE row_num = 1
     ),
-    -- if the selected label is a google analytics event then pull these per user
     {% if google_analytics.label or google_analytics.first_value or google_analytics.trigger_event %}
     analytics_variables AS (
       SELECT
@@ -91,9 +90,11 @@ CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.predictions` AS (
         {% if google_analytics.label %}
         IFNULL(l.label, 0) AS label,
         {% endif %}
-      {% if google_analytics.first_value or google_analytics.trigger_event or not first_party.trigger_date %}
-        IFNULL(fv.value, 0) AS first_value,
-        fv.date AS trigger_date
+        {% if google_analytics.first_value or google_analytics.trigger_event or (type.is_regression and not first_party.trigger_date) %}
+        {% if type.is_regression %}
+        IFNULL(t.value, 0) AS first_value,
+        {% endif %}
+        t.date AS trigger_date
         {% else %}
         l.date AS trigger_date
         {% endif %}
@@ -120,20 +121,24 @@ CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.predictions` AS (
       ) l
       ON fe.unique_id = l.unique_id
       {% endif %}
-      {% if google_analytics.first_value or google_analytics.trigger_event or not first_party.trigger_date %}
+      {% if google_analytics.first_value or google_analytics.trigger_event or (type.is_regression and not first_party.trigger_date) %}
       LEFT OUTER JOIN (
         SELECT
           e.unique_id,
           e.date,
+          {% if type.is_regression %}
           COALESCE(params.value.int_value, params.value.float_value, params.value.double_value, 0) AS value,
+          {% endif %}
           ROW_NUMBER() OVER (PARTITION BY e.unique_id ORDER BY e.timestamp ASC) AS row_num
         FROM events AS e, UNNEST(params) AS params
         WHERE name = "{{google_analytics.trigger_date.name}}"
         AND params.key = "{{google_analytics.trigger_date.key}}"
+        {% if type.is_regression %}
         AND COALESCE(params.value.int_value, params.value.float_value, params.value.double_value, 0) > 0
-      ) fv
-      ON fe.unique_id = fv.unique_id
-      AND fv.row_num = 1
+        {% endif %}
+      ) t
+      ON fe.unique_id = t.unique_id
+      AND t.row_num = 1
       {% endif %}
     ),
     {% endif %}

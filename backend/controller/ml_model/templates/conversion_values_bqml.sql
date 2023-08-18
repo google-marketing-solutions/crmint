@@ -87,7 +87,6 @@ CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.conversion_values` AS 
         )
         WHERE row_num = 1
       ),
-      -- if the selected label is a google analytics event then pull these per user
       {% if google_analytics.label or google_analytics.trigger_event %}
       analytics_variables AS (
         SELECT
@@ -96,8 +95,7 @@ CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.conversion_values` AS 
           IFNULL(l.label, 0) AS label,
           {% endif %}
           {% if google_analytics.trigger_event or not first_party.trigger_date %}
-          IFNULL(fv.value, 0) AS first_value,
-          fv.date AS trigger_date
+          t.date AS trigger_date
           {% else %}
           l.date AS trigger_date
           {% endif %}
@@ -106,11 +104,7 @@ CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.conversion_values` AS 
         LEFT OUTER JOIN (
           SELECT
             e.unique_id,
-            {% if type.is_classification %}
             1 AS label,
-            {% elif type.is_regression %}
-            SUM(COALESCE(params.value.int_value, params.value.float_value, params.value.double_value, 0)) AS label,
-            {% endif %}
             MIN(e.date) AS date
           FROM events AS e, UNNEST(params) AS params
           WHERE name = "{{google_analytics.label.name}}"
@@ -129,15 +123,13 @@ CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.conversion_values` AS 
           SELECT
             e.unique_id,
             e.date,
-            COALESCE(params.value.int_value, params.value.float_value, params.value.double_value, 0) AS value,
             ROW_NUMBER() OVER (PARTITION BY e.unique_id ORDER BY e.timestamp ASC) AS row_num
           FROM events AS e, UNNEST(params) AS params
           WHERE name = "{{google_analytics.trigger_date.name}}"
           AND params.key = "{{google_analytics.trigger_date.key}}"
-          AND COALESCE(params.value.int_value, params.value.float_value, params.value.double_value, 0) > 0
-        ) fv
-        ON fe.unique_id = fv.unique_id
-        AND fv.row_num = 1
+        ) t
+        ON fe.unique_id = t.unique_id
+        AND t.row_num = 1
         {% endif %}
       ),
       {% endif %}

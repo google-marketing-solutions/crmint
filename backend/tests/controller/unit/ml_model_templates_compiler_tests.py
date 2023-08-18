@@ -397,7 +397,7 @@ class TestCompiler(parameterized.TestCase):
             re.escape('LEFT OUTER JOIN ('),
             re.escape('WHERE name = "first_purchase"'),
             re.escape('AND params.key = "value"'),
-            re.escape(') fv')
+            re.escape(') t')
         ]),
         'Google Analytics first value join check failed.')
 
@@ -446,7 +446,7 @@ class TestCompiler(parameterized.TestCase):
             re.escape('LEFT OUTER JOIN ('),
             re.escape('WHERE name = "purchase"'),
             re.escape('AND params.key = "value"'),
-            re.escape(') fv')
+            re.escape(') t')
         ]),
         'Google Analytics first value join check failed.')
 
@@ -1177,7 +1177,7 @@ class TestCompiler(parameterized.TestCase):
                 'COALESCE(params.value.int_value, params.value.float_value,'
                 ' params.value.double_value, 0) AS value'
             ),
-            re.escape(') fv'),
+            re.escape(') t'),
         ]),
         'Google Analytics first value join check failed.')
 
