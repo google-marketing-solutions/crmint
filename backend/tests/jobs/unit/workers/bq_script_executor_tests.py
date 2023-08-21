@@ -89,6 +89,7 @@ class BQScriptExecutorTest(absltest.TestCase):
         mock.patch.object(worker_inst, 'log_info', autospec=True))
 
     worker_inst.execute()
+
     patched_wait.assert_called_once()
     call_job: bigquery.QueryJob = patched_wait.call_args.args[0]
     self.assertIsInstance(call_job, bigquery.QueryJob)
