@@ -59,6 +59,12 @@ events AS (
   AND MOD(ABS(FARM_FINGERPRINT({{google_analytics.unique_id}})), 100) < 90
   {% endif %}
   AND LOWER(platform) = "web"
+  -- limit events to ids within first party dataset (avoids processing data that gets filtered later anyways)
+  {% if input.source.includes_first_party %}
+  AND {{google_analytics.unique_id}} IN (
+    SELECT unique_id FROM first_party_variables
+  )
+  {% endif %}
 ),
 -- pull together a list of first engagements and associated metadata that will be useful for the model
 first_engagement AS (

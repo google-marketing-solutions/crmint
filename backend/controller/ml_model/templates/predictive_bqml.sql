@@ -52,6 +52,12 @@ CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.predictions` AS (
           FORMAT_DATE("%Y%m%d", DATE_SUB(CURRENT_DATE(), INTERVAL {{timespan.predictive_start}} DAY)) AND
           FORMAT_DATE("%Y%m%d", DATE_SUB(CURRENT_DATE(), INTERVAL {{timespan.predictive_end}} DAY))
         AND LOWER(platform) = "web"
+        -- limit events to ids within first party dataset (avoids processing data that gets filtered later anyways)
+        {% if input.source.includes_first_party %}
+        AND {{google_analytics.unique_id}} IN (
+          SELECT unique_id FROM first_party_variables
+        )
+        {% endif %}
     ),
     first_engagement AS (
       SELECT * EXCEPT(row_num)
