@@ -70,6 +70,18 @@ class BQWorkerTest(parameterized.TestCase):
           logger_credentials=_make_credentials())
       worker_inst._wait(mock_job)
 
+  def test_generates_proper_bq_table_name_from_params(self):
+    params = {
+      'bq_project_id': 'a_project',
+      'bq_dataset_id': 'a_dataset_id',
+      'bq_table_id': 'a_table_id'
+    }
+
+    worker = bq_worker.BQWorker(params, 0, 0)
+
+    self.assertEqual('a_project.a_dataset_id.a_table_id',
+                     worker._generate_qualified_bq_table_name())
+
 
 if __name__ == '__main__':
   absltest.main()

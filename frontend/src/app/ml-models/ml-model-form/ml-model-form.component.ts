@@ -54,7 +54,7 @@ export class MlModelFormComponent implements OnInit {
       this.createForm();
       this.types = Object.values(Type).filter(type => type !== Type.LOGISTIC_REG);
       this.uniqueIds = Object.values(UniqueId);
-      this.destinations = Object.values(Destination).filter(destination => destination === Destination.GOOGLE_ANALYTICS_MP_EVENT);
+      this.destinations = Object.values(Destination);
     }
 
   /**

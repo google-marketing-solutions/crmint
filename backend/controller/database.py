@@ -35,12 +35,12 @@ def load_fixtures(logger_func: Optional[Callable[[str], None]] = None) -> None:
       'client_secret',
       'google_ads_authentication_code',
       'google_ads_refresh_token',
-      'developer_token',
-      'app_conversion_api_developer_token',
+      'google_ads_developer_token',
+      'google_ads_service_account_file',
       'google_analytics_4_bigquery_dataset',
       'google_analytics_4_measurement_id',
-      'google_analytics_4_api_secret',
-  ]
+      'google_analytics_4_api_secret']
+
   for setting in general_settings:
     general_setting = models.GeneralSetting.where(name=setting).first()
     if not general_setting:
