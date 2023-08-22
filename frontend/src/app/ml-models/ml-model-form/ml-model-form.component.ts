@@ -600,6 +600,15 @@ export class MlModelFormComponent implements OnInit {
           }
         }
       } else {
+        // duplicative role selection should be handled first and then other errors will show after.
+        const singleSelectRoles = Object.keys(Role).filter(r => r !== Role.FEATURE);
+        for (const role of singleSelectRoles) {
+          const variablesWithRole = existingVariables.filter(v => v.role === role);
+          if (variablesWithRole.length > 1) {
+            return null;
+          }
+        }
+
         const uniqueId = this.value('uniqueId');
         const includesFirstPartyData = this.input.source.includes(Source.FIRST_PARTY);
         const includesGoogleAnalyticsData = this.input.source.includes(Source.GOOGLE_ANALYTICS);
@@ -619,13 +628,12 @@ export class MlModelFormComponent implements OnInit {
 
           // no way to derive the trigger date so it must be specified.
           if (includesFirstPartyData && includesGoogleAnalyticsData) {
-            const selectedLabel: Variable = existingVariables.find(v => v.role === Role.LABEL);
-            const selectedFirstValue: Variable = existingVariables.find(v => v.role === Role.FIRST_VALUE);
-            const selectedTriggerEvent: Variable = existingVariables.find(v => v.role === Role.TRIGGER_EVENT);
-            const multipleTriggers: boolean = existingVariables.filter(v => [Role.FIRST_VALUE, Role.TRIGGER_EVENT].includes(v.role)).length > 1;
+            const selectedTriggerDate: Variable = existingVariables.find(v => v.role === Role.TRIGGER_DATE);
+            if (!selectedTriggerDate) {
+              const selectedTrigger: Variable = existingVariables.find(v => [Role.FIRST_VALUE, Role.TRIGGER_EVENT].includes(v.role));
+              const selectedLabel = existingVariables.find(v => v.role === Role.LABEL);
 
-            if (!multipleTriggers) {
-              if ((!selectedFirstValue && !selectedTriggerEvent && selectedLabel && selectedLabel.source === Source.FIRST_PARTY) || (selectedFirstValue && selectedFirstValue.source === Source.FIRST_PARTY)) {
+              if ((!selectedTrigger && selectedLabel.source !== Source.GOOGLE_ANALYTICS) || (selectedTrigger && selectedTrigger.source === Source.FIRST_PARTY)) {
                 return {triggerDateNotSelected: true};
               }
             }
