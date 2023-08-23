@@ -163,9 +163,9 @@ user_variables AS (
   INNER JOIN analytics_variables av
   ON fpv.unique_id = av.unique_id
   {% elif google_analytics.label or google_analytics.first_value or google_analytics.trigger_event %}
-  FROM analytics_variables
+  SELECT * FROM analytics_variables
   {% elif input.source.includes_first_party %}
-  FROM first_party_variables
+  SELECT * FROM first_party_variables
   {% endif %}
 ),
 aggregate_behavior AS (
