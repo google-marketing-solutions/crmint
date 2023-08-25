@@ -1,3 +1,4 @@
+{% if step.is_training %}
 CREATE OR REPLACE MODEL `{{project_id}}.{{model_dataset}}.predictive_model`
 OPTIONS (
   MODEL_TYPE = "{{type.name}}",
@@ -13,8 +14,20 @@ OPTIONS (
   {% endfor %}
   INPUT_LABEL_COLS = ["label"]
 ) AS
+{% elif step.is_predicting %}
+CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.predictions` AS (
+SELECT
+  unique_id,
+  user_pseudo_id,
+  user_id,
+  {% if type.is_classification %}
+  plp.prob AS probability,
+  {% endif %}
+  predicted_label
+FROM ML.PREDICT(MODEL `{{project_id}}.{{model_dataset}}.predictive_model`, (
+{% endif %}
 WITH
-{% if input.source.includes_first_party %}
+{% if first_party.in_source %}
 first_party_variables AS (
   SELECT
     {% for feature in first_party.features %}
@@ -30,16 +43,18 @@ first_party_variables AS (
     {{first_party.trigger_date.name}} AS trigger_date,
     {% endif %}
     {{first_party.unique_id}} AS unique_id
-  FROM `{{project_id}}.{{input.parameters.first_party_dataset}}.{{input.parameters.first_party_table}}`
+  FROM `{{project_id}}.{{first_party.dataset}}.{{first_party.table}}`
 ),
 {% endif %}
-{% if input.source.includes_google_analytics %}
+{% if google_analytics.in_source %}
 events AS (
   SELECT
     event_timestamp AS timestamp,
     CAST(event_date AS DATE FORMAT "YYYYMMDD") AS date,
     event_name AS name,
     event_params AS params,
+    user_id,
+    user_pseudo_id,
     {{google_analytics.unique_id}} AS unique_id,
     geo.country AS country,
     geo.region AS region,
@@ -50,27 +65,28 @@ events AS (
     traffic_source.source AS traffic_source,
     traffic_source.medium AS traffic_medium,
     EXTRACT(HOUR FROM(TIMESTAMP_MICROS(user_first_touch_timestamp))) AS first_touch_hour
-  FROM `{{project_id}}.{{ga4_dataset}}.events_*`
-  WHERE _TABLE_SUFFIX BETWEEN
-    FORMAT_DATE("%Y%m%d", DATE_SUB(CURRENT_DATE(), INTERVAL {{timespan.training_start}} DAY)) AND
-    FORMAT_DATE("%Y%m%d", DATE_SUB(CURRENT_DATE(), INTERVAL {{timespan.training_end}} DAY))
-  {% if type.is_classification %}
-  -- get 90% of the events in this time-range (the other 10% is used to calculate conversion values)
-  AND MOD(ABS(FARM_FINGERPRINT({{google_analytics.unique_id}})), 100) < 90
-  {% endif %}
-  AND LOWER(platform) = "web"
-  -- limit events to ids within first party dataset (avoids processing data that gets filtered later anyways)
-  {% if input.source.includes_first_party %}
-  AND {{google_analytics.unique_id}} IN (
-    SELECT unique_id FROM first_party_variables
-  )
-  {% endif %}
+    FROM `{{project_id}}.{{ga4_dataset}}.events_*`
+    WHERE _TABLE_SUFFIX BETWEEN
+      FORMAT_DATE("%Y%m%d", DATE_SUB(CURRENT_DATE(), INTERVAL {{timespan.start}} DAY)) AND
+      FORMAT_DATE("%Y%m%d", DATE_SUB(CURRENT_DATE(), INTERVAL {{timespan.end}} DAY))
+    {% if step.is_training and type.is_classification %}
+    -- get 90% of the events in this time-range (the other 10% is used to calculate conversion values)
+    AND MOD(ABS(FARM_FINGERPRINT({{google_analytics.unique_id}})), 100) < 90
+    {% endif %}
+    AND LOWER(platform) = "web"
+    -- limit events to ids within first party dataset (avoids processing data that gets filtered later anyways)
+    {% if first_party.in_source %}
+    AND {{google_analytics.unique_id}} IN (
+      SELECT unique_id FROM first_party_variables
+    )
+    {% endif %}
 ),
--- pull together a list of first engagements and associated metadata that will be useful for the model
 first_engagement AS (
   SELECT * EXCEPT(row_num)
   FROM (
     SELECT
+      user_id,
+      user_pseudo_id,
       unique_id,
       country,
       region,
@@ -95,17 +111,17 @@ first_engagement AS (
   )
   WHERE row_num = 1
 ),
-{% if google_analytics.label or google_analytics.first_value or google_analytics.trigger_event %}
+{% if google_analytics.label or google_analytics.trigger_event or google_analytics.first_value %}
 analytics_variables AS (
   SELECT
     fe.unique_id,
     {% if google_analytics.label %}
     IFNULL(l.label, 0) AS label,
     {% endif %}
-    {% if google_analytics.first_value or google_analytics.trigger_event or (type.is_regression and not first_party.trigger_date) %}
-    {% if type.is_regression %}
+    {% if type.is_classification and google_analytics.trigger_event %}
+    t.date AS trigger_date
+    {% elif type.is_regression and not first_party.first_value %}
     IFNULL(t.value, 0) AS first_value,
-    {% endif %}
     t.date AS trigger_date
     {% else %}
     l.date AS trigger_date
@@ -133,8 +149,9 @@ analytics_variables AS (
   ) l
   ON fe.unique_id = l.unique_id
   {% endif %}
-  {% if google_analytics.first_value or google_analytics.trigger_event or (type.is_regression and not first_party.trigger_date) %}
-  LEFT OUTER JOIN (
+  {% if (type.is_classification and google_analytics.trigger_event) or (type.is_regression and not first_party.first_value) %}
+  -- trigger date is required if it's joined (must never be null due to a failed join so inner join here is necessary)
+  INNER JOIN (
     SELECT
       e.unique_id,
       e.date,
@@ -155,7 +172,7 @@ analytics_variables AS (
 ),
 {% endif %}
 user_variables AS (
-  {% if input.source.includes_first_party and (google_analytics.label or google_analytics.first_value or google_analytics.trigger_event) %}
+  {% if first_party.in_source and (google_analytics.label or google_analytics.first_value or google_analytics.trigger_event) %}
   SELECT
     fpv.*,
     av.* EXCEPT(unique_id)
@@ -164,7 +181,7 @@ user_variables AS (
   ON fpv.unique_id = av.unique_id
   {% elif google_analytics.label or google_analytics.first_value or google_analytics.trigger_event %}
   SELECT * FROM analytics_variables
-  {% elif input.source.includes_first_party %}
+  {% elif first_party.in_source %}
   SELECT * FROM first_party_variables
   {% endif %}
 ),
@@ -188,7 +205,7 @@ aggregate_behavior AS (
   OR uv.label = 0
   GROUP BY 1
 ),
-training_dataset AS (
+unified_dataset AS (
   SELECT
     fe.*,
     ab.* EXCEPT(unique_id),
@@ -199,24 +216,41 @@ training_dataset AS (
   INNER JOIN user_variables AS uv
   ON fe.unique_id = uv.unique_id
 )
-{% elif input.source.includes_first_party %}
-training_dataset AS (
-  SELECT * FROM first_party_variables
+{% elif first_party.in_source %}
+unified_dataset AS (
+  SELECT *
+  FROM first_party_variables
 )
 {% endif %}
-{% if type.is_classification or not (google_analytics.first_value or google_analytics.trigger_event or (google_analytics.label and not first_party.trigger_date)) %}
-SELECT * EXCEPT(unique_id)
-{% elif type.is_regression %}
+{% if type.is_classification and step.is_training %}
+SELECT * EXCEPT(user_id, user_pseudo_id, unique_id)
+{% elif type.is_regression and (google_analytics.label and not first_party.first_value) or first_party.first_value or google_analytics.first_value %}
 SELECT
-  * EXCEPT(unique_id, label),
+  {% if step.is_training %}
+  * EXCEPT(user_id, user_pseudo_id, unique_id, label),
+  {% elif step.is_predicting %}
+  * EXCEPT(label),
+  -- total value here is used to give something to compare the prediction
+  -- against when analyzing the results of the model for accuracy.
+  label AS total_value,
+  {% endif %}
   (label - first_value) AS label
+{% else %}
+SELECT *
 {% endif %}
-FROM training_dataset
-{% if class_imbalance > 1 %}
+FROM unified_dataset
+{% if step.is_training and class_imbalance > 1 %}
 WHERE label > 0
 UNION ALL
-SELECT * EXCEPT(unique_id)
-FROM training_dataset
+SELECT * EXCEPT(user_id, user_pseudo_id, unique_id)
+FROM unified_dataset
 WHERE label = 0
 AND MOD(ABS(FARM_FINGERPRINT(unique_id)), 100) <= ((1 / {{class_imbalance}}) * 100)
+{% elif step.is_predicting %}
+))
+{% if type.is_classification %}
+UNNEST(predicted_label_probs) AS plp
+WHERE plp.label = 1
+{% endif %}
+)
 {% endif %}

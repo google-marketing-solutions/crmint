@@ -263,7 +263,7 @@ class MlModelVariables(Resource):
 
       # Timebox the variables/events to the training dataset timespan.
       analytics_variables = bigquery_client.get_analytics_variables(
-          dataset, timespan.training_start, timespan.training_end)
+          dataset, timespan.training.start, timespan.training.end)
       if not analytics_variables:
         abort(
             400,

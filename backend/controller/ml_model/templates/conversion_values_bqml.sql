@@ -11,7 +11,7 @@ CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.conversion_values` AS 
       NTILE({{conversion_rate_segments}}) OVER (ORDER BY plp.prob ASC) AS normalized_probability
     FROM ML.PREDICT(MODEL `{{project_id}}.{{model_dataset}}.predictive_model`, (
       WITH
-      {% if input.source.includes_first_party %}
+      {% if first_party.in_source %}
       first_party_variables AS (
         SELECT
           {% for feature in first_party.features %}
@@ -27,10 +27,10 @@ CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.conversion_values` AS 
           {{first_party.trigger_date.name}} AS trigger_date,
           {% endif %}
           {{first_party.unique_id}} AS unique_id
-        FROM `{{project_id}}.{{input.parameters.first_party_dataset}}.{{input.parameters.first_party_table}}`
+        FROM `{{project_id}}.{{first_party.dataset}}.{{first_party.table}}`
       ),
       {% endif %}
-      {% if input.source.includes_google_analytics %}
+      {% if google_analytics.in_source %}
       events AS (
         SELECT
           event_timestamp AS timestamp,
@@ -51,13 +51,13 @@ CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.conversion_values` AS 
           EXTRACT(HOUR FROM(TIMESTAMP_MICROS(user_first_touch_timestamp))) AS first_touch_hour
           FROM `{{project_id}}.{{ga4_dataset}}.events_*`
           WHERE _TABLE_SUFFIX BETWEEN
-            FORMAT_DATE("%Y%m%d", DATE_SUB(CURRENT_DATE(), INTERVAL {{timespan.training_start}} DAY)) AND
-            FORMAT_DATE("%Y%m%d", DATE_SUB(CURRENT_DATE(), INTERVAL {{timespan.training_end}} DAY))
+            FORMAT_DATE("%Y%m%d", DATE_SUB(CURRENT_DATE(), INTERVAL {{timespan.start}} DAY)) AND
+            FORMAT_DATE("%Y%m%d", DATE_SUB(CURRENT_DATE(), INTERVAL {{timespan.end}} DAY))
           -- select the remaining 10% of the data not used in the training dataset
           AND MOD(ABS(FARM_FINGERPRINT({{google_analytics.unique_id}})), 100) >= 90
           AND LOWER(platform) = "web"
           -- limit events to ids within first party dataset (avoids processing data that gets filtered later anyways)
-          {% if input.source.includes_first_party %}
+          {% if first_party.in_source %}
           AND {{google_analytics.unique_id}} IN (
             SELECT unique_id FROM first_party_variables
           )
@@ -140,7 +140,7 @@ CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.conversion_values` AS 
       ),
       {% endif %}
       user_variables AS (
-        {% if input.source.includes_first_party and (google_analytics.label or google_analytics.trigger_event) %}
+        {% if first_party.in_source and (google_analytics.label or google_analytics.trigger_event) %}
         SELECT
           fpv.*,
           av.* EXCEPT(unique_id)
@@ -149,7 +149,7 @@ CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.conversion_values` AS 
         ON fpv.unique_id = av.unique_id
         {% elif google_analytics.label or google_analytics.trigger_event %}
         SELECT * FROM analytics_variables
-        {% elif input.source.includes_first_party %}
+        {% elif first_party.in_source %}
         SELECT * FROM first_party_variables
         {% endif %}
       ),
