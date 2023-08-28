@@ -193,6 +193,7 @@ class MlModelList(Resource):
     tracker.track_event(category='ml-models', action='list')
 
     model_list = models.MlModel.all()
+    model_list.sort(key=lambda m: m.name)
     return model_list
 
   @marshal_with(ml_model_structure)
