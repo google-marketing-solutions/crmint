@@ -16,20 +16,6 @@ CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.output` AS (
     WHERE _TABLE_SUFFIX = _LATEST_TABLE_SUFFIX
     AND LOWER(platform) = 'web'
   ),
-  users_with_score AS (
-    SELECT DISTINCT
-      unique_id
-    FROM events, UNNEST(params) AS params
-    WHERE name = 'prop_score'
-    AND params.value.string_value = 'Predicted_Value'
-  ),
-  users_without_score AS (
-    SELECT DISTINCT
-      unique_id
-    FROM events
-    WHERE unique_id NOT IN (
-      SELECT unique_id FROM users_with_score)
-  ),
   {% if type.is_classification %}
   prepared_predictions AS (
     SELECT DISTINCT
@@ -56,6 +42,20 @@ CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.output` AS (
   ),
   {% endif %}
   {% if output.destination.is_google_analytics_mp_event %}
+  users_with_score AS (
+    SELECT DISTINCT
+      unique_id
+    FROM events, UNNEST(params) AS params
+    WHERE name = 'prop_score'
+    AND params.value.string_value = 'Predicted_Value'
+  ),
+  users_without_score AS (
+    SELECT DISTINCT
+      unique_id
+    FROM events
+    WHERE unique_id NOT IN (
+      SELECT unique_id FROM users_with_score)
+  ),
   consolidated_output AS (
     SELECT
       p.*,
@@ -87,8 +87,6 @@ CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.output` AS (
       g.gclid,
       g.datetime
     FROM prepared_predictions p
-    INNER JOIN users_without_score wos
-    ON p.unique_id = wos.unique_id
     INNER JOIN gclids g
     ON p.unique_id = g.unique_id
   )
