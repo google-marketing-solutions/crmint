@@ -247,8 +247,7 @@ FROM unified_dataset
 WHERE label = 0
 AND MOD(ABS(FARM_FINGERPRINT(unique_id)), 100) <= ((1 / {{class_imbalance}}) * 100)
 {% elif step.is_predicting %}
-))
-{% if type.is_classification %}
+)){% if type.is_classification %},
 UNNEST(predicted_label_probs) AS plp
 WHERE plp.label = 1
 {% endif %}

@@ -189,8 +189,7 @@ CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.conversion_values` AS 
         SELECT * FROM first_party_variables
       )
       {% endif %}
-      SELECT
-        * EXCEPT(unique_id, trigger_date)
+      SELECT * EXCEPT(unique_id)
       FROM conversion_values_dataset
     )) AS p,
     UNNEST(predicted_label_probs) AS plp
