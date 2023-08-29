@@ -26,6 +26,7 @@ class Source(shared.StrEnum):
 
 @dataclasses.dataclass
 class TimespanRange:
+  """The timespan range where start and end are the number of days ago from today."""
   start: int
   end: int
 
