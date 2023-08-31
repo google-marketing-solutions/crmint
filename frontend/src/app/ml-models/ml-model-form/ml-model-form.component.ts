@@ -542,17 +542,17 @@ export class MlModelFormComponent implements OnInit {
     this.state = State.LOADING;
     this.prepareSaveMlModel();
 
-    if (this.mlModel.id) {
-      try {
+    try {
+      if (this.mlModel.id) {
         await this.mlModelsService.update(this.mlModel);
         this.router.navigate(['ml-models', this.mlModel.id]);
-        this.errorMessage = '';
-      } catch (error) {
-        this.errorMessage = error || 'An error occurred';
+      } else {
+        const mlModel = await this.mlModelsService.create(this.mlModel)
+        this.router.navigate(['ml-models', mlModel.id]);
       }
-    } else {
-      const mlModel = await this.mlModelsService.create(this.mlModel)
-      this.router.navigate(['ml-models', mlModel.id]);
+      this.errorMessage = '';
+    } catch (error) {
+      this.errorMessage = error || 'An error occurred';
     }
 
     this.state = State.LOADED;

@@ -210,9 +210,8 @@ class MlModelList(Resource):
       # Automatically build and assign training pipeline upon ml model creation.
       pipelines = build_pipelines(model)
       model.save_relations({'pipelines': pipelines})
-    except (exc.SQLAlchemyError, ValueError):
-      # Ensures that, in the event of an error, a half-implemented
-      # ml model isn't created.
+    except (exc.SQLAlchemyError, ValueError, TypeError):
+      # Ensures that, in the event of an error, a half-implemented ml model isn't created.
       model.destroy()
       raise
 

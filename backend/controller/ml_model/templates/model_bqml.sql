@@ -40,7 +40,7 @@ first_party_variables AS (
     {{first_party.first_value.name}} AS first_value,
     {% endif %}
     {% if first_party.trigger_date %}
-    {{first_party.trigger_date.name}} AS trigger_date,
+    CAST({{first_party.trigger_date.name}} AS DATE FORMAT "YYYYMMDD") AS trigger_date,
     {% endif %}
     {{first_party.unique_id}} AS unique_id
   FROM `{{project_id}}.{{first_party.dataset}}.{{first_party.table}}`
@@ -222,9 +222,7 @@ unified_dataset AS (
   FROM first_party_variables
 )
 {% endif %}
-{% if type.is_classification and step.is_training %}
-SELECT * EXCEPT(user_id, user_pseudo_id, unique_id)
-{% elif type.is_regression and (google_analytics.label and not first_party.first_value) or first_party.first_value or google_analytics.first_value %}
+{% if type.is_regression and (google_analytics.label and not first_party.first_value) or first_party.first_value or google_analytics.first_value %}
 SELECT
   {% if step.is_training %}
   * EXCEPT(user_id, user_pseudo_id, unique_id, label),
@@ -235,6 +233,8 @@ SELECT
   label AS total_value,
   {% endif %}
   (label - first_value) AS label
+{% elif step.is_training %}
+SELECT * EXCEPT(user_id, user_pseudo_id, unique_id)
 {% else %}
 SELECT *
 {% endif %}

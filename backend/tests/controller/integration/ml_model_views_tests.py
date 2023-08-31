@@ -179,14 +179,52 @@ class TestMlModelViews(controller_utils.ControllerAppTest):
 
     self.assertEqual(response.status_code, 201)
 
-  @mock.patch.object(models.MlModel, 'save_relations')
-  def test_error_during_create_ml_model_causes_rollback(
-      self, save_patch: mock.Mock
-    ):
-    save_patch.side_effect = ValueError('oops.')
+  def test_error_during_create_ml_model_causes_rollback(self):
+    request = {
+        'name': 'Test Model',
+        'input': {
+            'source': 'GOOGLE_ANALYTICS',
+            'parameters': {
+              'first_party_dataset': '',
+              'first_party_table': ''
+            }
+        },
+        'bigquery_dataset': {
+            'name': 'test-dataset',
+            'location': 'US'
+        },
+        'type': 'BOOSTED_TREE_REGRESSOR',
+        'unique_id': 'CLIENT_ID',
+        'hyper_parameters': [
+            {'name': 'L1_REG', 'value': '1'}
+        ],
+        'variables': [
+          {
+            'name': 'purchase',
+            'source': 'GOOGLE_ANALYTICS',
+            'role': 'LABEL',
+            'key': 'value',
+            'value_type': None
+          }
+        ],
+        'conversion_rate_segments': 0,
+        'class_imbalance': 7,
+        'timespans': [
+            {'name': 'training', 'value': 20, 'unit': 'day'},
+            {'name': 'predictive', 'value': 1, 'unit': 'day'}
+        ],
+        'output': {
+            'destination': 'GOOGLE_ANALYTICS_MP_EVENT',
+            'parameters': {
+                'customer_id': '0',
+                'conversion_action_id': '0',
+                'average_conversion_value': 0.0
+            }
+        }
+    }
 
-    with self.assertRaises(ValueError):
-      self.post_test_model()
+    with self.assertRaises(TypeError):
+      self.client.post('/api/ml-models', json=request)
 
     response = self.client.get('/api/ml-models/1')
     self.assertEqual(response.status_code, 404)

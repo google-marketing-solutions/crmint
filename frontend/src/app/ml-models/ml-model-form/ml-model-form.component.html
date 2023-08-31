@@ -151,7 +151,7 @@
                   </mat-select>
                 </td>
                 <td *ngIf="value(variable, 'parameters'); let parameters" class="key">
-                  <mat-select placeholder="Key" formControlName="key">
+                  <mat-select placeholder="Key" formControlName="key" (selectionChange)="refreshVariables()">
                     <mat-option *ngFor="let parameter of parameters" [value]="parameter.key">{{ parameter.key }}</mat-option>
                   </mat-select>
                 </td>
