@@ -299,12 +299,11 @@ export class MlModelFormComponent implements OnInit {
   /**
    * Get variables (feature, label, and other options) from GA4 Events and First Party tables in BigQuery.
    */
-  async getVariables(): Promise<Variable[]> {
-    this.fetchingVariables = true;
-    const includesFirstPartyData: boolean = this.input.source.includes(Source.FIRST_PARTY);
+  async fetchVariables() {
     let variables: Variable[] = this.cachedVariables;
 
-    if (variables.length === 0 && this.variableRequirementsProvided) {
+    this.fetchingVariables = true;
+    if (this.variableRequirementsProvided) {
       try {
         const input = this.value('input');
         const dataset = this.value('bigQueryDataset');
@@ -319,8 +318,18 @@ export class MlModelFormComponent implements OnInit {
         this.errorMessage = error || 'An error occurred';
       }
     }
-
+    await this.refreshVariables();
     this.fetchingVariables = false;
+  }
+
+  /**
+   * Get variables from cache, filtering where necessary, and specifically
+   * returning a copy to keep cache in original state.
+   */
+  async getVariables(): Promise<Variable[]> {
+    const includesFirstPartyData: boolean = this.input.source.includes(Source.FIRST_PARTY);
+    let variables: Variable[] = this.cachedVariables;
+
     if (!includesFirstPartyData) {
       return variables.filter(v => v.source !== Source.FIRST_PARTY);
     }
