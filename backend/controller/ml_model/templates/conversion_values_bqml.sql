@@ -24,7 +24,7 @@ CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.conversion_values` AS 
           {{first_party.first_value.name}} AS first_value,
           {% endif %}
           {% if first_party.trigger_date %}
-          {{first_party.trigger_date.name}} AS trigger_date,
+          CAST({{first_party.trigger_date.name}} AS DATE FORMAT "YYYYMMDD") AS trigger_date,
           {% endif %}
           {{first_party.unique_id}} AS unique_id
         FROM `{{project_id}}.{{first_party.dataset}}.{{first_party.table}}`

@@ -279,9 +279,9 @@ class TestCompiler(parameterized.TestCase):
         r'[\s\S]+'.join([
             re.escape('first_party_variables AS ('),
             re.escape('first_purchase AS first_value'),
-            re.escape('first_purchase_date AS trigger_date'),
+            re.escape('CAST(first_purchase_date AS DATE FORMAT "YYYYMMDD") AS trigger_date,'),
         ]),
-        'First party feature check failed.',
+        'First party variable check failed.',
     )
 
     # class-imbalance check
@@ -687,9 +687,9 @@ class TestCompiler(parameterized.TestCase):
         r'[\s\S]+'.join([
             re.escape('first_party_variables AS ('),
             re.escape('first_purchase AS first_value,'),
-            re.escape('first_purchase_date AS trigger_date,'),
+            re.escape('CAST(first_purchase_date AS DATE FORMAT "YYYYMMDD") AS trigger_date,'),
         ]),
-        'First party feature check failed.',
+        'First party variable check failed.',
     )
 
   def test_build_conversion_values_sql_google_analytics(self):
@@ -1068,9 +1068,9 @@ class TestCompiler(parameterized.TestCase):
       r'[\s\S]+'.join([
             re.escape('first_party_variables AS ('),
             re.escape('first_purchase AS first_value,'),
-            re.escape('first_purchase_date AS trigger_date,'),
+            re.escape('CAST(first_purchase_date AS DATE FORMAT "YYYYMMDD") AS trigger_date,'),
         ]),
-        'First party feature check failed.',
+        'First party variable check failed.',
     )
 
   def test_build_predictive_sql_google_analytics(self):
