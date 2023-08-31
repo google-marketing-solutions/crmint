@@ -108,7 +108,7 @@ export class MlModelFormComponent implements OnInit {
           this.refreshTimespans();
           this.refreshHyperParameters();
           this.refreshOutput();
-          await this.refreshVariables();
+          await this.fetchVariables();
         } else {
           this.refreshTimespans();
         }
