@@ -328,12 +328,12 @@ export class MlModelFormComponent implements OnInit {
    */
   getVariables(): Variable[] {
     const includesFirstPartyData: boolean = this.input.source.includes(Source.FIRST_PARTY);
-    let variables: Variable[] = this.cachedVariables;
+    let variables: Variable[] = this.copy(this.cachedVariables);
 
     if (!includesFirstPartyData) {
       return variables.filter(v => v.source !== Source.FIRST_PARTY);
     }
-    return this.copy(variables) as Variable[];
+    return variables as Variable[];
   }
 
   /**
