@@ -11,7 +11,7 @@
           style="width:100px;height:100px;"
           mode="indeterminate">
         </mat-progress-spinner>
-        Loading data...
+        Loading...
       </div>
     </ng-template>
     <!-- LOADED -->
@@ -24,38 +24,56 @@
           </mat-form-field>
         </div>
 
-        <div class="crmi-form-group" formGroupName="bigQueryDataset">
+        <div id="input" formGroupName="input" class="crmi-form-group">
           <label class="crmi-form-label">
-            BigQuery Dataset
-            <mat-icon class="tooltip" title="Model, predictions, and output will be stored here.">help</mat-icon>
+            Input Configuration
+            <mat-icon class="tooltip-icon"
+                      matTooltip="BigQuery data sources for the model."
+                      matTooltipPosition="above"
+                      matTooltipClass="crmi-tooltip">
+              help
+            </mat-icon>
           </label>
-          <mat-form-field>
-            <input matInput placeholder="Dataset Name" formControlName="name" name="dataset-name"
-                   (change)="resetVariables()">
-          </mat-form-field>
-          <mat-form-field>
-            <input matInput placeholder="Dataset Location" formControlName="location" name="dataset-loc">
-          </mat-form-field>
+          <div class="vertical-group">
+            <mat-select placeholder="Source" formControlName="source"
+                        (selectionChange)="refreshInput(); resetVariables()">
+              <mat-option *ngFor="let source of sources" [value]="source">{{ source | labelcase }}</mat-option>
+            </mat-select>
+            <div formGroupName="parameters" *ngIf="input.requirements.length > 0" class="input-group">
+              <mat-form-field *ngFor="let requirement of input.requirements">
+                <input matInput [placeholder]="requirement | labelcase" [formControlName]="requirement">
+              </mat-form-field>
+            </div>
+          </div>
         </div>
 
-        <div class="crmi-form-group">
+        <div class="crmi-form-group" formGroupName="bigQueryDataset">
           <label class="crmi-form-label">
-            Data Source
-            <mat-icon class="tooltip" title="Where the model variables (features/label) exist.">help</mat-icon>
+            Dataset
+            <mat-icon class="tooltip-icon"
+                      matTooltip="BigQuery dataset where model, predictions, and output will be stored."
+                      matTooltipPosition="above"
+                      matTooltipClass="crmi-tooltip">
+              help
+            </mat-icon>
           </label>
-          <mat-select formControlName="usesFirstPartyData"
-                      placeholder="Source"
-                      (selectionChange)="refreshLabel(); refreshFeatures()">
-            <mat-option [value]="false">Google Analytics 4</mat-option>
-            <mat-option [value]="true">Google Analytics 4 <strong>and</strong> First-Party Data</mat-option>
-          </mat-select>
+          <mat-form-field>
+            <input matInput placeholder="Name"
+                   formControlName="name" (change)="resetVariables()">
+          </mat-form-field>
+          <mat-form-field>
+            <input matInput placeholder="Location"
+                   formControlName="location" (change)="resetVariables()">
+          </mat-form-field>
         </div>
 
         <div formArrayName="timespans" class="crmi-form-group">
           <label class="crmi-form-label">
             Timespan
-            <mat-icon class="tooltip"
-                      title="The amount of data in days to use for training (3 year max) and predictive (1 year max) steps.">
+            <mat-icon class="tooltip-icon"
+                      matTooltip="The amount of data in days to use for training (3 year max) and predictive (1 year max) steps."
+                      matTooltipPosition="above"
+                      matTooltipClass="crmi-tooltip">
               help
             </mat-icon>
           </label>
@@ -73,15 +91,15 @@
 
         <div class="crmi-form-group">
           <label class="crmi-form-label">User Identifier</label>
-          <mat-select placeholder="Unique ID" formControlName="uniqueId">
+          <mat-select placeholder="Unique ID" formControlName="uniqueId" (selectionChange)="refreshVariables()">
             <mat-option *ngFor="let uniqueId of uniqueIds" [value]="uniqueId">{{ uniqueId | labelcase }}</mat-option>
           </mat-select>
         </div>
 
         <div class="crmi-form-group">
           <label class="crmi-form-label">Type</label>
-          <mat-select #select placeholder="Type" formControlName="type"
-                      (selectionChange)="updateHyperParameters(select.value)">
+          <mat-select placeholder="Type" formControlName="type"
+                      (selectionChange)="refreshHyperParameters(); refreshVariables()">
             <mat-option *ngFor="let type of types" [value]="type">{{ type | labelcase }}</mat-option>
           </mat-select>
         </div>
@@ -116,102 +134,57 @@
           </div>
         </div>
 
-        <div *ngIf="variables.length" formArrayName="features" id="features" class="crmi-form-group">
-          <label class="crmi-form-label">Features</label>
-          <div>
-            <table *ngIf="analyticsVariables.length">
-              <thead>
-                <tr>
-                  <th colspan="2">Google Analytics</th>
-                </tr>
-                <tr>
-                  <th></th>
-                  <th>Name</th>
-                  <th>Count</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr *ngFor="let variable of analyticsVariables; index as i">
-                  <td>
-                    <mat-checkbox #checkbox
-                                  [checked]="featureSelected(variable)"
-                                  (change)="toggleFeature(variable, checkbox.checked)">
-                    </mat-checkbox>
-                  </td>
-                  <td>{{ variable.name }}</td>
-                  <td>{{ variable.count }}</td>
-                </tr>
-              </tbody>
-            </table>
-            <table *ngIf="value('usesFirstPartyData') && firstPartyVariables.length">
-              <thead>
-                <tr>
-                  <th colspan="2">First Party</th>
-                </tr>
-                <tr>
-                  <th></th>
-                  <th>Name</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr *ngFor="let variable of firstPartyVariables; index as i">
-                  <td>
-                    <mat-checkbox #checkbox
-                                  [checked]="featureSelected(variable)"
-                                  (change)="toggleFeature(variable, checkbox.checked)">
-                    </mat-checkbox>
-                  </td>
-                  <td>{{ variable.name }}</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
+        <div *ngIf="variables.length" formArrayName="variables" id="variables" class="crmi-form-group">
+          <label class="crmi-form-label">Variables</label>
+          <table>
+            <tbody>
+              <tr *ngFor="let variable of variables.controls; index as i" [formGroupName]="i">
+                <td class="source">{{ value(variable, 'source') | labelcase }}</td>
+                <td>{{ value(variable, 'name') }}</td>
+                <td class="count" [hidden]="!value(variable, 'count')">
+                  <mat-icon>bar_chart</mat-icon> {{ value(variable, 'count') }}
+                </td>
+                <td *ngIf="value(variable, 'roles'); let roles" class="role">
+                  <mat-select placeholder="Include As" formControlName="role" (selectionChange)="refreshVariables()">
+                    <mat-option [value]="null">----</mat-option>
+                    <mat-option *ngFor="let role of roles" [value]="role">{{ role | labelcase }}</mat-option>
+                  </mat-select>
+                </td>
+                <td *ngIf="value(variable, 'parameters'); let parameters" class="key">
+                  <mat-select placeholder="Key" formControlName="key" (selectionChange)="refreshVariables()">
+                    <mat-option *ngFor="let parameter of parameters" [value]="parameter.key">{{ parameter.key }}</mat-option>
+                  </mat-select>
+                </td>
+                <td class='hint' *ngIf="error(variable)">
+                  <mat-icon class="tooltip-icon"
+                            [matTooltip]="error(variable) | labelcase"
+                            matTooltipPosition="after"
+                            matTooltipClass="crmi-tooltip">
+                    warning
+                  </mat-icon>
+                </td>
+                <td class='hint' *ngIf="!error(variable) && value(variable, 'hint')">
+                  <mat-icon class="tooltip-icon"
+                            [matTooltip]="value(variable, 'hint')"
+                            matTooltipPosition="after"
+                            matTooltipClass="crmi-tooltip">
+                    help
+                  </mat-icon>
+                </td>
+              </tr>
+            </tbody>
+          </table>
         </div>
 
-        <div *ngIf="variables.length" formGroupName="label" id='label' class="crmi-form-group">
-          <label class="crmi-form-label">Label</label>
-          <div class="vertical-group">
-            <span class="select-group">
-              <span class="label">Source *</span>
-              <mat-select formControlName="source" placeholder="Source"
-                          (selectionChange)="refreshLabel()">
-                <mat-option *ngFor="let source of sources" [value]="source">
-                  {{ source | labelcase }}
-                </mat-option>
-              </mat-select>
-            </span>
-            <span *ngIf="label && label.source" class="select-group">
-              <span class="label">Name *</span>
-              <mat-select formControlName="name" placeholder="Name"
-                          (selectionChange)="refreshLabel()">
-                <mat-option *ngFor="let label of labels" [value]="label.name">
-                  {{ label.name }}
-                </mat-option>
-              </mat-select>
-            </span>
-            <span *ngIf="label && label.parameters && !label.isFirstParty" class="select-group">
-              <span class="label">Key *</span>
-              <mat-select formControlName="key" placeholder="Key">
-                <mat-option *ngFor="let parameter of label.parameters" [value]="parameter.key">
-                  {{ parameter.key }}
-                </mat-option>
-              </mat-select>
-            </span>
-            <div *ngIf="label && label.name">
-              <div *ngIf="type.isClassification" class="input-group">
-                <mat-form-field>
-                  <input matInput placeholder="Average Conversion Value" formControlName="averageValue">
-                </mat-form-field>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div *ngIf="!variables.length" class="crmi-form-group">
-          <label class="crmi-form-label">Features/Label</label>
+        <div *ngIf="variables.length === 0" class="crmi-form-group">
+          <label class="crmi-form-label">Variables</label>
           <div *ngIf="variableRequirementsProvided" class="notice green">
-            Use above <strong>BigQuery Dataset</strong>, <strong>Data Source</strong>, and
-            <strong>Timespan</strong> to fetch feature and label options.
+            <span>
+              Use above <strong>Input Configuration</strong>, <strong>BigQuery Dataset</strong>, and<br>
+              <strong>Timespan</strong> to fetch available variables.
+              <br>
+              <small>(<strong>Note:</strong> Re-fetch required when any of these change.)</small>
+            </span>
             <button mat-raised-button
                     (click)="fetchVariables()"
                     type="button"
@@ -219,18 +192,17 @@
                     color="alternate">
               Fetch
             </button>
-            <small>(<strong>Note:</strong> Re-fetch required when BigQuery Dataset or Timespan change.)</small>
           </div>
           <div *ngIf="!variableRequirementsProvided" class="notice">
-            Must first enter <strong>BigQuery Dataset</strong>, <strong>Data Source</strong>, and<br>
-            <strong>Timespan</strong> values to see available feature and label options.
+            Must first enter <strong>Input Configuration</strong>, <strong>BigQuery Dataset</strong>, and<br>
+            <strong>Timespan</strong> values to see available variables.
           </div>
         </div>
 
         <div *ngIf="type.isClassification" class="crmi-form-group">
           <label class="crmi-form-label">
             Number of Segments
-            <mat-icon class="tooltip" title="Used when calculating conversion rates.">help</mat-icon>
+            <mat-icon class="tooltip-icon" title="Used when calculating conversion rates.">help</mat-icon>
           </label>
           <mat-slider formControlName="conversionRateSegments" [min]="2" [max]="10" [step]="1" [thumbLabel]="true"></mat-slider>
           <span>{{ value('conversionRateSegments') }}</span>
@@ -238,11 +210,11 @@
 
         <div class="crmi-form-group">
           <label class="crmi-form-label">Class Imbalance Ratio</label>
-          <mat-slider formControlName="classImbalance" [min]="1" [max]="10" [step]="1" [thumbLabel]="true"></mat-slider>
+          <mat-slider formControlName="classImbalance" [min]="1" [max]="100" [step]="1" [thumbLabel]="true"></mat-slider>
           <span>1:{{ value('classImbalance') }}</span>
         </div>
 
-        <div formGroupName="output" class="crmi-form-group">
+        <div id="output" formGroupName="output" class="crmi-form-group">
           <label class="crmi-form-label">Output Configuration</label>
           <div class="vertical-group">
             <mat-select placeholder="Destination" formControlName="destination"
@@ -261,7 +233,7 @@
           <div class="crmi-form-message crmi-form-message-error">{{ errorMessage }}</div>
           <button mat-raised-button
                   type="submit"
-                  [disabled]="!mlModelForm.valid || submitting"
+                  [disabled]="!mlModelForm.valid"
                   color="primary">
             {{ mlModel.id ? 'Save' : 'Create' }}
           </button>

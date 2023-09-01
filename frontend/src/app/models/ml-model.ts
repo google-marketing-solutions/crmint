@@ -41,7 +41,8 @@ export enum UniqueId {
 
 export enum Source {
   GOOGLE_ANALYTICS = 'GOOGLE_ANALYTICS',
-  FIRST_PARTY = 'FIRST_PARTY'
+  FIRST_PARTY = 'FIRST_PARTY',
+  GOOGLE_ANALYTICS_AND_FIRST_PARTY = 'GOOGLE_ANALYTICS_AND_FIRST_PARTY'
 }
 
 export enum Destination {
@@ -50,17 +51,17 @@ export enum Destination {
 }
 
 export type Range = {
-  min: number
-  max: number
-  step: number
+  min: number;
+  max: number;
+  step: number;
 }
 
 export class HyperParameter {
-  name: string
-  _value: string|number|boolean
-  toggled?: boolean = true
-  range?: Range
-  options?: string[]
+  name: string;
+  _value: string|number|boolean;
+  toggled?: boolean = true;
+  range?: Range;
+  options?: string[];
 
   constructor(config: object) {
     for (const key in config) {
@@ -92,17 +93,14 @@ export class HyperParameter {
   }
 }
 
-export type Feature = {
-  name: string
-  source: Source
-}
-
-export type Label = {
-  name: string
-  source: Source
-  key: string
-  value_type: string
-  average_value: number
+export enum Role {
+  FEATURE = 'FEATURE',
+  LABEL = 'LABEL',
+  TRIGGER_EVENT = 'TRIGGER_EVENT',
+  FIRST_VALUE = 'FIRST_VALUE',
+  TRIGGER_DATE = 'TRIGGER_DATE',
+  USER_ID = 'USER_ID',
+  CLIENT_ID = 'CLIENT_ID'
 }
 
 type Parameter = {
@@ -112,9 +110,15 @@ type Parameter = {
 
 export type Variable = {
   name: string;
-  source: string;
+  source: Source;
   count: number;
-  parameters: Parameter[];
+  roles?: Role[];
+  role?: Role;
+  parameters?: Parameter[];
+  key?: string;
+  value_type?: string;
+  hint?: string;
+  key_required?: boolean;
 }
 
 export type BigQueryDataset = {
@@ -126,29 +130,41 @@ export type Timespan = {
   name: string;
   value: number;
   unit: string;
-  range?: Range
+  range?: Range;
+}
+
+type InputParameters = {
+  first_party_dataset: string;
+  first_party_table: string;
+}
+
+export type Input = {
+  source: Source;
+  parameters: InputParameters;
+  requirements?: string[];
 }
 
 type OutputParameters = {
   customer_id: string;
   conversion_action_id: string;
+  average_conversion_value: number;
 }
 
 export type Output = {
   destination: Destination;
   parameters: OutputParameters;
+  requirements?: string[];
 }
 
 export class MlModel {
   id: number;
   name: string;
+  input: Input;
   bigquery_dataset: BigQueryDataset;
   type: Type;
   unique_id: UniqueId;
-  uses_first_party_data: boolean;
   hyper_parameters: HyperParameter[];
-  features: Feature[];
-  label: Label;
+  variables: Variable[];
   conversion_rate_segments: number;
   class_imbalance: number;
   timespans: Timespan[];
@@ -314,10 +330,10 @@ export class MlModel {
     return {
       id: this.id,
       name: this.name,
+      input: this.input,
       bigquery_dataset: this.bigquery_dataset,
       type: this.type,
       unique_id: this.unique_id,
-      uses_first_party_data: this.uses_first_party_data,
       hyper_parameters: this.hyper_parameters.map(param => {
         if (param.toggled) {
           return {
@@ -326,13 +342,15 @@ export class MlModel {
           };
         }
       }),
-      features: this.features.map(feature => {
+      variables: this.variables.map(variable => {
         return {
-          name: feature.name,
-          source: feature.source
+          name: variable.name,
+          source: variable.source,
+          role: variable.role,
+          key: variable.key,
+          value_type: variable.value_type
         }
       }),
-      label: this.label,
       conversion_rate_segments: this.conversion_rate_segments,
       class_imbalance: this.class_imbalance,
       timespans: this.timespans.map(timespan => {

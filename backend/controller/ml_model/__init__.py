@@ -16,6 +16,7 @@
 
 from . import bigquery
 from . import compiler
+from . import shared
 from . import views
 
-__all__ = ['bigquery', 'compiler', 'views']
+__all__ = ['bigquery', 'compiler', 'shared', 'views']

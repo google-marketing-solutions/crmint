@@ -23,25 +23,32 @@ import freezegun
 from controller import ml_model
 from controller import models
 
-
 class TestCompiler(parameterized.TestCase):
 
   @freezegun.freeze_time('2023-04-06T00:00:00')
   def test_build_training_pipeline(self):
     test_model = self.model_config(
         model_type='BOOSTED_TREE_CLASSIFIER',
-        uses_first_party_data=True,
-        label={
+        variables=[
+          {
+            'role': 'LABEL',
             'name': 'purchase',
             'source': 'GOOGLE_ANALYTICS',
             'key': 'value',
-            'value_type': 'int',
-            'average_value': 1234.0
-        },
-        features=[
-            {'name': 'click', 'source': 'GOOGLE_ANALYTICS'},
-            {'name': 'subscribe', 'source': 'FIRST_PARTY'}
+            'value_type': 'int'
+          },
+          {
+            'role': 'FEATURE',
+            'name': 'click',
+            'source': 'GOOGLE_ANALYTICS'
+          },
+          {
+            'role': 'FEATURE',
+            'name': 'subscribe',
+            'source': 'FIRST_PARTY'
+          }
         ],
+        source='GOOGLE_ANALYTICS_AND_FIRST_PARTY',
         class_imbalance=4)
 
     pipeline = self.compiler(test_model).build_training_pipeline()
@@ -86,18 +93,26 @@ class TestCompiler(parameterized.TestCase):
   def test_build_model_sql_first_party_and_google_analytics(self):
     test_model = self.model_config(
         model_type='BOOSTED_TREE_CLASSIFIER',
-        uses_first_party_data=True,
-        label={
+        variables=[
+          {
+            'role': 'LABEL',
             'name': 'purchase',
             'source': 'GOOGLE_ANALYTICS',
             'key': 'value',
-            'value_type': 'int',
-            'average_value': 1234.0
-        },
-        features=[
-            {'name': 'click', 'source': 'GOOGLE_ANALYTICS'},
-            {'name': 'subscribe', 'source': 'FIRST_PARTY'}
+            'value_type': 'int'
+          },
+          {
+            'role': 'FEATURE',
+            'name': 'click',
+            'source': 'GOOGLE_ANALYTICS'
+          },
+          {
+            'role': 'FEATURE',
+            'name': 'subscribe',
+            'source': 'FIRST_PARTY'
+          }
         ],
+        source='GOOGLE_ANALYTICS_AND_FIRST_PARTY',
         class_imbalance=4)
 
     pipeline = self.compiler(test_model).build_training_pipeline()
@@ -121,6 +136,12 @@ class TestCompiler(parameterized.TestCase):
         'FROM `test-project-id-1234.test-ga4-dataset-loc.events_*`',
         sql,
         'Event table name check failed.')
+
+    # first party table name check
+    self.assertIn(
+        'FROM `test-project-id-1234.FP_DATASET.FP_DATA_TABLE`',
+        sql,
+        'First party table name check failed.')
 
     # hyper-parameter check
     self.assertRegex(
@@ -150,8 +171,8 @@ class TestCompiler(parameterized.TestCase):
 
     self.assertRegex(
         sql,
-        re.escape('IFNULL(av.label, 0) AS label'),
-        'Google Analytics label join check failed.')
+        re.escape('INNER JOIN analytics_variables'),
+        'Google Analytics variables join check failed.')
 
     # feature check
     self.assertRegex(
@@ -160,11 +181,16 @@ class TestCompiler(parameterized.TestCase):
         'Google Analytics feature check failed.')
 
     self.assertRegex(
-        sql, re.escape('fp.subscribe'), 'First party feature check failed.')
+        sql,
+        r'[\s\S]+'.join([
+          re.escape('first_party_variables AS ('),
+          re.escape('subscribe,')
+        ]),
+        'First party feature check failed.')
 
     # class-imbalance check
     self.assertIn(
-        'MOD(ABS(FARM_FINGERPRINT(user_pseudo_id)), 100) <= ((1 / 4) * 100)',
+        'MOD(ABS(FARM_FINGERPRINT(unique_id)), 100) <= ((1 / 4) * 100)',
         sql,
         'Class-Imbalance check failed.')
 
@@ -182,18 +208,36 @@ class TestCompiler(parameterized.TestCase):
   def test_build_model_sql_first_party(self):
     test_model = self.model_config(
         model_type='BOOSTED_TREE_CLASSIFIER',
-        uses_first_party_data=True,
-        label={
+        variables=[
+          {
+            'role': 'LABEL',
             'name': 'enroll',
             'source': 'FIRST_PARTY',
             'key': 'value',
-            'value_type': 'int',
-            'average_value': 1234.0
-        },
-        features=[
-            {'name': 'call', 'source': 'FIRST_PARTY'},
-            {'name': 'request_for_info', 'source': 'FIRST_PARTY'}
+            'value_type': 'int'
+          },
+          {
+            'role': 'FIRST_VALUE',
+            'name': 'first_purchase',
+            'source': 'FIRST_PARTY'
+          },
+          {
+            'role': 'TRIGGER_DATE',
+            'name': 'first_purchase_date',
+            'source': 'FIRST_PARTY'
+          },
+          {
+            'role': 'FEATURE',
+            'name': 'call',
+            'source': 'FIRST_PARTY'
+          },
+          {
+            'role': 'FEATURE',
+            'name': 'request_for_info',
+            'source': 'FIRST_PARTY'
+          }
         ],
+        source='FIRST_PARTY',
         class_imbalance=1)
 
     pipeline = self.compiler(test_model).build_training_pipeline()
@@ -203,20 +247,41 @@ class TestCompiler(parameterized.TestCase):
     self.assertIsNotNone(sql_param)
     sql = sql_param['value']
 
+    # first party table name check
+    self.assertIn(
+        'FROM `test-project-id-1234.FP_DATASET.FP_DATA_TABLE`',
+        sql,
+        'First party table name check failed.')
+
     # label check
     self.assertRegex(
         sql,
-        re.escape('fp.enroll'),
+        r'[\s\S]+'.join([
+            re.escape('first_party_variables AS ('),
+            re.escape('enroll AS label,')
+        ]),
         'First party label check failed.')
 
     # feature check
     self.assertRegex(
         sql,
-        r',[\s\n]+'.join([
-            re.escape('fp.call'),
-            re.escape('fp.request_for_info'),
+        r'[\s\S]+'.join([
+            re.escape('first_party_variables AS ('),
+            re.escape('call,'),
+            re.escape('request_for_info,'),
         ]),
         'First party feature check failed.',
+    )
+
+    # other variable check
+    self.assertRegex(
+        sql,
+        r'[\s\S]+'.join([
+            re.escape('first_party_variables AS ('),
+            re.escape('first_purchase AS first_value'),
+            re.escape('CAST(first_purchase_date AS DATE FORMAT "YYYYMMDD") AS trigger_date,'),
+        ]),
+        'First party variable check failed.',
     )
 
     # class-imbalance check
@@ -230,17 +295,24 @@ class TestCompiler(parameterized.TestCase):
   def test_build_model_sql_google_analytics(self):
     test_model = self.model_config(
         model_type='BOOSTED_TREE_CLASSIFIER',
-        uses_first_party_data=False,
-        label={
+        variables=[
+          {
+            'role': 'LABEL',
             'name': 'purchase',
             'source': 'GOOGLE_ANALYTICS',
             'key': 'value',
-            'value_type': 'int',
-            'average_value': 1234.0
-        },
-        features=[
-            {'name': 'click', 'source': 'GOOGLE_ANALYTICS'},
-            {'name': 'subscribe', 'source': 'GOOGLE_ANALYTICS'}
+            'value_type': 'int'
+          },
+          {
+            'role': 'FEATURE',
+            'name': 'click',
+            'source': 'GOOGLE_ANALYTICS'
+          },
+          {
+            'role': 'FEATURE',
+            'name': 'subscribe',
+            'source': 'GOOGLE_ANALYTICS'
+          }
         ],
         class_imbalance=4)
 
@@ -267,8 +339,8 @@ class TestCompiler(parameterized.TestCase):
 
     self.assertRegex(
         sql,
-        re.escape('SELECT * FROM analytics_variables'),
-        'Google Analytics label join check failed.')
+        re.escape('FROM analytics_variables'),
+        'Google Analytics variables pull check failed.')
 
     # feature check
     self.assertRegex(
@@ -282,16 +354,31 @@ class TestCompiler(parameterized.TestCase):
   def test_build_model_sql_google_analytics_regression_model(self):
     test_model = self.model_config(
         model_type='BOOSTED_TREE_REGRESSOR',
-        uses_first_party_data=False,
-        label={
+        variables=[
+          {
+            'role': 'LABEL',
             'name': 'purchase',
             'source': 'GOOGLE_ANALYTICS',
             'key': 'value',
             'value_type': 'int'
-        },
-        features=[
-            {'name': 'click', 'source': 'GOOGLE_ANALYTICS'},
-            {'name': 'subscribe', 'source': 'GOOGLE_ANALYTICS'}
+          },
+          {
+            'role': 'FIRST_VALUE',
+            'name': 'first_purchase',
+            'source': 'GOOGLE_ANALYTICS',
+            'key': 'value',
+            'value_type': 'int'
+          },
+          {
+            'role': 'FEATURE',
+            'name': 'click',
+            'source': 'GOOGLE_ANALYTICS'
+          },
+          {
+            'role': 'FEATURE',
+            'name': 'subscribe',
+            'source': 'GOOGLE_ANALYTICS'
+          }
         ],
         class_imbalance=4)
 
@@ -308,8 +395,58 @@ class TestCompiler(parameterized.TestCase):
         r'[\s\S]*'.join([
             re.escape('analytics_variables AS ('),
             re.escape('LEFT OUTER JOIN ('),
-            re.escape('COALESCE(params.value.int_value, params.value.float_value, params.value.double_value, 0) AS value'),
-            re.escape(') fv')
+            re.escape('WHERE name = "first_purchase"'),
+            re.escape('AND params.key = "value"'),
+            re.escape(') t')
+        ]),
+        'Google Analytics first value join check failed.')
+
+    # proper label and total value assignment check
+    self.assertIn(
+        '(label - first_value) AS label',
+        sql,
+        'Output label check failed.')
+
+  def test_build_model_sql_google_analytics_regression_model_label_as_first_value(self):
+    test_model = self.model_config(
+        model_type='BOOSTED_TREE_REGRESSOR',
+        variables=[
+          {
+            'role': 'LABEL',
+            'name': 'purchase',
+            'source': 'GOOGLE_ANALYTICS',
+            'key': 'value',
+            'value_type': 'int'
+          },
+          {
+            'role': 'FEATURE',
+            'name': 'click',
+            'source': 'GOOGLE_ANALYTICS'
+          },
+          {
+            'role': 'FEATURE',
+            'name': 'subscribe',
+            'source': 'GOOGLE_ANALYTICS'
+          }
+        ],
+        class_imbalance=4)
+
+    pipeline = self.compiler(test_model).build_training_pipeline()
+    params = pipeline['jobs'][0]['params']
+
+    sql_param = self.first(params, 'name', 'script')
+    self.assertIsNotNone(sql_param)
+    sql = sql_param['value']
+
+    # first value join check
+    self.assertRegex(
+        sql,
+        r'[\s\S]*'.join([
+            re.escape('analytics_variables AS ('),
+            re.escape('LEFT OUTER JOIN ('),
+            re.escape('WHERE name = "purchase"'),
+            re.escape('AND params.key = "value"'),
+            re.escape(') t')
         ]),
         'Google Analytics first value join check failed.')
 
@@ -322,17 +459,24 @@ class TestCompiler(parameterized.TestCase):
   def test_build_model_sql_google_analytics_classification_model(self):
     test_model = self.model_config(
         model_type='BOOSTED_TREE_CLASSIFIER',
-        uses_first_party_data=False,
-        label={
+        variables=[
+          {
+            'role': 'LABEL',
             'name': 'purchase',
             'source': 'GOOGLE_ANALYTICS',
             'key': 'value',
-            'value_type': 'int',
-            'average_value': 1234.0
-        },
-        features=[
-            {'name': 'click', 'source': 'GOOGLE_ANALYTICS'},
-            {'name': 'subscribe', 'source': 'GOOGLE_ANALYTICS'}
+            'value_type': 'int'
+          },
+          {
+            'role': 'FEATURE',
+            'name': 'click',
+            'source': 'GOOGLE_ANALYTICS'
+          },
+          {
+            'role': 'FEATURE',
+            'name': 'subscribe',
+            'source': 'GOOGLE_ANALYTICS'
+          }
         ],
         class_imbalance=4)
 
@@ -352,18 +496,26 @@ class TestCompiler(parameterized.TestCase):
   def test_build_conversion_values_sql_first_party_and_google_analytics(self):
     test_model = self.model_config(
         model_type='BOOSTED_TREE_CLASSIFIER',
-        uses_first_party_data=True,
-        label={
+        variables=[
+          {
+            'role': 'LABEL',
             'name': 'purchase',
             'source': 'GOOGLE_ANALYTICS',
             'key': 'value',
-            'value_type': 'string,int',
-            'average_value': 1234.0
-        },
-        features=[
-            {'name': 'click', 'source': 'GOOGLE_ANALYTICS'},
-            {'name': 'subscribe', 'source': 'FIRST_PARTY'}
+            'value_type': 'string,int'
+          },
+          {
+            'role': 'FEATURE',
+            'name': 'click',
+            'source': 'GOOGLE_ANALYTICS'
+          },
+          {
+            'role': 'FEATURE',
+            'name': 'subscribe',
+            'source': 'FIRST_PARTY'
+          }
         ],
+        source='GOOGLE_ANALYTICS_AND_FIRST_PARTY',
         class_imbalance=4)
 
     pipeline = self.compiler(test_model).build_training_pipeline()
@@ -394,20 +546,26 @@ class TestCompiler(parameterized.TestCase):
         sql,
         'Event table name check failed.')
 
+    # first party table name check
+    self.assertIn(
+        'FROM `test-project-id-1234.FP_DATASET.FP_DATA_TABLE`',
+        sql,
+        'First party table name check failed.')
+
     # label check
     self.assertRegex(
         sql,
         r'[\s\n]+'.join([
             'WHERE name = "purchase"',
             'AND params.key = "value"',
-            re.escape('AND COALESCE(params.value.string_value, params.value.int_value) NOT IN ("", "0", 0, NULL)')
+            re.escape('AND COALESCE(params.value.string_value, CAST(params.value.int_value AS STRING)) NOT IN ("", "0", NULL)')
         ]),
         'Google Analytics label pull check failed.')
 
     self.assertRegex(
         sql,
-        re.escape('IFNULL(av.label, 0) AS label'),
-        'Google Analytics label join check failed.')
+        re.escape('INNER JOIN analytics_variables'),
+        'Google Analytics variables join check failed.')
 
     # feature check
     self.assertRegex(
@@ -417,7 +575,10 @@ class TestCompiler(parameterized.TestCase):
 
     self.assertRegex(
         sql,
-        re.escape('fp.subscribe'),
+        r'[\s\S]+'.join([
+          re.escape('first_party_variables AS ('),
+          re.escape('subscribe,')
+        ]),
         'First party feature check failed.')
 
     # timespan check
@@ -439,7 +600,7 @@ class TestCompiler(parameterized.TestCase):
 
     # average value check
     self.assertIn(
-        '(SUM(label) / COUNT(1)) * 1234.0 AS value,',
+        '(SUM(label) / COUNT(1)) * 1234.5 AS value,',
         sql,
         'Average value check failed.')
 
@@ -452,19 +613,37 @@ class TestCompiler(parameterized.TestCase):
   def test_build_conversion_values_sql_first_party(self):
     test_model = self.model_config(
         model_type='BOOSTED_TREE_CLASSIFIER',
-        uses_first_party_data=True,
         unique_id='USER_ID',
-        label={
+        variables=[
+          {
+            'role': 'LABEL',
             'name': 'premium_subscription',
             'source': 'FIRST_PARTY',
             'key': 'value',
-            'value_type': 'int',
-            'average_value': 1234.0
-        },
-        features=[
-            {'name': 'purchase', 'source': 'FIRST_PARTY'},
-            {'name': 'request_for_info', 'source': 'FIRST_PARTY'}
+            'value_type': 'int'
+          },
+          {
+            'role': 'FIRST_VALUE',
+            'name': 'first_purchase',
+            'source': 'FIRST_PARTY'
+          },
+          {
+            'role': 'TRIGGER_DATE',
+            'name': 'first_purchase_date',
+            'source': 'FIRST_PARTY'
+          },
+          {
+            'role': 'FEATURE',
+            'name': 'purchase',
+            'source': 'FIRST_PARTY'
+          },
+          {
+            'role': 'FEATURE',
+            'name': 'request_for_info',
+            'source': 'FIRST_PARTY'
+          }
         ],
+        source='FIRST_PARTY',
         class_imbalance=4)
 
     pipeline = self.compiler(test_model).build_training_pipeline()
@@ -477,35 +656,63 @@ class TestCompiler(parameterized.TestCase):
     self.assertIsNotNone(sql_param)
     sql = sql_param['value']
 
-    # label check
+    # first party table name check
     self.assertIn(
-        'fp.premium_subscription AS label,',
+        'FROM `test-project-id-1234.FP_DATASET.FP_DATA_TABLE`',
         sql,
+        'First party table name check failed.')
+
+    # label check
+    self.assertRegex(
+        sql,
+        r'[\s\S]+'.join([
+            re.escape('first_party_variables AS ('),
+            re.escape('premium_subscription AS label,')
+        ]),
         'First party label check failed.')
 
     # feature check
     self.assertRegex(
         sql,
-        r',[\s\n]+'.join([
-            re.escape('fp.purchase'),
-            re.escape('fp.request_for_info'),
+        r'[\s\S]+'.join([
+            re.escape('first_party_variables AS ('),
+            re.escape('purchase,'),
+            re.escape('request_for_info,'),
         ]),
         'First party feature check failed.')
+
+    # other variable check
+    self.assertRegex(
+        sql,
+        r'[\s\S]+'.join([
+            re.escape('first_party_variables AS ('),
+            re.escape('first_purchase AS first_value,'),
+            re.escape('CAST(first_purchase_date AS DATE FORMAT "YYYYMMDD") AS trigger_date,'),
+        ]),
+        'First party variable check failed.',
+    )
 
   def test_build_conversion_values_sql_google_analytics(self):
     test_model = self.model_config(
         model_type='BOOSTED_TREE_CLASSIFIER',
-        uses_first_party_data=False,
-        label={
+        variables=[
+          {
+            'role': 'LABEL',
             'name': 'subscription',
             'source': 'GOOGLE_ANALYTICS',
             'key': 'value',
-            'value_type': 'string',
-            'average_value': 1234.0
-        },
-        features=[
-            {'name': 'click', 'source': 'GOOGLE_ANALYTICS'},
-            {'name': 'scroll', 'source': 'GOOGLE_ANALYTICS'}
+            'value_type': 'string'
+          },
+          {
+            'role': 'FEATURE',
+            'name': 'click',
+            'source': 'GOOGLE_ANALYTICS'
+          },
+          {
+            'role': 'FEATURE',
+            'name': 'scroll',
+            'source': 'GOOGLE_ANALYTICS'
+          }
         ],
         class_imbalance=4)
 
@@ -525,14 +732,14 @@ class TestCompiler(parameterized.TestCase):
         r'[\s\n]+'.join([
             'WHERE name = "subscription"',
             'AND params.key = "value"',
-            re.escape('AND COALESCE(params.value.string_value, params.value.int_value) NOT IN ("", "0", 0, NULL)')
+            re.escape('AND COALESCE(params.value.string_value, CAST(params.value.int_value AS STRING)) NOT IN ("", "0", NULL)')
         ]),
         'Google Analytics label pull check failed.')
 
     self.assertRegex(
         sql,
-        re.escape('SELECT * FROM analytics_variables'),
-        'Google Analytics label join check failed.')
+        re.escape('FROM analytics_variables'),
+        'Google Analytics variables pull check failed.')
 
     # feature check
     self.assertRegex(
@@ -552,19 +759,27 @@ class TestCompiler(parameterized.TestCase):
   def test_build_predictive_pipeline(self, destination: str):
     test_model = self.model_config(
         model_type='BOOSTED_TREE_CLASSIFIER',
-        uses_first_party_data=True,
-        label={
+        variables=[
+          {
+            'role': 'LABEL',
             'name': 'purchase',
             'source': 'GOOGLE_ANALYTICS',
             'key': 'value',
-            'value_type': 'string,int',
-            'average_value': 1234.0
-        },
-        features=[
-            {'name': 'click', 'source': 'GOOGLE_ANALYTICS'},
-            {'name': 'subscribe', 'source': 'FIRST_PARTY'}
+            'value_type': 'string,int'
+          },
+          {
+            'role': 'FEATURE',
+            'name': 'click',
+            'source': 'GOOGLE_ANALYTICS'
+          },
+          {
+            'role': 'FEATURE',
+            'name': 'subscribe',
+            'source': 'FIRST_PARTY'
+          }
         ],
         class_imbalance=4,
+        source='GOOGLE_ANALYTICS_AND_FIRST_PARTY',
         destination=destination)
 
     pipeline = self.compiler(test_model).build_predictive_pipeline()
@@ -661,18 +876,26 @@ class TestCompiler(parameterized.TestCase):
   def test_build_predictive_sql_first_party_and_google_analytics(self):
     test_model = self.model_config(
         model_type='BOOSTED_TREE_CLASSIFIER',
-        uses_first_party_data=True,
-        label={
+        variables=[
+          {
+            'role': 'LABEL',
             'name': 'purchase',
             'source': 'GOOGLE_ANALYTICS',
             'key': 'value',
-            'value_type': 'string,int',
-            'average_value': 1234.0
-        },
-        features=[
-            {'name': 'click', 'source': 'GOOGLE_ANALYTICS'},
-            {'name': 'subscribe', 'source': 'FIRST_PARTY'}
+            'value_type': 'string,int'
+          },
+          {
+            'role': 'FEATURE',
+            'name': 'click',
+            'source': 'GOOGLE_ANALYTICS'
+          },
+          {
+            'role': 'FEATURE',
+            'name': 'subscribe',
+            'source': 'FIRST_PARTY'
+          }
         ],
+        source='GOOGLE_ANALYTICS_AND_FIRST_PARTY',
         class_imbalance=4)
 
     pipeline = self.compiler(test_model).build_predictive_pipeline()
@@ -704,6 +927,12 @@ class TestCompiler(parameterized.TestCase):
         sql,
         'Event table name check failed.')
 
+    # first party table name check
+    self.assertIn(
+        'FROM `test-project-id-1234.FP_DATASET.FP_DATA_TABLE`',
+        sql,
+        'First party table name check failed.')
+
     # label check
     self.assertRegex(
         sql,
@@ -716,8 +945,8 @@ class TestCompiler(parameterized.TestCase):
 
     self.assertRegex(
         sql,
-        re.escape('IFNULL(av.label, 0) AS label'),
-        'Google Analytics label join check failed.')
+        re.escape('INNER JOIN analytics_variables'),
+        'Google Analytics variables join check failed.')
 
     # feature check
     self.assertRegex(
@@ -727,7 +956,10 @@ class TestCompiler(parameterized.TestCase):
 
     self.assertRegex(
         sql,
-        re.escape('fp.subscribe'),
+        r'[\s\S]+'.join([
+            re.escape('first_party_variables AS ('),
+            re.escape('subscribe,')
+        ]),
         'First party feature check failed.')
 
     # timespan check
@@ -744,19 +976,37 @@ class TestCompiler(parameterized.TestCase):
   def test_build_predictive_sql_first_party(self):
     test_model = self.model_config(
         model_type='BOOSTED_TREE_CLASSIFIER',
-        uses_first_party_data=True,
         unique_id='USER_ID',
-        label={
+        variables=[
+          {
+            'role': 'LABEL',
             'name': 'premium_subscription',
             'source': 'FIRST_PARTY',
             'key': 'value',
-            'value_type': 'int',
-            'average_value': 1234.0
-        },
-        features=[
-            {'name': 'purchase', 'source': 'FIRST_PARTY'},
-            {'name': 'request_for_info', 'source': 'FIRST_PARTY'}
+            'value_type': 'int'
+          },
+          {
+            'role': 'FIRST_VALUE',
+            'name': 'first_purchase',
+            'source': 'FIRST_PARTY'
+          },
+          {
+            'role': 'TRIGGER_DATE',
+            'name': 'first_purchase_date',
+            'source': 'FIRST_PARTY'
+          },
+          {
+            'role': 'FEATURE',
+            'name': 'purchase',
+            'source': 'FIRST_PARTY'
+          },
+          {
+            'role': 'FEATURE',
+            'name': 'request_for_info',
+            'source': 'FIRST_PARTY'
+          }
         ],
+        source='FIRST_PARTY',
         class_imbalance=4)
 
     pipeline = self.compiler(test_model).build_predictive_pipeline()
@@ -770,6 +1020,12 @@ class TestCompiler(parameterized.TestCase):
     self.assertIsNotNone(sql_param)
     sql = sql_param['value']
 
+    # first party table name check
+    self.assertIn(
+        'FROM `test-project-id-1234.FP_DATASET.FP_DATA_TABLE`',
+        sql,
+        'First party table name check failed.')
+
     # probability check
     self.assertIn(
         'plp.prob AS probability,',
@@ -781,41 +1037,63 @@ class TestCompiler(parameterized.TestCase):
         sql,
         r'[\s\S]+'.join([
             'SELECT',
-            'user_id,',
             'user_pseudo_id,',
+            'user_id,',
             re.escape('ML.PREDICT')
         ]),
         'User ids check failed.')
 
     # label check
-    self.assertIn(
-        'fp.premium_subscription AS label,',
-        sql,
-        'First party label check failed.')
+    self.assertRegex(
+      sql,
+      r'[\s\S]+'.join([
+          re.escape('first_party_variables AS ('),
+          re.escape('premium_subscription AS label,')
+      ]),
+      'First party label check failed.')
 
     # feature check
     self.assertRegex(
-        sql,
-        r',[\s\n]+'.join([
-            re.escape('fp.purchase'),
-            re.escape('fp.request_for_info'),
+      sql,
+      r'[\s\S]+'.join([
+            re.escape('first_party_variables AS ('),
+            re.escape('purchase,'),
+            re.escape('request_for_info,'),
         ]),
         'First party feature check failed.')
+
+    # other variable check
+    self.assertRegex(
+      sql,
+      r'[\s\S]+'.join([
+            re.escape('first_party_variables AS ('),
+            re.escape('first_purchase AS first_value,'),
+            re.escape('CAST(first_purchase_date AS DATE FORMAT "YYYYMMDD") AS trigger_date,'),
+        ]),
+        'First party variable check failed.',
+    )
 
   def test_build_predictive_sql_google_analytics(self):
     test_model = self.model_config(
         model_type='BOOSTED_TREE_CLASSIFIER',
-        uses_first_party_data=False,
-        label={
+        variables=[
+          {
+            'role': 'LABEL',
             'name': 'subscription',
             'source': 'GOOGLE_ANALYTICS',
             'key': 'value',
-            'value_type': 'string',
-            'average_value': 1234.0
-        },
-        features=[
-            {'name': 'click', 'source': 'GOOGLE_ANALYTICS'},
-            {'name': 'scroll', 'source': 'GOOGLE_ANALYTICS'}
+            'value_type': 'string'
+          },
+          {
+            'role': 'FEATURE',
+            'name': 'click',
+            'source': 'GOOGLE_ANALYTICS'
+          },
+          {
+            'role': 'FEATURE',
+            'name': 'scroll',
+            'source': 'GOOGLE_ANALYTICS'
+          }
         ],
         class_imbalance=4)
 
@@ -842,8 +1120,8 @@ class TestCompiler(parameterized.TestCase):
 
     self.assertRegex(
         sql,
-        re.escape('SELECT * FROM analytics_variables'),
-        'Google Analytics label join check failed.')
+        re.escape('FROM analytics_variables'),
+        'Google Analytics pull check failed.')
 
     # feature check
     self.assertRegex(
@@ -857,16 +1135,24 @@ class TestCompiler(parameterized.TestCase):
   def test_build_predictive_sql_google_analytics_regression_model(self):
     test_model = self.model_config(
         model_type='BOOSTED_TREE_REGRESSOR',
-        uses_first_party_data=False,
-        label={
+        variables=[
+          {
+            'role': 'LABEL',
             'name': 'subscription',
             'source': 'GOOGLE_ANALYTICS',
             'key': 'value',
             'value_type': 'string'
-        },
-        features=[
-            {'name': 'click', 'source': 'GOOGLE_ANALYTICS'},
-            {'name': 'scroll', 'source': 'GOOGLE_ANALYTICS'}
+          },
+          {
+            'role': 'FEATURE',
+            'name': 'click',
+            'source': 'GOOGLE_ANALYTICS'
+          },
+          {
+            'role': 'FEATURE',
+            'name': 'scroll',
+            'source': 'GOOGLE_ANALYTICS'
+          }
         ],
         class_imbalance=4)
 
@@ -891,7 +1177,7 @@ class TestCompiler(parameterized.TestCase):
                 'COALESCE(params.value.int_value, params.value.float_value,'
                 ' params.value.double_value, 0) AS value'
             ),
-            re.escape(') fv'),
+            re.escape(') t'),
         ]),
         'Google Analytics first value join check failed.')
 
@@ -907,19 +1193,27 @@ class TestCompiler(parameterized.TestCase):
   def test_build_output_sql_classification_model(self):
     test_model = self.model_config(
         model_type='BOOSTED_TREE_CLASSIFIER',
-        uses_first_party_data=True,
         unique_id='USER_ID',
-        label={
+        variables=[
+          {
+            'role': 'LABEL',
             'name': 'purchase',
             'source': 'GOOGLE_ANALYTICS',
             'key': 'value',
-            'value_type': 'string,int',
-            'average_value': 1234.0
-        },
-        features=[
-            {'name': 'click', 'source': 'GOOGLE_ANALYTICS'},
-            {'name': 'subscribe', 'source': 'FIRST_PARTY'}
+            'value_type': 'string,int'
+          },
+          {
+            'role': 'FEATURE',
+            'name': 'click',
+            'source': 'GOOGLE_ANALYTICS'
+          },
+          {
+            'role': 'FEATURE',
+            'name': 'subscribe',
+            'source': 'FIRST_PARTY'
+          }
         ],
+        source='GOOGLE_ANALYTICS_AND_FIRST_PARTY',
         class_imbalance=4)
 
     pipeline = self.compiler(test_model).build_predictive_pipeline()
@@ -980,18 +1274,27 @@ class TestCompiler(parameterized.TestCase):
   def test_build_output_sql_regression_model(self):
     test_model = self.model_config(
         model_type='BOOSTED_TREE_REGRESSOR',
-        uses_first_party_data=True,
         unique_id='USER_ID',
-        label={
+        variables=[
+          {
+            'role': 'LABEL',
             'name': 'purchase',
             'source': 'GOOGLE_ANALYTICS',
             'key': 'value',
             'value_type': 'float'
-        },
-        features=[
-            {'name': 'click', 'source': 'GOOGLE_ANALYTICS'},
-            {'name': 'subscribe', 'source': 'FIRST_PARTY'}
+          },
+          {
+            'role': 'FEATURE',
+            'name': 'click',
+            'source': 'GOOGLE_ANALYTICS'
+          },
+          {
+            'role': 'FEATURE',
+            'name': 'subscribe',
+            'source': 'FIRST_PARTY'
+          }
         ],
+        source='GOOGLE_ANALYTICS_AND_FIRST_PARTY',
         class_imbalance=4)
 
     pipeline = self.compiler(test_model).build_predictive_pipeline()
@@ -1045,20 +1348,28 @@ class TestCompiler(parameterized.TestCase):
   def test_build_output_sql_google_analytics_mp_event(self):
     test_model = self.model_config(
         model_type='BOOSTED_TREE_CLASSIFIER',
-        uses_first_party_data=True,
         unique_id='USER_ID',
-        label={
+        variables=[
+          {
+            'role': 'LABEL',
             'name': 'purchase',
             'source': 'GOOGLE_ANALYTICS',
             'key': 'value',
-            'value_type': 'string,int',
-            'average_value': 1234.0
-        },
-        features=[
-            {'name': 'click', 'source': 'GOOGLE_ANALYTICS'},
-            {'name': 'subscribe', 'source': 'FIRST_PARTY'}
+            'value_type': 'string,int'
+          },
+          {
+            'role': 'FEATURE',
+            'name': 'click',
+            'source': 'GOOGLE_ANALYTICS'
+          },
+          {
+            'role': 'FEATURE',
+            'name': 'subscribe',
+            'source': 'FIRST_PARTY'
+          }
         ],
         class_imbalance=4,
+        source='GOOGLE_ANALYTICS_AND_FIRST_PARTY',
         destination='GOOGLE_ANALYTICS_MP_EVENT')
 
     pipeline = self.compiler(test_model).build_predictive_pipeline()
@@ -1082,20 +1393,28 @@ class TestCompiler(parameterized.TestCase):
   def test_build_output_sql_google_ads_offline_conversion(self):
     test_model = self.model_config(
         model_type='BOOSTED_TREE_CLASSIFIER',
-        uses_first_party_data=True,
         unique_id='USER_ID',
-        label={
+        variables=[
+          {
+            'role': 'LABEL',
             'name': 'purchase',
             'source': 'GOOGLE_ANALYTICS',
             'key': 'value',
-            'value_type': 'string,int',
-            'average_value': 1234.0
-        },
-        features=[
-            {'name': 'click', 'source': 'GOOGLE_ANALYTICS'},
-            {'name': 'subscribe', 'source': 'FIRST_PARTY'}
+            'value_type': 'string,int'
+          },
+          {
+            'role': 'FEATURE',
+            'name': 'click',
+            'source': 'GOOGLE_ANALYTICS'
+          },
+          {
+            'role': 'FEATURE',
+            'name': 'subscribe',
+            'source': 'FIRST_PARTY'
+          }
         ],
         class_imbalance=4,
+        source='GOOGLE_ANALYTICS_AND_FIRST_PARTY',
         destination='GOOGLE_ADS_OFFLINE_CONVERSION')
 
     pipeline = self.compiler(test_model).build_predictive_pipeline()
@@ -1119,14 +1438,15 @@ class TestCompiler(parameterized.TestCase):
   def test_build_ga4_request(self):
     test_model = self.model_config(
         model_type='BOOSTED_TREE_REGRESSOR',
-        uses_first_party_data=False,
-        label={
+        variables=[
+          {
+            'role': 'LABEL',
             'name': 'purchase',
             'source': 'GOOGLE_ANALYTICS',
             'key': 'value',
             'value_type': 'float'
-        },
-        features=[],
+          }
+        ],
         class_imbalance=0)
 
     pipeline = self.compiler(test_model).build_predictive_pipeline()
@@ -1160,16 +1480,16 @@ class TestCompiler(parameterized.TestCase):
   def test_build_google_analytics_mp_event_score(self):
     test_model = self.model_config(
         model_type='BOOSTED_TREE_CLASSIFIER',
-        uses_first_party_data=True,
         unique_id='USER_ID',
-        label={
+        variables=[
+          {
+            'role': 'LABEL',
             'name': 'purchase',
             'source': 'GOOGLE_ANALYTICS',
             'key': 'value',
-            'value_type': 'float',
-            'average_value': 1234.0
-        },
-        features=[],
+            'value_type': 'float'
+          }
+        ],
         class_imbalance=0)
 
     pipeline = self.compiler(test_model).build_predictive_pipeline()
@@ -1209,15 +1529,16 @@ class TestCompiler(parameterized.TestCase):
   def test_build_google_analytics_mp_event_revenue(self):
     test_model = self.model_config(
         model_type='BOOSTED_TREE_REGRESSOR',
-        uses_first_party_data=True,
         unique_id='USER_ID',
-        label={
+        variables=[
+          {
+            'role': 'LABEL',
             'name': 'purchase',
             'source': 'GOOGLE_ANALYTICS',
             'key': 'value',
             'value_type': 'float'
-        },
-        features=[],
+          }
+        ],
         class_imbalance=0)
 
     pipeline = self.compiler(test_model).build_predictive_pipeline()
@@ -1256,15 +1577,16 @@ class TestCompiler(parameterized.TestCase):
   def test_build_google_ads_offline_conversion(self):
     test_model = self.model_config(
         model_type='BOOSTED_TREE_REGRESSOR',
-        uses_first_party_data=True,
         unique_id='USER_ID',
-        label={
+        variables=[
+          {
+            'role': 'LABEL',
             'name': 'purchase',
             'source': 'GOOGLE_ANALYTICS',
             'key': 'value',
             'value_type': 'float'
-        },
-        features=[],
+          }
+        ],
         class_imbalance=0,
         destination='GOOGLE_ADS_OFFLINE_CONVERSION')
 
@@ -1287,20 +1609,25 @@ class TestCompiler(parameterized.TestCase):
 
   def model_config(self,
                    model_type: str,
-                   uses_first_party_data: bool,
-                   label: dict[str, Any],
-                   features: list[dict[str, Any]],
+                   variables: list[dict[str, Any]],
                    class_imbalance: int,
                    unique_id: str = 'CLIENT_ID',
+                   source: str = 'GOOGLE_ANALYTICS',
                    destination: str = 'GOOGLE_ANALYTICS_MP_EVENT'):
     return self.convert_to_object({
         'name': 'Test Model',
+        'input': {
+          'source': source,
+          'parameters': {
+            'first_party_dataset': 'FP_DATASET',
+            'first_party_table': 'FP_DATA_TABLE'
+          }
+        },
         'bigquery_dataset': {
             'location': 'US',
             'name': 'test-dataset'
         },
         'type': model_type,
-        'uses_first_party_data': uses_first_party_data,
         'unique_id': unique_id,
         'hyper_parameters': [
             {'name': 'HP1-NAME', 'value': 'HP1-STRING'},
@@ -1309,8 +1636,7 @@ class TestCompiler(parameterized.TestCase):
             {'name': 'HP4-NAME', 'value': 'true'},
             {'name': 'HP5-NAME', 'value': 'false'}
         ],
-        'label': label,
-        'features': features,
+        'variables': variables,
         'conversion_rate_segments':
             10 if model_type.endswith('CLASSIFIER') else 0,
         'class_imbalance': class_imbalance,
@@ -1322,7 +1648,8 @@ class TestCompiler(parameterized.TestCase):
             'destination': destination,
             'parameters': {
                 'customer_id': 1234,
-                'conversion_action_id': 5678
+                'conversion_action_id': 5678,
+                'average_conversion_value': 1234.5
             }
         }
     })

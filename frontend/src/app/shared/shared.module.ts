@@ -26,6 +26,7 @@ import { MatLegacySlideToggleModule as MatSlideToggleModule } from '@angular/mat
 import { MatLegacySliderModule as MatSliderModule } from '@angular/material/legacy-slider';
 import { MatLegacySelectModule as MatSelectModule } from '@angular/material/legacy-select';
 import { MatToolbarModule } from '@angular/material/toolbar';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatLegacyTabsModule as MatTabsModule } from '@angular/material/legacy-tabs';
 import { MatLegacyCheckboxModule as MatCheckboxModule } from '@angular/material/legacy-checkbox';
 import { MatLegacyMenuModule as MatMenuModule } from '@angular/material/legacy-menu';
@@ -52,6 +53,7 @@ import { LabelcasePipe } from 'app/pipes/labelcase.pipe';
     MatSelectModule,
     BrowserAnimationsModule,
     MatToolbarModule,
+    MatTooltipModule,
     MatTabsModule,
     MatCheckboxModule,
     MatMenuModule
@@ -76,6 +78,7 @@ import { LabelcasePipe } from 'app/pipes/labelcase.pipe';
     MatSelectModule,
     BrowserAnimationsModule,
     MatToolbarModule,
+    MatTooltipModule,
     MatTabsModule,
     MatCheckboxModule,
     MatMenuModule,

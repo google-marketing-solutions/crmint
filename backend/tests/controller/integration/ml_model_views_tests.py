@@ -55,13 +55,19 @@ class TestMlModelViews(controller_utils.ControllerAppTest):
 
     request = {
         'name': 'Test Model - Update',
+        'input': {
+            'source': 'GOOGLE_ANALYTICS',
+            'parameters': {
+              'first_party_dataset': 'FP_DATASET',
+              'first_party_table': 'FP_DATA_TABLE'
+            }
+        },
         'bigquery_dataset': {
             'name': 'test-dataset-update',
             'location': 'UK'
         },
         'type': 'BOOSTED_TREE_CLASSIFIER',
         'unique_id': 'USER_ID',
-        'uses_first_party_data': False,
         'hyper_parameters': [
             {'name': 'L1_REG', 'value': '2'},
             {'name': 'L2_REG', 'value': '4'},
@@ -74,17 +80,36 @@ class TestMlModelViews(controller_utils.ControllerAppTest):
             {'name': 'DATA_SPLIT_METHOD', 'value': 'AUTO_SPLIT'},
             {'name': 'EARLY_STOP', 'value': 'true'}
         ],
-        'features': [{
+        'variables': [
+          {
+            'name': 'first_purchase',
+            'source': 'FIRST_PARTY',
+            'role': 'FIRST_VALUE',
+            'key': None,
+            'value_type': None
+          },
+          {
+            'name': 'first_purchase_date',
+            'source': 'FIRST_PARTY',
+            'role': 'TRIGGER_DATE',
+            'key': None,
+            'value_type': None
+          },
+          {
             'name': 'enrollment',
-            'source': 'FIRST_PARTY'
-        }],
-        'label': {
+            'source': 'FIRST_PARTY',
+            'role': 'FEATURE',
+            'key': None,
+            'value_type': None
+          },
+          {
             'name': 'purchase',
             'source': 'GOOGLE_ANALYTICS',
+            'role': 'LABEL',
             'key': 'value',
-            'value_type': 'int',
-            'average_value': 123.45
-        },
+            'value_type': 'int'
+          }
+        ],
         'conversion_rate_segments': 10,
         'class_imbalance': 5,
         'timespans': [
@@ -95,7 +120,8 @@ class TestMlModelViews(controller_utils.ControllerAppTest):
             'destination': 'GOOGLE_ADS_OFFLINE_CONVERSION',
             'parameters': {
                 'customer_id': '1234567890',
-                'conversion_action_id': '0987654321'
+                'conversion_action_id': '0987654321',
+                'average_conversion_value': 1234.5
             }
         }
     }
@@ -153,14 +179,52 @@ class TestMlModelViews(controller_utils.ControllerAppTest):
 
     self.assertEqual(response.status_code, 201)
 
-  @mock.patch.object(models.MlModel, 'save_relations')
-  def test_error_during_create_ml_model_causes_rollback(
-      self, save_patch: mock.Mock
-    ):
-    save_patch.side_effect = ValueError('oops.')
+  def test_error_during_create_ml_model_causes_rollback(self):
+    request = {
+        'name': 'Test Model',
+        'input': {
+            'source': 'GOOGLE_ANALYTICS',
+            'parameters': {
+              'first_party_dataset': '',
+              'first_party_table': ''
+            }
+        },
+        'bigquery_dataset': {
+            'name': 'test-dataset',
+            'location': 'US'
+        },
+        'type': 'BOOSTED_TREE_REGRESSOR',
+        'unique_id': 'CLIENT_ID',
+        'hyper_parameters': [
+            {'name': 'L1_REG', 'value': '1'}
+        ],
+        'variables': [
+          {
+            'name': 'purchase',
+            'source': 'GOOGLE_ANALYTICS',
+            'role': 'LABEL',
+            'key': 'value',
+            'value_type': None
+          }
+        ],
+        'conversion_rate_segments': 0,
+        'class_imbalance': 7,
+        'timespans': [
+            {'name': 'training', 'value': 20, 'unit': 'day'},
+            {'name': 'predictive', 'value': 1, 'unit': 'day'}
+        ],
+        'output': {
+            'destination': 'GOOGLE_ANALYTICS_MP_EVENT',
+            'parameters': {
+                'customer_id': '0',
+                'conversion_action_id': '0',
+                'average_conversion_value': 0.0
+            }
+        }
+    }
 
-    with self.assertRaises(ValueError):
-      self.post_test_model()
+    with self.assertRaises(TypeError):
+      self.client.post('/api/ml-models', json=request)
 
     response = self.client.get('/api/ml-models/1')
     self.assertEqual(response.status_code, 404)
@@ -178,12 +242,13 @@ class TestMlModelViews(controller_utils.ControllerAppTest):
     self.assertEqual(response.status_code, 400)
 
   @mock.patch.object(ml_model.bigquery, 'CustomClient')
-  def test_retrieve_variables_with_required_fields(self,
-                                                   client_mock: mock.Mock):
+  def test_retrieve_variables_with_required_fields_google_analytics(
+    self, client_mock: mock.Mock):
     request = {
-        'dataset': '{\"name\": \"test-dataset\", \"location\": \"US\"}',
-        'timespans': '[{\"name\": \"training\", \"value\": 90},'
-                     '{\"name\": \"predictive\", \"value\": 30}]',
+        'input': '{\"source\":\"GOOGLE_ANALYTICS\",\"parameters\":{}}',
+        'dataset': '{\"name\":\"test-dataset\",\"location\":\"US\"}',
+        'timespans': '[{\"name\":\"training\",\"value\":90},'
+                     '{\"name\":\"predictive\",\"value\":30}]',
     }
     models.GeneralSetting.where(
         name='google_analytics_4_bigquery_dataset'
@@ -203,10 +268,46 @@ class TestMlModelViews(controller_utils.ControllerAppTest):
     self.assertEqual(response.status_code, 200)
 
   @mock.patch.object(ml_model.bigquery, 'CustomClient')
-  def test_retrieve_variables_with_dataset_events_not_found(
-      self, client_mock: mock.Mock
-  ):
+  def test_retrieve_variables_with_required_fields_first_party(
+    self, client_mock: mock.Mock):
     request = {
+        'input': '{\"source\":\"GOOGLE_ANALYTICS_AND_FIRST_PARTY\",\"parameters\":'
+                 '{\"firstPartyDataset\":\"1p_dataset\",'
+                 '\"firstPartyTable\":\"1p_table\"}}',
+        'dataset': '{\"name\":\"test-dataset\",\"location\":\"US\"}',
+        'timespans': '[{\"name\":\"training\",\"value\":90},'
+                     '{\"name\":\"predictive\",\"value\":30}]',
+    }
+    models.GeneralSetting.where(
+        name='google_analytics_4_bigquery_dataset'
+    ).first().update(value='test-ga4-dataset')
+
+    # Required due to uncertainty around how to do actual integration
+    # test with big query locally.
+    variables: list[ml_model.bigquery.Variable] = []
+    variable = ml_model.bigquery.Variable(
+        'test-name', 'GOOGLE_ANALYTICS', 100, [])
+    variable.parameters.append(
+        ml_model.bigquery.Parameter('test-key', 'test-value-type'))
+    variables.append(variable)
+    client_mock.return_value.get_analytics_variables.return_value = variables
+
+    variables: list[ml_model.bigquery.Variable] = []
+    variable = ml_model.bigquery.Variable(
+        'test-name', 'FIRST_PARTY', 0, [])
+    variable.parameters.append(
+        ml_model.bigquery.Parameter('test-key', 'test-value-type'))
+    variables.append(variable)
+    client_mock.return_value.get_first_party_variables.return_value = variables
+
+    response = self.client.get('/api/ml-models/variables', query_string=request)
+    self.assertEqual(response.status_code, 200)
+
+  @mock.patch.object(ml_model.bigquery, 'CustomClient')
+  def test_retrieve_variables_with_dataset_events_not_found(
+      self, client_mock: mock.Mock):
+    request = {
+        'input': '{\"source\": \"GOOGLE_ANALYTICS\", \"parameters\": {}}',
         'dataset': '{\"name\": \"test-dataset\", \"location\": \"US\"}',
         'timespans': '[{\"name\": \"training\", \"value\": 90},'
                      '{\"name\": \"predictive\", \"value\": 30}]',
@@ -226,13 +327,19 @@ class TestMlModelViews(controller_utils.ControllerAppTest):
   def post_test_model(self):
     request = {
         'name': 'Test Model',
+        'input': {
+            'source': 'GOOGLE_ANALYTICS',
+            'parameters': {
+              'first_party_dataset': '',
+              'first_party_table': ''
+            }
+        },
         'bigquery_dataset': {
             'name': 'test-dataset',
             'location': 'US'
         },
         'type': 'BOOSTED_TREE_REGRESSOR',
         'unique_id': 'CLIENT_ID',
-        'uses_first_party_data': False,
         'hyper_parameters': [
             {'name': 'L1_REG', 'value': '1'},
             {'name': 'L2_REG', 'value': '1'},
@@ -245,17 +352,22 @@ class TestMlModelViews(controller_utils.ControllerAppTest):
             {'name': 'DATA_SPLIT_METHOD', 'value': 'AUTO_SPLIT'},
             {'name': 'EARLY_STOP', 'value': 'false'}
         ],
-        'features': [{
+        'variables': [
+          {
             'name': 'click',
-            'source': 'GOOGLE_ANALYTICS'
-        }],
-        'label': {
+            'source': 'GOOGLE_ANALYTICS',
+            'role': 'FEATURE',
+            'key': None,
+            'value_type': None
+          },
+          {
             'name': 'purchase',
-            'key': '',
-            'value_type': '',
             'source': 'FIRST_PARTY',
-            'average_value': 0.0
-        },
+            'role': 'LABEL',
+            'key': None,
+            'value_type': None
+          }
+        ],
         'conversion_rate_segments': 0,
         'class_imbalance': 7,
         'timespans': [
@@ -266,7 +378,8 @@ class TestMlModelViews(controller_utils.ControllerAppTest):
             'destination': 'GOOGLE_ANALYTICS_MP_EVENT',
             'parameters': {
                 'customer_id': '0',
-                'conversion_action_id': '0'
+                'conversion_action_id': '0',
+                'average_conversion_value': 0.0
             }
         }
     }

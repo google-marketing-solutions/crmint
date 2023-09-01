@@ -155,7 +155,7 @@ class CustomClient(bigquery.Client):
 
     return variables
 
-  def get_first_party_variables(self, dataset_name: str) -> list[Variable]:
+  def get_first_party_variables(self, dataset: str, table: str) -> list[Variable]:
     """Look up and return the field names for use in feature/label selection.
 
     Args:
@@ -167,29 +167,18 @@ class CustomClient(bigquery.Client):
 
     variables: list[Variable] = []
 
-    exclude_list = [
-        'user_id',
-        'user_pseudo_id',
-        'trigger_event_date'
-    ]
-
     exclude_type_list = [
-        'DATE',
-        'DATETIME',
-        'TIME',
         'JSON',
         'RECORD'
     ]
 
     try:
-      table = self.get_table(f'{dataset_name}.first_party')
+      table = self.get_table(f'{dataset}.{table}')
     except NotFound:
       return variables
 
     for column in table.schema:
-      excluded_column: bool = column.name in exclude_list
-      excluded_field_type: bool = column.field_type in exclude_type_list
-      if not excluded_column and not excluded_field_type:
+      if column.field_type not in exclude_type_list:
         parameter = Parameter('value', column.field_type)
         variable = Variable(column.name, Source.FIRST_PARTY, 0, [parameter])
         variables.append(variable)

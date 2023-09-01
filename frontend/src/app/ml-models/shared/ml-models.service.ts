@@ -22,20 +22,21 @@ export class MlModelsService extends ApiService {
   private url = `${this.getHost()}/ml-models`;
 
   getAll() {
-    this.removeContentTypeHeader();
+    this.resetOptions();
     return this.http.get(this.url, this.options)
                     .toPromise()
                     .catch(this.handleError);
   }
 
   get(id) {
-    this.removeContentTypeHeader();
+    this.resetOptions();
     return this.http.get(this.url + '/' + id)
                     .toPromise()
                     .catch(this.handleError);
   }
 
   create(model) {
+    this.resetOptions();
     this.addContentTypeHeader();
     return this.http.post(this.url, JSON.stringify(model), this.options)
                     .toPromise()
@@ -43,6 +44,7 @@ export class MlModelsService extends ApiService {
   }
 
   update(model) {
+    this.resetOptions();
     this.addContentTypeHeader();
     return this.http.put(this.url + '/' + model.id, JSON.stringify(model), this.options)
                     .toPromise()
@@ -50,18 +52,19 @@ export class MlModelsService extends ApiService {
   }
 
   delete(id) {
-    this.removeContentTypeHeader();
+    this.resetOptions();
     return this.http.delete(this.url + '/' + id)
                     .toPromise()
                     .catch(this.handleError);
   }
 
-  getVariables(bigqueryDataset, modelTimespans) {
-    this.removeContentTypeHeader();
-    this.options.params = {
-      dataset: JSON.stringify(bigqueryDataset),
-      timespans: JSON.stringify(modelTimespans)
-    };
+  getVariables(input, bigQueryDataset, timespans) {
+    this.resetOptions();
+    this.addParams({
+      input: JSON.stringify(input),
+      dataset: JSON.stringify(bigQueryDataset),
+      timespans: JSON.stringify(timespans)
+    });
     return this.http.get(this.url + '/variables', this.options)
                     .toPromise()
                     .catch(this.handleError);

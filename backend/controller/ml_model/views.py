@@ -31,6 +31,8 @@ from common import insight
 from controller import ml_model
 from controller import models
 
+from controller.ml_model.shared import Source, Timespan
+
 project_id = os.getenv('GOOGLE_CLOUD_PROJECT')
 
 blueprint = flask.Blueprint('ml_model', __name__)
@@ -38,19 +40,26 @@ api = Api(blueprint)
 
 parser = reqparse.RequestParser()
 parser.add_argument('name', type=str, required=False)
+parser.add_argument('input', type=dict, required=False)
 parser.add_argument('bigquery_dataset', type=dict, required=False)
 parser.add_argument('type', type=str, required=False)
 parser.add_argument('unique_id', type=str, required=False)
-parser.add_argument('uses_first_party_data', type=bool, required=False)
 parser.add_argument(
     'hyper_parameters', type=list, location='json', required=False
 )
-parser.add_argument('features', type=list, location='json', required=False)
-parser.add_argument('label', type=dict, required=False)
+parser.add_argument('variables', type=list, location='json', required=False)
 parser.add_argument('conversion_rate_segments', type=int, required=False)
 parser.add_argument('class_imbalance', type=int, required=False)
 parser.add_argument('timespans', type=list, location='json', required=False)
 parser.add_argument('output', type=dict, required=False)
+
+input_structure = fields.Nested({
+    'source': fields.String,
+    'parameters': fields.Nested({
+        'first_party_dataset': fields.String,
+        'first_party_table': fields.String
+    })
+})
 
 bigquery_dataset_structure = fields.Nested(
     {'name': fields.String, 'location': fields.String}
@@ -60,17 +69,15 @@ hyper_parameters_structure = fields.List(
     fields.Nested({'name': fields.String, 'value': fields.String})
 )
 
-features_structure = fields.List(
-    fields.Nested({'name': fields.String, 'source': fields.String})
+variables_structure = fields.List(
+    fields.Nested({
+        'name': fields.String,
+        'source': fields.String,
+        'role': fields.String,
+        'key': fields.String,
+        'value_type': fields.String,
+    })
 )
-
-label_structure = fields.Nested({
-    'name': fields.String,
-    'source': fields.String,
-    'key': fields.String,
-    'value_type': fields.String,
-    'average_value': fields.Float,
-})
 
 timespans_structure = fields.List(
     fields.Nested(
@@ -82,7 +89,8 @@ output_structure = fields.Nested({
     'destination': fields.String,
     'parameters': fields.Nested({
         'customer_id': fields.String,
-        'conversion_action_id': fields.String
+        'conversion_action_id': fields.String,
+        'average_conversion_value': fields.Float
     })
 })
 
@@ -114,13 +122,12 @@ pipelines_structure = fields.List(
 ml_model_structure = {
     'id': fields.Integer,
     'name': fields.String,
+    'input': input_structure,
     'bigquery_dataset': bigquery_dataset_structure,
     'type': fields.String,
     'unique_id': fields.String,
-    'uses_first_party_data': fields.Boolean,
     'hyper_parameters': hyper_parameters_structure,
-    'features': features_structure,
-    'label': label_structure,
+    'variables': variables_structure,
     'conversion_rate_segments': fields.Integer,
     'class_imbalance': fields.Integer,
     'timespans': timespans_structure,
@@ -186,6 +193,7 @@ class MlModelList(Resource):
     tracker.track_event(category='ml-models', action='list')
 
     model_list = models.MlModel.all()
+    model_list.sort(key=lambda m: m.name)
     return model_list
 
   @marshal_with(ml_model_structure)
@@ -202,9 +210,8 @@ class MlModelList(Resource):
       # Automatically build and assign training pipeline upon ml model creation.
       pipelines = build_pipelines(model)
       model.save_relations({'pipelines': pipelines})
-    except (exc.SQLAlchemyError, ValueError):
-      # Ensures that, in the event of an error, a half-implemented
-      # ml model isn't created.
+    except (exc.SQLAlchemyError, ValueError, TypeError):
+      # Ensures that, in the event of an error, a half-implemented ml model isn't created.
       model.destroy()
       raise
 
@@ -214,6 +221,7 @@ class MlModelList(Resource):
 
 
 variables_parser = reqparse.RequestParser()
+variables_parser.add_argument('input', type=str, required=True)
 variables_parser.add_argument('dataset', type=str, required=True)
 variables_parser.add_argument('timespans', type=str, required=True)
 
@@ -243,32 +251,35 @@ class MlModelVariables(Resource):
     tracker.track_event(category='ml-models', action='variables')
 
     args = variables_parser.parse_args()
+    input = json.loads(args['input'])
     dataset = json.loads(args['dataset'])
-    timespan = ml_model.compiler.Timespan(json.loads(args['timespans']))
+    timespan = Timespan(json.loads(args['timespans']))
 
     bigquery_client = ml_model.bigquery.CustomClient(dataset['location'])
     variables = []
 
-    ga4_dataset = setting('google_analytics_4_bigquery_dataset')
+    if Source.GOOGLE_ANALYTICS in input['source']:
+      dataset = setting('google_analytics_4_bigquery_dataset')
 
-    # Timebox the variables/events to the training dataset timespan.
-    analytics_variables = bigquery_client.get_analytics_variables(
-        ga4_dataset, timespan.training_start, timespan.training_end)
-    if not analytics_variables:
-      abort(
-          400,
-          message=(
-              'GA4 BigQuery Dataset does not include expected events tables.'
-              ' Check configuration in Settings tab and try again.'
-          ),
-      )
-    variables.extend(analytics_variables)
+      # Timebox the variables/events to the training dataset timespan.
+      analytics_variables = bigquery_client.get_analytics_variables(
+          dataset, timespan.training.start, timespan.training.end)
+      if not analytics_variables:
+        abort(
+            400,
+            message=(
+                'GA4 BigQuery Dataset does not include expected events tables.'
+                ' Check configuration in Settings tab and try again.'
+            ),
+        )
+      variables.extend(analytics_variables)
 
-    first_party_columns = bigquery_client.get_first_party_variables(
-        dataset['name']
-    )
-    if first_party_columns:
-      variables.extend(first_party_columns)
+    if Source.FIRST_PARTY in input['source']:
+      dataset = input['parameters']['firstPartyDataset']
+      table = input['parameters']['firstPartyTable']
+      first_party_columns = bigquery_client.get_first_party_variables(dataset, table)
+      if first_party_columns:
+        variables.extend(first_party_columns)
 
     return variables
 

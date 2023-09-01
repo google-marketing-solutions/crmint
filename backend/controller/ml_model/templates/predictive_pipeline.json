@@ -13,7 +13,7 @@
         {
           "name": "script",
           "type": "{{ParamType.SQL}}",
-          "value": "{{compile_template(TemplateFile.PREDICTIVE_BQML, Encoding.JSON)}}"
+          "value": "{{compile_template(TemplateFile.MODEL_BQML, Step.PREDICTING)}}"
         },
         {
           "name": "bq_dataset_location",
@@ -34,7 +34,7 @@
         {
           "name": "script",
           "type": "{{ParamType.SQL}}",
-          "value": "{{compile_template(TemplateFile.OUTPUT, Encoding.JSON)}}"
+          "value": "{{compile_template(TemplateFile.OUTPUT, Step.OUTPUTING)}}"
         },
         {
           "name": "bq_dataset_location",
@@ -86,7 +86,7 @@
           {
             "name": "template",
             "type": "{{ParamType.TEXT}}",
-            "value": "{{compile_template(TemplateFile.GOOGLE_ANALYTICS_MP_EVENT, Encoding.JSON)}}"
+            "value": "{{compile_template(TemplateFile.GOOGLE_ANALYTICS_MP_EVENT, Step.UPLOADING)}}"
           },
           {
             "name": "mp_batch_size",
@@ -130,7 +130,7 @@
           {
             "name": "template",
             "type": "{{ParamType.TEXT}}",
-            "value": "{{compile_template(TemplateFile.GOOGLE_ADS_OFFLINE_CONVERSION, Encoding.JSON)}}"
+            "value": "{{compile_template(TemplateFile.GOOGLE_ADS_OFFLINE_CONVERSION, Step.UPLOADING)}}"
           },
           {
             "name": "debug",
