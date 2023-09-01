@@ -138,17 +138,18 @@ class CustomClient(bigquery.Client):
       return variables
 
     variable: Variable = None
-    for event in events:
-      if variable is None or variable.name != event.name:
-        if variable:
-          variables.append(variable)
-        variable = Variable(
-            event.name, Source.GOOGLE_ANALYTICS, event.count, [])
+    lastIndex: int = len(events) - 1
+
+    for index, event in enumerate(events):
+      if index == 0 or variable.name != event.name:
+        variable = Variable(event.name, Source.GOOGLE_ANALYTICS, event.count, [])
 
       variable.parameters.append(
         Parameter(event.parameter_key, event.parameter_value_type))
 
-    variables.append(variable)
+      if index == lastIndex or variable.name != events[index + 1].name:
+        variables.append(variable)
+
     return variables
 
   def get_first_party_variables(self, dataset: str, table: str) -> list[Variable]:
