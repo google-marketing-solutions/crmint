@@ -314,11 +314,11 @@ export class MlModelFormComponent implements OnInit {
         });
         this.cachedVariables = variables;
         this.errorMessage = '';
+        this.refreshVariables();
       } catch (error) {
         this.errorMessage = error || 'An error occurred';
       }
     }
-    await this.refreshVariables();
     this.fetchingVariables = false;
   }
 
@@ -326,7 +326,7 @@ export class MlModelFormComponent implements OnInit {
    * Get variables from cache, filtering where necessary, and specifically
    * returning a copy to keep cache in original state.
    */
-  async getVariables(): Promise<Variable[]> {
+  getVariables(): Variable[] {
     const includesFirstPartyData: boolean = this.input.source.includes(Source.FIRST_PARTY);
     let variables: Variable[] = this.cachedVariables;
 
@@ -340,10 +340,10 @@ export class MlModelFormComponent implements OnInit {
    * Attaches existing variable configuration for a model to the form.
    * Updates variable form fields based on related/linked form field changes.
    */
-  async refreshVariables() {
+  refreshVariables() {
     const formVariables: Variable[] = this.value('variables');
     const existingVariables: Variable[] = (formVariables.length ? formVariables : this.mlModel.variables) || [];
-    const variables: Variable[] = await this.getVariables();
+    const variables: Variable[] = this.getVariables();
     const isRegressionModel: boolean = this.type.isRegression;
     let controls = [];
 
