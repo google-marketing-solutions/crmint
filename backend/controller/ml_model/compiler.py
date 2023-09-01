@@ -216,13 +216,6 @@ class Compiler():
           'is_predicting': step == Step.PREDICTING
         },
         'name': self.ml_model.name,
-        'input': {
-            'source': {
-              'includes_first_party':
-                  Source.FIRST_PARTY in self.ml_model.input.source
-            },
-            'parameters': self.ml_model.input.parameters
-        },
         'project_id': self.project_id,
         'model_dataset': self.ml_model.bigquery_dataset.name,
         'ga4_dataset': self.ga4_dataset,
