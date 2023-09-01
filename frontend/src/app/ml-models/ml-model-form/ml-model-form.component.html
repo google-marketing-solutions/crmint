@@ -27,11 +27,16 @@
         <div id="input" formGroupName="input" class="crmi-form-group">
           <label class="crmi-form-label">
             Input Configuration
-            <mat-icon class="tooltip" title="BigQuery data sources for the model.">help</mat-icon>
+            <mat-icon class="tooltip-icon"
+                      matTooltip="BigQuery data sources for the model."
+                      matTooltipPosition="above"
+                      matTooltipClass="crmi-tooltip">
+              help
+            </mat-icon>
           </label>
           <div class="vertical-group">
             <mat-select placeholder="Source" formControlName="source"
-                        (selectionChange)="refreshInput()">
+                        (selectionChange)="refreshInput(); resetVariables()">
               <mat-option *ngFor="let source of sources" [value]="source">{{ source | labelcase }}</mat-option>
             </mat-select>
             <div formGroupName="parameters" *ngIf="input.requirements.length > 0" class="input-group">
@@ -45,7 +50,12 @@
         <div class="crmi-form-group" formGroupName="bigQueryDataset">
           <label class="crmi-form-label">
             Dataset
-            <mat-icon class="tooltip" title="BigQuery dataset where model, predictions, and output will be stored.">help</mat-icon>
+            <mat-icon class="tooltip-icon"
+                      matTooltip="BigQuery dataset where model, predictions, and output will be stored."
+                      matTooltipPosition="above"
+                      matTooltipClass="crmi-tooltip">
+              help
+            </mat-icon>
           </label>
           <mat-form-field>
             <input matInput placeholder="Name"
@@ -60,8 +70,10 @@
         <div formArrayName="timespans" class="crmi-form-group">
           <label class="crmi-form-label">
             Timespan
-            <mat-icon class="tooltip"
-                      title="The amount of data in days to use for training (3 year max) and predictive (1 year max) steps.">
+            <mat-icon class="tooltip-icon"
+                      matTooltip="The amount of data in days to use for training (3 year max) and predictive (1 year max) steps."
+                      matTooltipPosition="above"
+                      matTooltipClass="crmi-tooltip">
               help
             </mat-icon>
           </label>
@@ -79,7 +91,7 @@
 
         <div class="crmi-form-group">
           <label class="crmi-form-label">User Identifier</label>
-          <mat-select placeholder="Unique ID" formControlName="uniqueId">
+          <mat-select placeholder="Unique ID" formControlName="uniqueId" (selectionChange)="refreshVariables()">
             <mat-option *ngFor="let uniqueId of uniqueIds" [value]="uniqueId">{{ uniqueId | labelcase }}</mat-option>
           </mat-select>
         </div>
@@ -139,12 +151,25 @@
                   </mat-select>
                 </td>
                 <td *ngIf="value(variable, 'parameters'); let parameters" class="key">
-                  <mat-select placeholder="Key" formControlName="key">
+                  <mat-select placeholder="Key" formControlName="key" (selectionChange)="refreshVariables()">
                     <mat-option *ngFor="let parameter of parameters" [value]="parameter.key">{{ parameter.key }}</mat-option>
                   </mat-select>
                 </td>
-                <td class='hint' *ngIf="value(variable, 'hint')">
-                  <mat-icon class="tooltip" [title]="value(variable, 'hint')">warning</mat-icon>
+                <td class='hint' *ngIf="error(variable)">
+                  <mat-icon class="tooltip-icon"
+                            [matTooltip]="error(variable) | labelcase"
+                            matTooltipPosition="after"
+                            matTooltipClass="crmi-tooltip">
+                    warning
+                  </mat-icon>
+                </td>
+                <td class='hint' *ngIf="!error(variable) && value(variable, 'hint')">
+                  <mat-icon class="tooltip-icon"
+                            [matTooltip]="value(variable, 'hint')"
+                            matTooltipPosition="after"
+                            matTooltipClass="crmi-tooltip">
+                    help
+                  </mat-icon>
                 </td>
               </tr>
             </tbody>
@@ -155,10 +180,10 @@
           <label class="crmi-form-label">Variables</label>
           <div *ngIf="variableRequirementsProvided" class="notice green">
             <span>
-              Use above <strong>BigQuery Dataset</strong>, <strong>Data Source</strong>, and<br>
+              Use above <strong>Input Configuration</strong>, <strong>BigQuery Dataset</strong>, and<br>
               <strong>Timespan</strong> to fetch available variables.
               <br>
-              <small>(<strong>Note:</strong> Re-fetch required when BigQuery Dataset or Timespan change.)</small>
+              <small>(<strong>Note:</strong> Re-fetch required when any of these change.)</small>
             </span>
             <button mat-raised-button
                     (click)="refreshVariables()"
@@ -169,7 +194,7 @@
             </button>
           </div>
           <div *ngIf="!variableRequirementsProvided" class="notice">
-            Must first enter <strong>BigQuery Dataset</strong>, <strong>Data Source</strong>, and<br>
+            Must first enter <strong>Input Configuration</strong>, <strong>BigQuery Dataset</strong>, and<br>
             <strong>Timespan</strong> values to see available variables.
           </div>
         </div>
@@ -177,7 +202,7 @@
         <div *ngIf="type.isClassification" class="crmi-form-group">
           <label class="crmi-form-label">
             Number of Segments
-            <mat-icon class="tooltip" title="Used when calculating conversion rates.">help</mat-icon>
+            <mat-icon class="tooltip-icon" title="Used when calculating conversion rates.">help</mat-icon>
           </label>
           <mat-slider formControlName="conversionRateSegments" [min]="2" [max]="10" [step]="1" [thumbLabel]="true"></mat-slider>
           <span>{{ value('conversionRateSegments') }}</span>

@@ -193,6 +193,7 @@ class MlModelList(Resource):
     tracker.track_event(category='ml-models', action='list')
 
     model_list = models.MlModel.all()
+    model_list.sort(key=lambda m: m.name)
     return model_list
 
   @marshal_with(ml_model_structure)
@@ -209,9 +210,8 @@ class MlModelList(Resource):
       # Automatically build and assign training pipeline upon ml model creation.
       pipelines = build_pipelines(model)
       model.save_relations({'pipelines': pipelines})
-    except (exc.SQLAlchemyError, ValueError):
-      # Ensures that, in the event of an error, a half-implemented
-      # ml model isn't created.
+    except (exc.SQLAlchemyError, ValueError, TypeError):
+      # Ensures that, in the event of an error, a half-implemented ml model isn't created.
       model.destroy()
       raise
 
@@ -263,7 +263,7 @@ class MlModelVariables(Resource):
 
       # Timebox the variables/events to the training dataset timespan.
       analytics_variables = bigquery_client.get_analytics_variables(
-          dataset, timespan.training_start, timespan.training_end)
+          dataset, timespan.training.start, timespan.training.end)
       if not analytics_variables:
         abort(
             400,

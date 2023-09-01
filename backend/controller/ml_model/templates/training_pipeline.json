@@ -12,7 +12,7 @@
         {
           "name": "script",
           "type": "{{ParamType.SQL}}",
-          "value": "{{compile_template(TemplateFile.TRAINING_BQML, Encoding.JSON)}}"
+          "value": "{{compile_template(TemplateFile.MODEL_BQML, Step.TRAINING)}}"
         },
         {
           "name": "bq_dataset_location",
@@ -33,7 +33,7 @@
         {
           "name": "script",
           "type": "{{ParamType.SQL}}",
-          "value": "{{compile_template(TemplateFile.CONVERSION_VALUES_BQML, Encoding.JSON)}}"
+          "value": "{{compile_template(TemplateFile.CONVERSION_VALUES_BQML, Step.TRAINING)}}"
         },
         {
           "name": "bq_dataset_location",

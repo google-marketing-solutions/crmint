@@ -72,7 +72,43 @@ class TestClient(absltest.TestCase):
             'count': 77,
             'parameter_key': 'pk_2',
             'parameter_value_type': 'pvt_3',
-        }
+        },
+        {
+            'name': 'nm_2',
+            'count': 201,
+            'parameter_key': 'pk_1',
+            'parameter_value_type': 'pvt_1',
+        },
+        {
+            'name': 'nm_3',
+            'count': 784,
+            'parameter_key': 'pk_1',
+            'parameter_value_type': 'pvt_1',
+        },
+        {
+            'name': 'user_engagement',
+            'count': 4578,
+            'parameter_key': 'pk_1',
+            'parameter_value_type': 'pvt_1',
+        },
+        {
+            'name': 'nm_4',
+            'count': 10938,
+            'parameter_key': 'pk_1',
+            'parameter_value_type': 'pvt_1',
+        },
+        {
+            'name': 'nm_5',
+            'count': 22034,
+            'parameter_key': 'pk_1',
+            'parameter_value_type': 'pvt_1',
+        },
+        {
+            'name': 'page_view',
+            'count': 478458,
+            'parameter_key': 'pk_1',
+            'parameter_value_type': 'pvt_1',
+        },
     ])
 
     variables = self.client.get_analytics_variables('test-ga4-dataset', 360, 30)
@@ -95,18 +131,6 @@ class TestClient(absltest.TestCase):
                       'INTERVAL 30 DAY))')
         ]),
         'Query check failed. Incorrect start/end days.')
-
-    self.assertRegex(
-      args['query'],
-      r'event_name NOT IN \([\s\S]+\)',
-      'Query check failed. Event exclusion list not found or invalid.'
-    )
-
-    self.assertRegex(
-      args['query'],
-      r'p.key NOT IN \([\s\S]+\)',
-      'Query check failed. Event param key exclusion list not found or invalid.'
-    )
 
     # check name and result order is correct
     self.assertEqual(variables[0].name, 'nm_5')

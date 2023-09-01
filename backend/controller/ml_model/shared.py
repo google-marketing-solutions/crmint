@@ -14,6 +14,7 @@
 
 """MlModel shared classes."""
 
+import dataclasses
 from typing import Any
 from controller import shared
 
@@ -21,6 +22,13 @@ from controller import shared
 class Source(shared.StrEnum):
   FIRST_PARTY = 'FIRST_PARTY'
   GOOGLE_ANALYTICS = 'GOOGLE_ANALYTICS'
+
+
+@dataclasses.dataclass
+class TimespanRange:
+  """The timespan range where start and end are the number of days ago from today."""
+  start: int
+  end: int
 
 
 class Timespan:
@@ -34,17 +42,9 @@ class Timespan:
       setattr(self, '_' + timespan['name'], int(timespan['value']))
 
   @property
-  def training_start(self) -> int:
-    return self.predictive_start + self._training + 1
+  def training(self) -> TimespanRange:
+    return TimespanRange(self.predictive.start + self._training + 1, self.predictive.start + 1)
 
   @property
-  def training_end(self) -> int:
-    return self.predictive_start + 1
-
-  @property
-  def predictive_start(self) -> int:
-    return self._predictive + 1
-
-  @property
-  def predictive_end(self) -> int:
-    return 1
+  def predictive(self) -> TimespanRange:
+    return TimespanRange(self._predictive + 1, 1)

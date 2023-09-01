@@ -25,23 +25,25 @@ import jinja2
 from controller import models
 from controller import shared
 
-from controller.ml_model.shared import Source, Timespan
+from controller.ml_model.shared import Source, Timespan, TimespanRange
 
 
 class TemplateFile(shared.StrEnum):
   TRAINING_PIPELINE = 'training_pipeline.json'
   PREDICTIVE_PIPELINE = 'predictive_pipeline.json'
-  TRAINING_BQML = 'training_bqml.sql'
-  PREDICTIVE_BQML = 'predictive_bqml.sql'
+  MODEL_BQML = 'model_bqml.sql'
   CONVERSION_VALUES_BQML = 'conversion_values_bqml.sql'
   GOOGLE_ANALYTICS_MP_EVENT = 'google_analytics_mp_event.json'
   GOOGLE_ADS_OFFLINE_CONVERSION = 'google_ads_offline_conversion.json'
   OUTPUT = 'output.sql'
 
 
-class Encoding(enum.Enum):
+class Step(enum.Enum):
   NONE = enum.auto()
-  JSON = enum.auto()
+  TRAINING = enum.auto()
+  PREDICTING = enum.auto()
+  OUTPUTING = enum.auto()
+  UPLOADING = enum.auto()
 
 
 class ModelTypes:
@@ -81,44 +83,73 @@ class UniqueId(shared.StrEnum):
 class VariableRole(shared.StrEnum):
   FEATURE = 'FEATURE',
   LABEL = 'LABEL',
-  TRIGGER_DATE = 'TRIGGER_DATE',
+  TRIGGER_EVENT = 'TRIGGER_EVENT',
   FIRST_VALUE = 'FIRST_VALUE',
+  TRIGGER_DATE = 'TRIGGER_DATE',
   USER_ID = 'USER_ID',
   CLIENT_ID = 'CLIENT_ID'
 
 
 class VariableSet():
+  source: Source
+  input: models.MlModelInput
   features: list[models.MlModelVariable]
   label: models.MlModelVariable
-  trigger_date: models.MlModelVariable
-  _first_value: models.MlModelVariable
+  trigger_event: models.MlModelVariable
+  first_value: models.MlModelVariable
+  _trigger_date: models.MlModelVariable
   _unique_id: str
   user_id: models.MlModelVariable
   client_id: models.MlModelVariable
 
-  def __init__(self, unique_id: UniqueId) -> None:
+  def __init__(self, source: Source, input: models.MlModelInput, unique_id: UniqueId) -> None:
+    self.source = source
+    self.input = input
     self.features = []
     self.label = None
-    self.trigger_date = None
-    self._first_value = None
+    self.trigger_event = None
+    self.first_value = None
+    self._trigger_date = None
     self._unique_id = unique_id.lower()
     self.user_id = 'user_id'
     self.client_id = 'user_pseudo_id'
 
   @property
-  def first_value(self):
-    return self._first_value if self._first_value else self.label
+  def in_source(self) -> bool:
+    return self.source in self.input.source
+
+  @property
+  def dataset(self):
+    if self.input.parameters:
+      return self.input.parameters.first_party_dataset
+
+  @property
+  def table(self):
+    if self.input.parameters:
+      return self.input.parameters.first_party_table
 
   @property
   def unique_id(self):
     unique_id = self.__getattribute__(self._unique_id)
     return unique_id.name if isinstance(unique_id, models.MlModelVariable) else unique_id
 
+  @property
+  def trigger_date(self):
+    if self.source == Source.FIRST_PARTY:
+      return self._trigger_date
+    elif self.source == Source.GOOGLE_ANALYTICS:
+      if self.trigger_event:
+        return self.trigger_event
+      elif self.first_value:
+        return self.first_value
+      else:
+        return self.label
+
   def add(self, variable: models.MlModelVariable) -> None:
     if variable.role == VariableRole.FEATURE:
       self.features.append(variable)
-    elif variable.role == VariableRole.FIRST_VALUE:
-      self._first_value = variable
+    elif variable.role == VariableRole.TRIGGER_DATE:
+      self._trigger_date = variable
     else:
       self.__setattr__(str(variable.role).lower(), variable)
 
@@ -177,9 +208,13 @@ class Compiler():
 
   def _compile_template(self,
                         template_file: TemplateFile,
-                        encoding: Encoding = Encoding.NONE) -> str:
+                        step: Step = Step.NONE) -> str:
     """Uses the template and data provided to render the result."""
     variables = {
+        'step': {
+          'is_training': step == Step.TRAINING,
+          'is_predicting': step == Step.PREDICTING
+        },
         'name': self.ml_model.name,
         'input': {
             'source': {
@@ -197,14 +232,13 @@ class Compiler():
         'type': {
             'name': self.ml_model.type,
             'is_regression': self.ml_model.type in ModelTypes.REGRESSION,
-            'is_classification':
-                self.ml_model.type in ModelTypes.CLASSIFICATION,
+            'is_classification': self.ml_model.type in ModelTypes.CLASSIFICATION,
         },
         'hyper_parameters': self.ml_model.hyper_parameters,
-        'timespan': self._get_timespan(self.ml_model.timespans),
+        'timespan': self._get_timespan(self.ml_model.timespans, step),
         'unique_id_type': self.ml_model.unique_id,
-        'first_party': VariableSet(self.ml_model.unique_id),
-        'google_analytics': VariableSet(self.ml_model.unique_id),
+        'first_party': VariableSet(Source.FIRST_PARTY, self.ml_model.input, self.ml_model.unique_id),
+        'google_analytics': VariableSet(Source.GOOGLE_ANALYTICS, self.ml_model.input, self.ml_model.unique_id),
         'conversion_rate_segments': self.ml_model.conversion_rate_segments,
         'class_imbalance': self.ml_model.class_imbalance,
         'output': {
@@ -222,10 +256,10 @@ class Compiler():
       variables[source].add(variable)
 
     constants = {
+        'Step': Step,
         'Worker': Worker,
         'ParamType': ParamType,
         'TemplateFile': TemplateFile,
-        'Encoding': Encoding,
         'UniqueId': UniqueId
     }
 
@@ -243,10 +277,7 @@ class Compiler():
 
     template = self._get_template(template_file)
     rendered = template.render(**functions, **variables)
-    if encoding == Encoding.JSON:
-      return self._json_encode(rendered)
-    else:
-      return rendered
+    return rendered if step == Step.NONE else self._json_encode(rendered)
 
   def _get_template(self, template_file: TemplateFile) -> jinja2.Template:
     """Pulls appropriate template text from file."""
@@ -261,9 +292,10 @@ class Compiler():
       return jinja2.Template(
           file.read(), **options, undefined=jinja2.StrictUndefined)
 
-  def _get_timespan(self, timespans: list[models.MlModelTimespan]) -> Timespan:
+  def _get_timespan(self, timespans: list[models.MlModelTimespan], step: Step) -> TimespanRange:
     """Returns model timespan including both training and predictive start and end."""
-    return Timespan([t.__dict__ for t in timespans])
+    timespan: Timespan = Timespan([t.__dict__ for t in timespans])
+    return timespan.training if step == Step.TRAINING else timespan.predictive
 
   def _json_encode(self, text: str) -> str:
     """JSON encode text provided without including double-quote wrapper."""
