@@ -133,7 +133,7 @@ class CustomClient(bigquery.Client):
     """
     try:
       job = self.query(query=query)
-      events = job.result()
+      events = list(job.result())
     except NotFound:
       return variables
 
