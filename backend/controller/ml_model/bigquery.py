@@ -69,49 +69,41 @@ class CustomClient(bigquery.Client):
     variables: list[Variable] = []
 
     event_exclude_list = """
-      'user_engagement',
-      'scroll',
-      'session_start',
-      'first_visit',
-      'page_view'
+      "user_engagement",
+      "scroll",
+      "session_start",
+      "first_visit",
+      "page_view"
     """
 
     key_exclude_list = """
-      'debug_mode',
-      'ga_session_id',
-      'ga_session_number',
-      'transaction_id',
-      'page_location',
-      'page_referrer',
-      'campaign',
-      'medium',
-      'source',
-      'search_term',
-      'unique_search_term',
-      'content_group',
-      'session_engaged',
-      'engaged_session_event',
-      'engagement_time_msec'
+      "debug_mode",
+      "engagement_time_msec"
     """
 
     query = f"""
       WITH events AS (
         SELECT
           event_name AS name,
-          ANY_VALUE(event_params) AS params,
-          COUNT(1) AS count
+          event_params AS params
         FROM `{self.project}.{dataset}.events_*`
         WHERE _TABLE_SUFFIX BETWEEN
           FORMAT_DATE("%Y%m%d", DATE_SUB(CURRENT_DATE(), INTERVAL {start} DAY)) AND
           FORMAT_DATE("%Y%m%d", DATE_SUB(CURRENT_DATE(), INTERVAL {end} DAY))
         AND event_name NOT IN ({event_exclude_list})
+      ),
+      top_events AS (
+        SELECT
+          name,
+          COUNT(*) AS count
+        FROM events
         GROUP BY 1
         ORDER BY count DESC
         LIMIT 100
       )
       SELECT
         e.name,
-        e.count,
+        t.count,
         p.key AS parameter_key,
         STRING_AGG(
           DISTINCT
@@ -120,11 +112,18 @@ class CustomClient(bigquery.Client):
             WHEN p.value.int_value IS NOT NULL THEN "int"
             WHEN p.value.double_value IS NOT NULL THEN "double"
             WHEN p.value.float_value IS NOT NULL THEN "float"
-            ELSE NULL
           END
         ) AS parameter_value_type
-      FROM events e, UNNEST(e.params) AS p
+      FROM events e,
+      UNNEST(e.params) AS p
+      JOIN top_events t ON e.name = t.name
       WHERE p.key NOT IN ({key_exclude_list})
+      AND (
+        p.value.string_value IS NOT NULL OR
+        p.value.int_value IS NOT NULL OR
+        p.value.double_value IS NOT NULL OR
+        p.value.float_value IS NOT NULL
+      )
       GROUP BY 1,2,3
       ORDER BY
         count DESC,
