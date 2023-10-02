@@ -35,6 +35,18 @@ function execute_command() {
     echo "-----------------------------------"
 }
 
+# Function to ask a question and get a yes or no response.
+function ask_question() {
+    while true; do
+        read -p "$1 (yes/no): " RESPONSE
+        case "${RESPONSE,,}" in
+            y|yes) return 0 ;;
+            n|no) return 1 ;;
+            *) echo "Invalid response. Please answer yes or no." ;;
+        esac
+    done
+}
+
 CURRENT_REGION=$(gcloud sql instances describe crmint-3-db --format="value(region)")
 
 if [ -z "$CURRENT_REGION" ]; then
@@ -42,9 +54,10 @@ if [ -z "$CURRENT_REGION" ]; then
 fi
 
 echo "We detected your region as: $CURRENT_REGION"
-read -p "Do you want to continue with this region? (yes/no) " RESPONSE
 
-if [[ ! "$RESPONSE" =~ ^[Yy][Ee][Ss]$ ]]; then
+# Ask question about region
+ask_question "Do you want to continue with this region?"
+if [[ $? -eq 1 ]]; then
     echo "Please enter the region:"
     read REGION
 else
@@ -53,9 +66,10 @@ fi
 
 PROJECT_ID=$(gcloud config list --format 'value(core.project)')
 echo "Your current project ID is set to: $PROJECT_ID"
-read -p "Do you want to continue with this project ID? (yes/no) " PROJECT_RESPONSE
 
-if [[ ! "$PROJECT_RESPONSE" =~ ^[Yy][Ee][Ss]$ ]]; then
+# Ask question about project ID
+ask_question "Do you want to continue with this project ID?"
+if [[ $? -eq 1 ]]; then
     echo "Please enter the project ID:"
     read PROJECT_ID
 fi
