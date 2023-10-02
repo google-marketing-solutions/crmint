@@ -2,8 +2,16 @@ CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.conversion_values` AS 
   SELECT
     normalized_probability,
     (SUM(label) / COUNT(1)) * {{output.parameters.average_conversion_value}} AS value,
-    MIN(probability) AS probability_range_start,
-    MAX(probability) AS probability_range_end
+    IF(
+      normalized_probability = 1,
+      0.0,
+      (LAG(MAX(probability)) OVER (ORDER BY normalized_probability ASC) + MIN(probability)) / 2.0
+    ) AS probability_range_start,
+    IF(
+      normalized_probability = {{conversion_rate_segments}},
+      1.0,
+      (LEAD(MIN(probability)) OVER (ORDER BY normalized_probability ASC) + MAX(probability)) / 2.0
+    ) AS probability_range_end
   FROM (
     SELECT
       p.label,
