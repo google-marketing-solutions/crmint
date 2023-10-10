@@ -6,7 +6,9 @@ SET _LATEST_TABLE_SUFFIX = (
 );
 
 CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.output` AS (
-  WITH events AS (
+  WITH
+  {% if google_analytics.in_source %}
+  events AS (
     SELECT
       {{google_analytics.unique_id}} AS unique_id,
       event_name AS name,
@@ -16,12 +18,23 @@ CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.output` AS (
     WHERE _TABLE_SUFFIX = _LATEST_TABLE_SUFFIX
     AND LOWER(platform) = 'web'
   ),
+  {% elif first_party.in_source %}
+  first_party AS (
+    SELECT *
+    FROM `{{project_id}}.{{first_party.dataset}}.{{first_party.table}}`
+    WHERE {{first_party.trigger_date.name}} BETWEEN
+      DATETIME(DATE_SUB(CURRENT_DATE(), INTERVAL 1 DAY)) AND
+      DATETIME(CURRENT_DATE())
+  ),
+  {% endif %}
   {% if type.is_classification %}
   prepared_predictions AS (
     SELECT DISTINCT
       p.unique_id,
+      {% if google_analytics.in_source %}
       p.user_pseudo_id,
       p.user_id,
+      {% endif %}
       ROUND(MAX(cv.value), 4) AS value,
       MAX(cv.normalized_probability) AS normalized_score,
       MAX(p.probability) * 100 AS score,
@@ -34,14 +47,17 @@ CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.output` AS (
   prepared_predictions AS (
     SELECT DISTINCT
       unique_id,
-      user_pseudo_id,
-      user_id,
+      {% if google_analytics.in_source %}
+      p.user_pseudo_id,
+      p.user_id,
+      {% endif %}
       IF(predicted_label > 0, ROUND(predicted_label, 4), 0) AS value,
       IF(predicted_label > 0, ROUND(predicted_label, 4), 0) AS revenue
     FROM `{{project_id}}.{{model_dataset}}.predictions`
   ),
   {% endif %}
   {% if output.destination.is_google_analytics_mp_event %}
+  {% if google_analytics.in_source %}
   users_with_score AS (
     SELECT DISTINCT
       unique_id
@@ -55,18 +71,28 @@ CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.output` AS (
     FROM events
     WHERE unique_id NOT IN (
       SELECT unique_id FROM users_with_score)
-  ),
-  consolidated_output AS (
-    SELECT
-      p.*,
-      'prop_score' AS event_name,
-      'Predicted_Value' AS type
-    FROM prepared_predictions p
-    INNER JOIN users_without_score wos
-    ON p.unique_id = wos.unique_id
   )
+  {% endif %}
+  SELECT
+    p.* EXCEPT(unique_id, user_pseudo_id, user_id),
+    {% if unique_id_type == UniqueId.USER_ID %}
+    p.unique_id AS user_id,
+    {% endif %}
+    {% if google_analytics.in_source %}
+    p.user_pseudo_id AS client_id,
+    {% elif unique_id_type == UniqueId.CLIENT_ID %}
+    p.unique_id AS client_id,
+    {% endif %}
+    'prop_score' AS event_name,
+    'Predicted_Value' AS type
+  FROM prepared_predictions p
+  {% if google_analytics.in_source %}
+  INNER JOIN users_without_score wos
+  ON p.unique_id = wos.unique_id
+  {% endif %}
   {% elif output.destination.is_google_ads_offline_conversion %}
   gclids AS (
+    {% if google_analytics.in_source %}
     SELECT * EXCEPT(row_num)
     FROM (
       SELECT
@@ -80,22 +106,20 @@ CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.output` AS (
       AND COALESCE(params.value.string_value, '') != ''
     )
     WHERE row_num = 1
-  ),
-  consolidated_output AS (
+    {% else %}
     SELECT
-      p.*,
-      g.gclid,
-      g.datetime
-    FROM prepared_predictions p
-    INNER JOIN gclids g
-    ON p.unique_id = g.unique_id
-  )
-  {% endif %}
-  SELECT
-    * EXCEPT(unique_id, user_pseudo_id, user_id),
-    {% if unique_id_type == UniqueId.USER_ID %}
-    user_id,
+      {{first_party.unique_id}} AS unique_id,
+      {{first_party.gclid.name}} AS gclid,
+      FORMAT_TIMESTAMP('%F %T%Ez', TIMESTAMP({{first_party.trigger_date.name}})) AS datetime
+    FROM first_party
     {% endif %}
-    user_pseudo_id AS client_id
-  FROM consolidated_output
+  )
+  SELECT
+    p.*,
+    g.gclid,
+    g.datetime
+  FROM prepared_predictions p
+  INNER JOIN gclids g
+  ON p.unique_id = g.unique_id
+  {% endif %}
 )

@@ -18,8 +18,10 @@ OPTIONS (
 CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.predictions` AS (
 SELECT
   unique_id,
+  {% if google_analytics.in_source %}
   user_pseudo_id,
   user_id,
+  {% endif %}
   {% if type.is_classification %}
   plp.prob AS probability,
   {% endif %}
@@ -207,7 +209,7 @@ aggregate_behavior AS (
 ),
 unified_dataset AS (
   SELECT
-    fe.*,
+    fe.* {% if step.is_training %}EXCEPT(user_id, user_pseudo_id){% endif %},
     ab.* EXCEPT(unique_id),
     uv.* EXCEPT(unique_id, trigger_date)
   FROM first_engagement AS fe
@@ -225,7 +227,7 @@ unified_dataset AS (
 {% if type.is_regression and (google_analytics.label and not first_party.first_value) or first_party.first_value or google_analytics.first_value %}
 SELECT
   {% if step.is_training %}
-  * EXCEPT(user_id, user_pseudo_id, unique_id, label),
+  * EXCEPT(unique_id, label),
   {% elif step.is_predicting %}
   * EXCEPT(label),
   -- total value here is used to give something to compare the prediction
@@ -234,7 +236,7 @@ SELECT
   {% endif %}
   (label - first_value) AS label
 {% elif step.is_training %}
-SELECT * EXCEPT(user_id, user_pseudo_id, unique_id)
+SELECT * EXCEPT(unique_id)
 {% else %}
 SELECT *
 {% endif %}
@@ -242,7 +244,7 @@ FROM unified_dataset
 {% if step.is_training and class_imbalance > 1 %}
 WHERE label > 0
 UNION ALL
-SELECT * EXCEPT(user_id, user_pseudo_id, unique_id)
+SELECT * EXCEPT(unique_id)
 FROM unified_dataset
 WHERE label = 0
 AND MOD(ABS(FARM_FINGERPRINT(unique_id)), 100) <= ((1 / {{class_imbalance}}) * 100)

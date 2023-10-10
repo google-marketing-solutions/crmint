@@ -56,7 +56,7 @@ export class MlModelFormComponent implements OnInit {
       this.types = Object.keys(Type).filter(type => type !== Type.LOGISTIC_REG);
       this.uniqueIds = Object.keys(UniqueId);
       this.destinations = Object.keys(Destination);
-      this.sources = Object.keys(Source).filter(source => source !== Source.FIRST_PARTY);
+      this.sources = Object.keys(Source);
     }
 
   /**
@@ -350,7 +350,7 @@ export class MlModelFormComponent implements OnInit {
     for (const variable of variables) {
       const existingVariable: Variable = existingVariables.find(v => v.name === variable.name && v.source === variable.source);
 
-      variable.roles = this.getVariableRoles(existingVariables, variable);
+      variable.roles = this.getApplicableVariableRoles(existingVariables, variable);
       variable.role = existingVariable && variable.roles.includes(existingVariable.role) ? existingVariable.role : null;
       variable.key_required = false;
       variable.hint = null;
@@ -371,6 +371,10 @@ export class MlModelFormComponent implements OnInit {
       if ([Role.FIRST_VALUE, Role.TRIGGER_EVENT].includes(variable.role) && variable.source === Source.GOOGLE_ANALYTICS) {
         variable.key_required = true;
         variable.hint = 'Trigger date will be automatically derived from the first date associated with this event.';
+      }
+
+      if (variable.role === Role.GCLID) {
+        variable.hint = 'Trigger date will be used as the date for the conversion sent to Google Ads.';
       }
 
       const control = this._fb.group({
@@ -402,31 +406,45 @@ export class MlModelFormComponent implements OnInit {
    * @param variable The variable for which the roles will be assigned (used to filter specific roles).
    * @returns The list of roles that should be available for selection.
    */
-  getVariableRoles(existingVariables: Variable[], variable: Variable): Role[] {
+  getApplicableVariableRoles(existingVariables: Variable[], variable: Variable): Role[] {
     let roles: Role[] = Object.values(Role);
     const uniqueId: UniqueId = this.value('uniqueId');
+    const source: Source = this.value('input', 'source');
+    const destination: Destination = this.value('output', 'destination');
     const isRegressionModel: boolean = this.type.isRegression;
     const isClassificationModel: boolean = this.type.isClassification;
 
     if (variable.source === Source.FIRST_PARTY) {
-      roles = roles.filter(r => !(uniqueId === UniqueId.CLIENT_ID && r === Role.USER_ID) && !(uniqueId === UniqueId.USER_ID && r === Role.CLIENT_ID));
+      roles = roles.filter(r =>
+        ![Role.TRIGGER_EVENT].includes(r)
+      );
+
+      if (uniqueId == UniqueId.CLIENT_ID) {
+        roles = roles.filter(r => r !== Role.USER_ID);
+      } else if (uniqueId == UniqueId.USER_ID) {
+        roles = roles.filter(r => r !== Role.CLIENT_ID);
+      }
+
+      const triggerDateDerived: Variable = existingVariables?.find(v =>
+        v.source === Source.GOOGLE_ANALYTICS && [Role.FIRST_VALUE, Role.TRIGGER_EVENT].includes(v.role)
+      );
+      if (triggerDateDerived) {
+        roles = roles.filter(r => r !== Role.TRIGGER_DATE);
+      }
+
+      if ((destination && destination !== Destination.GOOGLE_ADS_OFFLINE_CONVERSION) || source.includes(Source.GOOGLE_ANALYTICS)) {
+        roles = roles.filter(r => r !== Role.GCLID);
+      }
     } else if (variable.source === Source.GOOGLE_ANALYTICS) {
-      roles = roles.filter(r => ![Role.TRIGGER_DATE, Role.CLIENT_ID, Role.USER_ID].includes(r));
+      roles = roles.filter(r =>
+        ![Role.TRIGGER_DATE, Role.CLIENT_ID, Role.USER_ID, Role.GCLID].includes(r)
+      );
     }
 
-    if (isRegressionModel || variable.source === Source.FIRST_PARTY) {
+    if (isRegressionModel) {
       roles = roles.filter(r => r !== Role.TRIGGER_EVENT);
-    }
-
-    if (isClassificationModel) {
+    } else if (isClassificationModel) {
       roles = roles.filter(r => r !== Role.FIRST_VALUE);
-    }
-
-    const triggerDateDerived: Variable = existingVariables?.find(v =>
-      v.source === Source.GOOGLE_ANALYTICS && [Role.FIRST_VALUE, Role.TRIGGER_EVENT].includes(v.role)
-    );
-    if (triggerDateDerived) {
-      roles = roles.filter(r => r !== Role.TRIGGER_DATE);
     }
 
     return roles;
@@ -635,10 +653,16 @@ export class MlModelFormComponent implements OnInit {
             return {userIdNotSelected: true};
           }
 
-          // no way to derive the trigger date so it must be specified.
-          if (includesFirstPartyData && includesGoogleAnalyticsData) {
-            const selectedTriggerDate: Variable = existingVariables.find(v => v.role === Role.TRIGGER_DATE);
-            if (!selectedTriggerDate) {
+          const selectedTriggerDate: Variable = existingVariables.find(v => v.role === Role.TRIGGER_DATE);
+
+          if (includesFirstPartyData && !selectedTriggerDate) {
+            // if GCLID role is selected then trigger date is required.
+            if (existingVariables.find(v => v.role === Role.GCLID)) {
+              return {triggerDateNotSelected: true};
+            }
+
+            // check if possible to derive from Google Analytics variables that were selected and if not return validation error.
+            if (includesGoogleAnalyticsData) {
               const selectedTrigger: Variable = existingVariables.find(v => [Role.FIRST_VALUE, Role.TRIGGER_EVENT].includes(v.role));
               const selectedLabel = existingVariables.find(v => v.role === Role.LABEL);
 

@@ -1,5 +1,7 @@
 {
+  {% if unique_id_type == UniqueId.CLIENT_ID or google_analytics.in_source %}
   "clientId": "${client_id}",
+  {% endif %}
   {% if unique_id_type == UniqueId.USER_ID %}
   "userId": "${user_id}",
   {% endif %}

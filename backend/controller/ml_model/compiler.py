@@ -97,6 +97,7 @@ class VariableSet():
   label: models.MlModelVariable
   trigger_event: models.MlModelVariable
   first_value: models.MlModelVariable
+  gclid: models.MlModelVariable
   _trigger_date: models.MlModelVariable
   _unique_id: str
   user_id: models.MlModelVariable
@@ -109,6 +110,7 @@ class VariableSet():
     self.label = None
     self.trigger_event = None
     self.first_value = None
+    self.gclid = None
     self._trigger_date = None
     self._unique_id = unique_id.lower()
     self.user_id = 'user_id'
