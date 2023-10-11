@@ -616,8 +616,10 @@ export class MlModelFormComponent implements OnInit {
    */
   private variableValidator(existingVariables: Variable[]): ValidatorFn {
     return (control: AbstractControl): ValidationErrors | null => {
-      const variableSource = control.get('source').value;
-      const variableRole = control.get('role').value;
+      const variableSource: Source = control.get('source').value;
+      const variableRole: Role = control.get('role').value;
+      const source: Source = this.value('input', 'source');
+      const destination: Destination = this.value('output', 'destination');
 
       if (variableRole) {
         if (variableRole !== Role.FEATURE) {
@@ -636,28 +638,37 @@ export class MlModelFormComponent implements OnInit {
           }
         }
 
-        const uniqueId = this.value('uniqueId');
-        const includesFirstPartyData = this.input.source.includes(Source.FIRST_PARTY);
-        const includesGoogleAnalyticsData = this.input.source.includes(Source.GOOGLE_ANALYTICS);
+        const uniqueId: UniqueId = this.value('uniqueId');
+        const includesFirstPartyData: boolean = source.includes(Source.FIRST_PARTY);
+        const includesGoogleAnalyticsData: boolean = source.includes(Source.GOOGLE_ANALYTICS);
 
         if (existingVariables.filter(v => v.role === Role.LABEL).length === 0) {
           return {labelNotSelected: true};
         }
 
         if (variableSource === Source.FIRST_PARTY) {
+          // client ID required when unique ID is set as client ID.
           if (includesFirstPartyData && uniqueId === UniqueId.CLIENT_ID && existingVariables.filter(v => v.role === Role.CLIENT_ID).length === 0) {
             return {clientIdNotSelected: true};
           }
 
+          // user ID required when unique ID is set as user ID.
           if (includesFirstPartyData && uniqueId === UniqueId.USER_ID && existingVariables.filter(v => v.role === Role.USER_ID).length === 0) {
             return {userIdNotSelected: true};
+          }
+
+          const selectedGCLID: Variable = existingVariables.find(v => v.role === Role.GCLID);
+
+          // GCLID role required if it cannot be pulled automatically from Google Analytics.
+          if (!includesGoogleAnalyticsData && destination === Destination.GOOGLE_ADS_OFFLINE_CONVERSION && !selectedGCLID) {
+            return {gclidNotSelected: true};
           }
 
           const selectedTriggerDate: Variable = existingVariables.find(v => v.role === Role.TRIGGER_DATE);
 
           if (includesFirstPartyData && !selectedTriggerDate) {
             // if GCLID role is selected then trigger date is required.
-            if (existingVariables.find(v => v.role === Role.GCLID)) {
+            if (selectedGCLID) {
               return {triggerDateNotSelected: true};
             }
 

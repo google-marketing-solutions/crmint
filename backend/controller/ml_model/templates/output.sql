@@ -24,7 +24,7 @@ CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.output` AS (
     FROM `{{project_id}}.{{first_party.dataset}}.{{first_party.table}}`
     WHERE {{first_party.trigger_date.name}} BETWEEN
       DATETIME(DATE_SUB(CURRENT_DATE(), INTERVAL 1 DAY)) AND
-      DATETIME(CURRENT_DATE())
+      DATETIME_SUB(DATETIME(CURRENT_DATE()), INTERVAL 1 SECOND)
   ),
   {% endif %}
   {% if type.is_classification %}
@@ -48,8 +48,8 @@ CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.output` AS (
     SELECT DISTINCT
       unique_id,
       {% if google_analytics.in_source %}
-      p.user_pseudo_id,
-      p.user_id,
+      user_pseudo_id,
+      user_id,
       {% endif %}
       IF(predicted_label > 0, ROUND(predicted_label, 4), 0) AS value,
       IF(predicted_label > 0, ROUND(predicted_label, 4), 0) AS revenue
