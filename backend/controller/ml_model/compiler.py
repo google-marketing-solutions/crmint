@@ -81,65 +81,77 @@ class UniqueId(shared.StrEnum):
 
 
 class VariableRole(shared.StrEnum):
-  FEATURE = 'FEATURE',
-  LABEL = 'LABEL',
-  TRIGGER_EVENT = 'TRIGGER_EVENT',
-  FIRST_VALUE = 'FIRST_VALUE',
-  TRIGGER_DATE = 'TRIGGER_DATE',
-  USER_ID = 'USER_ID',
+  FEATURE = 'FEATURE'
+  LABEL = 'LABEL'
+  TRIGGER_EVENT = 'TRIGGER_EVENT'
+  FIRST_VALUE = 'FIRST_VALUE'
+  TRIGGER_DATE = 'TRIGGER_DATE'
+  USER_ID = 'USER_ID'
   CLIENT_ID = 'CLIENT_ID'
+  GCLID = 'GCLID'
 
 
 class VariableSet():
-  source: Source
-  input: models.MlModelInput
-  features: list[models.MlModelVariable]
-  label: models.MlModelVariable
-  trigger_event: models.MlModelVariable
-  first_value: models.MlModelVariable
-  gclid: models.MlModelVariable
-  _trigger_date: models.MlModelVariable
-  _unique_id: str
-  user_id: models.MlModelVariable
-  client_id: models.MlModelVariable
+  _items: list[models.MlModelVariable]
+  _source: Source
+  _input: models.MlModelInput
+  _unique_id: UniqueId
 
-  def __init__(self, source: Source, input: models.MlModelInput, unique_id: UniqueId) -> None:
-    self.source = source
-    self.input = input
-    self.features = []
-    self.label = None
-    self.trigger_event = None
-    self.first_value = None
-    self.gclid = None
-    self._trigger_date = None
-    self._unique_id = unique_id.lower()
-    self.user_id = 'user_id'
-    self.client_id = 'user_pseudo_id'
+  def __init__(self,
+               source: Source,
+               variables: list[models.MlModelVariable],
+               input: models.MlModelInput,
+               unique_id: UniqueId) -> None:
+    self._items = []
+    for variable in variables:
+      if Source(variable.source) == source:
+        self._items.append(variable)
+
+    self._source = source
+    self._input = input
+    self._unique_id = unique_id
 
   @property
   def in_source(self) -> bool:
-    return self.source in self.input.source
+    return self._source in self._input.source
 
   @property
   def dataset(self):
-    if self.input.parameters:
-      return self.input.parameters.first_party_dataset
+    if self._input.parameters:
+      return self._input.parameters.first_party_dataset
 
   @property
   def table(self):
-    if self.input.parameters:
-      return self.input.parameters.first_party_table
+    if self._input.parameters:
+      return self._input.parameters.first_party_table
 
   @property
   def unique_id(self):
-    unique_id = self.__getattribute__(self._unique_id)
-    return unique_id.name if isinstance(unique_id, models.MlModelVariable) else unique_id
+    unique_id = self._single(self._unique_id)
+    default = 'user_id' if self._unique_id == UniqueId.USER_ID else 'user_pseudo_id'
+    return unique_id if unique_id else {'name': default}
+
+  @property
+  def features(self):
+    return self._list(VariableRole.FEATURE)
+
+  @property
+  def label(self):
+    return self._single(VariableRole.LABEL)
+
+  @property
+  def first_value(self):
+    return self._single(VariableRole.FIRST_VALUE)
+
+  @property
+  def trigger_event(self):
+    return self._single(VariableRole.TRIGGER_EVENT)
 
   @property
   def trigger_date(self):
-    if self.source == Source.FIRST_PARTY:
-      return self._trigger_date
-    elif self.source == Source.GOOGLE_ANALYTICS:
+    if self._source == Source.FIRST_PARTY:
+      return self._single(VariableRole.TRIGGER_DATE)
+    elif self._source == Source.GOOGLE_ANALYTICS:
       if self.trigger_event:
         return self.trigger_event
       elif self.first_value:
@@ -147,13 +159,20 @@ class VariableSet():
       else:
         return self.label
 
-  def add(self, variable: models.MlModelVariable) -> None:
-    if variable.role == VariableRole.FEATURE:
-      self.features.append(variable)
-    elif variable.role == VariableRole.TRIGGER_DATE:
-      self._trigger_date = variable
-    else:
-      self.__setattr__(str(variable.role).lower(), variable)
+  @property
+  def gclid(self):
+    return self._single(VariableRole.GCLID)
+
+  def _single(self, role: VariableRole) -> models.MlModelVariable:
+    filtered = self._list(role)
+    return filtered.pop() if len(filtered) > 0 else None
+
+  def _list(self, role: VariableRole) -> list[models.MlModelVariable]:
+    filtered = []
+    for item in self._items:
+      if item.role == role:
+        filtered.append(item)
+    return filtered
 
 
 class Compiler():
@@ -231,9 +250,12 @@ class Compiler():
         },
         'hyper_parameters': self.ml_model.hyper_parameters,
         'timespan': self._get_timespan(self.ml_model.timespans, step),
-        'unique_id_type': self.ml_model.unique_id,
-        'first_party': VariableSet(Source.FIRST_PARTY, self.ml_model.input, self.ml_model.unique_id),
-        'google_analytics': VariableSet(Source.GOOGLE_ANALYTICS, self.ml_model.input, self.ml_model.unique_id),
+        'unique_id': {
+          'is_client_id': self.ml_model.unique_id == UniqueId.CLIENT_ID,
+          'is_user_id': self.ml_model.unique_id == UniqueId.USER_ID
+        },
+        'first_party': VariableSet(Source.FIRST_PARTY, self.ml_model.variables, self.ml_model.input, self.ml_model.unique_id),
+        'google_analytics': VariableSet(Source.GOOGLE_ANALYTICS, self.ml_model.variables, self.ml_model.input, self.ml_model.unique_id),
         'conversion_rate_segments': self.ml_model.conversion_rate_segments,
         'class_imbalance': self.ml_model.class_imbalance,
         'output': {
@@ -246,16 +268,11 @@ class Compiler():
       match: bool = self.ml_model.output.destination == destination
       variables['output']['destination']['is_' + destination.lower()] = match
 
-    for variable in self.ml_model.variables:
-      source: str = str(variable.source).lower()
-      variables[source].add(variable)
-
     constants = {
         'Step': Step,
         'Worker': Worker,
         'ParamType': ParamType,
-        'TemplateFile': TemplateFile,
-        'UniqueId': UniqueId
+        'TemplateFile': TemplateFile
     }
 
     for key, value in constants.items():

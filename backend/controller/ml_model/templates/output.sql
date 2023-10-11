@@ -10,7 +10,7 @@ CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.output` AS (
   {% if google_analytics.in_source %}
   events AS (
     SELECT
-      {{google_analytics.unique_id}} AS unique_id,
+      {{google_analytics.unique_id.name}} AS unique_id,
       event_name AS name,
       event_timestamp AS timestamp,
       event_params AS params
@@ -75,12 +75,12 @@ CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.output` AS (
   {% endif %}
   SELECT
     p.* EXCEPT(unique_id, user_pseudo_id, user_id),
-    {% if unique_id_type == UniqueId.USER_ID %}
+    {% if unique_id.is_user_id %}
     p.unique_id AS user_id,
     {% endif %}
     {% if google_analytics.in_source %}
     p.user_pseudo_id AS client_id,
-    {% elif unique_id_type == UniqueId.CLIENT_ID %}
+    {% elif unique_id.is_client_id %}
     p.unique_id AS client_id,
     {% endif %}
     'prop_score' AS event_name,
@@ -108,7 +108,7 @@ CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.output` AS (
     WHERE row_num = 1
     {% else %}
     SELECT
-      {{first_party.unique_id}} AS unique_id,
+      {{first_party.unique_id.name}} AS unique_id,
       {{first_party.gclid.name}} AS gclid,
       FORMAT_TIMESTAMP('%F %T%Ez', TIMESTAMP({{first_party.trigger_date.name}})) AS datetime
     FROM first_party

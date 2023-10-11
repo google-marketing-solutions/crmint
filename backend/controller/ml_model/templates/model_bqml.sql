@@ -44,7 +44,7 @@ first_party_variables AS (
     {% if first_party.trigger_date %}
     CAST({{first_party.trigger_date.name}} AS DATE FORMAT "YYYYMMDD") AS trigger_date,
     {% endif %}
-    {{first_party.unique_id}} AS unique_id
+    {{first_party.unique_id.name}} AS unique_id
   FROM `{{project_id}}.{{first_party.dataset}}.{{first_party.table}}`
 ),
 {% endif %}
@@ -57,7 +57,7 @@ events AS (
     event_params AS params,
     user_id,
     user_pseudo_id,
-    {{google_analytics.unique_id}} AS unique_id,
+    {{google_analytics.unique_id.name}} AS unique_id,
     geo.country AS country,
     geo.region AS region,
     device.language AS language,
@@ -73,12 +73,12 @@ events AS (
       FORMAT_DATE("%Y%m%d", DATE_SUB(CURRENT_DATE(), INTERVAL {{timespan.end}} DAY))
     {% if step.is_training and type.is_classification %}
     -- get 90% of the events in this time-range (the other 10% is used to calculate conversion values)
-    AND MOD(ABS(FARM_FINGERPRINT({{google_analytics.unique_id}})), 100) < 90
+    AND MOD(ABS(FARM_FINGERPRINT({{google_analytics.unique_id.name}})), 100) < 90
     {% endif %}
     AND LOWER(platform) = "web"
     -- limit events to ids within first party dataset (avoids processing data that gets filtered later anyways)
     {% if first_party.in_source %}
-    AND {{google_analytics.unique_id}} IN (
+    AND {{google_analytics.unique_id.name}} IN (
       SELECT unique_id FROM first_party_variables
     )
     {% endif %}

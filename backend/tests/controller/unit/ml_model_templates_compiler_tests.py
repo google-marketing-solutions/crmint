@@ -208,6 +208,7 @@ class TestCompiler(parameterized.TestCase):
   def test_build_model_sql_first_party(self):
     test_model = self.model_config(
         model_type='BOOSTED_TREE_CLASSIFIER',
+        unique_id='CLIENT_ID',
         variables=[
           {
             'role': 'LABEL',
@@ -215,6 +216,11 @@ class TestCompiler(parameterized.TestCase):
             'source': 'FIRST_PARTY',
             'key': 'value',
             'value_type': 'int'
+          },
+          {
+            'role': 'CLIENT_ID',
+            'name': 'google_clientid',
+            'source': 'FIRST_PARTY'
           },
           {
             'role': 'FIRST_VALUE',
@@ -252,6 +258,15 @@ class TestCompiler(parameterized.TestCase):
         'FROM `test-project-id-1234.FP_DATASET.FP_DATA_TABLE`',
         sql,
         'First party table name check failed.')
+
+    # client id check
+    self.assertRegex(
+      sql,
+      r'[\s\S]+'.join([
+          re.escape('first_party_variables AS ('),
+          re.escape('google_clientid AS unique_id')
+      ]),
+      'Unique id select check failed.')
 
     # label check
     self.assertRegex(
@@ -986,6 +1001,11 @@ class TestCompiler(parameterized.TestCase):
             'value_type': 'int'
           },
           {
+            'role': 'USER_ID',
+            'name': 'user_ident',
+            'source': 'FIRST_PARTY'
+          },
+          {
             'role': 'FIRST_VALUE',
             'name': 'first_purchase',
             'source': 'FIRST_PARTY'
@@ -1037,11 +1057,18 @@ class TestCompiler(parameterized.TestCase):
         sql,
         r'[\s\S]+'.join([
             'SELECT',
-            'user_pseudo_id,',
-            'user_id,',
+            'unique_id,',
             re.escape('ML.PREDICT')
         ]),
-        'User ids check failed.')
+        'Top level unique id check failed.')
+
+    self.assertRegex(
+      sql,
+      r'[\s\S]+'.join([
+          re.escape('first_party_variables AS ('),
+          re.escape('user_ident AS unique_id')
+      ]),
+      'Initial unique id select check failed.')
 
     # label check
     self.assertRegex(

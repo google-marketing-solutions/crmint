@@ -34,7 +34,7 @@ CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.conversion_values` AS 
           {% if first_party.trigger_date %}
           CAST({{first_party.trigger_date.name}} AS DATE FORMAT "YYYYMMDD") AS trigger_date,
           {% endif %}
-          {{first_party.unique_id}} AS unique_id
+          {{first_party.unique_id.name}} AS unique_id
         FROM `{{project_id}}.{{first_party.dataset}}.{{first_party.table}}`
       ),
       {% endif %}
@@ -47,7 +47,7 @@ CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.conversion_values` AS 
           event_params AS params,
           user_id,
           user_pseudo_id,
-          {{google_analytics.unique_id}} AS unique_id,
+          {{google_analytics.unique_id.name}} AS unique_id,
           geo.country AS country,
           geo.region AS region,
           device.language AS language,
@@ -62,11 +62,11 @@ CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.conversion_values` AS 
             FORMAT_DATE("%Y%m%d", DATE_SUB(CURRENT_DATE(), INTERVAL {{timespan.start}} DAY)) AND
             FORMAT_DATE("%Y%m%d", DATE_SUB(CURRENT_DATE(), INTERVAL {{timespan.end}} DAY))
           -- select the remaining 10% of the data not used in the training dataset
-          AND MOD(ABS(FARM_FINGERPRINT({{google_analytics.unique_id}})), 100) >= 90
+          AND MOD(ABS(FARM_FINGERPRINT({{google_analytics.unique_id.name}})), 100) >= 90
           AND LOWER(platform) = "web"
           -- limit events to ids within first party dataset (avoids processing data that gets filtered later anyways)
           {% if first_party.in_source %}
-          AND {{google_analytics.unique_id}} IN (
+          AND {{google_analytics.unique_id.name}} IN (
             SELECT unique_id FROM first_party_variables
           )
           {% endif %}
