@@ -1,10 +1,11 @@
+{% if google_analytics.in_source %}
 DECLARE _LATEST_TABLE_SUFFIX STRING;
 SET _LATEST_TABLE_SUFFIX = (
   SELECT MAX(SPLIT(table_id, 'events_')[OFFSET(1)])
   FROM `{{project_id}}.{{ga4_dataset}}.__TABLES_SUMMARY__`
   WHERE REGEXP_CONTAINS(table_id, r'^(events_[0-9]{8})$')
 );
-
+{% endif %}
 CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.output` AS (
   WITH
   {% if google_analytics.in_source %}
@@ -41,7 +42,11 @@ CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.output` AS (
     FROM `{{project_id}}.{{model_dataset}}.predictions` p
     LEFT OUTER JOIN `{{project_id}}.{{model_dataset}}.conversion_values` cv
     ON p.probability BETWEEN cv.probability_range_start AND cv.probability_range_end
+    {% if google_analytics.in_source %}
     GROUP BY 1,2,3
+    {% else %}
+    GROUP BY 1
+    {% endif %}
   ),
   {% elif type.is_regression %}
   prepared_predictions AS (

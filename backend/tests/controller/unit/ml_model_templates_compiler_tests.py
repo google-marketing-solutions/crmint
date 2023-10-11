@@ -102,6 +102,11 @@ class TestCompiler(parameterized.TestCase):
             'value_type': 'int'
           },
           {
+            'role': 'TRIGGER_DATE',
+            'name': 'first_purchase_date',
+            'source': 'FIRST_PARTY'
+          },
+          {
             'role': 'FEATURE',
             'name': 'click',
             'source': 'GOOGLE_ANALYTICS'
@@ -180,13 +185,15 @@ class TestCompiler(parameterized.TestCase):
         re.escape('SUM(IF(e.name = "click", 1, 0)) AS cnt_click'),
         'Google Analytics feature check failed.')
 
+    # first party variable check
     self.assertRegex(
         sql,
         r'[\s\S]+'.join([
           re.escape('first_party_variables AS ('),
-          re.escape('subscribe,')
+          re.escape('subscribe,'),
+          re.escape('CAST(first_purchase_date AS DATE FORMAT "YYYYMMDD") AS trigger_date,')
         ]),
-        'First party feature check failed.')
+        'First party variable check failed.')
 
     # class-imbalance check
     self.assertIn(
@@ -293,8 +300,7 @@ class TestCompiler(parameterized.TestCase):
         sql,
         r'[\s\S]+'.join([
             re.escape('first_party_variables AS ('),
-            re.escape('first_purchase AS first_value'),
-            re.escape('CAST(first_purchase_date AS DATE FORMAT "YYYYMMDD") AS trigger_date,'),
+            re.escape('first_purchase AS first_value')
         ]),
         'First party variable check failed.',
     )
@@ -520,6 +526,11 @@ class TestCompiler(parameterized.TestCase):
             'value_type': 'string,int'
           },
           {
+            'role': 'TRIGGER_DATE',
+            'name': 'first_purchase_date',
+            'source': 'FIRST_PARTY'
+          },
+          {
             'role': 'FEATURE',
             'name': 'click',
             'source': 'GOOGLE_ANALYTICS'
@@ -588,13 +599,15 @@ class TestCompiler(parameterized.TestCase):
         re.escape('SUM(IF(e.name = "click", 1, 0)) AS cnt_click'),
         'Google Analytics feature check failed.')
 
+    # first party variable check
     self.assertRegex(
         sql,
         r'[\s\S]+'.join([
           re.escape('first_party_variables AS ('),
-          re.escape('subscribe,')
+          re.escape('subscribe,'),
+          re.escape('CAST(first_purchase_date AS DATE FORMAT "YYYYMMDD") AS trigger_date,')
         ]),
-        'First party feature check failed.')
+        'First party variable check failed.')
 
     # timespan check
     self.assertIn(
@@ -701,8 +714,7 @@ class TestCompiler(parameterized.TestCase):
         sql,
         r'[\s\S]+'.join([
             re.escape('first_party_variables AS ('),
-            re.escape('first_purchase AS first_value,'),
-            re.escape('CAST(first_purchase_date AS DATE FORMAT "YYYYMMDD") AS trigger_date,'),
+            re.escape('first_purchase AS first_value,')
         ]),
         'First party variable check failed.',
     )
@@ -900,6 +912,11 @@ class TestCompiler(parameterized.TestCase):
             'value_type': 'string,int'
           },
           {
+            'role': 'TRIGGER_DATE',
+            'name': 'first_purchase_date',
+            'source': 'FIRST_PARTY'
+          },
+          {
             'role': 'FEATURE',
             'name': 'click',
             'source': 'GOOGLE_ANALYTICS'
@@ -969,13 +986,15 @@ class TestCompiler(parameterized.TestCase):
         re.escape('SUM(IF(e.name = "click", 1, 0)) AS cnt_click'),
         'Google Analytics feature check failed.')
 
+    # first party variables
     self.assertRegex(
         sql,
         r'[\s\S]+'.join([
             re.escape('first_party_variables AS ('),
-            re.escape('subscribe,')
+            re.escape('subscribe,'),
+            re.escape('CAST(first_purchase_date AS DATE FORMAT "YYYYMMDD") AS trigger_date,')
         ]),
-        'First party feature check failed.')
+        'First party variable check failed.')
 
     # timespan check
     self.assertIn(
@@ -1094,8 +1113,7 @@ class TestCompiler(parameterized.TestCase):
       sql,
       r'[\s\S]+'.join([
             re.escape('first_party_variables AS ('),
-            re.escape('first_purchase AS first_value,'),
-            re.escape('CAST(first_purchase_date AS DATE FORMAT "YYYYMMDD") AS trigger_date,'),
+            re.escape('first_purchase AS first_value,')
         ]),
         'First party variable check failed.',
     )

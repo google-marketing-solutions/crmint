@@ -41,7 +41,7 @@ first_party_variables AS (
     {% if first_party.first_value %}
     {{first_party.first_value.name}} AS first_value,
     {% endif %}
-    {% if first_party.trigger_date %}
+    {% if first_party.trigger_date and google_analytics.in_source %}
     CAST({{first_party.trigger_date.name}} AS DATE FORMAT "YYYYMMDD") AS trigger_date,
     {% endif %}
     {{first_party.unique_id.name}} AS unique_id
