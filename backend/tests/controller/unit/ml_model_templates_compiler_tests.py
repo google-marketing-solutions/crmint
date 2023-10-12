@@ -1235,6 +1235,115 @@ class TestCompiler(parameterized.TestCase):
         ]),
         'Output label and total_value check failed.')
 
+  def test_build_output_sql_google_analytics_in_source(self):
+    test_model = self.model_config(
+        model_type='BOOSTED_TREE_CLASSIFIER',
+        unique_id='USER_ID',
+        variables=[
+          {
+            'role': 'LABEL',
+            'name': 'purchase',
+            'source': 'GOOGLE_ANALYTICS',
+            'key': 'value',
+            'value_type': 'string,int'
+          },
+          {
+            'role': 'FEATURE',
+            'name': 'click',
+            'source': 'GOOGLE_ANALYTICS'
+          },
+          {
+            'role': 'FEATURE',
+            'name': 'subscribe',
+            'source': 'FIRST_PARTY'
+          }
+        ],
+        class_imbalance=4,
+        source='GOOGLE_ANALYTICS_AND_FIRST_PARTY',
+        destination='GOOGLE_ADS_OFFLINE_CONVERSION')
+
+    pipeline = self.compiler(test_model).build_predictive_pipeline()
+    self.assertEqual(pipeline['name'], 'Test Model - Predictive')
+
+    output_job = self.first(
+        pipeline['jobs'], 'name', 'Test Model - Predictive Output')
+    self.assertIsNotNone(output_job)
+    params = output_job['params']
+
+    sql_param = self.first(params, 'name', 'script')
+    self.assertIsNotNone(sql_param)
+    sql = sql_param['value']
+
+    # latest table suffix check
+    self.assertIn(
+        'SET _LATEST_TABLE_SUFFIX = (',
+        sql,
+        'Check for latest table suffix variable failed.')
+
+    # events block check
+    self.assertIn(
+        'FROM `test-project-id-1234.test-ga4-dataset-loc.events_*`',
+        sql,
+        'Check for events block failed.')
+
+  def test_build_output_sql_first_party_in_source(self):
+    test_model = self.model_config(
+        model_type='BOOSTED_TREE_CLASSIFIER',
+        unique_id='USER_ID',
+        variables=[
+          {
+            'role': 'LABEL',
+            'name': 'purchase',
+            'source': 'FIRST_PARTY'
+          },
+          {
+            'role': 'USER_ID',
+            'name': 'customer_id',
+            'source': 'FIRST_PARTY'
+          },
+          {
+            'role': 'TRIGGER_DATE',
+            'name': 'timestamp',
+            'source': 'FIRST_PARTY'
+          },
+          {
+            'role': 'GCLID',
+            'name': 'google_clickid',
+            'source': 'FIRST_PARTY'
+          },
+          {
+            'role': 'FEATURE',
+            'name': 'phone_call',
+            'source': 'FIRST_PARTY'
+          }
+        ],
+        class_imbalance=4,
+        source='FIRST_PARTY',
+        destination='GOOGLE_ADS_OFFLINE_CONVERSION')
+
+    pipeline = self.compiler(test_model).build_predictive_pipeline()
+    self.assertEqual(pipeline['name'], 'Test Model - Predictive')
+
+    output_job = self.first(
+        pipeline['jobs'], 'name', 'Test Model - Predictive Output')
+    self.assertIsNotNone(output_job)
+    params = output_job['params']
+
+    sql_param = self.first(params, 'name', 'script')
+    self.assertIsNotNone(sql_param)
+    sql = sql_param['value']
+
+    # first party block check
+    self.assertRegex(
+        sql,
+        r'[\s\S]+'.join([
+            re.escape('first_party AS ('),
+            re.escape('customer_id AS unique_id'),
+            re.escape('FROM `test-project-id-1234.FP_DATASET.FP_DATA_TABLE`'),
+            re.escape('WHERE timestamp BETWEEN')
+        ]),
+        'Check for first party block failed.')
+
   def test_build_output_sql_classification_model(self):
     test_model = self.model_config(
         model_type='BOOSTED_TREE_CLASSIFIER',
@@ -1430,9 +1539,68 @@ class TestCompiler(parameterized.TestCase):
     sql = sql_param['value']
 
     # consolidated output block check
-    self.assertIn(
-        '\'Predicted_Value\' AS type',
+    self.assertRegex(
         sql,
+        r'[\s\S]+'.join([
+            re.escape('p.* EXCEPT(unique_id, user_pseudo_id, user_id)'),
+            re.escape('p.user_pseudo_id AS client_id'),
+            re.escape('p.unique_id AS user_id'),
+            re.escape('\'Predicted_Value\' AS type'),
+            re.escape('INNER JOIN users_without_score')
+        ]),
+        'Check for correct consolidated output block failed.')
+
+  def test_build_output_sql_google_analytics_mp_event_first_party_only(self):
+    test_model = self.model_config(
+        model_type='BOOSTED_TREE_CLASSIFIER',
+        unique_id='CLIENT_ID',
+        variables=[
+          {
+            'role': 'LABEL',
+            'name': 'purchase',
+            'source': 'FIRST_PARTY'
+          },
+          {
+            'role': 'CLIENT_ID',
+            'name': 'ga_customer_id',
+            'source': 'FIRST_PARTY'
+          },
+          {
+            'role': 'TRIGGER_DATE',
+            'name': 'timestamp',
+            'source': 'FIRST_PARTY'
+          },
+          {
+            'role': 'FEATURE',
+            'name': 'phone_call',
+            'source': 'FIRST_PARTY'
+          }
+        ],
+        class_imbalance=4,
+        source='FIRST_PARTY',
+        destination='GOOGLE_ANALYTICS_MP_EVENT')
+
+    pipeline = self.compiler(test_model).build_predictive_pipeline()
+    self.assertEqual(pipeline['name'], 'Test Model - Predictive')
+
+    output_job = self.first(
+        pipeline['jobs'], 'name', 'Test Model - Predictive Output')
+    self.assertIsNotNone(output_job)
+    params = output_job['params']
+
+    sql_param = self.first(params, 'name', 'script')
+    self.assertIsNotNone(sql_param)
+    sql = sql_param['value']
+
+    # consolidated output block check
+    self.assertRegex(
+        sql,
+        r'[\s\S]+'.join([
+            re.escape('p.* EXCEPT(unique_id)'),
+            re.escape('p.unique_id AS client_id'),
+            re.escape('\'Predicted_Value\' AS type'),
+            re.escape('INNER JOIN first_party')
+        ]),
         'Check for correct consolidated output block failed.')
 
   def test_build_output_sql_google_ads_offline_conversion(self):
@@ -1473,6 +1641,76 @@ class TestCompiler(parameterized.TestCase):
     sql_param = self.first(params, 'name', 'script')
     self.assertIsNotNone(sql_param)
     sql = sql_param['value']
+
+    # check gclid pulled from google analytics
+    self.assertIn(
+        'params.value.string_value AS gclid',
+        sql,
+        'Check gclid pulled from google analytics failed.')
+
+    # consolidated output block check
+    self.assertIn(
+        'g.gclid',
+        sql,
+        'Check for correct consolidated output block failed.')
+
+  def test_build_output_sql_google_ads_offline_conversion_first_party_only(self):
+    test_model = self.model_config(
+        model_type='BOOSTED_TREE_CLASSIFIER',
+        unique_id='USER_ID',
+        variables=[
+          {
+            'role': 'LABEL',
+            'name': 'purchase',
+            'source': 'FIRST_PARTY'
+          },
+          {
+            'role': 'USER_ID',
+            'name': 'customer_id',
+            'source': 'FIRST_PARTY'
+          },
+          {
+            'role': 'GCLID',
+            'name': 'google_click_id',
+            'source': 'FIRST_PARTY'
+          },
+          {
+            'role': 'TRIGGER_DATE',
+            'name': 'timestamp',
+            'source': 'FIRST_PARTY'
+          },
+          {
+            'role': 'FEATURE',
+            'name': 'phone_call',
+            'source': 'FIRST_PARTY'
+          },
+          {
+            'role': 'FEATURE',
+            'name': 'subscribe',
+            'source': 'FIRST_PARTY'
+          }
+        ],
+        class_imbalance=4,
+        source='FIRST_PARTY',
+        destination='GOOGLE_ADS_OFFLINE_CONVERSION')
+
+    pipeline = self.compiler(test_model).build_predictive_pipeline()
+    self.assertEqual(pipeline['name'], 'Test Model - Predictive')
+
+    output_job = self.first(
+        pipeline['jobs'], 'name', 'Test Model - Predictive Output')
+    self.assertIsNotNone(output_job)
+    params = output_job['params']
+
+    sql_param = self.first(params, 'name', 'script')
+    self.assertIsNotNone(sql_param)
+    sql = sql_param['value']
+
+    # check gclid pulled from first party table
+    self.assertIn(
+        'google_click_id AS gclid',
+        sql,
+        'Check for click id pull from first party table failed.')
 
     # consolidated output block check
     self.assertIn(
