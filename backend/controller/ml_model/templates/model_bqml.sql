@@ -27,6 +27,27 @@ SELECT
   {% endif %}
   predicted_label
 FROM ML.PREDICT(MODEL `{{project_id}}.{{model_dataset}}.predictive_model`, (
+{% elif step.is_calculating_conversion_values %}
+CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.conversion_values` AS (
+SELECT
+  normalized_probability,
+  (SUM(label) / COUNT(1)) * {{output.parameters.average_conversion_value}} AS value,
+  IF(
+    normalized_probability = 1,
+    0.0,
+    (LAG(MAX(probability)) OVER (ORDER BY normalized_probability ASC) + MIN(probability)) / 2.0
+  ) AS probability_range_start,
+  IF(
+    normalized_probability = {{conversion_rate_segments}},
+    1.0,
+    (LEAD(MIN(probability)) OVER (ORDER BY normalized_probability ASC) + MAX(probability)) / 2.0
+  ) AS probability_range_end
+FROM (
+SELECT
+  p.label,
+  plp.prob AS probability,
+  NTILE({{conversion_rate_segments}}) OVER (ORDER BY plp.prob ASC) AS normalized_probability
+FROM ML.PREDICT(MODEL `{{project_id}}.{{model_dataset}}.predictive_model`, (
 {% endif %}
 WITH
 {% if first_party.in_source %}
@@ -74,6 +95,9 @@ events AS (
     {% if step.is_training and type.is_classification %}
     -- get 90% of the events in this time-range (the other 10% is used to calculate conversion values)
     AND MOD(ABS(FARM_FINGERPRINT({{google_analytics.unique_id.name}})), 100) < 90
+    {% elif step.is_calculating_conversion_values %}
+    -- select the remaining 10% of the data not used in the training dataset
+    AND MOD(ABS(FARM_FINGERPRINT({{google_analytics.unique_id.name}})), 100) >= 90
     {% endif %}
     AND LOWER(platform) = "web"
     -- limit events to ids within first party dataset (avoids processing data that gets filtered later anyways)
@@ -248,10 +272,14 @@ SELECT * EXCEPT(unique_id)
 FROM unified_dataset
 WHERE label = 0
 AND MOD(ABS(FARM_FINGERPRINT(unique_id)), 100) <= ((1 / {{class_imbalance}}) * 100)
-{% elif step.is_predicting %}
-)){% if type.is_classification %},
+{% elif step.is_predicting or step.is_calculating_conversion_values %}
+)) AS p{% if type.is_classification %},
 UNNEST(predicted_label_probs) AS plp
 WHERE plp.label = 1
+{% endif %}
+{% if step.is_calculating_conversion_values %}
+)
+GROUP BY 1
 {% endif %}
 )
 {% endif %}

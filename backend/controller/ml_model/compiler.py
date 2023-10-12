@@ -32,7 +32,6 @@ class TemplateFile(shared.StrEnum):
   TRAINING_PIPELINE = 'training_pipeline.json'
   PREDICTIVE_PIPELINE = 'predictive_pipeline.json'
   MODEL_BQML = 'model_bqml.sql'
-  CONVERSION_VALUES_BQML = 'conversion_values_bqml.sql'
   GOOGLE_ANALYTICS_MP_EVENT = 'google_analytics_mp_event.json'
   GOOGLE_ADS_OFFLINE_CONVERSION = 'google_ads_offline_conversion.json'
   OUTPUT = 'output.sql'
@@ -41,6 +40,7 @@ class TemplateFile(shared.StrEnum):
 class Step(enum.Enum):
   NONE = enum.auto()
   TRAINING = enum.auto()
+  CALCULATING_CONVERSION_VALUES = enum.auto()
   PREDICTING = enum.auto()
   OUTPUTING = enum.auto()
   UPLOADING = enum.auto()
@@ -234,7 +234,8 @@ class Compiler():
     variables = {
         'step': {
           'is_training': step == Step.TRAINING,
-          'is_predicting': step == Step.PREDICTING
+          'is_predicting': step == Step.PREDICTING,
+          'is_calculating_conversion_values': step == Step.CALCULATING_CONVERSION_VALUES
         },
         'name': self.ml_model.name,
         'project_id': self.project_id,
@@ -307,7 +308,7 @@ class Compiler():
   def _get_timespan(self, timespans: list[models.MlModelTimespan], step: Step) -> TimespanRange:
     """Returns model timespan including both training and predictive start and end."""
     timespan: Timespan = Timespan([t.__dict__ for t in timespans])
-    return timespan.training if step == Step.TRAINING else timespan.predictive
+    return timespan.training if step in [Step.TRAINING, Step.CALCULATING_CONVERSION_VALUES] else timespan.predictive
 
   def _json_encode(self, text: str) -> str:
     """JSON encode text provided without including double-quote wrapper."""

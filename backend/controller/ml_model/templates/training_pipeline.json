@@ -33,7 +33,7 @@
         {
           "name": "script",
           "type": "{{ParamType.SQL}}",
-          "value": "{{compile_template(TemplateFile.CONVERSION_VALUES_BQML, Step.TRAINING)}}"
+          "value": "{{compile_template(TemplateFile.MODEL_BQML, Step.CALCULATING_CONVERSION_VALUES)}}"
         },
         {
           "name": "bq_dataset_location",
