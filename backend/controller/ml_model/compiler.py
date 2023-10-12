@@ -61,6 +61,11 @@ class ModelTypes:
   ]
 
 
+class Destination(shared.StrEnum):
+  GOOGLE_ANALYTICS_MP_EVENT = 'GOOGLE_ANALYTICS_MP_EVENT',
+  GOOGLE_ADS_OFFLINE_CONVERSION = 'GOOGLE_ADS_OFFLINE_CONVERSION'
+
+
 class ParamType(shared.StrEnum):
   SQL = 'sql'
   TEXT = 'text'
@@ -188,11 +193,6 @@ class Compiler():
   ga4_api_secret: str
   ml_model: models.MlModel
 
-  OUTPUT_DESTINATIONS: list[str] = [
-      'GOOGLE_ANALYTICS_MP_EVENT',
-      'GOOGLE_ADS_OFFLINE_CONVERSION'
-  ]
-
   def __init__(self,
                project_id: str,
                ga4_dataset: str,
@@ -260,14 +260,13 @@ class Compiler():
         'conversion_rate_segments': self.ml_model.conversion_rate_segments,
         'class_imbalance': self.ml_model.class_imbalance,
         'output': {
-            'destination': {},
+            'destination': {
+              'is_google_analytics_mp_event': self.ml_model.output.destination == Destination.GOOGLE_ANALYTICS_MP_EVENT,
+              'is_google_ads_offline_conversion': self.ml_model.output.destination == Destination.GOOGLE_ADS_OFFLINE_CONVERSION
+            },
             'parameters': self.ml_model.output.parameters
         }
     }
-
-    for destination in self.OUTPUT_DESTINATIONS:
-      match: bool = self.ml_model.output.destination == destination
-      variables['output']['destination']['is_' + destination.lower()] = match
 
     constants = {
         'Step': Step,
