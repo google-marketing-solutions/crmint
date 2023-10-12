@@ -25,9 +25,6 @@ CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.output` AS (
       * EXCEPT({{first_party.unique_id.name}}),
       {{first_party.unique_id.name}} AS unique_id
     FROM `{{project_id}}.{{first_party.dataset}}.{{first_party.table}}`
-    WHERE {{first_party.trigger_date.name}} BETWEEN
-      DATETIME(DATE_SUB(CURRENT_DATE(), INTERVAL 1 DAY)) AND
-      DATETIME_SUB(DATETIME(CURRENT_DATE()), INTERVAL 1 SECOND)
   ),
   {% endif %}
   {% if type.is_classification %}

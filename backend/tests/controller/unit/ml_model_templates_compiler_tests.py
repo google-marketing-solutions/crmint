@@ -1339,8 +1339,7 @@ class TestCompiler(parameterized.TestCase):
         r'[\s\S]+'.join([
             re.escape('first_party AS ('),
             re.escape('customer_id AS unique_id'),
-            re.escape('FROM `test-project-id-1234.FP_DATASET.FP_DATA_TABLE`'),
-            re.escape('WHERE timestamp BETWEEN')
+            re.escape('FROM `test-project-id-1234.FP_DATASET.FP_DATA_TABLE`')
         ]),
         'Check for first party block failed.')
 
