@@ -105,13 +105,13 @@ CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.conversion_values` AS 
       analytics_variables AS (
         SELECT
           fe.unique_id,
-          {% if google_analytics.label %}
-          IFNULL(l.label, 0) AS label,
-          {% endif %}
           {% if google_analytics.trigger_event %}
-          t.date AS trigger_date
-          {% else %}
-          l.date AS trigger_date
+          t.date AS trigger_date,
+          {% elif not first_party.trigger_date %}
+          l.date AS trigger_date,
+          {% endif %}
+          {% if google_analytics.label %}
+          IFNULL(l.label, 0) AS label
           {% endif %}
         FROM first_engagement fe
         {% if google_analytics.label %}

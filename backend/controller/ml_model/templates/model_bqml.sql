@@ -117,16 +117,16 @@ first_engagement AS (
 analytics_variables AS (
   SELECT
     fe.unique_id,
-    {% if google_analytics.label %}
-    IFNULL(l.label, 0) AS label,
-    {% endif %}
     {% if type.is_classification and google_analytics.trigger_event %}
-    t.date AS trigger_date
+    t.date AS trigger_date,
     {% elif type.is_regression and not first_party.first_value %}
     IFNULL(t.value, 0) AS first_value,
-    t.date AS trigger_date
-    {% else %}
-    l.date AS trigger_date
+    t.date AS trigger_date,
+    {% elif not first_party.trigger_date %}
+    l.date AS trigger_date,
+    {% endif %}
+    {% if google_analytics.label %}
+    IFNULL(l.label, 0) AS label
     {% endif %}
   FROM first_engagement fe
   {% if google_analytics.label %}
@@ -209,7 +209,7 @@ aggregate_behavior AS (
 ),
 unified_dataset AS (
   SELECT
-    fe.* {% if step.is_training %}EXCEPT(user_id, user_pseudo_id){% endif %},
+    fe.*{% if step.is_training %} EXCEPT(user_id, user_pseudo_id){% endif %},
     ab.* EXCEPT(unique_id),
     uv.* EXCEPT(unique_id, trigger_date)
   FROM first_engagement AS fe
