@@ -43,7 +43,7 @@ CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.output` AS (
       {% endif %}
       ROUND(MAX(cv.value), 4) AS value,
       MAX(cv.normalized_probability) AS normalized_score,
-      MAX(p.probability) * 100 AS score,
+      MAX(p.probability) * 100 AS score
     FROM `{{project_id}}.{{model_dataset}}.predictions` p
     LEFT OUTER JOIN `{{project_id}}.{{model_dataset}}.conversion_values` cv
     ON p.probability BETWEEN cv.probability_range_start AND cv.probability_range_end

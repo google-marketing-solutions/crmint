@@ -290,7 +290,7 @@ class TestCompiler(parameterized.TestCase):
         r'[\s\S]+'.join([
             re.escape('first_party_variables AS ('),
             re.escape('call,'),
-            re.escape('request_for_info,'),
+            re.escape('request_for_info,')
         ]),
         'First party feature check failed.',
     )
@@ -300,9 +300,21 @@ class TestCompiler(parameterized.TestCase):
         sql,
         r'[\s\S]+'.join([
             re.escape('first_party_variables AS ('),
-            re.escape('first_purchase AS first_value')
+            re.escape('first_purchase AS first_value'),
+            re.escape('first_purchase_date AS trigger_date')
         ]),
         'First party variable check failed.',
+    )
+
+    # timespan check
+    self.assertRegex(
+        sql,
+        r'[\s\S]+'.join([
+            re.escape('FROM first_party_variables'),
+            re.escape('DATETIME(DATE_SUB(CURRENT_DATE(), INTERVAL 20 DAY)) AND'),
+            re.escape('DATETIME_SUB(DATETIME(DATE_SUB(CURRENT_DATE(), INTERVAL 2 DAY)), INTERVAL 1 SECOND)')
+        ]),
+        'First party timespan check failed.',
     )
 
     # class-imbalance check
@@ -310,7 +322,7 @@ class TestCompiler(parameterized.TestCase):
         'MOD(ABS(FARM_FINGERPRINT(user_pseudo_id)), 100) > ((1 / 4) * 100)',
         sql,
         'Class-Imbalance check failed. Should not exist when class imbalance is'
-        ' set to 1.',
+        ' set to 1.'
     )
 
   def test_build_model_sql_google_analytics(self):
@@ -1116,6 +1128,17 @@ class TestCompiler(parameterized.TestCase):
             re.escape('first_purchase AS first_value,')
         ]),
         'First party variable check failed.',
+    )
+
+    # timespan check
+    self.assertRegex(
+        sql,
+        r'[\s\S]+'.join([
+            re.escape('FROM first_party_variables'),
+            re.escape('DATETIME(DATE_SUB(CURRENT_DATE(), INTERVAL 2 DAY)) AND'),
+            re.escape('DATETIME_SUB(DATETIME(DATE_SUB(CURRENT_DATE(), INTERVAL 0 DAY)), INTERVAL 1 SECOND)')
+        ]),
+        'First party timespan check failed.',
     )
 
   def test_build_predictive_sql_google_analytics(self):

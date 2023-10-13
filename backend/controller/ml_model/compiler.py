@@ -104,17 +104,15 @@ class VariableSet():
 
   def __init__(self,
                source: Source,
-               variables: list[models.MlModelVariable],
-               input: models.MlModelInput,
-               unique_id: UniqueId) -> None:
+               ml_model: models.MlModel) -> None:
     self._items = []
-    for variable in variables:
+    for variable in ml_model.variables:
       if Source(variable.source) == source:
         self._items.append(variable)
 
     self._source = source
-    self._input = input
-    self._unique_id = unique_id
+    self._input = ml_model.input
+    self._unique_id = ml_model.unique_id
 
   @property
   def in_source(self) -> bool:
@@ -245,26 +243,26 @@ class Compiler():
         'ga4_api_secret': self.ga4_api_secret,
         'dataset_location': self.ml_model.bigquery_dataset.location,
         'type': {
-            'name': self.ml_model.type,
-            'is_regression': self.ml_model.type in ModelTypes.REGRESSION,
-            'is_classification': self.ml_model.type in ModelTypes.CLASSIFICATION,
+          'name': self.ml_model.type,
+          'is_regression': self.ml_model.type in ModelTypes.REGRESSION,
+          'is_classification': self.ml_model.type in ModelTypes.CLASSIFICATION,
         },
         'hyper_parameters': self.ml_model.hyper_parameters,
-        'timespan': self._get_timespan(self.ml_model.timespans, step),
+        'timespan': self._get_timespan(step),
         'unique_id': {
           'is_client_id': self.ml_model.unique_id == UniqueId.CLIENT_ID,
           'is_user_id': self.ml_model.unique_id == UniqueId.USER_ID
         },
-        'first_party': VariableSet(Source.FIRST_PARTY, self.ml_model.variables, self.ml_model.input, self.ml_model.unique_id),
-        'google_analytics': VariableSet(Source.GOOGLE_ANALYTICS, self.ml_model.variables, self.ml_model.input, self.ml_model.unique_id),
+        'first_party': VariableSet(Source.FIRST_PARTY, self.ml_model),
+        'google_analytics': VariableSet(Source.GOOGLE_ANALYTICS, self.ml_model),
         'conversion_rate_segments': self.ml_model.conversion_rate_segments,
         'class_imbalance': self.ml_model.class_imbalance,
         'output': {
-            'destination': {
-              'is_google_analytics_mp_event': self.ml_model.output.destination == Destination.GOOGLE_ANALYTICS_MP_EVENT,
-              'is_google_ads_offline_conversion': self.ml_model.output.destination == Destination.GOOGLE_ADS_OFFLINE_CONVERSION
-            },
-            'parameters': self.ml_model.output.parameters
+          'destination': {
+            'is_google_analytics_mp_event': self.ml_model.output.destination == Destination.GOOGLE_ANALYTICS_MP_EVENT,
+            'is_google_ads_offline_conversion': self.ml_model.output.destination == Destination.GOOGLE_ADS_OFFLINE_CONVERSION
+          },
+          'parameters': self.ml_model.output.parameters
         }
     }
 
@@ -304,9 +302,12 @@ class Compiler():
       return jinja2.Template(
           file.read(), **options, undefined=jinja2.StrictUndefined)
 
-  def _get_timespan(self, timespans: list[models.MlModelTimespan], step: Step) -> TimespanRange:
+  def _get_timespan(self, step: Step) -> TimespanRange:
     """Returns model timespan including both training and predictive start and end."""
-    timespan: Timespan = Timespan([t.__dict__ for t in timespans])
+    # first party only timespan end is unique in that it goes all the way to 23:59:59
+    # and because of this it needs to be one day ahead and subtract 1 second in SQL.
+    consider_datetime: bool = Source(self.ml_model.input.source) == Source.FIRST_PARTY
+    timespan: Timespan = Timespan([t.__dict__ for t in self.ml_model.timespans], consider_datetime)
     return timespan.training if step in [Step.TRAINING, Step.CALCULATING_CONVERSION_VALUES] else timespan.predictive
 
   def _json_encode(self, text: str) -> str:
