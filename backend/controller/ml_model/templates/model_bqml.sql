@@ -62,8 +62,8 @@ first_party_variables AS (
     {% if first_party.first_value %}
     {{first_party.first_value.name}} AS first_value,
     {% endif %}
-    {% if first_party.trigger_date and google_analytics.in_source %}
-    CAST({{first_party.trigger_date.name}} AS DATE FORMAT "YYYYMMDD") AS trigger_date,
+    {% if first_party.trigger_date %}
+    {{first_party.trigger_date.name}} AS trigger_date,
     {% endif %}
     {{first_party.unique_id.name}} AS unique_id
   FROM `{{project_id}}.{{first_party.dataset}}.{{first_party.table}}`
@@ -244,17 +244,17 @@ unified_dataset AS (
 )
 {% elif first_party.in_source %}
 unified_dataset AS (
-  SELECT *
+  SELECT * EXCEPT(trigger_date)
   FROM first_party_variables
-  WHERE {{first_party.trigger_date.name}} BETWEEN
+  WHERE trigger_date BETWEEN
     DATETIME(DATE_SUB(CURRENT_DATE(), INTERVAL {{timespan.start}} DAY)) AND
     DATETIME(DATE_SUB(CURRENT_DATE(), INTERVAL {{timespan.end}} DAY))
   {% if step.is_training and type.is_classification %}
   -- get 90% of the events in this time-range (the other 10% is used to calculate conversion values)
-  AND MOD(ABS(FARM_FINGERPRINT({{first_party.unique_id.name}})), 100) < 90
+  AND MOD(ABS(FARM_FINGERPRINT(unique_id)), 100) < 90
   {% elif step.is_calculating_conversion_values %}
   -- select the remaining 10% of the data not used in the training dataset
-  AND MOD(ABS(FARM_FINGERPRINT({{first_party.unique_id.name}})), 100) >= 90
+  AND MOD(ABS(FARM_FINGERPRINT(unique_id)), 100) >= 90
   {% endif %}
 )
 {% endif %}
