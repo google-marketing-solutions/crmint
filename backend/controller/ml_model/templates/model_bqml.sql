@@ -246,6 +246,16 @@ unified_dataset AS (
 unified_dataset AS (
   SELECT *
   FROM first_party_variables
+  WHERE {{first_party.trigger_date.name}} BETWEEN
+    FORMAT_DATE("%Y%m%d", DATE_SUB(CURRENT_DATE(), INTERVAL {{timespan.start}} DAY)) AND
+    FORMAT_DATE("%Y%m%d", DATE_SUB(CURRENT_DATE(), INTERVAL {{timespan.end}} DAY))
+  {% if step.is_training and type.is_classification %}
+  -- get 90% of the events in this time-range (the other 10% is used to calculate conversion values)
+  AND MOD(ABS(FARM_FINGERPRINT({{first_party.unique_id.name}})), 100) < 90
+  {% elif step.is_calculating_conversion_values %}
+  -- select the remaining 10% of the data not used in the training dataset
+  AND MOD(ABS(FARM_FINGERPRINT({{first_party.unique_id.name}})), 100) >= 90
+  {% endif %}
 )
 {% endif %}
 {% if type.is_regression and (google_analytics.label and not first_party.first_value) or first_party.first_value or google_analytics.first_value %}

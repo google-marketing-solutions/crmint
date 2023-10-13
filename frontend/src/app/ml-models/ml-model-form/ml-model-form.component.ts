@@ -659,7 +659,7 @@ export class MlModelFormComponent implements OnInit {
 
           const selectedGCLID: Variable = existingVariables.find(v => v.role === Role.GCLID);
 
-          // GCLID role required if it cannot be pulled automatically from Google Analytics.
+          // GCLID role required for Google Ads destination if it cannot be pulled automatically from Google Analytics.
           if (!includesGoogleAnalyticsData && destination === Destination.GOOGLE_ADS_OFFLINE_CONVERSION && !selectedGCLID) {
             return {gclidNotSelected: true};
           }
@@ -667,11 +667,6 @@ export class MlModelFormComponent implements OnInit {
           const selectedTriggerDate: Variable = existingVariables.find(v => v.role === Role.TRIGGER_DATE);
 
           if (includesFirstPartyData && !selectedTriggerDate) {
-            // if GCLID role is selected then trigger date is required.
-            if (selectedGCLID) {
-              return {triggerDateNotSelected: true};
-            }
-
             // check if possible to derive from Google Analytics variables that were selected and if not return validation error.
             if (includesGoogleAnalyticsData) {
               const selectedTrigger: Variable = existingVariables.find(v => [Role.FIRST_VALUE, Role.TRIGGER_EVENT].includes(v.role));
@@ -680,6 +675,10 @@ export class MlModelFormComponent implements OnInit {
               if ((!selectedTrigger && selectedLabel.source !== Source.GOOGLE_ANALYTICS) || (selectedTrigger && selectedTrigger.source === Source.FIRST_PARTY)) {
                 return {triggerDateNotSelected: true};
               }
+            // trigger date role is required in the absence of Google Analytics data to
+            // understand applicability of data based on configured timespan.
+            } else {
+              return {triggerDateNotSelected: true};
             }
           }
         }

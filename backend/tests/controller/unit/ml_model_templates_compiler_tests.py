@@ -1333,13 +1333,27 @@ class TestCompiler(parameterized.TestCase):
     self.assertIsNotNone(sql_param)
     sql = sql_param['value']
 
+    # latest table suffix check
+    self.assertNotIn(
+        'SET _LATEST_TABLE_SUFFIX = (',
+        sql,
+        'Check to ensure latest table suffix variable not included failed.')
+
+    # events block check
+    self.assertNotIn(
+        'FROM `test-project-id-1234.test-ga4-dataset-loc.events_*`',
+        sql,
+        'Check to ensure events block not included failed.')
+
     # first party block check
     self.assertRegex(
         sql,
         r'[\s\S]+'.join([
             re.escape('first_party AS ('),
             re.escape('customer_id AS unique_id'),
-            re.escape('FROM `test-project-id-1234.FP_DATASET.FP_DATA_TABLE`')
+            re.escape('google_clickid AS gclid'),
+            re.escape('FROM `test-project-id-1234.FP_DATASET.FP_DATA_TABLE`'),
+            re.escape('WHERE timestamp BETWEEN')
         ]),
         'Check for first party block failed.')
 
@@ -1544,7 +1558,7 @@ class TestCompiler(parameterized.TestCase):
             re.escape('p.* EXCEPT(unique_id, user_pseudo_id, user_id)'),
             re.escape('p.user_pseudo_id AS client_id'),
             re.escape('p.unique_id AS user_id'),
-            re.escape('\'Predicted_Value\' AS type'),
+            re.escape('"Predicted_Value" AS type'),
             re.escape('INNER JOIN users_without_score')
         ]),
         'Check for correct consolidated output block failed.')
@@ -1597,7 +1611,7 @@ class TestCompiler(parameterized.TestCase):
         r'[\s\S]+'.join([
             re.escape('p.* EXCEPT(unique_id)'),
             re.escape('p.unique_id AS client_id'),
-            re.escape('\'Predicted_Value\' AS type'),
+            re.escape('"Predicted_Value" AS type'),
             re.escape('INNER JOIN first_party')
         ]),
         'Check for correct consolidated output block failed.')
@@ -1705,11 +1719,16 @@ class TestCompiler(parameterized.TestCase):
     self.assertIsNotNone(sql_param)
     sql = sql_param['value']
 
-    # check gclid pulled from first party table
-    self.assertIn(
-        'google_click_id AS gclid',
+    # check gclid, unique_id, and datetime pulled from first party table
+    self.assertRegex(
         sql,
-        'Check for click id pull from first party table failed.')
+        r'[\s\n]+'.join([
+            re.escape('unique_id,'),
+            re.escape('gclid,'),
+            re.escape('FORMAT_TIMESTAMP("%F %T%Ez", TIMESTAMP(timestamp)) AS datetime'),
+            re.escape('FROM first_party')
+        ]),
+        'Check to ensure gclid, unique_id, and datetime pull from first party table failed.')
 
     # consolidated output block check
     self.assertIn(
