@@ -191,7 +191,7 @@ class TestCompiler(parameterized.TestCase):
         r'[\s\S]+'.join([
           re.escape('first_party_variables AS ('),
           re.escape('subscribe,'),
-          re.escape('CAST(first_purchase_date AS DATE FORMAT "YYYYMMDD") AS trigger_date,')
+          re.escape('first_purchase_date AS trigger_date,')
         ]),
         'First party variable check failed.')
 
@@ -605,7 +605,7 @@ class TestCompiler(parameterized.TestCase):
         r'[\s\S]+'.join([
           re.escape('first_party_variables AS ('),
           re.escape('subscribe,'),
-          re.escape('CAST(first_purchase_date AS DATE FORMAT "YYYYMMDD") AS trigger_date,')
+          re.escape('first_purchase_date AS trigger_date,')
         ]),
         'First party variable check failed.')
 
@@ -992,7 +992,7 @@ class TestCompiler(parameterized.TestCase):
         r'[\s\S]+'.join([
             re.escape('first_party_variables AS ('),
             re.escape('subscribe,'),
-            re.escape('CAST(first_purchase_date AS DATE FORMAT "YYYYMMDD") AS trigger_date,')
+            re.escape('first_purchase_date AS trigger_date,')
         ]),
         'First party variable check failed.')
 
