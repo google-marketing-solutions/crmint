@@ -140,7 +140,6 @@ first_engagement AS (
 {% if google_analytics.label or google_analytics.trigger_event or google_analytics.first_value %}
 analytics_variables AS (
   SELECT
-    fe.unique_id,
     {% if type.is_classification and google_analytics.trigger_event %}
     t.date AS trigger_date,
     {% elif type.is_regression and not first_party.first_value %}
@@ -150,8 +149,9 @@ analytics_variables AS (
     l.date AS trigger_date,
     {% endif %}
     {% if google_analytics.label %}
-    IFNULL(l.label, 0) AS label
+    IFNULL(l.label, 0) AS label,
     {% endif %}
+    fe.unique_id
   FROM first_engagement fe
   {% if google_analytics.label %}
   LEFT OUTER JOIN (
