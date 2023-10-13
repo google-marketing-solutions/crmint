@@ -213,7 +213,7 @@ export class MlModelFormComponent implements OnInit {
 
     input.requirements = [];
     if (input.source.includes(Source.FIRST_PARTY)) {
-      input.requirements = ['firstPartyDataset', 'firstPartyTable']
+      input.requirements = ['firstPartyDataset', 'firstPartyTable'];
     }
 
     return input;
@@ -374,7 +374,7 @@ export class MlModelFormComponent implements OnInit {
       }
 
       if (variable.role === Role.GCLID) {
-        variable.hint = 'Trigger date will be used as the date for the conversion sent to Google Ads.';
+        variable.hint = 'Trigger date field will be used as the datetime for the conversion sent to Google Ads.';
       }
 
       const control = this._fb.group({
@@ -678,7 +678,7 @@ export class MlModelFormComponent implements OnInit {
             // trigger date role is required in the absence of Google Analytics data to
             // understand applicability of data based on configured timespan.
             } else {
-              return {triggerDateNotSelected: true};
+              return {triggerDateRequiredForTimespanAdherence: true};
             }
           }
         }

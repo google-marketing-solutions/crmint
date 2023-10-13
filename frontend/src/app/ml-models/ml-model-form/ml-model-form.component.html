@@ -80,7 +80,7 @@
           <div id="timespans">
             <span *ngFor="let timespan of timespans.controls; index as i" [formGroupName]="i">
               <mat-form-field *ngIf="value(timespan, 'range'); let range">
-                <input matInput placeholder="{{value(timespan, 'name') | labelcase }}" type="number"
+                <input matInput placeholder="{{ value(timespan, 'name') | labelcase }}" type="number"
                        formControlName="value" [min]="range.min" [max]="range.max" [step]="range.step"
                        (change)="resetVariables()">
                 <span>{{ value(timespan, 'unit') | labelcase }}s</span>
