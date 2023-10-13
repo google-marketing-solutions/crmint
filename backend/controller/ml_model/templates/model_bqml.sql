@@ -247,8 +247,8 @@ unified_dataset AS (
   SELECT *
   FROM first_party_variables
   WHERE {{first_party.trigger_date.name}} BETWEEN
-    FORMAT_DATE("%Y%m%d", DATE_SUB(CURRENT_DATE(), INTERVAL {{timespan.start}} DAY)) AND
-    FORMAT_DATE("%Y%m%d", DATE_SUB(CURRENT_DATE(), INTERVAL {{timespan.end}} DAY))
+    DATETIME(DATE_SUB(CURRENT_DATE(), INTERVAL {{timespan.start}} DAY)) AND
+    DATETIME(DATE_SUB(CURRENT_DATE(), INTERVAL {{timespan.end}} DAY))
   {% if step.is_training and type.is_classification %}
   -- get 90% of the events in this time-range (the other 10% is used to calculate conversion values)
   AND MOD(ABS(FARM_FINGERPRINT({{first_party.unique_id.name}})), 100) < 90
