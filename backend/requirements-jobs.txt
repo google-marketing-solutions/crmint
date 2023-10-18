@@ -7,7 +7,7 @@
 cachecontrol==0.12.11 \
     --hash=sha256:2c75d6a8938cb1933c75c50184549ad42728a27e9f6b92fd677c3151aa72555b \
     --hash=sha256:a5b9fcc986b184db101aa280b42ecdcdfc524892596f606858e0b7a8b4d9e144
-    # via -r backend/common/requirements.in
+    # via -r common/requirements.in
 cachetools==5.3.0 \
     --hash=sha256:13dfddc7b8df938c21a940dfa6557ce6e94a2f1cdfa58eb90c805721d58f2c14 \
     --hash=sha256:429e1a1e845c008ea6c85aa35d4b98b65d6a9763eeef3e37e92728a12d1de9d4
@@ -100,30 +100,20 @@ click==8.1.3 \
 flask==2.0.3 \
     --hash=sha256:59da8a3170004800a2837844bfa84d49b022550616070f7cb1a659682b2e7c9f \
     --hash=sha256:e1120c228ca2f553b470df4a5fa927ab66258467526069981b3eb0a91902687d
-    # via -r backend/common/requirements.in
-googleapis-common-protos[grpc]==1.59.0 \
-    --hash=sha256:4168fcb568a826a52f23510412da405abd93f4d23ba544bb68d943b14ba3cb44 \
-    --hash=sha256:b287dc48449d1d41af0c69f4ea26242b5ae4c3d7249a38b0984c86a4caffff1f
-    # via
-    #   -r backend/requirements-jobs.in
-    #   google-ads
-    #   google-api-core
-    #   google-cloud-audit-log
-    #   grpc-google-iam-v1
-    #   grpcio-status
+    # via -r common/requirements.in
 google-ads==21.1.0 \
     --hash=sha256:5c6bf7541d286cc33c1f6f0d7262d20789360c224edc3b754453488fbc5e9495 \
     --hash=sha256:f48cfad609de2189403cf43c100bc2e0d8f5549f13b033982587830aee83eb84
-    # via -r backend/requirements-jobs.in
+    # via -r requirements-jobs.in
 google-analytics-admin==0.16.0 \
     --hash=sha256:1df2e66afc4fb0ea9094f27cead7aa74845820172a771b80c4f08de6088f222b \
     --hash=sha256:c11a64a79a171a51c5e7687bf510b786c5cdf02fb43d8e9b3d0099fd5f1edc5d
-    # via -r backend/requirements-jobs.in
+    # via -r requirements-jobs.in
 google-api-core[grpc]==2.11.0 \
     --hash=sha256:4b9bb5d5a380a0befa0573b302651b8a9a89262c1730e37bf423cec511804c22 \
     --hash=sha256:ce222e27b0de0d7bc63eb043b956996d6dccab14cc3b690aaea91c9cc99dc16e
     # via
-    #   -r backend/requirements-jobs.in
+    #   -r requirements-jobs.in
     #   google-ads
     #   google-analytics-admin
     #   google-api-python-client
@@ -138,7 +128,7 @@ google-api-core[grpc]==2.11.0 \
 google-api-python-client==2.86.0 \
     --hash=sha256:0f320190ab9d5bd2fdb0cb894e8e53bb5e17d4888ee8dc4d26ba65ce378409e2 \
     --hash=sha256:3ca4e93821f4e9ac29b91ab0d9df168b42c8ad0fb8bff65b8c2ccb2d462b0464
-    # via -r backend/requirements-jobs.in
+    # via -r requirements-jobs.in
 google-auth==2.18.0 \
     --hash=sha256:c66b488a8b005b23ccb97b1198b6cece516c91869091ac5b7c267422db2733c7 \
     --hash=sha256:ef3f3a67fa54d421a1c155864570f9a8de9179cedc937bda496b7a8ca338e936
@@ -160,7 +150,7 @@ google-auth-oauthlib==1.0.0 \
 google-cloud-aiplatform==1.25.0 \
     --hash=sha256:766d545890bee7fa15bc76ef363089fd7a2964e9a0abc2e1bbca1f32055da3cf \
     --hash=sha256:a0fa7e58e5d5a3f7b29d0698216d79babc8402da7c19a4ee83a6ef590a8fe14f
-    # via -r backend/requirements-jobs.in
+    # via -r requirements-jobs.in
 google-cloud-appengine-logging==1.3.0 \
     --hash=sha256:97272ed554c9077d666e045b6686b46cb67e9b072aab76726c5404d6098b52d2 \
     --hash=sha256:d52f14e1e9a993797a086eff3d4772dea7908390c6ad612d26281341f17c9a49
@@ -173,7 +163,7 @@ google-cloud-bigquery==3.10.0 \
     --hash=sha256:4b02def076e2db8cec66f65fb627d13904a9fc3cf4fee315ede43dcb7038a8df \
     --hash=sha256:848a3cbce0ba7d4f1e9551400a7c99aa0eab72290d5a1bbbe69f18a24a10bd3a
     # via
-    #   -r backend/requirements-jobs.in
+    #   -r requirements-jobs.in
     #   google-cloud-aiplatform
 google-cloud-core==2.3.2 \
     --hash=sha256:8417acf6466be2fa85123441696c4badda48db314c607cf1e5d543fa8bdc22fe \
@@ -185,11 +175,11 @@ google-cloud-core==2.3.2 \
 google-cloud-logging==3.5.0 \
     --hash=sha256:def71f6a7bb6652ce8fee18f0cad8c32157ac606fe1512802254a471bcdfe5e8 \
     --hash=sha256:f11544a21ea3556f70ebac7bc338ffa8a197913834ecdd8853d176b870823aaa
-    # via -r backend/common/requirements.in
+    # via -r common/requirements.in
 google-cloud-pubsub==2.16.1 \
     --hash=sha256:31e271be755ed7143ae0cdfed0506faf40d7504b46fa5c8b5bab4b922f6c3d3b \
     --hash=sha256:5bb4f2a6d2d0bf827d48dca1de1fb0ca12636ed75a69bbc4f89d231239b65ad9
-    # via -r backend/common/requirements.in
+    # via -r common/requirements.in
 google-cloud-resource-manager==1.10.0 \
     --hash=sha256:26beb595b957972df50173f1d0fd51c00d280551eac73566017ebdda62b1616a \
     --hash=sha256:bfc3e60eb92e25ac562a9248bb8fc17e9bef04c3dc9f031ffbe0dfe28d919287
@@ -198,7 +188,7 @@ google-cloud-storage==2.9.0 \
     --hash=sha256:83a90447f23d5edd045e0037982c270302e3aeb45fc1288d2c2ca713d27bad94 \
     --hash=sha256:9b6ae7b509fc294bdacb84d0f3ea8e20e2c54a8b4bbe39c5707635fec214eff3
     # via
-    #   -r backend/requirements-jobs.in
+    #   -r requirements-jobs.in
     #   google-cloud-aiplatform
 google-crc32c==1.5.0 \
     --hash=sha256:024894d9d3cfbc5943f8f230e23950cd4906b2fe004c72e29b209420a1e6b05a \
@@ -276,6 +266,16 @@ google-resumable-media==2.5.0 \
     # via
     #   google-cloud-bigquery
     #   google-cloud-storage
+googleapis-common-protos[grpc]==1.59.0 \
+    --hash=sha256:4168fcb568a826a52f23510412da405abd93f4d23ba544bb68d943b14ba3cb44 \
+    --hash=sha256:b287dc48449d1d41af0c69f4ea26242b5ae4c3d7249a38b0984c86a4caffff1f
+    # via
+    #   -r requirements-jobs.in
+    #   google-ads
+    #   google-api-core
+    #   google-cloud-audit-log
+    #   grpc-google-iam-v1
+    #   grpcio-status
 grpc-google-iam-v1==0.12.6 \
     --hash=sha256:2bc4b8fdf22115a65d751c9317329322602c39b7c86a289c9b72d228d960ef5f \
     --hash=sha256:5c10f3d8dc2d88678ab1a9b0cb5482735c5efee71e6c0cd59f872eef22913f5c
@@ -347,7 +347,7 @@ grpcio-status==1.54.0 \
 gunicorn==20.1.0 \
     --hash=sha256:9dcc4547dbb1cb284accfb15ab5667a0e5d1881cc443e0677b4882a4067a807e \
     --hash=sha256:e0a968b5ba15f8a328fdfd7ab1fcb5af4470c28aaf7e55df02a99bc13138e6e8
-    # via -r backend/common/requirements.in
+    # via -r common/requirements.in
 httplib2==0.22.0 \
     --hash=sha256:14ae0a53c1ba8f3d37e9e27cf37eabb0fb9980f435ba405d546948b009dd64dc \
     --hash=sha256:d7a10bc5ef5ab08322488bde8c726eeee5c8618723fdb399597ec58f3d82df81
@@ -666,9 +666,9 @@ uritemplate==4.1.1 \
     --hash=sha256:4346edfc5c3b79f694bccd6d6099a322bbeb628dbf2cd86eea55a456ce5124f0 \
     --hash=sha256:830c08b8d99bdd312ea4ead05994a38e8936266f84b9a7878232db50b044e02e
     # via google-api-python-client
-urllib3==1.26.15 \
-    --hash=sha256:8a388717b9476f934a21484e8c8e61875ab60644d29b9b39e11e4b9dc1c6b305 \
-    --hash=sha256:aa751d169e23c7479ce47a0cb0da579e3ede798f994f5816a74e4f4500dcea42
+urllib3==1.26.18 \
+    --hash=sha256:34b97092d7e0a3a8cf7cd10e386f401b3737364026c45e622aa02903dffe0f07 \
+    --hash=sha256:f8ecc1bba5667413457c529ab955bf8c67b45db799d159066261719e328580a0
     # via
     #   google-auth
     #   requests
@@ -676,7 +676,7 @@ werkzeug==2.0.3 \
     --hash=sha256:1421ebfc7648a39a5c58c601b154165d05cf47a3cd0ccb70857cbdacf6c8f2b8 \
     --hash=sha256:b863f8ff057c522164b6067c9e28b041161b4be5ba4d0daceeaa50a163822d3c
     # via
-    #   -r backend/common/requirements.in
+    #   -r common/requirements.in
     #   flask
 
 # The following packages are considered to be unsafe in a requirements file:
