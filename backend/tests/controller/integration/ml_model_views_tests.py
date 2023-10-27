@@ -1,6 +1,6 @@
 # Copyright 2023 Google Inc
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
+# Licensed under the Apache License, Version 2.0 (the 'License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
@@ -26,8 +26,9 @@ class TestMlModelViews(controller_utils.ControllerAppTest):
     self.assertEqual(response.status_code, 200)
 
   def test_list_with_one_ml_model(self):
-    models.MlModel.create(
-        name='Test Model', type='LOGISTIC_REG', unique_id='CLIENT_ID')
+    models.MlModel.create(name='Test Model',
+                          type='LOGISTIC_REG',
+                          unique_id='CLIENT_ID')
     response = self.client.get('/api/ml-models')
     self.assertEqual(response.status_code, 200)
 
@@ -40,8 +41,9 @@ class TestMlModelViews(controller_utils.ControllerAppTest):
     self.assertEqual(response.status_code, 404)
 
   def test_put_active_ml_model(self):
-    model = models.MlModel.create(
-        name='Test Model', type='LOGISTIC_REG', unique_id='CLIENT_ID')
+    model = models.MlModel.create(name='Test Model',
+                                  type='LOGISTIC_REG',
+                                  unique_id='CLIENT_ID')
     pipeline = models.Pipeline.create(ml_model_id=model.id)
     pipeline.status = models.Pipeline.STATUS.RUNNING
     pipeline.save()
@@ -53,10 +55,19 @@ class TestMlModelViews(controller_utils.ControllerAppTest):
 
     request = {
         'name': 'Test Model - Update',
-        'bigquery_dataset': {'name': 'test-dataset-update', 'location': 'UK'},
+        'input': {
+            'source': 'GOOGLE_ANALYTICS',
+            'parameters': {
+              'first_party_dataset': 'FP_DATASET',
+              'first_party_table': 'FP_DATA_TABLE'
+            }
+        },
+        'bigquery_dataset': {
+            'name': 'test-dataset-update',
+            'location': 'UK'
+        },
         'type': 'BOOSTED_TREE_CLASSIFIER',
         'unique_id': 'USER_ID',
-        'uses_first_party_data': False,
         'hyper_parameters': [
             {'name': 'L1_REG', 'value': '2'},
             {'name': 'L2_REG', 'value': '4'},
@@ -67,21 +78,52 @@ class TestMlModelViews(controller_utils.ControllerAppTest):
             {'name': 'ENABLE_GLOBAL_EXPLAIN', 'value': 'false'},
             {'name': 'NUM_PARALLEL_TREE', 'value': '4'},
             {'name': 'DATA_SPLIT_METHOD', 'value': 'AUTO_SPLIT'},
-            {'name': 'EARLY_STOP', 'value': 'true'},
+            {'name': 'EARLY_STOP', 'value': 'true'}
         ],
-        'features': [{'name': 'enrollment', 'source': 'FIRST_PARTY'}],
-        'label': {
+        'variables': [
+          {
+            'name': 'first_purchase',
+            'source': 'FIRST_PARTY',
+            'role': 'FIRST_VALUE',
+            'key': None,
+            'value_type': None
+          },
+          {
+            'name': 'first_purchase_date',
+            'source': 'FIRST_PARTY',
+            'role': 'TRIGGER_DATE',
+            'key': None,
+            'value_type': None
+          },
+          {
+            'name': 'enrollment',
+            'source': 'FIRST_PARTY',
+            'role': 'FEATURE',
+            'key': None,
+            'value_type': None
+          },
+          {
             'name': 'purchase',
             'source': 'GOOGLE_ANALYTICS',
+            'role': 'LABEL',
             'key': 'value',
-            'value_type': 'int',
-            'average_value': 123.45,
-        },
+            'value_type': 'int'
+          }
+        ],
+        'conversion_rate_segments': 10,
         'class_imbalance': 5,
         'timespans': [
             {'name': 'training', 'value': 14, 'unit': 'month'},
-            {'name': 'predictive', 'value': 2, 'unit': 'month'},
+            {'name': 'predictive', 'value': 2, 'unit': 'month'}
         ],
+        'output': {
+            'destination': 'GOOGLE_ADS_OFFLINE_CONVERSION',
+            'parameters': {
+                'customer_id': '1234567890',
+                'conversion_action_id': '0987654321',
+                'average_conversion_value': 1234.5
+            }
+        }
     }
 
     response = self.client.put('/api/ml-models/1', json=request)
@@ -101,8 +143,9 @@ class TestMlModelViews(controller_utils.ControllerAppTest):
     self.assertEqual(response.status_code, 404)
 
   def test_delete_active_ml_model(self):
-    model = models.MlModel.create(
-        name='Test Model', type='LOGISTIC_REG', unique_id='CLIENT_ID')
+    model = models.MlModel.create(name='Test Model',
+                                  type='LOGISTIC_REG',
+                                  unique_id='CLIENT_ID')
     pipeline = models.Pipeline.create(ml_model_id=model.id)
     pipeline.status = models.Pipeline.STATUS.RUNNING
     pipeline.save()
@@ -110,8 +153,9 @@ class TestMlModelViews(controller_utils.ControllerAppTest):
     self.assertEqual(response.status_code, 422)
 
   def test_delete_ml_model(self):
-    models.MlModel.create(
-        name='Test Model', type='LOGISTIC_REG', unique_id='CLIENT_ID')
+    models.MlModel.create(name='Test Model',
+                          type='LOGISTIC_REG',
+                          unique_id='CLIENT_ID')
 
     response = self.client.get('/api/ml-models/1')
     self.assertEqual(response.status_code, 200)
@@ -124,43 +168,88 @@ class TestMlModelViews(controller_utils.ControllerAppTest):
 
   def test_create_ml_model(self):
     request, response = self.post_test_model()
-    data = response.json
-    self.assertEqual(data['id'], 1)
-    self.assertLen(data['pipelines'], 2)
+    test_model = response.json
+    self.assertEqual(test_model['id'], 1)
+    self.assertLen(test_model['pipelines'], 2)
     for key, value in request.items():
       if isinstance(value, list):
-        data[key].sort(key=lambda c: c['name'])
+        test_model[key].sort(key=lambda c: c['name'])
         value.sort(key=lambda c: c['name'])
-      self.assertEqual(data[key], value)
+      self.assertEqual(test_model[key], value)
 
     self.assertEqual(response.status_code, 201)
 
-  @mock.patch.object(models.MlModel, 'save_relations')
-  def test_error_during_create_ml_model_causes_rollback(
-      self, save_patch: mock.Mock
-    ):
-    save_patch.side_effect = Exception('oops.')
+  def test_error_during_create_ml_model_causes_rollback(self):
+    request = {
+        'name': 'Test Model',
+        'input': {
+            'source': 'GOOGLE_ANALYTICS',
+            'parameters': {
+              'first_party_dataset': '',
+              'first_party_table': ''
+            }
+        },
+        'bigquery_dataset': {
+            'name': 'test-dataset',
+            'location': 'US'
+        },
+        'type': 'BOOSTED_TREE_REGRESSOR',
+        'unique_id': 'CLIENT_ID',
+        'hyper_parameters': [
+            {'name': 'L1_REG', 'value': '1'}
+        ],
+        'variables': [
+          {
+            'name': 'purchase',
+            'source': 'GOOGLE_ANALYTICS',
+            'role': 'LABEL',
+            'key': 'value',
+            'value_type': None
+          }
+        ],
+        'conversion_rate_segments': 0,
+        'class_imbalance': 7,
+        'timespans': [
+            {'name': 'training', 'value': 20, 'unit': 'day'},
+            {'name': 'predictive', 'value': 1, 'unit': 'day'}
+        ],
+        'output': {
+            'destination': 'GOOGLE_ANALYTICS_MP_EVENT',
+            'parameters': {
+                'customer_id': '0',
+                'conversion_action_id': '0',
+                'average_conversion_value': 0.0
+            }
+        }
+    }
 
-    with self.assertRaises(Exception):
-      self.post_test_model()
+    with self.assertRaises(TypeError):
+      self.client.post('/api/ml-models', json=request)
 
     response = self.client.get('/api/ml-models/1')
     self.assertEqual(response.status_code, 404)
 
   def test_retrieve_ml_model(self):
-    model = models.MlModel.create(
-        name='Test Model', type='LOGISTIC_REG', unique_id='CLIENT_ID')
+    model = models.MlModel.create(name='Test Model',
+                                  type='LOGISTIC_REG',
+                                  unique_id='CLIENT_ID')
     models.Pipeline.create(ml_model_id=model.id)
     response = self.client.get('/api/ml-models/1')
     self.assertEqual(response.status_code, 200)
 
-  def test_retrieve_variables_without_dataset(self):
+  def test_retrieve_variables_without_required_fields(self):
     response = self.client.get('/api/ml-models/variables')
     self.assertEqual(response.status_code, 400)
 
   @mock.patch.object(ml_model.bigquery, 'CustomClient')
-  def test_retrieve_variables_with_dataset(self, client_mock: mock.Mock):
-    dataset = {'dataset_name': 'test-dataset', 'dataset_location': 'US'}
+  def test_retrieve_variables_with_required_fields_google_analytics(
+    self, client_mock: mock.Mock):
+    request = {
+        'input': '{\"source\":\"GOOGLE_ANALYTICS\",\"parameters\":{}}',
+        'dataset': '{\"name\":\"test-dataset\",\"location\":\"US\"}',
+        'timespans': '[{\"name\":\"training\",\"value\":90},'
+                     '{\"name\":\"predictive\",\"value\":30}]',
+    }
     models.GeneralSetting.where(
         name='google_analytics_4_bigquery_dataset'
     ).first().update(value='test-ga4-dataset')
@@ -175,14 +264,54 @@ class TestMlModelViews(controller_utils.ControllerAppTest):
     variables.append(variable)
     client_mock.return_value.get_analytics_variables.return_value = variables
 
-    response = self.client.get('/api/ml-models/variables', query_string=dataset)
+    response = self.client.get('/api/ml-models/variables', query_string=request)
+    self.assertEqual(response.status_code, 200)
+
+  @mock.patch.object(ml_model.bigquery, 'CustomClient')
+  def test_retrieve_variables_with_required_fields_first_party(
+    self, client_mock: mock.Mock):
+    request = {
+        'input': '{\"source\":\"GOOGLE_ANALYTICS_AND_FIRST_PARTY\",\"parameters\":'
+                 '{\"firstPartyDataset\":\"1p_dataset\",'
+                 '\"firstPartyTable\":\"1p_table\"}}',
+        'dataset': '{\"name\":\"test-dataset\",\"location\":\"US\"}',
+        'timespans': '[{\"name\":\"training\",\"value\":90},'
+                     '{\"name\":\"predictive\",\"value\":30}]',
+    }
+    models.GeneralSetting.where(
+        name='google_analytics_4_bigquery_dataset'
+    ).first().update(value='test-ga4-dataset')
+
+    # Required due to uncertainty around how to do actual integration
+    # test with big query locally.
+    variables: list[ml_model.bigquery.Variable] = []
+    variable = ml_model.bigquery.Variable(
+        'test-name', 'GOOGLE_ANALYTICS', 100, [])
+    variable.parameters.append(
+        ml_model.bigquery.Parameter('test-key', 'test-value-type'))
+    variables.append(variable)
+    client_mock.return_value.get_analytics_variables.return_value = variables
+
+    variables: list[ml_model.bigquery.Variable] = []
+    variable = ml_model.bigquery.Variable(
+        'test-name', 'FIRST_PARTY', 0, [])
+    variable.parameters.append(
+        ml_model.bigquery.Parameter('test-key', 'test-value-type'))
+    variables.append(variable)
+    client_mock.return_value.get_first_party_variables.return_value = variables
+
+    response = self.client.get('/api/ml-models/variables', query_string=request)
     self.assertEqual(response.status_code, 200)
 
   @mock.patch.object(ml_model.bigquery, 'CustomClient')
   def test_retrieve_variables_with_dataset_events_not_found(
-      self, client_mock: mock.Mock
-  ):
-    dataset = {'dataset_name': 'test-dataset', 'dataset_location': 'US'}
+      self, client_mock: mock.Mock):
+    request = {
+        'input': '{\"source\": \"GOOGLE_ANALYTICS\", \"parameters\": {}}',
+        'dataset': '{\"name\": \"test-dataset\", \"location\": \"US\"}',
+        'timespans': '[{\"name\": \"training\", \"value\": 90},'
+                     '{\"name\": \"predictive\", \"value\": 30}]',
+    }
     models.GeneralSetting.where(
         name='google_analytics_4_bigquery_dataset'
     ).first().update(value='test-ga4-dataset')
@@ -192,16 +321,25 @@ class TestMlModelViews(controller_utils.ControllerAppTest):
     variables: list[ml_model.bigquery.Variable] = []
     client_mock.return_value.get_analytics_variables.return_value = variables
 
-    response = self.client.get('/api/ml-models/variables', query_string=dataset)
+    response = self.client.get('/api/ml-models/variables', query_string=request)
     self.assertEqual(response.status_code, 400)
 
   def post_test_model(self):
     request = {
         'name': 'Test Model',
-        'bigquery_dataset': {'name': 'test-dataset', 'location': 'US'},
+        'input': {
+            'source': 'GOOGLE_ANALYTICS',
+            'parameters': {
+              'first_party_dataset': '',
+              'first_party_table': ''
+            }
+        },
+        'bigquery_dataset': {
+            'name': 'test-dataset',
+            'location': 'US'
+        },
         'type': 'BOOSTED_TREE_REGRESSOR',
         'unique_id': 'CLIENT_ID',
-        'uses_first_party_data': False,
         'hyper_parameters': [
             {'name': 'L1_REG', 'value': '1'},
             {'name': 'L2_REG', 'value': '1'},
@@ -212,21 +350,38 @@ class TestMlModelViews(controller_utils.ControllerAppTest):
             {'name': 'ENABLE_GLOBAL_EXPLAIN', 'value': 'true'},
             {'name': 'NUM_PARALLEL_TREE', 'value': '2'},
             {'name': 'DATA_SPLIT_METHOD', 'value': 'AUTO_SPLIT'},
-            {'name': 'EARLY_STOP', 'value': 'false'},
+            {'name': 'EARLY_STOP', 'value': 'false'}
         ],
-        'features': [{'name': 'click', 'source': 'GOOGLE_ANALYTICS'}],
-        'label': {
+        'variables': [
+          {
+            'name': 'click',
+            'source': 'GOOGLE_ANALYTICS',
+            'role': 'FEATURE',
+            'key': None,
+            'value_type': None
+          },
+          {
             'name': 'purchase',
-            'key': '',
-            'value_type': '',
             'source': 'FIRST_PARTY',
-            'average_value': 0.0,
-        },
+            'role': 'LABEL',
+            'key': None,
+            'value_type': None
+          }
+        ],
+        'conversion_rate_segments': 0,
         'class_imbalance': 7,
         'timespans': [
-            {'name': 'training', 'value': 20, 'unit': 'month'},
-            {'name': 'predictive', 'value': 1, 'unit': 'month'},
+            {'name': 'training', 'value': 20, 'unit': 'day'},
+            {'name': 'predictive', 'value': 1, 'unit': 'day'}
         ],
+        'output': {
+            'destination': 'GOOGLE_ANALYTICS_MP_EVENT',
+            'parameters': {
+                'customer_id': '0',
+                'conversion_action_id': '0',
+                'average_conversion_value': 0.0
+            }
+        }
     }
 
     response = self.client.post('/api/ml-models', json=request)

@@ -16,360 +16,313 @@
 
 import datetime
 import enum
+import json
 import os
 from typing import Any
 import uuid
-
-from jinja2 import StrictUndefined
-from jinja2 import Template
+import jinja2
 
 from controller import models
+from controller import shared
+
+from controller.ml_model.shared import Source, Timespan, TimespanRange
 
 
-class TemplateFile(enum.Enum):
-  TRAINING = 'training.sql'
-  CONVERSION_VALUES = 'conversion_values.sql'
-  PREDICTIVE = 'predictive.sql'
-  GA4_REQUEST = 'ga4_request.json'
+class TemplateFile(shared.StrEnum):
+  TRAINING_PIPELINE = 'training_pipeline.json'
+  PREDICTIVE_PIPELINE = 'predictive_pipeline.json'
+  MODEL_BQML = 'model_bqml.sql'
+  CONVERSION_VALUES_BQML = 'conversion_values_bqml.sql'
+  GOOGLE_ANALYTICS_MP_EVENT = 'google_analytics_mp_event.json'
+  GOOGLE_ADS_OFFLINE_CONVERSION = 'google_ads_offline_conversion.json'
   OUTPUT = 'output.sql'
 
 
-class RegressionType(enum.Enum):
-  BOOSTED_TREE_REGRESSOR = 'BOOSTED_TREE_REGRESSOR'
-  DNN_REGRESSOR = 'DNN_REGRESSOR'
-  RANDOM_FOREST_REGRESSOR = 'RANDOM_FOREST_REGRESSOR'
-  LINEAR_REG = 'LINEAR_REG'
+class Step(enum.Enum):
+  NONE = enum.auto()
+  TRAINING = enum.auto()
+  PREDICTING = enum.auto()
+  OUTPUTING = enum.auto()
+  UPLOADING = enum.auto()
 
 
-class ClassificationType(enum.Enum):
-  BOOSTED_TREE_CLASSIFIER = 'BOOSTED_TREE_CLASSIFIER'
-  DNN_CLASSIFIER = 'DNN_CLASSIFIER'
-  RANDOM_FOREST_CLASSIFIER = 'RANDOM_FOREST_CLASSIFIER'
-  LOGISTIC_REG = 'LOGISTIC_REG'
+class ModelTypes:
+  REGRESSION: list[str] = [
+      'BOOSTED_TREE_REGRESSOR',
+      'DNN_REGRESSOR',
+      'RANDOM_FOREST_REGRESSOR',
+      'LINEAR_REG'
+  ]
+  CLASSIFICATION: list[str] = [
+      'BOOSTED_TREE_CLASSIFIER',
+      'DNN_CLASSIFIER',
+      'RANDOM_FOREST_CLASSIFIER',
+      'LOGISTIC_REG'
+  ]
 
 
-class UniqueId(str, enum.Enum):
+class ParamType(shared.StrEnum):
+  SQL = 'sql'
+  TEXT = 'text'
+  STRING = 'string'
+  BOOLEAN = 'boolean'
+  NUMBER = 'number'
+
+
+class Worker(shared.StrEnum):
+  BQ_SCRIPT_EXECUTOR = 'BQScriptExecutor'
+  BQ_TO_MEASUREMENT_PROTOCOL_GA4 = 'BQToMeasurementProtocolGA4'
+  BQ_TO_GOOGLE_ADS_OFFLINE_CONVERSION = 'BQToAdsOfflineClickConversion'
+
+
+class UniqueId(shared.StrEnum):
   USER_ID = 'USER_ID'
   CLIENT_ID = 'CLIENT_ID'
 
 
-class Timespan:
-  """Encapsulates a timespan."""
-  TRAINING: str = 'training'
-  PREDICTIVE: str = 'predictive'
+class VariableRole(shared.StrEnum):
+  FEATURE = 'FEATURE',
+  LABEL = 'LABEL',
+  TRIGGER_EVENT = 'TRIGGER_EVENT',
+  FIRST_VALUE = 'FIRST_VALUE',
+  TRIGGER_DATE = 'TRIGGER_DATE',
+  USER_ID = 'USER_ID',
+  CLIENT_ID = 'CLIENT_ID'
 
-  training: int
-  predictive: int
+
+class VariableSet():
+  source: Source
+  input: models.MlModelInput
+  features: list[models.MlModelVariable]
+  label: models.MlModelVariable
+  trigger_event: models.MlModelVariable
+  first_value: models.MlModelVariable
+  _trigger_date: models.MlModelVariable
+  _unique_id: str
+  user_id: models.MlModelVariable
+  client_id: models.MlModelVariable
+
+  def __init__(self, source: Source, input: models.MlModelInput, unique_id: UniqueId) -> None:
+    self.source = source
+    self.input = input
+    self.features = []
+    self.label = None
+    self.trigger_event = None
+    self.first_value = None
+    self._trigger_date = None
+    self._unique_id = unique_id.lower()
+    self.user_id = 'user_id'
+    self.client_id = 'user_pseudo_id'
 
   @property
-  def training_start(self) -> int:
-    return self.training + self.predictive
+  def in_source(self) -> bool:
+    return self.source in self.input.source
 
   @property
-  def predictive_start(self) -> int:
-    return self.predictive
+  def dataset(self):
+    if self.input.parameters:
+      return self.input.parameters.first_party_dataset
+
+  @property
+  def table(self):
+    if self.input.parameters:
+      return self.input.parameters.first_party_table
+
+  @property
+  def unique_id(self):
+    unique_id = self.__getattribute__(self._unique_id)
+    return unique_id.name if isinstance(unique_id, models.MlModelVariable) else unique_id
+
+  @property
+  def trigger_date(self):
+    if self.source == Source.FIRST_PARTY:
+      return self._trigger_date
+    elif self.source == Source.GOOGLE_ANALYTICS:
+      if self.trigger_event:
+        return self.trigger_event
+      elif self.first_value:
+        return self.first_value
+      else:
+        return self.label
+
+  def add(self, variable: models.MlModelVariable) -> None:
+    if variable.role == VariableRole.FEATURE:
+      self.features.append(variable)
+    elif variable.role == VariableRole.TRIGGER_DATE:
+      self._trigger_date = variable
+    else:
+      self.__setattr__(str(variable.role).lower(), variable)
 
 
-def build_training_pipeline(obj,
-                            project_id: str,
-                            ga4_dataset: str) -> dict[str, Any]:
-  """Builds the training pipeline configuration including the model SQL."""
-  setup_job_id = uuid.uuid4()
-  pipeline = {
-      'name': f'{obj.name} - Training',
-      'params': [],
-      'jobs': [{
-          'id': setup_job_id,
-          'name': f'{obj.name} - Training Setup',
-          'worker_class': 'BQScriptExecutor',
-          'hash_start_conditions': [],
-          'params': [
-              {
-                  'name': 'script',
-                  'type': 'sql',
-                  'value': _compile_template(obj,
-                                             project_id,
-                                             ga4_dataset,
-                                             TemplateFile.TRAINING)
-              },
-              {
-                  'name': 'bq_dataset_location',
-                  'type': 'string',
-                  'value': obj.bigquery_dataset.location
-              }
-          ]
-      }],
-      'schedules': [{
-          'cron': f'0 0 {_safe_day()} {_quarterly_months()} *'
-      }]
-  }
+class Compiler():
+  """Used to build out pipeline configurations.
 
-  if _is_classification(obj.type):
-    pipeline['jobs'].append({
-        'id': uuid.uuid4(),
-        'name': f'{obj.name} - Conversion Value Calculations',
-        'worker_class': 'BQScriptExecutor',
-        'hash_start_conditions': [{
-            'preceding_job_id': setup_job_id,
-            'condition': 'success'
-        }],
-        'params': [
-            {
-                'name': 'script',
-                'type': 'sql',
-                'value': _compile_template(obj,
-                                           project_id,
-                                           ga4_dataset,
-                                           TemplateFile.CONVERSION_VALUES)
-            },
-            {
-                'name': 'bq_dataset_location',
-                'type': 'string',
-                'value': obj.bigquery_dataset.location
-            }
-        ]
-    })
-
-  return pipeline
-
-
-def build_predictive_pipeline(obj,
-                              project_id: str,
-                              ga4_dataset: str,
-                              ga4_measurement_id: str,
-                              ga4_api_secret: str) -> dict[str, Any]:
-  setup_job_id = uuid.uuid4()
-  output_job_id = uuid.uuid4()
-  ga4_upload_job_id = uuid.uuid4()
-
-  return {
-      'name': f'{obj.name} - Predictive',
-      'params': [],
-      'jobs': [
-          {
-              'id': setup_job_id,
-              'name': f'{obj.name} - Predictive Setup',
-              'hash_start_conditions': [],
-              'worker_class': 'BQScriptExecutor',
-              'params': [
-                  {
-                      'name': 'script',
-                      'type': 'sql',
-                      'value': _compile_template(obj,
-                                                 project_id,
-                                                 ga4_dataset,
-                                                 TemplateFile.PREDICTIVE)
-                  },
-                  {
-                      'name': 'bq_dataset_location',
-                      'type': 'string',
-                      'value': obj.bigquery_dataset.location
-                  }
-              ]
-          },
-          {
-              'id': output_job_id,
-              'name': f'{obj.name} - Predictive Output',
-              'hash_start_conditions': [{
-                  'preceding_job_id': setup_job_id,
-                  'condition': 'success'
-              }],
-              'worker_class': 'BQScriptExecutor',
-              'params': [
-                  {
-                      'name': 'script',
-                      'type': 'sql',
-                      'value': _compile_template(obj,
-                                                 project_id,
-                                                 ga4_dataset,
-                                                 TemplateFile.OUTPUT),
-                  },
-                  {
-                      'name': 'bq_dataset_location',
-                      'type': 'string',
-                      'value': obj.bigquery_dataset.location
-                  }
-              ]
-          },
-          {
-              'id': ga4_upload_job_id,
-              'name': f'{obj.name} - Predictive GA4 Upload',
-              'hash_start_conditions': [{
-                  'preceding_job_id': output_job_id,
-                  'condition': 'success'
-              }],
-              'worker_class': 'BQToMeasurementProtocolGA4',
-              'params': [
-                  {
-                      'name': 'bq_project_id',
-                      'type': 'string',
-                      'value': project_id
-                  },
-                  {
-                      'name': 'bq_dataset_id',
-                      'type': 'string',
-                      'value': obj.bigquery_dataset.name
-                  },
-                  {
-                      'name': 'bq_dataset_location',
-                      'type': 'string',
-                      'value': obj.bigquery_dataset.location
-                  },
-                  {
-                      'name': 'bq_table_id',
-                      'type': 'string',
-                      'value': 'output'
-                  },
-                  {
-                      'name': 'measurement_id',
-                      'type': 'string',
-                      'value': ga4_measurement_id
-                  },
-                  {
-                      'name': 'api_secret',
-                      'type': 'string',
-                      'value': ga4_api_secret
-                  },
-                  {
-                      'name': 'template',
-                      'type': 'text',
-                      'value': _compile_template(obj,
-                                                 project_id,
-                                                 ga4_dataset,
-                                                 TemplateFile.GA4_REQUEST)
-                  },
-                  {
-                      'name': 'mp_batch_size',
-                      'type': 'number',
-                      'value': '20'
-                  },
-                  {
-                      'name': 'debug',
-                      'type': 'boolean',
-                      'value': False
-                  }
-              ]
-          }
-      ],
-      'schedules': [{
-          'cron': '0 0 * * *',
-      }]
-  }
-
-
-def _compile_template(obj,
-                      project_id: str,
-                      ga4_dataset: str,
-                      template_file: TemplateFile) -> str:
-  """Builds the BQML SQL using the base template and the provided data."""
-  variables = {
-      'project_id': project_id,
-      'model_dataset': obj.bigquery_dataset.name,
-      'ga4_dataset': ga4_dataset,
-      'type': {
-          'name': obj.type,
-          'is_regression': _is_regression(obj.type),
-          'is_classification': _is_classification(obj.type),
-      },
-      'uses_first_party_data': obj.uses_first_party_data,
-      'unique_id': _get_unique_id(obj.unique_id),
-      'hyper_parameters': obj.hyper_parameters,
-      'timespan': _get_timespan(obj.timespans),
-      'label': obj.label,
-      'features': obj.features,
-      'class_imbalance': obj.class_imbalance
-  }
-
-  functions = {
-      'is_number': _is_number,
-      'is_bool': _is_bool,
-  }
-
-  template = _get_template(template_file)
-  return template.render(**functions, **variables)
-
-
-def _get_template(template_file: TemplateFile) -> Template:
-  """Pulls appropriate template text from file."""
-  options = {
-      'comment_start_string': '--',
-      'comment_end_string': '\n',
-      'trim_blocks': True,
-      'lstrip_blocks': True,
-      'newline_sequence': '\n'
-  }
-  with open(_absolute_path('templates/' + template_file.value), 'r') as file:
-    return Template(file.read(), **options, undefined=StrictUndefined)
-
-
-def _get_timespan(timespans: list[models.MlModelTimespan]) -> Timespan:
-  """Returns the appropriate timespan pulled from the list provided."""
-  ts = Timespan()
-  for timespan in timespans:
-    if timespan.name == Timespan.TRAINING:
-      ts.training = timespan.value
-    elif timespan.name == Timespan.PREDICTIVE:
-      ts.predictive = timespan.value
-  return ts
-
-
-def _get_unique_id(field_type: UniqueId) -> str:
-  """Get the actual unique identifier column name based on unique id type."""
-  if field_type == UniqueId.USER_ID:
-    return 'user_id'
-  if field_type == UniqueId.CLIENT_ID:
-    return 'user_pseudo_id'
-
-
-def _is_number(value: str) -> bool:
-  """Checks a string value to determine if it's a number."""
-  try:
-    float(value)
-    return True
-  except ValueError:
-    return False
-
-
-def _is_bool(value: str) -> bool:
-  """Checks a string value to determine if it's a boolean."""
-  return value.lower() in ['true', 'false']
-
-
-def _is_regression(field_type: str) -> bool:
-  """Checks whether or not the model is a regression type model."""
-  return field_type in [x.value for x in RegressionType]
-
-
-def _is_classification(field_type: str) -> bool:
-  """Checks whether or not the model is a classification type model."""
-  return field_type in [x.value for x in ClassificationType]
-
-
-def _safe_day() -> str:
-  """Returns the current day if safe to schedule and otherwise returns 28."""
-  day = datetime.date.today().day
-  return f'{day}' if day < 28 else '28'
-
-
-def _quarterly_months() -> str:
-  """Returns the months of the year that occur quarterly."""
-  current_month = datetime.date.today().month
-  months = ''
-  for month in range(current_month, current_month + 11, 3):
-    months += f'{month % 12 if month < 12 else month},'
-  return months.removesuffix(',')
-
-
-def _absolute_path(file: str) -> str:
-  """Returns the absolute path of the file.
-
-  Assuming the file provided is in the current directory.
-
-  Args:
-    file: relative path to a file.
+  Makes use of a series of templates in the templates directory to
+  build all necessary components of model based pipelines including
+  the pipeline configuration itself.
   """
-  running_dir = os.getcwd()
-  current_dir_relative = os.path.dirname(__file__)
-  current_dir_full = os.path.join(running_dir, current_dir_relative)
-  current_dir_absolute = os.path.realpath(current_dir_full)
-  return os.path.join(current_dir_absolute, file)
+  project_id: str
+  ga4_dataset: str
+  ga4_measurement_id: str
+  ga4_api_secret: str
+  ml_model: models.MlModel
+
+  OUTPUT_DESTINATIONS: list[str] = [
+      'GOOGLE_ANALYTICS_MP_EVENT',
+      'GOOGLE_ADS_OFFLINE_CONVERSION'
+  ]
+
+  def __init__(self,
+               project_id: str,
+               ga4_dataset: str,
+               ga4_measurement_id: str,
+               ga4_api_secret: str,
+               ml_model: models.MlModel) -> None:
+    self.project_id = project_id
+    self.ga4_dataset = ga4_dataset
+    self.ga4_measurement_id = ga4_measurement_id
+    self.ga4_api_secret = ga4_api_secret
+    self.ml_model = ml_model
+
+  def build_training_pipeline(self) -> dict[str, Any]:
+    """Builds the training pipeline configuration including the model SQL.
+
+    Returns:
+      A pipeline configuration for creating and training the model
+      provided to the compiler.
+    """
+    pipeline_configuration = self._compile_template(
+        TemplateFile.TRAINING_PIPELINE)
+    return json.loads(pipeline_configuration)
+
+  def build_predictive_pipeline(self) -> dict[str, Any]:
+    """Builds the predictive pipeline configuration including the model SQL.
+
+    Returns:
+      A pipeline configuration for predicting values and uploading the
+      results for the model provided to the compiler.
+    """
+    pipeline_configuration = self._compile_template(
+        TemplateFile.PREDICTIVE_PIPELINE)
+    return json.loads(pipeline_configuration)
+
+  def _compile_template(self,
+                        template_file: TemplateFile,
+                        step: Step = Step.NONE) -> str:
+    """Uses the template and data provided to render the result."""
+    variables = {
+        'step': {
+          'is_training': step == Step.TRAINING,
+          'is_predicting': step == Step.PREDICTING
+        },
+        'name': self.ml_model.name,
+        'project_id': self.project_id,
+        'model_dataset': self.ml_model.bigquery_dataset.name,
+        'ga4_dataset': self.ga4_dataset,
+        'ga4_measurement_id': self.ga4_measurement_id,
+        'ga4_api_secret': self.ga4_api_secret,
+        'dataset_location': self.ml_model.bigquery_dataset.location,
+        'type': {
+            'name': self.ml_model.type,
+            'is_regression': self.ml_model.type in ModelTypes.REGRESSION,
+            'is_classification': self.ml_model.type in ModelTypes.CLASSIFICATION,
+        },
+        'hyper_parameters': self.ml_model.hyper_parameters,
+        'timespan': self._get_timespan(self.ml_model.timespans, step),
+        'unique_id_type': self.ml_model.unique_id,
+        'first_party': VariableSet(Source.FIRST_PARTY, self.ml_model.input, self.ml_model.unique_id),
+        'google_analytics': VariableSet(Source.GOOGLE_ANALYTICS, self.ml_model.input, self.ml_model.unique_id),
+        'conversion_rate_segments': self.ml_model.conversion_rate_segments,
+        'class_imbalance': self.ml_model.class_imbalance,
+        'output': {
+            'destination': {},
+            'parameters': self.ml_model.output.parameters
+        }
+    }
+
+    for destination in self.OUTPUT_DESTINATIONS:
+      match: bool = self.ml_model.output.destination == destination
+      variables['output']['destination']['is_' + destination.lower()] = match
+
+    for variable in self.ml_model.variables:
+      source: str = str(variable.source).lower()
+      variables[source].add(variable)
+
+    constants = {
+        'Step': Step,
+        'Worker': Worker,
+        'ParamType': ParamType,
+        'TemplateFile': TemplateFile,
+        'UniqueId': UniqueId
+    }
+
+    for key, value in constants.items():
+      variables[key] = value
+
+    functions = {
+        'compile_template': self._compile_template,
+        'is_number': self._is_number,
+        'is_bool': self._is_bool,
+        'safe_day': self._safe_day,
+        'quarterly_months': self._quarterly_months,
+        'uuid': uuid.uuid4
+    }
+
+    template = self._get_template(template_file)
+    rendered = template.render(**functions, **variables)
+    return rendered if step == Step.NONE else self._json_encode(rendered)
+
+  def _get_template(self, template_file: TemplateFile) -> jinja2.Template:
+    """Pulls appropriate template text from file."""
+    options = {
+        'comment_start_string': '--',
+        'comment_end_string': '\n',
+        'trim_blocks': True,
+        'lstrip_blocks': True,
+        'newline_sequence': '\n'
+    }
+    with open(self._absolute_path('templates/' + template_file), 'r') as file:
+      return jinja2.Template(
+          file.read(), **options, undefined=jinja2.StrictUndefined)
+
+  def _get_timespan(self, timespans: list[models.MlModelTimespan], step: Step) -> TimespanRange:
+    """Returns model timespan including both training and predictive start and end."""
+    timespan: Timespan = Timespan([t.__dict__ for t in timespans])
+    return timespan.training if step == Step.TRAINING else timespan.predictive
+
+  def _json_encode(self, text: str) -> str:
+    """JSON encode text provided without including double-quote wrapper."""
+    return json.dumps(text).removeprefix('"').removesuffix('"')
+
+  def _is_number(self, value: str) -> bool:
+    """Checks a string value to determine if it's a number."""
+    try:
+      float(value)
+      return True
+    except ValueError:
+      return False
+
+  def _is_bool(self, value: str) -> bool:
+    """Checks a string value to determine if it's a boolean."""
+    return value.lower() in ['true', 'false']
+
+  def _safe_day(self) -> str:
+    """Returns the current day if safe to schedule and otherwise returns 28."""
+    day = datetime.date.today().day
+    return f'{day}' if day < 28 else '28'
+
+  def _quarterly_months(self) -> str:
+    """Returns months of year that occur every 3 months from the current month."""
+    current_month = datetime.date.today().month
+    months = ''
+    for month in range(current_month, current_month + 11, 3):
+      months += f'{month % 12 if month > 12 else month},'
+    return months.removesuffix(',')
+
+  def _absolute_path(self, file: str) -> str:
+    """Returns the absolute path given a relative path from this directory."""
+    running_dir = os.getcwd()
+    current_dir_relative = os.path.dirname(__file__)
+    current_dir_full = os.path.join(running_dir, current_dir_relative)
+    current_dir_absolute = os.path.realpath(current_dir_full)
+    return os.path.join(current_dir_absolute, file)

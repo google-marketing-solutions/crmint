@@ -89,6 +89,19 @@ class TestCronUtils(parameterized.TestCase):
         cron_utils.cron_match(cron),
         expected)
 
+  @parameterized.parameters(
+      ('* * * * *', True),
+      ('* * * * 4', True),
+      ('0 * * * 0,3,4', True),
+      ('30 12 * 1,4,7,10 3', True),
+      ('30 12 * 4,7,10,1 3', True),
+      ('30 12 * 4,7,10,13 3', False),
+      ('* 25 * * 0,3,6', False),
+  )
+  def test_cron_valid(self, cron, expected):
+    self.assertEqual(
+        cron_utils.cron_valid(cron),
+        expected)
 
 if __name__ == '__main__':
   absltest.main()

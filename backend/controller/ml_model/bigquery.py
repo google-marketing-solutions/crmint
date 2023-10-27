@@ -15,16 +15,9 @@
 """MlModel bigquery helpers."""
 
 import dataclasses
-import datetime
-import enum
-from typing import Callable, TypeVar
-
 from google.cloud import bigquery
 from google.cloud.exceptions import NotFound
-
-from common import utils
-
-T = TypeVar('T')
+from controller import shared
 
 
 @dataclasses.dataclass
@@ -39,23 +32,16 @@ class Parameter:
 
 @dataclasses.dataclass
 class Variable:
-  """Represents a single variable (used for feature/label selection)."""
+  """Represents a single variable (used for feature/label/etc selection)."""
   name: str
   source: str
   count: int
   parameters: list[Parameter]
 
 
-# TODO(dulacp): Leverage StrEnum once we upgrade Python to 3.11
-class Source(enum.Enum):
+class Source(shared.StrEnum):
   GOOGLE_ANALYTICS = 'GOOGLE_ANALYTICS'
   FIRST_PARTY = 'FIRST_PARTY'
-
-  def __str__(self) -> str:
-    return str(self.value)
-
-  def __eq__(self, other) -> bool:
-    return other == str(self.value)
 
 
 class CustomClient(bigquery.Client):
@@ -64,111 +50,108 @@ class CustomClient(bigquery.Client):
   def __init__(self, location: str) -> None:
     super().__init__(location=location)
 
-  def get_analytics_variables(self, dataset_name: str) -> list[Variable]:
-    """Get approximate counts for all GA4 events that happened in the last year.
+  def get_analytics_variables(self,
+                              dataset: str,
+                              start: int,
+                              end: int) -> list[Variable]:
+    """Get approximate counts for all GA4 events timeboxed by start and end days.
 
     Args:
       dataset_name: The dataset where the GA4 events tables are located.
+      start_day: The number of days ago from today to start looking for
+                 variables.
+      end_day: The number of days ago from today to stop looking for variables.
 
     Returns:
       A list of variables to be used for feature and label selection.
     """
 
-    event_exclude_list = [
-        'user_engagement', 'scroll', 'session_start', 'first_visit', 'page_view'
-    ]
-
-    key_exclude_list = [
-        'debug_mode',
-        'ga_session_id',
-        'ga_session_number',
-        'transaction_id',
-        'page_location',
-        'page_referrer',
-        'session_engaged',
-        'engaged_session_event',
-        'content_group',
-        'engagement_time_msec',
-    ]
-
     variables: list[Variable] = []
 
-    suffix = (
-        datetime.date.today() - datetime.timedelta(days=7)
-    ).strftime('%Y%m%d')
-    if not self.table_exists(dataset_name, f'events_{suffix}'):
-      return variables
+    event_exclude_list = """
+      "user_engagement",
+      "scroll",
+      "session_start",
+      "first_visit",
+      "page_view"
+    """
+
+    key_exclude_list = """
+      "debug_mode",
+      "engagement_time_msec"
+    """
 
     query = f"""
-      WITH event AS (
+      WITH events AS (
         SELECT
-          event.value AS name,
-          event.count
-        FROM (
-          SELECT APPROX_TOP_COUNT(event_name, 100) AS event_counts
-          FROM `{self.project}.{dataset_name}.events_*`
-          WHERE _TABLE_SUFFIX BETWEEN
-            FORMAT_DATE("%Y%m%d", DATE_SUB(CURRENT_DATE(), INTERVAL 13 MONTH)) AND
-            FORMAT_DATE("%Y%m%d", DATE_SUB(CURRENT_DATE(), INTERVAL 1 MONTH))
-        ), UNNEST(event_counts) AS event
+          event_name AS name,
+          event_params AS params
+        FROM `{self.project}.{dataset}.events_*`
+        WHERE _TABLE_SUFFIX BETWEEN
+          FORMAT_DATE("%Y%m%d", DATE_SUB(CURRENT_DATE(), INTERVAL {start} DAY)) AND
+          FORMAT_DATE("%Y%m%d", DATE_SUB(CURRENT_DATE(), INTERVAL {end} DAY))
+        AND event_name NOT IN ({event_exclude_list})
+      ),
+      top_events AS (
+        SELECT
+          name,
+          COUNT(*) AS count
+        FROM events
+        GROUP BY 1
+        ORDER BY count DESC
+        LIMIT 100
       )
       SELECT
-        event.name AS name,
-        event.count AS count,
-        params.key AS parameter_key,
+        e.name,
+        t.count,
+        p.key AS parameter_key,
         STRING_AGG(
           DISTINCT
           CASE
-            WHEN params.value.string_value IS NOT NULL THEN 'string'
-            WHEN params.value.int_value IS NOT NULL THEN 'int'
-            WHEN params.value.double_value IS NOT NULL THEN 'double'
-            WHEN params.value.float_value IS NOT NULL THEN 'float'
-            ELSE NULL
+            WHEN p.value.string_value IS NOT NULL THEN "string"
+            WHEN p.value.int_value IS NOT NULL THEN "int"
+            WHEN p.value.double_value IS NOT NULL THEN "double"
+            WHEN p.value.float_value IS NOT NULL THEN "float"
           END
         ) AS parameter_value_type
-      FROM `{self.project}.{dataset_name}.events_*`,
-            UNNEST(event_params) AS params
-      JOIN event ON event.name = event_name
+      FROM events e,
+      UNNEST(e.params) AS p
+      JOIN top_events t ON e.name = t.name
+      WHERE p.key NOT IN ({key_exclude_list})
+      AND (
+        p.value.string_value IS NOT NULL OR
+        p.value.int_value IS NOT NULL OR
+        p.value.double_value IS NOT NULL OR
+        p.value.float_value IS NOT NULL
+      )
       GROUP BY 1,2,3
-      HAVING parameter_value_type IS NOT NULL
       ORDER BY
-        count ASC, # reversed to speed up data transformation step
+        count DESC,
         name ASC,
         parameter_key ASC;
     """
-    job = self.query(query=query)
-    events = job.result()
+    try:
+      job = self.query(query=query)
+      events = list(job.result())
+    except NotFound:
+      return variables
 
-    def make_condition_func(event_name: str) -> Callable[[T], bool]:
-      return lambda x: x.name == event_name
+    variable: Variable = None
+    lastIndex: int = len(events) - 1
 
-    for event in events:
-      if event.name not in event_exclude_list:
-        try:
-          existing_variable = utils.first(
-              variables, make_condition_func(event.name))
-        except StopIteration:
-          existing_variable = None
-        parameter = Parameter(event.parameter_key, event.parameter_value_type)
+    for index, event in enumerate(events):
+      if index == 0 or variable.name != event.name:
+        variable = Variable(event.name, Source.GOOGLE_ANALYTICS, event.count, [])
 
-        if not existing_variable:
-          variable = Variable(
-              event.name, Source.GOOGLE_ANALYTICS, event.count, [])
-          if parameter.key not in key_exclude_list:
-            variable.parameters.append(parameter)
-          # Since rows are ordered, event data for a single event name is
-          # grouped together and as such it's faster to insert new events at
-          # the beginning so the loop on the next row finds the matching event
-          # name immediately which saves cycles and because it's sortecd asc
-          # and basically flipping the events as it processes them they will
-          # come out in descending order.
-          variables.insert(0, variable)
-        elif parameter.key not in key_exclude_list:
-          existing_variable.parameters.append(parameter)
+      variable.parameters.append(
+        Parameter(event.parameter_key, event.parameter_value_type))
+
+      if index == lastIndex or variable.name != events[index + 1].name:
+        variables.append(variable)
 
     return variables
 
-  def get_first_party_variables(self, dataset_name: str) -> list[Variable]:
+  def get_first_party_variables(self, dataset: str, table: str) -> list[Variable]:
     """Look up and return the field names for use in feature/label selection.
 
     Args:
@@ -178,26 +161,17 @@ class CustomClient(bigquery.Client):
       A list of variables to be used for feature and label selection.
     """
 
-    exclude_list = ['user_id', 'user_pseudo_id', 'trigger_event_date']
     variables: list[Variable] = []
 
-    if not self.table_exists(dataset_name, 'first_party'):
+    try:
+      table = self.get_table(f'{dataset}.{table}')
+    except NotFound:
       return variables
 
-    table = self.get_table(f'{dataset_name}.first_party')
-
     for column in table.schema:
-      if column.name not in exclude_list:
+      if column.field_type not in ['JSON', 'RECORD']:
         parameter = Parameter('value', column.field_type)
         variable = Variable(column.name, Source.FIRST_PARTY, 0, [parameter])
         variables.append(variable)
 
     return variables
-
-  def table_exists(self, dataset_name: str, table_name: str) -> bool:
-    """Returns whether or not a table exists in this project."""
-    try:
-      self.get_table(f'{dataset_name}.{table_name}')
-      return True
-    except NotFound:
-      return False

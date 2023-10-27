@@ -1,11 +1,13 @@
 """Utilities to deal with cron formats.
 
-Inspired from the pycron library, but simplified the implementation.
+cron_match and all associated code inspired from the pycron library,
+but simplified the implementation.
 Source: https://github.com/kipe/pycron
 License: MIT
 """
 
 import datetime
+import croniter
 
 
 def _to_int(value) -> int:
@@ -68,3 +70,12 @@ def cron_match(cron: str, dt: datetime.datetime = None) -> bool:
       _parse_arg(dow, 0 if weekday == 7 else weekday),
   ]
   return all(conditions)
+
+
+def cron_valid(cron: str) -> bool:
+  """Returns True if cron schedule string is valid.
+
+  Args:
+    cron: Cron-like string (minute, hour, day of month, month, day of week).
+  """
+  return croniter.croniter.is_valid(cron)

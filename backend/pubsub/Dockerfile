@@ -23,7 +23,7 @@ ENV HOST_PORT 8432
 
 RUN apt-get update \
     && apt-get install -y \
-        curl bash python \
+        curl bash python3 \
     # Cleaning
     && rm -rf /var/cache/apt/archives/*.deb \
     && rm -rf /var/lib/apt/lists/*

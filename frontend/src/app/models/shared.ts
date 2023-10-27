@@ -1,4 +1,4 @@
-// Copyright 2018 Google Inc
+// Copyright 2023 Google Inc
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,21 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { Pipe, PipeTransform } from '@angular/core';
-import cronstrue from 'cronstrue';
-
-@Pipe({
-  name: 'prettycron'
-})
-export class PrettycronPipe implements PipeTransform {
-
-  transform(value: any, args?: any): any {
-    try {
-      return cronstrue.toString(value);
-    } catch(err) {
-      console.log('Cannot parse cron:', err);
-      return err;
-    }
-  }
-
+export enum State {
+  LOADING = 'loading',
+  LOADED = 'loaded',
+  ERROR = 'error'
 }

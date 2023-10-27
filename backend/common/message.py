@@ -40,7 +40,7 @@ class _Error(Exception):
 
 
 class TooEarlyError(_Error):
-  """Exception to be raised when it's too eraly to process a delayed message."""
+  """Exception to be raised when it's too early to process a delayed message."""
 
   def __init__(self, scheduled_time):
     message = f'Resend message after {scheduled_time}'
@@ -97,7 +97,7 @@ def extract_data(request: flask.Request) -> dict[str, Any]:
   try:
     start_time = datetime.datetime.fromtimestamp(
         int(message['attributes']['start_time']))
-    if datetime.datetime.utcnow() < start_time:
+    if datetime.datetime.utcnow() <= start_time:
       raise TooEarlyError(start_time)
   except KeyError as e:
     raise BadRequestError() from e

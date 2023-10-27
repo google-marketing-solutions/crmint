@@ -1,6 +1,6 @@
 {
   "clientId": "${client_id}",
-  {% if unique_id == 'user_id' %}
+  {% if unique_id_type == UniqueId.USER_ID %}
   "userId": "${user_id}",
   {% endif %}
   "nonPersonalizedAds": false,

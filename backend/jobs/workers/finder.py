@@ -21,6 +21,7 @@ from jobs.workers import worker
 from jobs.workers.bigquery import bq_ml_trainer
 from jobs.workers.bigquery import bq_query_launcher
 from jobs.workers.bigquery import bq_script_executor
+from jobs.workers.bigquery import bq_to_ads_offline_click_conversion
 from jobs.workers.bigquery import bq_to_measurement_protocol_ga4
 from jobs.workers.bigquery import bq_to_storage_exporter
 from jobs.workers.bigquery import bq_to_vertexai_dataset
@@ -55,6 +56,8 @@ WORKERS_MAPPING = {
     # 'BQToMeasurementProtocol',
     'BQToMeasurementProtocolGA4':
         bq_to_measurement_protocol_ga4.BQToMeasurementProtocolGA4,
+    'BQToAdsOfflineClickConversion':
+        bq_to_ads_offline_click_conversion.BQToAdsOfflineClickConversion,
     'BQToStorageExporter':
         bq_to_storage_exporter.BQToStorageExporter,
     'BQToVertexAIDataset':
@@ -89,6 +92,8 @@ WORKERS_MAPPING = {
 _PRIVATE_WORKERS_MAPPING = {
     'BQToMeasurementProtocolProcessorGA4':
         bq_to_measurement_protocol_ga4.BQToMeasurementProtocolProcessorGA4,
+    'AdsOfflineClickPageResultsWorker':
+        bq_to_ads_offline_click_conversion.AdsOfflineClickPageResultsWorker,
     'BQWaiter': bq_waiter.BQWaiter,
     'GADataImportUploadWaiter': ga_waiter.GADataImportUploadWaiter,
     'VertexAIWaiter': vertexai_waiter.VertexAIWaiter,

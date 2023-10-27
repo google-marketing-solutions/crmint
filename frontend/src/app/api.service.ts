@@ -45,11 +45,35 @@ export class ApiService {
     return Promise.reject((error.error && error.error.message) || error.message || error);
   }
 
+  /**
+   * Adds a content-type of application/json to the headers for the next request.
+   */
   protected addContentTypeHeader() {
     this.options.headers['Content-Type'] = 'application/json';
   }
 
+  /**
+   * Removes content-type header for the next request.
+   */
   protected removeContentTypeHeader() {
     delete this.options.headers['Content-Type'];
+  }
+
+  /**
+   * Add params to the options to be passed with the next request.
+   *
+   * @param params The params object with key/value pairs to be attached to the request.
+   */
+  protected addParams(params: object) {
+    this.options.params = params;
+  }
+
+  /**
+   * Reset options effectively removing headers and parameters.
+   */
+  protected resetOptions() {
+    this.options = {
+      headers: {}
+    };
   }
 }

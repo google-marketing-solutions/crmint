@@ -18,7 +18,12 @@ import { Pipe, PipeTransform } from '@angular/core';
   name: 'labelcase'
 })
 export class LabelcasePipe implements PipeTransform {
-  specialCaseMap: Object = {api: 'API', id: 'ID', bigquery: 'BigQuery'};
+  specialCaseMap: object = {
+    api: 'API',
+    id: 'ID',
+    mp: 'MP',
+    bigquery: 'BigQuery'
+  };
 
   /**
    * Uppercase the first character in the word(s) provided (word split into
@@ -28,8 +33,11 @@ export class LabelcasePipe implements PipeTransform {
    * @param value The word(s) you want to capitalize.
    * @returns The capitalized word(s).
    */
-  transform(value: any, args?: any): any {
+  transform(value: string, args?: any): string {
     let formattedParts = [];
+    if (value.match(/[a-z]+/)) {
+      value = value.replace(/([A-Z])/g, '_$1');
+    }
     for (const part of value.split('_')) {
       if (Object.keys(this.specialCaseMap).includes(part.toLowerCase())) {
         formattedParts.push(this.specialCaseMap[part.toLowerCase()]);

@@ -111,9 +111,13 @@ class PipelineSingle(Resource):
 
     args = parser.parse_args()
 
-    pipeline.assign_attributes(args)
-    pipeline.save()
-    pipeline.save_relations(args)
+    try:
+      pipeline.assign_attributes(args)
+      pipeline.save()
+      pipeline.save_relations(args)
+    except ValueError as e:
+      return {'message': e}, 400
+
     return pipeline, 200
 
 
