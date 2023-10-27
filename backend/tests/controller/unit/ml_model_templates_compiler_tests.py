@@ -1628,14 +1628,22 @@ class TestCompiler(parameterized.TestCase):
     self.assertIsNotNone(sql_param)
     sql = sql_param['value']
 
+    # first party users without scores
+    self.assertRegex(
+        sql,
+        r'[\s\S]+'.join([
+            re.escape('users_without_score AS ('),
+            re.escape('FROM first_party')
+        ]),
+        'Check for correct users without scores block failed.')
+
     # consolidated output block check
     self.assertRegex(
         sql,
         r'[\s\S]+'.join([
             re.escape('p.* EXCEPT(unique_id)'),
             re.escape('p.unique_id AS client_id'),
-            re.escape('"Predicted_Value" AS type'),
-            re.escape('INNER JOIN first_party')
+            re.escape('"Predicted_Value" AS type')
         ]),
         'Check for correct consolidated output block failed.')
 
