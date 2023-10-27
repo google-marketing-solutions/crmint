@@ -82,6 +82,12 @@ CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.output` AS (
     WHERE unique_id NOT IN (
       SELECT unique_id FROM users_with_score)
   )
+  {% elif first_party.in_source %}
+  users_without_score AS (
+    SELECT DISTINCT
+      unique_id
+    FROM first_party
+  )
   {% endif %}
   SELECT
     p.* EXCEPT(unique_id{% if google_analytics.in_source %}, user_pseudo_id, user_id{% endif %}),
@@ -92,13 +98,8 @@ CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.output` AS (
     "prop_score" AS event_name,
     "Predicted_Value" AS type
   FROM prepared_predictions p
-  {% if google_analytics.in_source %}
   INNER JOIN users_without_score wos
   ON p.unique_id = wos.unique_id
-  {% elif first_party.in_source %}
-  INNER JOIN first_party fp
-  ON p.unique_id = fp.unique_id
-  {% endif %}
   {% elif output.destination.is_google_ads_offline_conversion %}
   gclids AS (
     {% if google_analytics.in_source %}
