@@ -97,10 +97,12 @@ class VariableRole(shared.StrEnum):
 
 
 class VariableSet():
-  """
-  Represents a set of variables for a model that are specific to the
-  source provided. Grouping this way allows for more readability and
-  easier to understand templates.
+  """A set of model variables attributed to a specific source.
+
+  The resulting model variables attached to this set are specific
+  to the source provided. Grouping by source ensures a high degree
+  of readability and makes it easier to parse the complex logic
+  within the templates.
   """
   _variables: list[models.MlModelVariable]
   _source: Source
