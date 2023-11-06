@@ -97,7 +97,12 @@ class VariableRole(shared.StrEnum):
 
 
 class VariableSet():
-  _items: list[models.MlModelVariable]
+  """
+  Represents a set of variables for a model that are specific to the
+  source provided. Grouping this way allows for more readability and
+  easier to understand templates.
+  """
+  _variables: list[models.MlModelVariable]
   _source: Source
   _input: models.MlModelInput
   _unique_id: UniqueId
@@ -105,10 +110,10 @@ class VariableSet():
   def __init__(self,
                source: Source,
                ml_model: models.MlModel) -> None:
-    self._items = []
+    self._variables = []
     for variable in ml_model.variables:
       if Source(variable.source) == source:
-        self._items.append(variable)
+        self._variables.append(variable)
 
     self._source = source
     self._input = ml_model.input
@@ -130,30 +135,30 @@ class VariableSet():
 
   @property
   def unique_id(self):
-    unique_id = self._single(self._unique_id)
+    unique_id = self._getOne(self._unique_id)
     default = 'user_id' if self._unique_id == UniqueId.USER_ID else 'user_pseudo_id'
     return unique_id if unique_id else {'name': default}
 
   @property
   def features(self):
-    return self._list(VariableRole.FEATURE)
+    return self._getMany(VariableRole.FEATURE)
 
   @property
   def label(self):
-    return self._single(VariableRole.LABEL)
+    return self._getOne(VariableRole.LABEL)
 
   @property
   def first_value(self):
-    return self._single(VariableRole.FIRST_VALUE)
+    return self._getOne(VariableRole.FIRST_VALUE)
 
   @property
   def trigger_event(self):
-    return self._single(VariableRole.TRIGGER_EVENT)
+    return self._getOne(VariableRole.TRIGGER_EVENT)
 
   @property
   def trigger_date(self):
     if self._source == Source.FIRST_PARTY:
-      return self._single(VariableRole.TRIGGER_DATE)
+      return self._getOne(VariableRole.TRIGGER_DATE)
     elif self._source == Source.GOOGLE_ANALYTICS:
       if self.trigger_event:
         return self.trigger_event
@@ -164,17 +169,17 @@ class VariableSet():
 
   @property
   def gclid(self):
-    return self._single(VariableRole.GCLID)
+    return self._getOne(VariableRole.GCLID)
 
-  def _single(self, role: VariableRole) -> models.MlModelVariable:
-    filtered = self._list(role)
+  def _getOne(self, role: VariableRole) -> models.MlModelVariable:
+    filtered = self._getMany(role)
     return filtered.pop() if len(filtered) > 0 else None
 
-  def _list(self, role: VariableRole) -> list[models.MlModelVariable]:
+  def _getMany(self, role: VariableRole) -> list[models.MlModelVariable]:
     filtered = []
-    for item in self._items:
-      if item.role == role:
-        filtered.append(item)
+    for variable in self._variables:
+      if variable.role == role:
+        filtered.append(variable)
     return filtered
 
 
