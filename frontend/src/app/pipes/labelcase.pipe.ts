@@ -20,6 +20,7 @@ import { Pipe, PipeTransform } from '@angular/core';
 export class LabelcasePipe implements PipeTransform {
   specialCaseMap: object = {
     api: 'API',
+    gclid: 'GCLID',
     id: 'ID',
     mp: 'MP',
     bigquery: 'BigQuery'

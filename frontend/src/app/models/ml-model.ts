@@ -100,7 +100,8 @@ export enum Role {
   FIRST_VALUE = 'FIRST_VALUE',
   TRIGGER_DATE = 'TRIGGER_DATE',
   USER_ID = 'USER_ID',
-  CLIENT_ID = 'CLIENT_ID'
+  CLIENT_ID = 'CLIENT_ID',
+  GCLID = 'GCLID'
 }
 
 type Parameter = {

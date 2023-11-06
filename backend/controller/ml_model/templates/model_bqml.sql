@@ -18,12 +18,35 @@ OPTIONS (
 CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.predictions` AS (
 SELECT
   unique_id,
+  {% if google_analytics.in_source %}
   user_pseudo_id,
   user_id,
+  {% endif %}
   {% if type.is_classification %}
   plp.prob AS probability,
   {% endif %}
   predicted_label
+FROM ML.PREDICT(MODEL `{{project_id}}.{{model_dataset}}.predictive_model`, (
+{% elif step.is_calculating_conversion_values %}
+CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.conversion_values` AS (
+SELECT
+  normalized_probability,
+  (SUM(label) / COUNT(1)) * {{output.parameters.average_conversion_value}} AS value,
+  IF(
+    normalized_probability = 1,
+    0.0,
+    (LAG(MAX(probability)) OVER (ORDER BY normalized_probability ASC) + MIN(probability)) / 2.0
+  ) AS probability_range_start,
+  IF(
+    normalized_probability = {{conversion_rate_segments}},
+    1.0,
+    (LEAD(MIN(probability)) OVER (ORDER BY normalized_probability ASC) + MAX(probability)) / 2.0
+  ) AS probability_range_end
+FROM (
+SELECT
+  p.label,
+  plp.prob AS probability,
+  NTILE({{conversion_rate_segments}}) OVER (ORDER BY plp.prob ASC) AS normalized_probability
 FROM ML.PREDICT(MODEL `{{project_id}}.{{model_dataset}}.predictive_model`, (
 {% endif %}
 WITH
@@ -40,9 +63,9 @@ first_party_variables AS (
     {{first_party.first_value.name}} AS first_value,
     {% endif %}
     {% if first_party.trigger_date %}
-    CAST({{first_party.trigger_date.name}} AS DATE FORMAT "YYYYMMDD") AS trigger_date,
+    {{first_party.trigger_date.name}} AS trigger_date,
     {% endif %}
-    {{first_party.unique_id}} AS unique_id
+    {{first_party.unique_id.name}} AS unique_id
   FROM `{{project_id}}.{{first_party.dataset}}.{{first_party.table}}`
 ),
 {% endif %}
@@ -55,7 +78,7 @@ events AS (
     event_params AS params,
     user_id,
     user_pseudo_id,
-    {{google_analytics.unique_id}} AS unique_id,
+    {{google_analytics.unique_id.name}} AS unique_id,
     geo.country AS country,
     geo.region AS region,
     device.language AS language,
@@ -71,12 +94,15 @@ events AS (
       FORMAT_DATE("%Y%m%d", DATE_SUB(CURRENT_DATE(), INTERVAL {{timespan.end}} DAY))
     {% if step.is_training and type.is_classification %}
     -- get 90% of the events in this time-range (the other 10% is used to calculate conversion values)
-    AND MOD(ABS(FARM_FINGERPRINT({{google_analytics.unique_id}})), 100) < 90
+    AND MOD(ABS(FARM_FINGERPRINT({{google_analytics.unique_id.name}})), 100) < 90
+    {% elif step.is_calculating_conversion_values %}
+    -- select the remaining 10% of the data not used in the training dataset
+    AND MOD(ABS(FARM_FINGERPRINT({{google_analytics.unique_id.name}})), 100) >= 90
     {% endif %}
     AND LOWER(platform) = "web"
     -- limit events to ids within first party dataset (avoids processing data that gets filtered later anyways)
     {% if first_party.in_source %}
-    AND {{google_analytics.unique_id}} IN (
+    AND {{google_analytics.unique_id.name}} IN (
       SELECT unique_id FROM first_party_variables
     )
     {% endif %}
@@ -114,18 +140,18 @@ first_engagement AS (
 {% if google_analytics.label or google_analytics.trigger_event or google_analytics.first_value %}
 analytics_variables AS (
   SELECT
-    fe.unique_id,
+    {% if type.is_classification and google_analytics.trigger_event %}
+    t.date AS trigger_date,
+    {% elif type.is_regression and not first_party.first_value %}
+    IFNULL(t.value, 0) AS first_value,
+    t.date AS trigger_date,
+    {% elif not first_party.trigger_date %}
+    l.date AS trigger_date,
+    {% endif %}
     {% if google_analytics.label %}
     IFNULL(l.label, 0) AS label,
     {% endif %}
-    {% if type.is_classification and google_analytics.trigger_event %}
-    t.date AS trigger_date
-    {% elif type.is_regression and not first_party.first_value %}
-    IFNULL(t.value, 0) AS first_value,
-    t.date AS trigger_date
-    {% else %}
-    l.date AS trigger_date
-    {% endif %}
+    fe.unique_id
   FROM first_engagement fe
   {% if google_analytics.label %}
   LEFT OUTER JOIN (
@@ -207,7 +233,7 @@ aggregate_behavior AS (
 ),
 unified_dataset AS (
   SELECT
-    fe.*,
+    fe.*{% if step.is_training %} EXCEPT(user_id, user_pseudo_id){% endif %},
     ab.* EXCEPT(unique_id),
     uv.* EXCEPT(unique_id, trigger_date)
   FROM first_engagement AS fe
@@ -218,14 +244,24 @@ unified_dataset AS (
 )
 {% elif first_party.in_source %}
 unified_dataset AS (
-  SELECT *
+  SELECT * EXCEPT(trigger_date)
   FROM first_party_variables
+  WHERE trigger_date BETWEEN
+    DATETIME(DATE_SUB(CURRENT_DATE(), INTERVAL {{timespan.start}} DAY)) AND
+    DATETIME_SUB(DATETIME(DATE_SUB(CURRENT_DATE(), INTERVAL {{timespan.end}} DAY)), INTERVAL 1 SECOND)
+  {% if step.is_training and type.is_classification %}
+  -- get 90% of the events in this time-range (the other 10% is used to calculate conversion values)
+  AND MOD(ABS(FARM_FINGERPRINT(unique_id)), 100) < 90
+  {% elif step.is_calculating_conversion_values %}
+  -- select the remaining 10% of the data not used in the training dataset
+  AND MOD(ABS(FARM_FINGERPRINT(unique_id)), 100) >= 90
+  {% endif %}
 )
 {% endif %}
 {% if type.is_regression and (google_analytics.label and not first_party.first_value) or first_party.first_value or google_analytics.first_value %}
 SELECT
   {% if step.is_training %}
-  * EXCEPT(user_id, user_pseudo_id, unique_id, label),
+  * EXCEPT(unique_id, label),
   {% elif step.is_predicting %}
   * EXCEPT(label),
   -- total value here is used to give something to compare the prediction
@@ -234,7 +270,7 @@ SELECT
   {% endif %}
   (label - first_value) AS label
 {% elif step.is_training %}
-SELECT * EXCEPT(user_id, user_pseudo_id, unique_id)
+SELECT * EXCEPT(unique_id)
 {% else %}
 SELECT *
 {% endif %}
@@ -242,14 +278,18 @@ FROM unified_dataset
 {% if step.is_training and class_imbalance > 1 %}
 WHERE label > 0
 UNION ALL
-SELECT * EXCEPT(user_id, user_pseudo_id, unique_id)
+SELECT * EXCEPT(unique_id)
 FROM unified_dataset
 WHERE label = 0
 AND MOD(ABS(FARM_FINGERPRINT(unique_id)), 100) <= ((1 / {{class_imbalance}}) * 100)
-{% elif step.is_predicting %}
-)){% if type.is_classification %},
+{% elif step.is_predicting or step.is_calculating_conversion_values %}
+)) AS p{% if type.is_classification %},
 UNNEST(predicted_label_probs) AS plp
 WHERE plp.label = 1
+{% endif %}
+{% if step.is_calculating_conversion_values %}
+)
+GROUP BY 1
 {% endif %}
 )
 {% endif %}

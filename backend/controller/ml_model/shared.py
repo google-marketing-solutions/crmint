@@ -22,6 +22,7 @@ from controller import shared
 class Source(shared.StrEnum):
   FIRST_PARTY = 'FIRST_PARTY'
   GOOGLE_ANALYTICS = 'GOOGLE_ANALYTICS'
+  GOOGLE_ANALYTICS_AND_FIRST_PARTY = 'GOOGLE_ANALYTICS_AND_FIRST_PARTY'
 
 
 @dataclasses.dataclass
@@ -36,15 +37,21 @@ class Timespan:
 
   _training: int
   _predictive: int
+  _consider_datetime: bool
 
-  def __init__(self, timespans: list[dict[str, Any]]) -> None:
+  def __init__(self, timespans: list[dict[str, Any]], consider_datetime: bool = False) -> None:
+    self._consider_datetime = consider_datetime
     for timespan in timespans:
       setattr(self, '_' + timespan['name'], int(timespan['value']))
 
   @property
   def training(self) -> TimespanRange:
-    return TimespanRange(self.predictive.start + self._training + 1, self.predictive.start + 1)
+    start = self.predictive.start + self._training + 1
+    end = self.predictive.start + (0 if self._consider_datetime else 1)
+    return TimespanRange(start, end)
 
   @property
   def predictive(self) -> TimespanRange:
-    return TimespanRange(self._predictive + 1, 1)
+    start = self._predictive + 1
+    end = 0 if self._consider_datetime else 1
+    return TimespanRange(start, end)

@@ -17,7 +17,7 @@
 import dataclasses
 from google.cloud import bigquery
 from google.cloud.exceptions import NotFound
-from controller import shared
+from controller.ml_model.shared import Source
 
 
 @dataclasses.dataclass
@@ -37,11 +37,6 @@ class Variable:
   source: str
   count: int
   parameters: list[Parameter]
-
-
-class Source(shared.StrEnum):
-  GOOGLE_ANALYTICS = 'GOOGLE_ANALYTICS'
-  FIRST_PARTY = 'FIRST_PARTY'
 
 
 class CustomClient(bigquery.Client):

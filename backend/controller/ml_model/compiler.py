@@ -32,7 +32,6 @@ class TemplateFile(shared.StrEnum):
   TRAINING_PIPELINE = 'training_pipeline.json'
   PREDICTIVE_PIPELINE = 'predictive_pipeline.json'
   MODEL_BQML = 'model_bqml.sql'
-  CONVERSION_VALUES_BQML = 'conversion_values_bqml.sql'
   GOOGLE_ANALYTICS_MP_EVENT = 'google_analytics_mp_event.json'
   GOOGLE_ADS_OFFLINE_CONVERSION = 'google_ads_offline_conversion.json'
   OUTPUT = 'output.sql'
@@ -41,6 +40,7 @@ class TemplateFile(shared.StrEnum):
 class Step(enum.Enum):
   NONE = enum.auto()
   TRAINING = enum.auto()
+  CALCULATING_CONVERSION_VALUES = enum.auto()
   PREDICTING = enum.auto()
   OUTPUTING = enum.auto()
   UPLOADING = enum.auto()
@@ -59,6 +59,11 @@ class ModelTypes:
       'RANDOM_FOREST_CLASSIFIER',
       'LOGISTIC_REG'
   ]
+
+
+class Destination(shared.StrEnum):
+  GOOGLE_ANALYTICS_MP_EVENT = 'GOOGLE_ANALYTICS_MP_EVENT',
+  GOOGLE_ADS_OFFLINE_CONVERSION = 'GOOGLE_ADS_OFFLINE_CONVERSION'
 
 
 class ParamType(shared.StrEnum):
@@ -81,63 +86,82 @@ class UniqueId(shared.StrEnum):
 
 
 class VariableRole(shared.StrEnum):
-  FEATURE = 'FEATURE',
-  LABEL = 'LABEL',
-  TRIGGER_EVENT = 'TRIGGER_EVENT',
-  FIRST_VALUE = 'FIRST_VALUE',
-  TRIGGER_DATE = 'TRIGGER_DATE',
-  USER_ID = 'USER_ID',
+  FEATURE = 'FEATURE'
+  LABEL = 'LABEL'
+  TRIGGER_EVENT = 'TRIGGER_EVENT'
+  FIRST_VALUE = 'FIRST_VALUE'
+  TRIGGER_DATE = 'TRIGGER_DATE'
+  USER_ID = 'USER_ID'
   CLIENT_ID = 'CLIENT_ID'
+  GCLID = 'GCLID'
 
 
 class VariableSet():
-  source: Source
-  input: models.MlModelInput
-  features: list[models.MlModelVariable]
-  label: models.MlModelVariable
-  trigger_event: models.MlModelVariable
-  first_value: models.MlModelVariable
-  _trigger_date: models.MlModelVariable
-  _unique_id: str
-  user_id: models.MlModelVariable
-  client_id: models.MlModelVariable
+  """A set of model variables attributed to a specific source.
 
-  def __init__(self, source: Source, input: models.MlModelInput, unique_id: UniqueId) -> None:
-    self.source = source
-    self.input = input
-    self.features = []
-    self.label = None
-    self.trigger_event = None
-    self.first_value = None
-    self._trigger_date = None
-    self._unique_id = unique_id.lower()
-    self.user_id = 'user_id'
-    self.client_id = 'user_pseudo_id'
+  The resulting model variables attached to this set are specific
+  to the source provided. Grouping by source ensures a high degree
+  of readability and makes it easier to parse the complex logic
+  within the templates.
+  """
+  _variables: list[models.MlModelVariable]
+  _source: Source
+  _input: models.MlModelInput
+  _unique_id: UniqueId
+
+  def __init__(self,
+               source: Source,
+               ml_model: models.MlModel) -> None:
+    self._variables = []
+    for variable in ml_model.variables:
+      if Source(variable.source) == source:
+        self._variables.append(variable)
+
+    self._source = source
+    self._input = ml_model.input
+    self._unique_id = ml_model.unique_id
 
   @property
   def in_source(self) -> bool:
-    return self.source in self.input.source
+    return self._source in self._input.source
 
   @property
   def dataset(self):
-    if self.input.parameters:
-      return self.input.parameters.first_party_dataset
+    if self._input.parameters:
+      return self._input.parameters.first_party_dataset
 
   @property
   def table(self):
-    if self.input.parameters:
-      return self.input.parameters.first_party_table
+    if self._input.parameters:
+      return self._input.parameters.first_party_table
 
   @property
   def unique_id(self):
-    unique_id = self.__getattribute__(self._unique_id)
-    return unique_id.name if isinstance(unique_id, models.MlModelVariable) else unique_id
+    unique_id = self._get_one(self._unique_id)
+    default = 'user_id' if self._unique_id == UniqueId.USER_ID else 'user_pseudo_id'
+    return unique_id if unique_id else {'name': default}
+
+  @property
+  def features(self):
+    return self._get_many(VariableRole.FEATURE)
+
+  @property
+  def label(self):
+    return self._get_one(VariableRole.LABEL)
+
+  @property
+  def first_value(self):
+    return self._get_one(VariableRole.FIRST_VALUE)
+
+  @property
+  def trigger_event(self):
+    return self._get_one(VariableRole.TRIGGER_EVENT)
 
   @property
   def trigger_date(self):
-    if self.source == Source.FIRST_PARTY:
-      return self._trigger_date
-    elif self.source == Source.GOOGLE_ANALYTICS:
+    if self._source == Source.FIRST_PARTY:
+      return self._get_one(VariableRole.TRIGGER_DATE)
+    elif self._source == Source.GOOGLE_ANALYTICS:
       if self.trigger_event:
         return self.trigger_event
       elif self.first_value:
@@ -145,13 +169,20 @@ class VariableSet():
       else:
         return self.label
 
-  def add(self, variable: models.MlModelVariable) -> None:
-    if variable.role == VariableRole.FEATURE:
-      self.features.append(variable)
-    elif variable.role == VariableRole.TRIGGER_DATE:
-      self._trigger_date = variable
-    else:
-      self.__setattr__(str(variable.role).lower(), variable)
+  @property
+  def gclid(self):
+    return self._get_one(VariableRole.GCLID)
+
+  def _get_one(self, role: VariableRole) -> models.MlModelVariable:
+    filtered = self._get_many(role)
+    return filtered.pop() if len(filtered) > 0 else None
+
+  def _get_many(self, role: VariableRole) -> list[models.MlModelVariable]:
+    filtered = []
+    for variable in self._variables:
+      if variable.role == role:
+        filtered.append(variable)
+    return filtered
 
 
 class Compiler():
@@ -166,11 +197,6 @@ class Compiler():
   ga4_measurement_id: str
   ga4_api_secret: str
   ml_model: models.MlModel
-
-  OUTPUT_DESTINATIONS: list[str] = [
-      'GOOGLE_ANALYTICS_MP_EVENT',
-      'GOOGLE_ADS_OFFLINE_CONVERSION'
-  ]
 
   def __init__(self,
                project_id: str,
@@ -213,7 +239,8 @@ class Compiler():
     variables = {
         'step': {
           'is_training': step == Step.TRAINING,
-          'is_predicting': step == Step.PREDICTING
+          'is_predicting': step == Step.PREDICTING,
+          'is_calculating_conversion_values': step == Step.CALCULATING_CONVERSION_VALUES
         },
         'name': self.ml_model.name,
         'project_id': self.project_id,
@@ -223,37 +250,34 @@ class Compiler():
         'ga4_api_secret': self.ga4_api_secret,
         'dataset_location': self.ml_model.bigquery_dataset.location,
         'type': {
-            'name': self.ml_model.type,
-            'is_regression': self.ml_model.type in ModelTypes.REGRESSION,
-            'is_classification': self.ml_model.type in ModelTypes.CLASSIFICATION,
+          'name': self.ml_model.type,
+          'is_regression': self.ml_model.type in ModelTypes.REGRESSION,
+          'is_classification': self.ml_model.type in ModelTypes.CLASSIFICATION,
         },
         'hyper_parameters': self.ml_model.hyper_parameters,
-        'timespan': self._get_timespan(self.ml_model.timespans, step),
-        'unique_id_type': self.ml_model.unique_id,
-        'first_party': VariableSet(Source.FIRST_PARTY, self.ml_model.input, self.ml_model.unique_id),
-        'google_analytics': VariableSet(Source.GOOGLE_ANALYTICS, self.ml_model.input, self.ml_model.unique_id),
+        'timespan': self._get_timespan(step),
+        'unique_id': {
+          'is_client_id': self.ml_model.unique_id == UniqueId.CLIENT_ID,
+          'is_user_id': self.ml_model.unique_id == UniqueId.USER_ID
+        },
+        'first_party': VariableSet(Source.FIRST_PARTY, self.ml_model),
+        'google_analytics': VariableSet(Source.GOOGLE_ANALYTICS, self.ml_model),
         'conversion_rate_segments': self.ml_model.conversion_rate_segments,
         'class_imbalance': self.ml_model.class_imbalance,
         'output': {
-            'destination': {},
-            'parameters': self.ml_model.output.parameters
+          'destination': {
+            'is_google_analytics_mp_event': self.ml_model.output.destination == Destination.GOOGLE_ANALYTICS_MP_EVENT,
+            'is_google_ads_offline_conversion': self.ml_model.output.destination == Destination.GOOGLE_ADS_OFFLINE_CONVERSION
+          },
+          'parameters': self.ml_model.output.parameters
         }
     }
-
-    for destination in self.OUTPUT_DESTINATIONS:
-      match: bool = self.ml_model.output.destination == destination
-      variables['output']['destination']['is_' + destination.lower()] = match
-
-    for variable in self.ml_model.variables:
-      source: str = str(variable.source).lower()
-      variables[source].add(variable)
 
     constants = {
         'Step': Step,
         'Worker': Worker,
         'ParamType': ParamType,
-        'TemplateFile': TemplateFile,
-        'UniqueId': UniqueId
+        'TemplateFile': TemplateFile
     }
 
     for key, value in constants.items():
@@ -285,10 +309,13 @@ class Compiler():
       return jinja2.Template(
           file.read(), **options, undefined=jinja2.StrictUndefined)
 
-  def _get_timespan(self, timespans: list[models.MlModelTimespan], step: Step) -> TimespanRange:
+  def _get_timespan(self, step: Step) -> TimespanRange:
     """Returns model timespan including both training and predictive start and end."""
-    timespan: Timespan = Timespan([t.__dict__ for t in timespans])
-    return timespan.training if step == Step.TRAINING else timespan.predictive
+    # first party only timespan end is unique in that it goes all the way to 23:59:59
+    # and because of this it needs to be one day ahead and subtract 1 second in SQL.
+    consider_datetime: bool = Source(self.ml_model.input.source) == Source.FIRST_PARTY
+    timespan: Timespan = Timespan([t.__dict__ for t in self.ml_model.timespans], consider_datetime)
+    return timespan.training if step in [Step.TRAINING, Step.CALCULATING_CONVERSION_VALUES] else timespan.predictive
 
   def _json_encode(self, text: str) -> str:
     """JSON encode text provided without including double-quote wrapper."""

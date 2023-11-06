@@ -1,6 +1,8 @@
 {
+  {% if unique_id.is_client_id or google_analytics.in_source %}
   "clientId": "${client_id}",
-  {% if unique_id_type == UniqueId.USER_ID %}
+  {% endif %}
+  {% if unique_id.is_user_id %}
   "userId": "${user_id}",
   {% endif %}
   "nonPersonalizedAds": false,
