@@ -137,30 +137,30 @@ class VariableSet():
 
   @property
   def unique_id(self):
-    unique_id = self._getOne(self._unique_id)
+    unique_id = self._get_one(self._unique_id)
     default = 'user_id' if self._unique_id == UniqueId.USER_ID else 'user_pseudo_id'
     return unique_id if unique_id else {'name': default}
 
   @property
   def features(self):
-    return self._getMany(VariableRole.FEATURE)
+    return self._get_many(VariableRole.FEATURE)
 
   @property
   def label(self):
-    return self._getOne(VariableRole.LABEL)
+    return self._get_one(VariableRole.LABEL)
 
   @property
   def first_value(self):
-    return self._getOne(VariableRole.FIRST_VALUE)
+    return self._get_one(VariableRole.FIRST_VALUE)
 
   @property
   def trigger_event(self):
-    return self._getOne(VariableRole.TRIGGER_EVENT)
+    return self._get_one(VariableRole.TRIGGER_EVENT)
 
   @property
   def trigger_date(self):
     if self._source == Source.FIRST_PARTY:
-      return self._getOne(VariableRole.TRIGGER_DATE)
+      return self._get_one(VariableRole.TRIGGER_DATE)
     elif self._source == Source.GOOGLE_ANALYTICS:
       if self.trigger_event:
         return self.trigger_event
@@ -171,13 +171,13 @@ class VariableSet():
 
   @property
   def gclid(self):
-    return self._getOne(VariableRole.GCLID)
+    return self._get_one(VariableRole.GCLID)
 
-  def _getOne(self, role: VariableRole) -> models.MlModelVariable:
-    filtered = self._getMany(role)
+  def _get_one(self, role: VariableRole) -> models.MlModelVariable:
+    filtered = self._get_many(role)
     return filtered.pop() if len(filtered) > 0 else None
 
-  def _getMany(self, role: VariableRole) -> list[models.MlModelVariable]:
+  def _get_many(self, role: VariableRole) -> list[models.MlModelVariable]:
     filtered = []
     for variable in self._variables:
       if variable.role == role:
