@@ -58,6 +58,9 @@ class TestMlModelViews(controller_utils.ControllerAppTest):
         'input': {
             'source': 'GOOGLE_ANALYTICS',
             'parameters': {
+              'google_analytics_project': 'GA4_PROJECT',
+              'google_analytics_dataset': 'GA4_DATASET',
+              'first_party_project': 'FP_PROJECT',
               'first_party_dataset': 'FP_DATASET',
               'first_party_table': 'FP_DATA_TABLE'
             }
@@ -247,15 +250,14 @@ class TestMlModelViews(controller_utils.ControllerAppTest):
   def test_retrieve_variables_with_required_fields_google_analytics(
     self, client_mock: mock.Mock):
     request = {
-        'input': '{\"source\":\"GOOGLE_ANALYTICS\",\"parameters\":{}}',
+        'input': '{\"source\":\"GOOGLE_ANALYTICS\",\"parameters\":'
+                 '{\"googleAnalyticsProject\":\"google_analytics_4_bigquery_project\",'
+                 '\"googleAnalyticsDataset\":\"google_analytics_4_bigquery_dataset\"}}',
         'dataset': '{\"name\":\"test-dataset\",\"location\":\"US\"}',
         'timespans': '[{\"name\":\"training\",\"value\":90},'
                      '{\"name\":\"predictive\",\"value\":30},'
                      '{\"name\":\"exclusion\",\"value\":0}]',
     }
-    models.GeneralSetting.where(
-        name='google_analytics_4_bigquery_dataset'
-    ).first().update(value='test-ga4-dataset')
 
     # Required due to uncertainty around how to do actual integration
     # test with big query locally.
@@ -275,16 +277,16 @@ class TestMlModelViews(controller_utils.ControllerAppTest):
     self, client_mock: mock.Mock):
     request = {
         'input': '{\"source\":\"GOOGLE_ANALYTICS_AND_FIRST_PARTY\",\"parameters\":'
-                 '{\"firstPartyDataset\":\"1p_dataset\",'
+                 '{\"googleAnalyticsProject\":\"google_analytics_4_bigquery_project\",'
+                 '\"googleAnalyticsDataset\":\"google_analytics_4_bigquery_dataset\",'
+                 '\"firstPartyProject\":\"1p_project\",'
+                 '\"firstPartyDataset\":\"1p_dataset\",'
                  '\"firstPartyTable\":\"1p_table\"}}',
         'dataset': '{\"name\":\"test-dataset\",\"location\":\"US\"}',
         'timespans': '[{\"name\":\"training\",\"value\":90},'
                      '{\"name\":\"predictive\",\"value\":30},'
                      '{\"name\":\"exclusion\",\"value\":0}]',
     }
-    models.GeneralSetting.where(
-        name='google_analytics_4_bigquery_dataset'
-    ).first().update(value='test-ga4-dataset')
 
     # Required due to uncertainty around how to do actual integration
     # test with big query locally.
@@ -311,15 +313,14 @@ class TestMlModelViews(controller_utils.ControllerAppTest):
   def test_retrieve_variables_with_dataset_events_not_found(
       self, client_mock: mock.Mock):
     request = {
-        'input': '{\"source\": \"GOOGLE_ANALYTICS\", \"parameters\": {}}',
+        'input': '{\"source\": \"GOOGLE_ANALYTICS\", \"parameters\":'
+                 '{\"googleAnalyticsProject\":\"google_analytics_4_bigquery_project\",'
+                 '\"googleAnalyticsDataset\":\"google_analytics_4_bigquery_dataset\"}}',
         'dataset': '{\"name\": \"test-dataset\", \"location\": \"US\"}',
         'timespans': '[{\"name\": \"training\", \"value\": 90},'
                      '{\"name\": \"predictive\", \"value\": 30},'
                      '{\"name\":\"exclusion\",\"value\":0}]',
     }
-    models.GeneralSetting.where(
-        name='google_analytics_4_bigquery_dataset'
-    ).first().update(value='test-ga4-dataset')
 
     # Required due to uncertainty around how to do actual integration
     # test with BigQuery locally.
@@ -335,6 +336,9 @@ class TestMlModelViews(controller_utils.ControllerAppTest):
         'input': {
             'source': 'GOOGLE_ANALYTICS',
             'parameters': {
+              'google_analytics_project': '',
+              'google_analytics_dataset': '',
+              'first_party_project': '',
               'first_party_dataset': '',
               'first_party_table': ''
             }

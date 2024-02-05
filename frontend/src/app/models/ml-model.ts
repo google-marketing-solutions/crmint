@@ -135,6 +135,9 @@ export type Timespan = {
 }
 
 type InputParameters = {
+  google_analytics_project: string;
+  google_analytics_dataset: string;
+  first_party_project: string;
   first_party_dataset: string;
   first_party_table: string;
 }

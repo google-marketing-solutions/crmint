@@ -68,6 +68,9 @@ export class MlModelFormComponent implements OnInit {
       input: this._fb.group({
         source: ['', [Validators.required, this.enumValidator(Source)]],
         parameters: this._fb.group({
+          googleAnalyticsProject: [null, Validators.pattern(/^[a-z][a-z0-9 _-]*$/i)],
+          googleAnalyticsDataset: [null, Validators.pattern(/^[a-z][a-z0-9 _-]*$/i)],
+          firstPartyProject: [null, Validators.pattern(/^[a-z][a-z0-9 _-]*$/i)],
           firstPartyDataset: [null, Validators.pattern(/^[a-z][a-z0-9 _-]*$/i)],
           firstPartyTable: [null, Validators.pattern(/^[a-z][a-z0-9 _-]*$/i)]
         })
@@ -152,6 +155,9 @@ export class MlModelFormComponent implements OnInit {
       input: {
         source: this.mlModel.input.source,
         parameters: {
+          googleAnalyticsProject: this.mlModel.input.parameters.google_analytics_project,
+          googleAnalyticsDataset: this.mlModel.input.parameters.google_analytics_dataset,
+          firstPartyProject: this.mlModel.input.parameters.first_party_project,
           firstPartyDataset: this.mlModel.input.parameters.first_party_dataset,
           firstPartyTable: this.mlModel.input.parameters.first_party_table
         }
@@ -212,8 +218,12 @@ export class MlModelFormComponent implements OnInit {
     let input: Input = this.mlModelForm.get('input').value;
 
     input.requirements = [];
+    if (input.source.includes(Source.GOOGLE_ANALYTICS)) {
+      input.requirements.push('googleAnalyticsProject', 'googleAnalyticsDataset');
+    }
+
     if (input.source.includes(Source.FIRST_PARTY)) {
-      input.requirements = ['firstPartyDataset', 'firstPartyTable'];
+      input.requirements.push('firstPartyProject', 'firstPartyDataset', 'firstPartyTable');
     }
 
     return input;
@@ -263,9 +273,16 @@ export class MlModelFormComponent implements OnInit {
 
     if (input.source === null) {
       return false;
-    } else if (input.source.includes(Source.FIRST_PARTY)) {
-      if (!input.parameters.firstPartyDataset || !input.parameters.firstPartyTable) {
-        return false;
+    } else {
+      if (input.source.includes(Source.FIRST_PARTY)) {
+        if (!input.parameters.firstPartyProject || !input.parameters.firstPartyDataset || !input.parameters.firstPartyTable) {
+          return false;
+        }
+      }
+      if (input.source.includes(Source.GOOGLE_ANALYTICS)) {
+        if (!input.parameters.googleAnalyticsProject || !input.parameters.googleAnalyticsDataset) {
+          return false;
+        }
       }
     }
 
@@ -543,6 +560,9 @@ export class MlModelFormComponent implements OnInit {
     this.mlModel.input = {
       source: formModel.input.source as string,
       parameters: {
+        google_analytics_project: formModel.input.parameters.googleAnalyticsProject as string,
+        google_analytics_dataset: formModel.input.parameters.googleAnalyticsDataset as string,
+        first_party_project: formModel.input.parameters.firstPartyProject as string,
         first_party_dataset: formModel.input.parameters.firstPartyDataset as string,
         first_party_table: formModel.input.parameters.firstPartyTable as string
       }

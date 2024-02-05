@@ -39,8 +39,17 @@
                         (selectionChange)="refreshInput(); resetVariables()">
               <mat-option *ngFor="let source of sources" [value]="source">{{ source | labelcase }}</mat-option>
             </mat-select>
-            <div formGroupName="parameters" *ngIf="input.requirements.length > 0" class="input-group">
+            <div formGroupName="parameters" *ngIf="input.requirements.length < 5" class="input-group">
               <mat-form-field *ngFor="let requirement of input.requirements">
+                <input matInput [placeholder]="requirement | labelcase" [formControlName]="requirement">
+              </mat-form-field>
+            </div>
+            <div formGroupName="parameters" *ngIf="input.requirements.length === 5" class="input-group">
+              <mat-form-field *ngFor="let requirement of input.requirements.slice(0, 2)">
+                <input matInput [placeholder]="requirement | labelcase" [formControlName]="requirement">
+              </mat-form-field>
+              <div class="break"></div>
+              <mat-form-field *ngFor="let requirement of input.requirements.slice(2)">
                 <input matInput [placeholder]="requirement | labelcase" [formControlName]="requirement">
               </mat-form-field>
             </div>

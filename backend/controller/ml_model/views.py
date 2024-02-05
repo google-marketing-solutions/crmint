@@ -56,6 +56,9 @@ parser.add_argument('output', type=dict, required=False)
 input_structure = fields.Nested({
     'source': fields.String,
     'parameters': fields.Nested({
+        'google_analytics_project': fields.String,
+        'google_analytics_dataset': fields.String,
+        'first_party_project': fields.String,
         'first_party_dataset': fields.String,
         'first_party_table': fields.String
     })
@@ -259,11 +262,12 @@ class MlModelVariables(Resource):
     variables = []
 
     if Source.GOOGLE_ANALYTICS in input['source']:
-      dataset = setting('google_analytics_4_bigquery_dataset')
+      project = input['parameters']['googleAnalyticsProject']
+      dataset = input['parameters']['googleAnalyticsDataset']
 
       # Timebox the variables/events to the training dataset timespan.
       analytics_variables = bigquery_client.get_analytics_variables(
-          dataset, timespan.training.start, timespan.training.end)
+          project, dataset, timespan.training.start, timespan.training.end)
       if not analytics_variables:
         abort(
             400,
@@ -275,9 +279,10 @@ class MlModelVariables(Resource):
       variables.extend(analytics_variables)
 
     if Source.FIRST_PARTY in input['source']:
+      project = input['parameters']['firstPartyProject']
       dataset = input['parameters']['firstPartyDataset']
       table = input['parameters']['firstPartyTable']
-      first_party_columns = bigquery_client.get_first_party_variables(dataset, table)
+      first_party_columns = bigquery_client.get_first_party_variables(project, dataset, table)
       if first_party_columns:
         variables.extend(first_party_columns)
 
@@ -337,7 +342,6 @@ def build_pipelines(model: models.MlModel) -> list[dict[str, Any]]:
   """
   c = ml_model.compiler.Compiler(
       project_id=project_id,
-      ga4_dataset=setting('google_analytics_4_bigquery_dataset'),
       ga4_measurement_id=setting('google_analytics_4_measurement_id'),
       ga4_api_secret=setting('google_analytics_4_api_secret'),
       ml_model=model)
