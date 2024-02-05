@@ -511,7 +511,6 @@ markupsafe==2.1.2 \
     # via
     #   jinja2
     #   mako
-    #   werkzeug
 mock==5.0.1 \
     --hash=sha256:c41cfb1e99ba5d341fbcc5308836e7d7c9786d302f995b2c271ce2144dece9eb \
     --hash=sha256:e3ea505c03babf7977fd21674a69ad328053d414f05e6433c30d8fa14a534a6b
@@ -858,9 +857,9 @@ urllib3==1.26.18 \
     # via
     #   appengine-python-standard
     #   requests
-werkzeug==2.2.2 \
-    --hash=sha256:7ea2d48322cc7c0f8b3a215ed73eabd7b5d75d0b50e31ab006286ccff9e00b8f \
-    --hash=sha256:f979ab81f58d7318e064e99c4506445d60135ac5cd2e177a2de0089bfd4c9bd5
+werkzeug==2.0.3 \
+    --hash=sha256:1421ebfc7648a39a5c58c601b154165d05cf47a3cd0ccb70857cbdacf6c8f2b8 \
+    --hash=sha256:b863f8ff057c522164b6067c9e28b041161b4be5ba4d0daceeaa50a163822d3c
     # via
     #   -r backend/common/requirements.in
     #   flask
