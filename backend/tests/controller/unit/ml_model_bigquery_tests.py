@@ -111,14 +111,14 @@ class TestClient(absltest.TestCase):
         },
     ])
 
-    variables = self.client.get_analytics_variables('test-ga4-dataset', 360, 30)
+    variables = self.client.get_analytics_variables('test-ga4-project', 'test-ga4-dataset', 360, 30)
     _, args = query_mock.call_args
 
     # query check
     self.assertRegex(
         args['query'],
         r',[\s\n]+'.join([
-            re.escape('FROM `test-project-id.test-ga4-dataset.events_*`')
+            re.escape('FROM `test-ga4-project.test-ga4-dataset.events_*`')
         ]),
         'Query check failed. Missing project or analytics dataset name.')
 
@@ -161,7 +161,7 @@ class TestClient(absltest.TestCase):
   @mock.patch('google.cloud.bigquery.Client.query')
   def test_get_analytics_variables_not_found(self, query_mock: mock.Mock):
     query_mock.side_effect = NotFound('not found.')
-    variables = self.client.get_analytics_variables('test-ga4-dataset', 90, 30)
+    variables = self.client.get_analytics_variables('test-ga4-project', 'test-ga4-dataset', 90, 30)
     self.assertEmpty(variables)
 
   @mock.patch('google.cloud.bigquery.Client.get_table')
@@ -172,9 +172,9 @@ class TestClient(absltest.TestCase):
     ])
 
     variables = self.client.get_first_party_variables(
-        'test-first-party-dataset', 'test-first-party-table')
+        'test-first-party-project', 'test-first-party-dataset', 'test-first-party-table')
 
-    get_table_mock.assert_called_with('test-first-party-dataset.test-first-party-table')
+    get_table_mock.assert_called_with('test-first-party-project.test-first-party-dataset.test-first-party-table')
 
     # check field names are returned
     self.assertEqual(variables[0].name, 'col_1')
@@ -194,7 +194,7 @@ class TestClient(absltest.TestCase):
   def test_get_first_party_variables_not_found(self, get_table_mock: mock.Mock):
     get_table_mock.side_effect = NotFound('not found.')
     variables = self.client.get_first_party_variables(
-        'test-first-party-dataset', 'test-first-party-table')
+        'test-first-party-project', 'test-first-party-dataset', 'test-first-party-table')
     self.assertEmpty(variables)
 
   def convert_to_object(self, collection: Union[dict[str, Any], list[Any]]):
