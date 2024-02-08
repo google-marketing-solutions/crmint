@@ -21,6 +21,7 @@ import os
 from typing import Any
 import uuid
 import jinja2
+import re
 
 from controller import models
 from controller import shared
@@ -65,7 +66,6 @@ class Destination(shared.StrEnum):
   GOOGLE_ANALYTICS_MP_EVENT = 'GOOGLE_ANALYTICS_MP_EVENT',
   GOOGLE_ADS_OFFLINE_CONVERSION = 'GOOGLE_ADS_OFFLINE_CONVERSION'
 
-
 class ParamType(shared.StrEnum):
   SQL = 'sql'
   TEXT = 'text'
@@ -94,6 +94,16 @@ class VariableRole(shared.StrEnum):
   USER_ID = 'USER_ID'
   CLIENT_ID = 'CLIENT_ID'
   GCLID = 'GCLID'
+
+
+class VariableComparison(shared.StrEnum):
+  REGEX = 'REGEX'
+  EQUAL = 'EQUAL'
+  NOT_EQUAL = 'NOT_EQUAL'
+  GREATER = 'GREATER'
+  GREATER_OR_EQUAL = 'GREATER_OR_EQUAL'
+  LESS = 'LESS'
+  LESS_OR_EQUAL = 'LESS_OR_EQUAL'
 
 
 class VariableSet():
@@ -154,7 +164,15 @@ class VariableSet():
 
   @property
   def features(self):
-    return self._get_many(VariableRole.FEATURE)
+    features = self._get_many(VariableRole.FEATURE)
+    for feature in features:
+      if feature.comparison:
+        feature.should_compare = {
+          comparison.lower(): feature.comparison == comparison
+          for comparison in VariableComparison._member_names_
+        }
+        feature.description = f"{feature.name}_{feature.key}_{feature.comparison.lower()}_{self._strip_special_chars(feature.value).lower()}"
+    return features
 
   @property
   def label(self):
@@ -194,6 +212,10 @@ class VariableSet():
       if variable.role == role:
         filtered.append(variable)
     return filtered
+
+  def _strip_special_chars(self, value: str) -> str:
+    """Strips special characters from a string."""
+    return re.sub(r'\\[a-zA-Z]+|[^\w]', '', value)
 
 
 class Compiler():

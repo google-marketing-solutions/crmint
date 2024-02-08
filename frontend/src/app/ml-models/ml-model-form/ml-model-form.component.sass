@@ -120,18 +120,24 @@
     color: rgba(0, 0, 0, 0.6)
     font-weight: 500
     font-size: 12px
-  table tr td.role, table tr td.key
+    width: 300px
+  table tr td.role
     text-align: left
     .mat-select
-      margin-left: 40px
-      width: calc(100% - 60px)
-  table tr td.key
+      margin-left: 20px
+      width: calc(100% - 40px)
+  table tr td.key, table tr td.comparison
+    text-align: left
     .mat-select
       margin-left: 0px
       width: calc(100% - 20px)
+  table tr td.value
+    .mat-form-field
+      text-align: center
   table tr td.count
     text-align: right
     font-size: 12px
+    width: 300px
     .mat-icon
       font-size: 14px
       font-weight: 700

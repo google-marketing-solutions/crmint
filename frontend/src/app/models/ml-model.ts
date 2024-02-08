@@ -104,6 +104,16 @@ export enum Role {
   GCLID = 'GCLID'
 }
 
+export enum Comparison {
+  'REGEX' = 'REGEX',
+  '=' = 'EQUAL',
+  '!=' = 'NOT_EQUAL',
+  '>' = 'GREATER',
+  '>=' = 'GREATER_OR_EQUAL',
+  '<' = 'LESS',
+  '<=' = 'LESS_OR_EQUAL'
+}
+
 type Parameter = {
   key: string;
   value_type: string;
@@ -117,6 +127,9 @@ export type Variable = {
   role?: Role;
   parameters?: Parameter[];
   key?: string;
+  comparisons?: { value: Comparison; label: string }[];
+  comparison?: Comparison;
+  value?: string;
   value_type?: string;
   hint?: string;
   key_required?: boolean;
@@ -358,6 +371,8 @@ export class MlModel {
           source: variable.source,
           role: variable.role,
           key: variable.key,
+          comparison: variable.comparison,
+          value: variable.value,
           value_type: variable.value_type
         }
       }),

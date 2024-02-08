@@ -64,14 +64,6 @@ class CustomClient(bigquery.Client):
 
     variables: list[Variable] = []
 
-    event_exclude_list = """
-      "user_engagement",
-      "scroll",
-      "session_start",
-      "first_visit",
-      "page_view"
-    """
-
     key_exclude_list = """
       "debug_mode",
       "engagement_time_msec"
@@ -86,7 +78,6 @@ class CustomClient(bigquery.Client):
         WHERE _TABLE_SUFFIX BETWEEN
           FORMAT_DATE("%Y%m%d", DATE_SUB(CURRENT_DATE(), INTERVAL {start} DAY)) AND
           FORMAT_DATE("%Y%m%d", DATE_SUB(CURRENT_DATE(), INTERVAL {end} DAY))
-        AND event_name NOT IN ({event_exclude_list})
       ),
       top_events AS (
         SELECT

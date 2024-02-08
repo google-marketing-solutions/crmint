@@ -161,8 +161,19 @@
                 </td>
                 <td *ngIf="value(variable, 'parameters'); let parameters" class="key">
                   <mat-select placeholder="Key" formControlName="key" (selectionChange)="refreshVariables()">
+                    <mat-option [value]="null">----</mat-option>
                     <mat-option *ngFor="let parameter of parameters" [value]="parameter.key">{{ parameter.key }}</mat-option>
                   </mat-select>
+                </td>
+                <td *ngIf="value(variable, 'key') && value(variable, 'comparisons'); let comparisons" class="comparison">
+                  <mat-select placeholder="Comparison" formControlName="comparison">
+                    <mat-option *ngFor="let comparison of comparisons" [value]="comparison.value">{{ comparison.label | labelcase }}</mat-option>
+                  </mat-select>
+                </td>
+                <td *ngIf="value(variable, 'key') && value(variable, 'comparisons')" class="value">
+                  <mat-form-field>
+                    <input matInput type="text" formControlName="value">
+                  </mat-form-field>
                 </td>
                 <td class='hint' *ngIf="error(variable)">
                   <mat-icon class="tooltip-icon"

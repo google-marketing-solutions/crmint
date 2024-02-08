@@ -42,10 +42,18 @@ $ docker compose run controller python -m flask reset-pipelines
 **(Optional) If you are adding a new model or updating an existing model**
 
 ```sh
-# Creates a new migration.
-$ docker compose run controller python -m flask db migrate
-# Applies the schema migration to the database.
-$ docker compose run controller python -m flask db upgrade
+# Start with a clean slate.
+$ docker-compose down --volumes
+$ docker-compose run controller python -m flask db upgrade
+# Create the migration file and update it's permissions.
+$ docker-compose run controller python -m flask db migrate
+$ sudo chown {username} backend/migrations/versions/{migrations_file}.py
+$ sudo chgrp primarygroup backend/migrations/versions/{migrations_file}.py
+$ sudo chmod 640 backend/migrations/versions/{migrations_file}.py
+# Apply the schema migration to the database.
+$ docker-compose run controller python -m flask db upgrade
+# Re-Apply the seeds to ensure the settings page shows up properly.
+$ docker-compose run controller python -m flask db-seeds
 ```
 
 You can now edit files locally and the Flask services will reload appropriately.
