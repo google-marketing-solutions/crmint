@@ -166,6 +166,8 @@ class VariableSet():
   def features(self):
     features = self._get_many(VariableRole.FEATURE)
     for feature in features:
+      if not hasattr(feature, 'comparison'):
+        feature.comparison = None
       if feature.comparison:
         feature.should_compare = {
           comparison.lower(): feature.comparison == comparison

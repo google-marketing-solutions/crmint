@@ -108,8 +108,17 @@ class TestCompiler(parameterized.TestCase):
           },
           {
             'role': 'FEATURE',
-            'name': 'click',
+            'name': 'scroll',
             'source': 'GOOGLE_ANALYTICS'
+          },
+          {
+            'role': 'FEATURE',
+            'name': 'click',
+            'source': 'GOOGLE_ANALYTICS',
+            'key': 'element_id',
+            'comparison': 'EQUAL',
+            'value': 'rfi_submit',
+            'value_type': 'string'
           },
           {
             'role': 'FEATURE',
@@ -179,10 +188,30 @@ class TestCompiler(parameterized.TestCase):
         re.escape('INNER JOIN analytics_variables'),
         'Google Analytics variables join check failed.')
 
-    # feature check
+    # standard feature check
     self.assertRegex(
         sql,
-        re.escape('SUM(IF(e.name = "click", 1, 0)) AS cnt_click'),
+        re.escape('SUM(IF(e.name = "scroll", 1, 0)) AS cnt_scroll'),
+        'Google Analytics feature check failed.')
+
+    # advanced (comparison) feature check
+    self.assertRegex(
+        sql,
+        r'[\s\S]+'.join([
+          re.escape('SUM(('),
+          re.escape('SELECT 1'),
+          re.escape('FROM UNNEST(e.params)'),
+          re.escape('WHERE e.name = "click"'),
+          re.escape('AND key = "element_id"'),
+          re.escape('AND COALESCE(value.string_value, CAST(value.int_value AS STRING)) = "rfi_submit"'),
+          re.escape(')) AS cnt_click_element_id_equal_rfi_submit')
+        ]),
+        'Google Analytics advanced feature check failed.')
+
+    # standard feature check
+    self.assertRegex(
+        sql,
+        re.escape('SUM(IF(e.name = "scroll", 1, 0)) AS cnt_scroll'),
         'Google Analytics feature check failed.')
 
     # first party variable check
@@ -345,6 +374,69 @@ class TestCompiler(parameterized.TestCase):
             'role': 'FEATURE',
             'name': 'subscribe',
             'source': 'GOOGLE_ANALYTICS'
+          },
+          {
+            'role': 'FEATURE',
+            'name': 'page_view',
+            'source': 'GOOGLE_ANALYTICS',
+            'key': 'page_location',
+            'comparison': 'REGEX',
+            'value': 'signup\/welcome\?[0-9]+',
+            'value_type': 'string'
+          },
+          {
+            'role': 'FEATURE',
+            'name': 'game_score',
+            'source': 'GOOGLE_ANALYTICS',
+            'key': 'value',
+            'comparison': 'GREATER',
+            'value': '100',
+            'value_type': 'int'
+          },
+          {
+            'role': 'FEATURE',
+            'name': 'game_purchase',
+            'source': 'GOOGLE_ANALYTICS',
+            'key': 'value',
+            'comparison': 'GREATER_OR_EQUAL',
+            'value': '10.50',
+            'value_type': 'float'
+          },
+          {
+            'role': 'FEATURE',
+            'name': 'game_open',
+            'source': 'GOOGLE_ANALYTICS',
+            'key': 'value',
+            'comparison': 'LESS',
+            'value': '10',
+            'value_type': 'int'
+          },
+          {
+            'role': 'FEATURE',
+            'name': 'game_losses',
+            'source': 'GOOGLE_ANALYTICS',
+            'key': 'amount',
+            'comparison': 'LESS_OR_EQUAL',
+            'value': '4',
+            'value_type': 'int'
+          },
+          {
+            'role': 'FEATURE',
+            'name': 'game_category',
+            'source': 'GOOGLE_ANALYTICS',
+            'key': 'value',
+            'comparison': 'EQUAL',
+            'value': 'RPG',
+            'value_type': 'string'
+          },
+          {
+            'role': 'FEATURE',
+            'name': 'game_title',
+            'source': 'GOOGLE_ANALYTICS',
+            'key': 'value',
+            'comparison': 'NOT_EQUAL',
+            'value': 'Through It All',
+            'value_type': 'string'
           }
         ],
         class_imbalance=4)
@@ -375,14 +467,82 @@ class TestCompiler(parameterized.TestCase):
         re.escape('FROM analytics_variables'),
         'Google Analytics variables pull check failed.')
 
-    # feature check
+    # standard feature check
     self.assertRegex(
         sql,
         r',[\s\n]+'.join([
             re.escape('SUM(IF(e.name = "click", 1, 0)) AS cnt_click'),
             re.escape('SUM(IF(e.name = "subscribe", 1, 0)) AS cnt_subscribe'),
         ]),
-        'Google Analytics feature check failed.')
+        'Google Analytics standard feature check failed.')
+
+    # advanced (comparison) feature check - regex
+    self.assertRegex(
+        sql,
+        r'[\s\S]+'.join([
+          re.escape('SUM(('),
+          re.escape('SELECT 1'),
+          re.escape('FROM UNNEST(e.params)'),
+          re.escape('WHERE e.name = "page_view"'),
+          re.escape('AND key = "page_location"'),
+          re.escape('AND REGEXP_CONTAINS(value.string_value, r"signup\/welcome\?[0-9]+")'),
+          re.escape(')) AS cnt_page_view_page_location_regex_signupwelcome09')
+        ]),
+        'Google Analytics advanced feature (REGEX) check failed.')
+
+    # advanced (comparison) feature check - greater
+    self.assertRegex(
+        sql,
+        r'[\s\S]+'.join([
+          re.escape('AND CAST(COALESCE(value.string_value, value.int_value, value.float_value, value.double_value) AS NUMERIC) > 100'),
+          re.escape(')) AS cnt_game_score_value_greater_100')
+        ]),
+        'Google Analytics advanced feature (GREATER) check failed.')
+
+    # advanced (comparison) feature check - greater or equal
+    self.assertRegex(
+        sql,
+        r'[\s\S]+'.join([
+          re.escape('AND CAST(COALESCE(value.string_value, value.int_value, value.float_value, value.double_value) AS NUMERIC) >= 10.50'),
+          re.escape(')) AS cnt_game_purchase_value_greater_or_equal_1050')
+        ]),
+        'Google Analytics advanced feature (GREATER_OR_EQUAL) check failed.')
+
+    # advanced (comparison) feature check - less
+    self.assertRegex(
+        sql,
+        r'[\s\S]+'.join([
+          re.escape('AND CAST(COALESCE(value.string_value, value.int_value, value.float_value, value.double_value) AS NUMERIC) < 10'),
+          re.escape(')) AS cnt_game_open_value_less_10')
+        ]),
+        'Google Analytics advanced feature (LESS) check failed.')
+
+    # advanced (comparison) feature check - less or equal
+    self.assertRegex(
+        sql,
+        r'[\s\S]+'.join([
+          re.escape('AND CAST(COALESCE(value.string_value, value.int_value, value.float_value, value.double_value) AS NUMERIC) <= 4'),
+          re.escape(')) AS cnt_game_losses_amount_less_or_equal_4')
+        ]),
+        'Google Analytics advanced feature (LESS_OR_EQUAL) check failed.')
+
+    # advanced (comparison) feature check - equal
+    self.assertRegex(
+        sql,
+        r'[\s\S]+'.join([
+          re.escape('AND COALESCE(value.string_value, CAST(value.int_value AS STRING)) = "RPG"'),
+          re.escape(')) AS cnt_game_category_value_equal_rpg')
+        ]),
+        'Google Analytics advanced feature (EQUAL) check failed.')
+
+    # advanced (comparison) feature check - not equal
+    self.assertRegex(
+        sql,
+        r'[\s\S]+'.join([
+          re.escape('AND COALESCE(value.string_value, CAST(value.int_value AS STRING)) = "RPG"'),
+          re.escape(')) AS cnt_game_title_value_not_equal_throughitall')
+        ]),
+        'Google Analytics advanced feature (NOT_EQUAL) check failed.')
 
   def test_build_model_sql_google_analytics_regression_model(self):
     test_model = self.model_config(
