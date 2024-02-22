@@ -251,11 +251,11 @@ class Compiler():
           'is_calculating_conversion_values': step == Step.CALCULATING_CONVERSION_VALUES
         },
         'name': self.ml_model.name,
-        'model_project': self.project_id,
-        'model_dataset': self.ml_model.bigquery_dataset.name,
         'ga4_measurement_id': self.ga4_measurement_id,
         'ga4_api_secret': self.ga4_api_secret,
-        'dataset_location': self.ml_model.bigquery_dataset.location,
+        'location': self.ml_model.bigquery_dataset.location,
+        'project': self.project_id,
+        'dataset': self.ml_model.bigquery_dataset.name,
         'type': {
           'name': self.ml_model.type,
           'is_regression': self.ml_model.type in ModelTypes.REGRESSION,

@@ -6,7 +6,7 @@ SET _LATEST_TABLE_SUFFIX = (
   WHERE REGEXP_CONTAINS(table_id, r"^(events_[0-9]{8})$")
 );
 {% endif %}
-CREATE OR REPLACE TABLE `{{model_project}}.{{model_dataset}}.output` AS (
+CREATE OR REPLACE TABLE `{{project}}.{{dataset}}.output` AS (
   WITH
   {% if google_analytics.in_source %}
   events AS (
@@ -44,8 +44,8 @@ CREATE OR REPLACE TABLE `{{model_project}}.{{model_dataset}}.output` AS (
       ROUND(MAX(cv.value), 4) AS value,
       MAX(cv.normalized_probability) AS normalized_score,
       MAX(p.probability) * 100 AS score
-    FROM `{{model_project}}.{{model_dataset}}.predictions` p
-    LEFT OUTER JOIN `{{model_project}}.{{model_dataset}}.conversion_values` cv
+    FROM `{{project}}.{{dataset}}.predictions` p
+    LEFT OUTER JOIN `{{project}}.{{dataset}}.conversion_values` cv
     ON p.probability BETWEEN cv.probability_range_start AND cv.probability_range_end
     {% if google_analytics.in_source %}
     GROUP BY 1,2,3
@@ -63,7 +63,7 @@ CREATE OR REPLACE TABLE `{{model_project}}.{{model_dataset}}.output` AS (
       {% endif %}
       IF(predicted_label > 0, ROUND(predicted_label, 4), 0) AS value,
       IF(predicted_label > 0, ROUND(predicted_label, 4), 0) AS revenue
-    FROM `{{model_project}}.{{model_dataset}}.predictions`
+    FROM `{{project}}.{{dataset}}.predictions`
   ),
   {% endif %}
   {% if output.destination.is_google_analytics_mp_event %}
