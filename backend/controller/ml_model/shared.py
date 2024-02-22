@@ -37,6 +37,7 @@ class Timespan:
 
   _training: int
   _predictive: int
+  _exclusion: int
   _consider_datetime: bool
 
   def __init__(self, timespans: list[dict[str, Any]], consider_datetime: bool = False) -> None:
@@ -46,8 +47,8 @@ class Timespan:
 
   @property
   def training(self) -> TimespanRange:
-    start = self.predictive.start + self._training + 1
-    end = self.predictive.start + (0 if self._consider_datetime else 1)
+    start = self._exclusion + self.predictive.start + self._training + 1
+    end = self._exclusion + self.predictive.start + (0 if self._consider_datetime else 1)
     return TimespanRange(start, end)
 
   @property

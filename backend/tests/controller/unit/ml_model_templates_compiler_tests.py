@@ -203,12 +203,12 @@ class TestCompiler(parameterized.TestCase):
 
     # timespan check
     self.assertIn(
-        'FORMAT_DATE("%Y%m%d", DATE_SUB(CURRENT_DATE(), INTERVAL 20 DAY))',
+        'FORMAT_DATE("%Y%m%d", DATE_SUB(CURRENT_DATE(), INTERVAL 30 DAY))',
         sql,
         'Timespan start check failed.')
 
     self.assertIn(
-        'FORMAT_DATE("%Y%m%d", DATE_SUB(CURRENT_DATE(), INTERVAL 3 DAY))',
+        'FORMAT_DATE("%Y%m%d", DATE_SUB(CURRENT_DATE(), INTERVAL 13 DAY))',
         sql,
         'Timespan end check failed.')
 
@@ -311,8 +311,8 @@ class TestCompiler(parameterized.TestCase):
         sql,
         r'[\s\S]+'.join([
             re.escape('FROM first_party_variables'),
-            re.escape('DATETIME(DATE_SUB(CURRENT_DATE(), INTERVAL 20 DAY)) AND'),
-            re.escape('DATETIME_SUB(DATETIME(DATE_SUB(CURRENT_DATE(), INTERVAL 2 DAY)), INTERVAL 1 SECOND)')
+            re.escape('DATETIME(DATE_SUB(CURRENT_DATE(), INTERVAL 30 DAY)) AND'),
+            re.escape('DATETIME_SUB(DATETIME(DATE_SUB(CURRENT_DATE(), INTERVAL 12 DAY)), INTERVAL 1 SECOND)')
         ]),
         'First party timespan check failed.',
     )
@@ -623,12 +623,12 @@ class TestCompiler(parameterized.TestCase):
 
     # timespan check
     self.assertIn(
-        'FORMAT_DATE("%Y%m%d", DATE_SUB(CURRENT_DATE(), INTERVAL 20 DAY))',
+        'FORMAT_DATE("%Y%m%d", DATE_SUB(CURRENT_DATE(), INTERVAL 30 DAY))',
         sql,
         'Timespan start check failed.')
 
     self.assertIn(
-        'FORMAT_DATE("%Y%m%d", DATE_SUB(CURRENT_DATE(), INTERVAL 3 DAY))',
+        'FORMAT_DATE("%Y%m%d", DATE_SUB(CURRENT_DATE(), INTERVAL 13 DAY))',
         sql,
         'Timespan end check failed.')
 
@@ -1974,7 +1974,8 @@ class TestCompiler(parameterized.TestCase):
         'class_imbalance': class_imbalance,
         'timespans': [
             {'name': 'training', 'value': 17, 'unit': 'day'},
-            {'name': 'predictive', 'value': 1, 'unit': 'day'}
+            {'name': 'predictive', 'value': 1, 'unit': 'day'},
+            {'name': 'exclusion', 'value': 10, 'unit': 'day'}
         ],
         'output': {
             'destination': destination,

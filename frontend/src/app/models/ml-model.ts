@@ -308,9 +308,15 @@ export class MlModel {
     let configs = [
       {
         name: 'training',
-        value: 30,
+        value: 365,
         unit: 'day',
         range: {min: 1, max: 1825, step: 1}
+      },
+      {
+        name: 'exclusion',
+        value: 30,
+        unit: 'day',
+        range: {min: 1, max: 365, step: 1}
       },
       {
         name: 'predictive',

@@ -113,8 +113,9 @@ class TestMlModelViews(controller_utils.ControllerAppTest):
         'conversion_rate_segments': 10,
         'class_imbalance': 5,
         'timespans': [
-            {'name': 'training', 'value': 14, 'unit': 'month'},
-            {'name': 'predictive', 'value': 2, 'unit': 'month'}
+            {'name': 'training', 'value': 365, 'unit': 'day'},
+            {'name': 'predictive', 'value': 60, 'unit': 'day'},
+            {'name': 'exclusion', 'value': 30, 'unit': 'day'}
         ],
         'output': {
             'destination': 'GOOGLE_ADS_OFFLINE_CONVERSION',
@@ -211,7 +212,8 @@ class TestMlModelViews(controller_utils.ControllerAppTest):
         'class_imbalance': 7,
         'timespans': [
             {'name': 'training', 'value': 20, 'unit': 'day'},
-            {'name': 'predictive', 'value': 1, 'unit': 'day'}
+            {'name': 'predictive', 'value': 1, 'unit': 'day'},
+            {'name': 'exclusion', 'value': 0, 'unit': 'day'}
         ],
         'output': {
             'destination': 'GOOGLE_ANALYTICS_MP_EVENT',
@@ -248,7 +250,8 @@ class TestMlModelViews(controller_utils.ControllerAppTest):
         'input': '{\"source\":\"GOOGLE_ANALYTICS\",\"parameters\":{}}',
         'dataset': '{\"name\":\"test-dataset\",\"location\":\"US\"}',
         'timespans': '[{\"name\":\"training\",\"value\":90},'
-                     '{\"name\":\"predictive\",\"value\":30}]',
+                     '{\"name\":\"predictive\",\"value\":30},'
+                     '{\"name\":\"exclusion\",\"value\":0}]',
     }
     models.GeneralSetting.where(
         name='google_analytics_4_bigquery_dataset'
@@ -276,7 +279,8 @@ class TestMlModelViews(controller_utils.ControllerAppTest):
                  '\"firstPartyTable\":\"1p_table\"}}',
         'dataset': '{\"name\":\"test-dataset\",\"location\":\"US\"}',
         'timespans': '[{\"name\":\"training\",\"value\":90},'
-                     '{\"name\":\"predictive\",\"value\":30}]',
+                     '{\"name\":\"predictive\",\"value\":30},'
+                     '{\"name\":\"exclusion\",\"value\":0}]',
     }
     models.GeneralSetting.where(
         name='google_analytics_4_bigquery_dataset'
@@ -310,7 +314,8 @@ class TestMlModelViews(controller_utils.ControllerAppTest):
         'input': '{\"source\": \"GOOGLE_ANALYTICS\", \"parameters\": {}}',
         'dataset': '{\"name\": \"test-dataset\", \"location\": \"US\"}',
         'timespans': '[{\"name\": \"training\", \"value\": 90},'
-                     '{\"name\": \"predictive\", \"value\": 30}]',
+                     '{\"name\": \"predictive\", \"value\": 30},'
+                     '{\"name\":\"exclusion\",\"value\":0}]',
     }
     models.GeneralSetting.where(
         name='google_analytics_4_bigquery_dataset'
@@ -372,7 +377,8 @@ class TestMlModelViews(controller_utils.ControllerAppTest):
         'class_imbalance': 7,
         'timespans': [
             {'name': 'training', 'value': 20, 'unit': 'day'},
-            {'name': 'predictive', 'value': 1, 'unit': 'day'}
+            {'name': 'predictive', 'value': 1, 'unit': 'day'},
+            {'name': 'exclusion', 'value': 0, 'unit': 'day'},
         ],
         'output': {
             'destination': 'GOOGLE_ANALYTICS_MP_EVENT',
