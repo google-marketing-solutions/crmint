@@ -17,9 +17,12 @@
 
 import time
 
+from google.api_core.client_info import ClientInfo
 from google.cloud import bigquery
 
 from jobs.workers import worker
+
+USER_AGENT = 'cloud-solutions/crmint-usage-v3'
 
 
 # Param name used to specify a BQ project ID
@@ -42,7 +45,10 @@ class BQWorker(worker.Worker):
   ]
 
   def _get_client(self):
-    return bigquery.Client(client_options={'scopes': self._SCOPES})
+    return bigquery.Client(
+      client_options={'scopes': self._SCOPES},
+      client_info=ClientInfo(user_agent=USER_AGENT),
+    )
 
   def _get_prefix(self):
     return f'{self._pipeline_id}_{self._job_id}_{self.__class__.__name__}'
