@@ -99,31 +99,33 @@ class BQWorkerGetClientTest(parameterized.TestCase):
   )
   def test_get_client_handles_report_usage_id(
       self, report_usage_id_present, client_info_user_agent):
-    expected_user_agent = client_info_user_agent
     report_usage_id = 'some-usage-id' if report_usage_id_present else ''
     with (
-      mock.patch.dict(
-        os.environ,
-        {'REPORT_USAGE_ID': report_usage_id}
-        if report_usage_id_present
-        else {},
-      ),
-      mock.patch('os.getenv', return_value=report_usage_id) as getenv_mock,
-      mock.patch('google.cloud.bigquery.Client') as client_mock,
+        mock.patch.dict(
+            os.environ,
+            {'REPORT_USAGE_ID': report_usage_id}
+            if report_usage_id_present
+            else {},
+        ),
+        mock.patch('os.getenv', return_value=report_usage_id) as getenv_mock,
+        mock.patch('google.cloud.bigquery.Client') as client_mock,
     ):
-
       worker_inst = bq_worker.BQWorker({}, 0, 0)
       worker_inst._get_client()
 
-      getenv_mock.assert_called_with('REPORT_USAGE_ID')
       if report_usage_id_present:
-        client_mock.assert_called_once()
-        _, kwargs = client_mock.call_args
-        self.assertIsInstance(kwargs['client_info'], ClientInfo)
-        self.assertEqual(kwargs['client_info'].user_agent, expected_user_agent)
+        getenv_mock.assert_called_with('REPORT_USAGE_ID')
       else:
-        client_mock.assert_called_once()
-        _, kwargs = client_mock.call_args
+        getenv_mock.assert_not_called()
+
+      client_mock.assert_called_once()
+      _, kwargs = client_mock.call_args
+      if report_usage_id_present:
+        self.assertIsInstance(kwargs['client_info'], ClientInfo)
+        self.assertEqual(
+          kwargs['client_info'].user_agent, client_info_user_agent
+        )
+      else:
         self.assertIsNone(kwargs.get('client_info'))
 
 
