@@ -54,7 +54,7 @@ class CRMintCLI(click.MultiCommand):
         fg='yellow')
     msg += click.style(pkg_name, fg='red', bold=True)
     msg += click.style(
-        ' better! \nMay we anonymously report usage statistics to improve the'
+        ' better! \nMay we anonymously report usage statistics to improve the '
         'tool over time? \nMore info: https://github.com/google/crmint & '
         'https://google.github.io/crmint',
         fg='yellow')

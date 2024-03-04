@@ -1,4 +1,4 @@
-# Copyright 2020 Google Inc. All rights reserved.
+# Copyright 2024 Google Inc. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,11 +14,11 @@
 
 """CRMint's abstract worker dealing with BigQuery."""
 
-
+import os
 import time
 
+from google.api_core.client_info import ClientInfo
 from google.cloud import bigquery
-
 from jobs.workers import worker
 
 
@@ -42,7 +42,16 @@ class BQWorker(worker.Worker):
   ]
 
   def _get_client(self):
-    return bigquery.Client(client_options={'scopes': self._SCOPES})
+    client_info = None
+    if 'REPORT_USAGE_ID' in os.environ:
+      client_id = os.getenv('REPORT_USAGE_ID')
+      opt_out = not bool(client_id)
+      if not opt_out:
+        client_info = ClientInfo(user_agent='cloud-solutions/crmint-usage-v3')
+    return bigquery.Client(
+      client_options={'scopes': self._SCOPES},
+      client_info=client_info,
+    )
 
   def _get_prefix(self):
     return f'{self._pipeline_id}_{self._job_id}_{self.__class__.__name__}'

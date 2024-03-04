@@ -1,11 +1,14 @@
 """Tests for bq_worker."""
 
 from unittest import mock
+import os
 
 from absl.testing import absltest
 from absl.testing import parameterized
+
 from google.auth import credentials
 from google.cloud import bigquery
+from google.api_core.client_info import ClientInfo
 
 from jobs.workers import worker
 from jobs.workers.bigquery import bq_worker
@@ -81,6 +84,49 @@ class BQWorkerTest(parameterized.TestCase):
 
     self.assertEqual('a_project.a_dataset_id.a_table_id',
                      worker._generate_qualified_bq_table_name())
+
+class BQWorkerGetClientTest(parameterized.TestCase):
+
+  @parameterized.parameters(
+      {
+        'report_usage_id_present': True,
+        'client_info_user_agent': 'cloud-solutions/crmint-usage-v3',
+      },
+      {
+        'report_usage_id_present': False, 
+        'client_info_user_agent': None
+      },
+  )
+  def test_get_client_handles_report_usage_id(
+      self, report_usage_id_present, client_info_user_agent):
+    report_usage_id = 'some-usage-id' if report_usage_id_present else ''
+    with (
+        mock.patch.dict(
+            os.environ,
+            {'REPORT_USAGE_ID': report_usage_id}
+            if report_usage_id_present
+            else {},
+        ),
+        mock.patch('os.getenv', return_value=report_usage_id) as getenv_mock,
+        mock.patch('google.cloud.bigquery.Client') as client_mock,
+    ):
+      worker_inst = bq_worker.BQWorker({}, 0, 0)
+      worker_inst._get_client()
+
+      if report_usage_id_present:
+        getenv_mock.assert_called_with('REPORT_USAGE_ID')
+      else:
+        getenv_mock.assert_not_called()
+
+      client_mock.assert_called_once()
+      _, kwargs = client_mock.call_args
+      if report_usage_id_present:
+        self.assertIsInstance(kwargs['client_info'], ClientInfo)
+        self.assertEqual(
+          kwargs['client_info'].user_agent, client_info_user_agent
+        )
+      else:
+        self.assertIsNone(kwargs.get('client_info'))
 
 
 if __name__ == '__main__':
