@@ -17,7 +17,7 @@
         {
           "name": "bq_dataset_location",
           "type": "{{ParamType.STRING}}",
-          "value": "{{dataset_location}}"
+          "value": "{{location}}"
         }
       ]
     }{% if type.is_classification %},
@@ -38,7 +38,7 @@
         {
           "name": "bq_dataset_location",
           "type": "{{ParamType.STRING}}",
-          "value": "{{dataset_location}}"
+          "value": "{{location}}"
         }
       ]
     }

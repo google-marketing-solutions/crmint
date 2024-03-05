@@ -18,7 +18,7 @@
         {
           "name": "bq_dataset_location",
           "type": "{{ParamType.STRING}}",
-          "value": "{{dataset_location}}"
+          "value": "{{location}}"
         }
       ]
     },
@@ -39,7 +39,7 @@
         {
           "name": "bq_dataset_location",
           "type": "{{ParamType.STRING}}",
-          "value": "{{dataset_location}}"
+          "value": "{{location}}"
         }
       ]
     },
@@ -56,17 +56,17 @@
           {
             "name": "bq_project_id",
             "type": "{{ParamType.STRING}}",
-            "value": "{{model_project}}"
+            "value": "{{project}}"
           },
           {
             "name": "bq_dataset_id",
             "type": "{{ParamType.STRING}}",
-            "value": "{{model_dataset}}"
+            "value": "{{dataset}}"
           },
           {
             "name": "bq_dataset_location",
             "type": "{{ParamType.STRING}}",
-            "value": "{{dataset_location}}"
+            "value": "{{location}}"
           },
           {
             "name": "bq_table_id",
@@ -105,17 +105,17 @@
           {
             "name": "bq_project_id",
             "type": "{{ParamType.STRING}}",
-            "value": "{{model_project}}"
+            "value": "{{project}}"
           },
           {
             "name": "bq_dataset_id",
             "type": "{{ParamType.STRING}}",
-            "value": "{{model_dataset}}"
+            "value": "{{dataset}}"
           },
           {
             "name": "bq_dataset_location",
             "type": "{{ParamType.STRING}}",
-            "value": "{{dataset_location}}"
+            "value": "{{location}}"
           },
           {
             "name": "bq_table_id",

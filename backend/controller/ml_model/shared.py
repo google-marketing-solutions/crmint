@@ -41,6 +41,12 @@ class Timespan:
   _consider_datetime: bool
 
   def __init__(self, timespans: list[dict[str, Any]], consider_datetime: bool = False) -> None:
+    """Uses timespans provided to create an accurate start/end for each step in the modeling process.
+
+    Args:
+      timespans: The set of timespans including training, predictive, and exclusion periods.
+      consider_datetime: Whether or not it should consider the timespan as a datetime or just a date.
+    """
     self._consider_datetime = consider_datetime
     for timespan in timespans:
       setattr(self, '_' + timespan['name'], int(timespan['value']))

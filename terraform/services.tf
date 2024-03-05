@@ -209,6 +209,10 @@ resource "google_cloud_run_service" "jobs_run" {
           name  = "PUBSUB_VERIFICATION_TOKEN"
           value = random_id.pubsub_verification_token.b64_url
         }
+        env {
+          name  = "REPORT_USAGE_ID"
+          value = var.report_usage_id
+        }
       }
 
       timeout_seconds = 900  # 15min

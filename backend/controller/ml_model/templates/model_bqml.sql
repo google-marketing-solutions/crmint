@@ -1,5 +1,5 @@
 {% if step.is_training %}
-CREATE OR REPLACE MODEL `{{model_project}}.{{model_dataset}}.predictive_model`
+CREATE OR REPLACE MODEL `{{project}}.{{dataset}}.predictive_model`
 OPTIONS (
   MODEL_TYPE = "{{type.name}}",
   -- inject the selected hyper parameters
@@ -15,7 +15,7 @@ OPTIONS (
   INPUT_LABEL_COLS = ["label"]
 ) AS
 {% elif step.is_predicting %}
-CREATE OR REPLACE TABLE `{{model_project}}.{{model_dataset}}.predictions` AS (
+CREATE OR REPLACE TABLE `{{project}}.{{dataset}}.predictions` AS (
 SELECT
   unique_id,
   {% if google_analytics.in_source %}
@@ -26,9 +26,9 @@ SELECT
   plp.prob AS probability,
   {% endif %}
   predicted_label
-FROM ML.PREDICT(MODEL `{{model_project}}.{{model_dataset}}.predictive_model`, (
+FROM ML.PREDICT(MODEL `{{project}}.{{dataset}}.predictive_model`, (
 {% elif step.is_calculating_conversion_values %}
-CREATE OR REPLACE TABLE `{{model_project}}.{{model_dataset}}.conversion_values` AS (
+CREATE OR REPLACE TABLE `{{project}}.{{dataset}}.conversion_values` AS (
 SELECT
   normalized_probability,
   (SUM(label) / COUNT(1)) * {{output.parameters.average_conversion_value}} AS value,
@@ -47,7 +47,7 @@ SELECT
   p.label,
   plp.prob AS probability,
   NTILE({{conversion_rate_segments}}) OVER (ORDER BY plp.prob ASC) AS normalized_probability
-FROM ML.PREDICT(MODEL `{{model_project}}.{{model_dataset}}.predictive_model`, (
+FROM ML.PREDICT(MODEL `{{project}}.{{dataset}}.predictive_model`, (
 {% endif %}
 WITH
 {% if first_party.in_source %}
