@@ -126,9 +126,20 @@ class VariableSet():
     return self._source in self._input.source
 
   @property
+  def project(self):
+    if self._input.parameters:
+      if self._source == Source.FIRST_PARTY:
+        return self._input.parameters.first_party_project
+      elif self._source == Source.GOOGLE_ANALYTICS:
+        return self._input.parameters.google_analytics_project
+
+  @property
   def dataset(self):
     if self._input.parameters:
-      return self._input.parameters.first_party_dataset
+      if self._source == Source.FIRST_PARTY:
+        return self._input.parameters.first_party_dataset
+      elif self._source == Source.GOOGLE_ANALYTICS:
+        return self._input.parameters.google_analytics_dataset
 
   @property
   def table(self):
@@ -193,19 +204,16 @@ class Compiler():
   the pipeline configuration itself.
   """
   project_id: str
-  ga4_dataset: str
   ga4_measurement_id: str
   ga4_api_secret: str
   ml_model: models.MlModel
 
   def __init__(self,
                project_id: str,
-               ga4_dataset: str,
                ga4_measurement_id: str,
                ga4_api_secret: str,
                ml_model: models.MlModel) -> None:
     self.project_id = project_id
-    self.ga4_dataset = ga4_dataset
     self.ga4_measurement_id = ga4_measurement_id
     self.ga4_api_secret = ga4_api_secret
     self.ml_model = ml_model
@@ -243,12 +251,11 @@ class Compiler():
           'is_calculating_conversion_values': step == Step.CALCULATING_CONVERSION_VALUES
         },
         'name': self.ml_model.name,
-        'project_id': self.project_id,
-        'model_dataset': self.ml_model.bigquery_dataset.name,
-        'ga4_dataset': self.ga4_dataset,
         'ga4_measurement_id': self.ga4_measurement_id,
         'ga4_api_secret': self.ga4_api_secret,
-        'dataset_location': self.ml_model.bigquery_dataset.location,
+        'location': self.ml_model.bigquery_dataset.location,
+        'project': self.project_id,
+        'dataset': self.ml_model.bigquery_dataset.name,
         'type': {
           'name': self.ml_model.type,
           'is_regression': self.ml_model.type in ModelTypes.REGRESSION,

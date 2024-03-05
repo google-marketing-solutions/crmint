@@ -2,11 +2,11 @@
 DECLARE _LATEST_TABLE_SUFFIX STRING;
 SET _LATEST_TABLE_SUFFIX = (
   SELECT MAX(SPLIT(table_id, "events_")[OFFSET(1)])
-  FROM `{{project_id}}.{{ga4_dataset}}.__TABLES_SUMMARY__`
+  FROM `{{google_analytics.project}}.{{google_analytics.dataset}}.__TABLES_SUMMARY__`
   WHERE REGEXP_CONTAINS(table_id, r"^(events_[0-9]{8})$")
 );
 {% endif %}
-CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.output` AS (
+CREATE OR REPLACE TABLE `{{project}}.{{dataset}}.output` AS (
   WITH
   {% if google_analytics.in_source %}
   events AS (
@@ -15,7 +15,7 @@ CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.output` AS (
       event_name AS name,
       event_timestamp AS timestamp,
       event_params AS params
-    FROM `{{project_id}}.{{ga4_dataset}}.events_*`
+    FROM `{{google_analytics.project}}.{{google_analytics.dataset}}.events_*`
     WHERE _TABLE_SUFFIX = _LATEST_TABLE_SUFFIX
     AND LOWER(platform) = "web"
   ),
@@ -27,7 +27,7 @@ CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.output` AS (
       {{first_party.gclid.name}} AS gclid,
       {% endif %}
       {{first_party.trigger_date.name}} AS timestamp
-    FROM `{{project_id}}.{{first_party.dataset}}.{{first_party.table}}`
+    FROM `{{first_party.project}}.{{first_party.dataset}}.{{first_party.table}}`
     WHERE {{first_party.trigger_date.name}} BETWEEN
       DATETIME(DATE_SUB(CURRENT_DATE(), INTERVAL 1 DAY)) AND
       DATETIME_SUB(DATETIME(CURRENT_DATE()), INTERVAL 1 SECOND)
@@ -44,8 +44,8 @@ CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.output` AS (
       ROUND(MAX(cv.value), 4) AS value,
       MAX(cv.normalized_probability) AS normalized_score,
       MAX(p.probability) * 100 AS score
-    FROM `{{project_id}}.{{model_dataset}}.predictions` p
-    LEFT OUTER JOIN `{{project_id}}.{{model_dataset}}.conversion_values` cv
+    FROM `{{project}}.{{dataset}}.predictions` p
+    LEFT OUTER JOIN `{{project}}.{{dataset}}.conversion_values` cv
     ON p.probability BETWEEN cv.probability_range_start AND cv.probability_range_end
     {% if google_analytics.in_source %}
     GROUP BY 1,2,3
@@ -63,7 +63,7 @@ CREATE OR REPLACE TABLE `{{project_id}}.{{model_dataset}}.output` AS (
       {% endif %}
       IF(predicted_label > 0, ROUND(predicted_label, 4), 0) AS value,
       IF(predicted_label > 0, ROUND(predicted_label, 4), 0) AS revenue
-    FROM `{{project_id}}.{{model_dataset}}.predictions`
+    FROM `{{project}}.{{dataset}}.predictions`
   ),
   {% endif %}
   {% if output.destination.is_google_analytics_mp_event %}

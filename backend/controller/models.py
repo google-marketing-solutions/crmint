@@ -571,6 +571,9 @@ class MlModelInputParameters(extensions.db.Model):
 
   ml_model_id = Column(
       Integer, ForeignKey('ml_model_input.ml_model_id'), primary_key=True)
+  google_analytics_project = Column(String(255), nullable=True)
+  google_analytics_dataset = Column(String(255), nullable=True)
+  first_party_project = Column(String(255), nullable=True)
   first_party_dataset = Column(String(255), nullable=True)
   first_party_table = Column(String(255), nullable=True)
 

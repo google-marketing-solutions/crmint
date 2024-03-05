@@ -46,6 +46,7 @@ class CustomClient(bigquery.Client):
     super().__init__(location=location)
 
   def get_analytics_variables(self,
+                              project: str,
                               dataset: str,
                               start: int,
                               end: int) -> list[Variable]:
@@ -81,7 +82,7 @@ class CustomClient(bigquery.Client):
         SELECT
           event_name AS name,
           event_params AS params
-        FROM `{self.project}.{dataset}.events_*`
+        FROM `{project}.{dataset}.events_*`
         WHERE _TABLE_SUFFIX BETWEEN
           FORMAT_DATE("%Y%m%d", DATE_SUB(CURRENT_DATE(), INTERVAL {start} DAY)) AND
           FORMAT_DATE("%Y%m%d", DATE_SUB(CURRENT_DATE(), INTERVAL {end} DAY))
@@ -146,7 +147,7 @@ class CustomClient(bigquery.Client):
 
     return variables
 
-  def get_first_party_variables(self, dataset: str, table: str) -> list[Variable]:
+  def get_first_party_variables(self, project: str, dataset: str, table: str) -> list[Variable]:
     """Look up and return the field names for use in feature/label selection.
 
     Args:
@@ -159,7 +160,7 @@ class CustomClient(bigquery.Client):
     variables: list[Variable] = []
 
     try:
-      table = self.get_table(f'{dataset}.{table}')
+      table = self.get_table(f'{project}.{dataset}.{table}')
     except NotFound:
       return variables
 

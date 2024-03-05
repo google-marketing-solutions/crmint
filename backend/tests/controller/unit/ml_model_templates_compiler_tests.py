@@ -138,13 +138,13 @@ class TestCompiler(parameterized.TestCase):
 
     # event table name check
     self.assertIn(
-        'FROM `test-project-id-1234.test-ga4-dataset-loc.events_*`',
+        'FROM `GA4_PROJECT.GA4_DATASET.events_*`',
         sql,
         'Event table name check failed.')
 
     # first party table name check
     self.assertIn(
-        'FROM `test-project-id-1234.FP_DATASET.FP_DATA_TABLE`',
+        'FROM `FP_PROJECT.FP_DATASET.FP_DATA_TABLE`',
         sql,
         'First party table name check failed.')
 
@@ -262,7 +262,7 @@ class TestCompiler(parameterized.TestCase):
 
     # first party table name check
     self.assertIn(
-        'FROM `test-project-id-1234.FP_DATASET.FP_DATA_TABLE`',
+        'FROM `FP_PROJECT.FP_DATASET.FP_DATA_TABLE`',
         sql,
         'First party table name check failed.')
 
@@ -580,13 +580,13 @@ class TestCompiler(parameterized.TestCase):
 
     # event table name check
     self.assertIn(
-        'FROM `test-project-id-1234.test-ga4-dataset-loc.events_*`',
+        'FROM `GA4_PROJECT.GA4_DATASET.events_*`',
         sql,
         'Event table name check failed.')
 
     # first party table name check
     self.assertIn(
-        'FROM `test-project-id-1234.FP_DATASET.FP_DATA_TABLE`',
+        'FROM `FP_PROJECT.FP_DATASET.FP_DATA_TABLE`',
         sql,
         'First party table name check failed.')
 
@@ -698,7 +698,7 @@ class TestCompiler(parameterized.TestCase):
 
     # first party table name check
     self.assertIn(
-        'FROM `test-project-id-1234.FP_DATASET.FP_DATA_TABLE`',
+        'FROM `FP_PROJECT.FP_DATASET.FP_DATA_TABLE`',
         sql,
         'First party table name check failed.')
 
@@ -967,13 +967,13 @@ class TestCompiler(parameterized.TestCase):
 
     # event table name check
     self.assertIn(
-        'FROM `test-project-id-1234.test-ga4-dataset-loc.events_*`',
+        'FROM `GA4_PROJECT.GA4_DATASET.events_*`',
         sql,
         'Event table name check failed.')
 
     # first party table name check
     self.assertIn(
-        'FROM `test-project-id-1234.FP_DATASET.FP_DATA_TABLE`',
+        'FROM `FP_PROJECT.FP_DATASET.FP_DATA_TABLE`',
         sql,
         'First party table name check failed.')
 
@@ -1073,7 +1073,7 @@ class TestCompiler(parameterized.TestCase):
 
     # first party table name check
     self.assertIn(
-        'FROM `test-project-id-1234.FP_DATASET.FP_DATA_TABLE`',
+        'FROM `FP_PROJECT.FP_DATASET.FP_DATA_TABLE`',
         sql,
         'First party table name check failed.')
 
@@ -1305,7 +1305,7 @@ class TestCompiler(parameterized.TestCase):
 
     # events block check
     self.assertIn(
-        'FROM `test-project-id-1234.test-ga4-dataset-loc.events_*`',
+        'FROM `GA4_PROJECT.GA4_DATASET.events_*`',
         sql,
         'Check for events block failed.')
 
@@ -1364,7 +1364,7 @@ class TestCompiler(parameterized.TestCase):
 
     # events block check
     self.assertNotIn(
-        'FROM `test-project-id-1234.test-ga4-dataset-loc.events_*`',
+        'FROM `GA4_PROJECT.GA4_DATASET.events_*`',
         sql,
         'Check to ensure events block not included failed.')
 
@@ -1375,7 +1375,7 @@ class TestCompiler(parameterized.TestCase):
             re.escape('first_party AS ('),
             re.escape('customer_id AS unique_id'),
             re.escape('google_clickid AS gclid'),
-            re.escape('FROM `test-project-id-1234.FP_DATASET.FP_DATA_TABLE`'),
+            re.escape('FROM `FP_PROJECT.FP_DATASET.FP_DATA_TABLE`'),
             re.escape('WHERE timestamp BETWEEN')
         ]),
         'Check for first party block failed.')
@@ -1432,13 +1432,13 @@ class TestCompiler(parameterized.TestCase):
 
     # events table name check
     self.assertIn(
-        'FROM `test-project-id-1234.test-ga4-dataset-loc.events_*`',
+        'FROM `GA4_PROJECT.GA4_DATASET.events_*`',
         sql,
         'Events table name check failed.')
 
     # summary table check
     self.assertIn(
-        'FROM `test-project-id-1234.test-ga4-dataset-loc.__TABLES_SUMMARY__`',
+        'FROM `GA4_PROJECT.GA4_DATASET.__TABLES_SUMMARY__`',
         sql,
         'Summary table name check failed.')
 
@@ -1513,13 +1513,13 @@ class TestCompiler(parameterized.TestCase):
 
     # events table name check
     self.assertIn(
-        'FROM `test-project-id-1234.test-ga4-dataset-loc.events_*`',
+        'FROM `GA4_PROJECT.GA4_DATASET.events_*`',
         sql,
         'Events table name check failed.')
 
     # summary table check
     self.assertIn(
-        'FROM `test-project-id-1234.test-ga4-dataset-loc.__TABLES_SUMMARY__`',
+        'FROM `GA4_PROJECT.GA4_DATASET.__TABLES_SUMMARY__`',
         sql,
         'Summary table name check failed.')
 
@@ -1951,6 +1951,9 @@ class TestCompiler(parameterized.TestCase):
         'input': {
           'source': source,
           'parameters': {
+            'google_analytics_project': 'GA4_PROJECT',
+            'google_analytics_dataset': 'GA4_DATASET',
+            'first_party_project': 'FP_PROJECT',
             'first_party_dataset': 'FP_DATASET',
             'first_party_table': 'FP_DATA_TABLE'
           }
@@ -1990,7 +1993,6 @@ class TestCompiler(parameterized.TestCase):
   def compiler(self, model: models.MlModel):
     return ml_model.compiler.Compiler(
         project_id='test-project-id-1234',
-        ga4_dataset='test-ga4-dataset-loc',
         ga4_measurement_id='test-ga4-measurement-id',
         ga4_api_secret='test-ga4-api-secret',
         ml_model=model)
