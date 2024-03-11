@@ -495,7 +495,7 @@ class TestCompiler(parameterized.TestCase):
         sql,
         r'[\s\S]+'.join([
           re.escape('AND CAST(COALESCE(value.string_value, value.int_value, value.float_value, value.double_value) AS NUMERIC) > 100'),
-          re.escape(')) AS cnt_game_score_value_greater_100')
+          re.escape('AS cnt_game_score_value_greater_100')
         ]),
         'Google Analytics advanced feature (GREATER) check failed.')
 
@@ -504,7 +504,7 @@ class TestCompiler(parameterized.TestCase):
         sql,
         r'[\s\S]+'.join([
           re.escape('AND CAST(COALESCE(value.string_value, value.int_value, value.float_value, value.double_value) AS NUMERIC) >= 10.50'),
-          re.escape(')) AS cnt_game_purchase_value_greater_or_equal_1050')
+          re.escape('AS cnt_game_purchase_value_greater_or_equal_1050')
         ]),
         'Google Analytics advanced feature (GREATER_OR_EQUAL) check failed.')
 
@@ -513,7 +513,7 @@ class TestCompiler(parameterized.TestCase):
         sql,
         r'[\s\S]+'.join([
           re.escape('AND CAST(COALESCE(value.string_value, value.int_value, value.float_value, value.double_value) AS NUMERIC) < 10'),
-          re.escape(')) AS cnt_game_open_value_less_10')
+          re.escape('AS cnt_game_open_value_less_10')
         ]),
         'Google Analytics advanced feature (LESS) check failed.')
 
@@ -522,7 +522,7 @@ class TestCompiler(parameterized.TestCase):
         sql,
         r'[\s\S]+'.join([
           re.escape('AND CAST(COALESCE(value.string_value, value.int_value, value.float_value, value.double_value) AS NUMERIC) <= 4'),
-          re.escape(')) AS cnt_game_losses_amount_less_or_equal_4')
+          re.escape('AS cnt_game_losses_amount_less_or_equal_4')
         ]),
         'Google Analytics advanced feature (LESS_OR_EQUAL) check failed.')
 
@@ -531,7 +531,7 @@ class TestCompiler(parameterized.TestCase):
         sql,
         r'[\s\S]+'.join([
           re.escape('AND COALESCE(value.string_value, CAST(value.int_value AS STRING)) = "RPG"'),
-          re.escape(')) AS cnt_game_category_value_equal_rpg')
+          re.escape('AS cnt_game_category_value_equal_rpg')
         ]),
         'Google Analytics advanced feature (EQUAL) check failed.')
 
@@ -540,7 +540,7 @@ class TestCompiler(parameterized.TestCase):
         sql,
         r'[\s\S]+'.join([
           re.escape('AND COALESCE(value.string_value, CAST(value.int_value AS STRING)) = "RPG"'),
-          re.escape(')) AS cnt_game_title_value_not_equal_throughitall')
+          re.escape('AS cnt_game_title_value_not_equal_throughitall')
         ]),
         'Google Analytics advanced feature (NOT_EQUAL) check failed.')
 
