@@ -35,7 +35,7 @@
             </mat-icon>
           </label>
           <div class="vertical-group">
-            <mat-select placeholder="Source" formControlName="source"
+            <mat-select placeholder="Source *" formControlName="source"
                         (selectionChange)="refreshInput(); resetVariables()">
               <mat-option *ngFor="let source of sources" [value]="source">{{ source | labelcase }}</mat-option>
             </mat-select>
@@ -100,14 +100,14 @@
 
         <div class="crmi-form-group">
           <label class="crmi-form-label">User Identifier</label>
-          <mat-select placeholder="Unique ID" formControlName="uniqueId" (selectionChange)="refreshVariables()">
+          <mat-select placeholder="Unique ID *" formControlName="uniqueId" (selectionChange)="refreshVariables()">
             <mat-option *ngFor="let uniqueId of uniqueIds" [value]="uniqueId">{{ uniqueId | labelcase }}</mat-option>
           </mat-select>
         </div>
 
         <div class="crmi-form-group">
           <label class="crmi-form-label">Type</label>
-          <mat-select placeholder="Type" formControlName="type"
+          <mat-select placeholder="Type *" formControlName="type"
                       (selectionChange)="refreshHyperParameters(); refreshVariables()">
             <mat-option *ngFor="let type of types" [value]="type">{{ type | labelcase }}</mat-option>
           </mat-select>
@@ -160,7 +160,7 @@
                   </mat-select>
                 </td>
                 <td *ngIf="value(variable, 'parameters'); let parameters" class="key">
-                  <mat-select placeholder="Key" formControlName="key" (selectionChange)="refreshVariables()">
+                  <mat-select [placeholder]="value(variable, 'placeholder')" formControlName="key" (selectionChange)="refreshVariables()">
                     <mat-option [value]="null">----</mat-option>
                     <mat-option *ngFor="let parameter of parameters" [value]="parameter.key">{{ parameter.key }}</mat-option>
                   </mat-select>
@@ -237,7 +237,7 @@
         <div id="output" formGroupName="output" class="crmi-form-group">
           <label class="crmi-form-label">Output Configuration</label>
           <div class="vertical-group">
-            <mat-select placeholder="Destination" formControlName="destination"
+            <mat-select placeholder="Destination *" formControlName="destination"
                         (selectionChange)="refreshOutput(); refreshVariables()">
               <mat-option *ngFor="let destination of destinations" [value]="destination">{{ destination | labelcase }}</mat-option>
             </mat-select>

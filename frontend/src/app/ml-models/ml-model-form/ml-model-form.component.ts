@@ -385,6 +385,7 @@ export class MlModelFormComponent implements OnInit {
 
       if (variable.role === Role.FEATURE && variable.source === Source.GOOGLE_ANALYTICS) {
         variable.comparisons = comparisons;
+        variable.key_required = false;
         if (!variable.key) {
           variable.comparison = null;
           variable.value = null;
@@ -407,6 +408,7 @@ export class MlModelFormComponent implements OnInit {
 
       const control = this._fb.group({
         name: [variable.name],
+        placeholder: 'Key' + (variable.key_required ? ' *' : ''),
         source: [variable.source, this.enumValidator(Source)],
         count: [variable.count],
         roles: [variable.roles],
