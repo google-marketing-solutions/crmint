@@ -198,13 +198,13 @@ class TestCompiler(parameterized.TestCase):
     self.assertRegex(
         sql,
         r'[\s\S]+'.join([
-          re.escape('SUM(('),
+          re.escape('IFNULL(SUM(('),
           re.escape('SELECT 1'),
           re.escape('FROM UNNEST(e.params)'),
           re.escape('WHERE e.name = "click"'),
           re.escape('AND key = "element_id"'),
           re.escape('AND COALESCE(value.string_value, CAST(value.int_value AS STRING)) = "rfi_submit"'),
-          re.escape(')) AS cnt_click_element_id_equal_rfi_submit')
+          re.escape(')), 0) AS cnt_click_element_id_equal_rfi_submit')
         ]),
         'Google Analytics advanced feature check failed.')
 
@@ -480,13 +480,13 @@ class TestCompiler(parameterized.TestCase):
     self.assertRegex(
         sql,
         r'[\s\S]+'.join([
-          re.escape('SUM(('),
+          re.escape('IFNULL(SUM(('),
           re.escape('SELECT 1'),
           re.escape('FROM UNNEST(e.params)'),
           re.escape('WHERE e.name = "page_view"'),
           re.escape('AND key = "page_location"'),
           re.escape('AND REGEXP_CONTAINS(value.string_value, r"signup\/welcome\?[0-9]+")'),
-          re.escape(')) AS cnt_page_view_page_location_regex_signupwelcome09')
+          re.escape(')), 0) AS cnt_page_view_page_location_regex_signupwelcome09')
         ]),
         'Google Analytics advanced feature (REGEX) check failed.')
 
