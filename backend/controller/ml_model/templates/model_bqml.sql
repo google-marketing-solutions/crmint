@@ -217,7 +217,7 @@ aggregate_behavior AS (
     -- inject the selected google analytics features
     {% for feature in google_analytics.features %}
     {% if feature.comparison %}
-    SUM((
+    IFNULL(SUM((
       SELECT 1
       FROM UNNEST(e.params)
       WHERE e.name = "{{feature.name}}"
@@ -245,7 +245,7 @@ aggregate_behavior AS (
       {% elif feature.should_compare.less_or_equal %}
       AND CAST(COALESCE(value.string_value, value.int_value, value.float_value, value.double_value) AS NUMERIC) <= {{feature.value}}
       {% endif %}
-    )) AS cnt_{{feature.description}},
+    )), 0) AS cnt_{{feature.description}},
     {% else %}
     SUM(IF(e.name = "{{feature.name}}", 1, 0)) AS cnt_{{feature.name}},
     {% endif %}
