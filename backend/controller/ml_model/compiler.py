@@ -66,6 +66,7 @@ class Destination(shared.StrEnum):
   GOOGLE_ANALYTICS_MP_EVENT = 'GOOGLE_ANALYTICS_MP_EVENT',
   GOOGLE_ADS_OFFLINE_CONVERSION = 'GOOGLE_ADS_OFFLINE_CONVERSION'
 
+
 class ParamType(shared.StrEnum):
   SQL = 'sql'
   TEXT = 'text'
@@ -169,7 +170,7 @@ class VariableSet():
       if not hasattr(feature, 'comparison'):
         feature.comparison = None
       if feature.comparison:
-        feature.should_compare = {
+        feature.comparison_method = {
           comparison.lower(): feature.comparison == comparison
           for comparison in VariableComparison._member_names_
         }

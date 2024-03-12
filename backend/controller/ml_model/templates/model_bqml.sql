@@ -222,27 +222,27 @@ aggregate_behavior AS (
       FROM UNNEST(e.params)
       WHERE e.name = "{{feature.name}}"
       AND key = "{{feature.key}}"
-      {% if feature.should_compare.regex %}
+      {% if feature.comparison_method.regex %}
       AND REGEXP_CONTAINS(value.string_value, r"{{feature.value}}")
-      {% elif feature.should_compare.equal %}
+      {% elif feature.comparison_method.equal %}
       {% if 'string' in feature.value_type %}
       AND COALESCE(value.string_value, CAST(value.int_value AS STRING)) = "{{feature.value}}"
       {% else %}
       AND COALESCE(value.int_value, value.float_value, value.double_value) = {{feature.value}}
       {% endif %}
-      {% elif feature.should_compare.not_equal %}
+      {% elif feature.comparison_method.not_equal %}
       {% if 'string' in feature.value_type %}
       AND COALESCE(value.string_value, CAST(value.int_value AS STRING)) != "{{feature.value}}"
       {% else %}
       AND COALESCE(value.int_value, value.float_value, value.double_value) != {{feature.value}}
       {% endif %}
-      {% elif feature.should_compare.greater %}
+      {% elif feature.comparison_method.greater %}
       AND CAST(COALESCE(value.string_value, value.int_value, value.float_value, value.double_value) AS NUMERIC) > {{feature.value}}
-      {% elif feature.should_compare.greater_or_equal %}
+      {% elif feature.comparison_method.greater_or_equal %}
       AND CAST(COALESCE(value.string_value, value.int_value, value.float_value, value.double_value) AS NUMERIC) >= {{feature.value}}
-      {% elif feature.should_compare.less %}
+      {% elif feature.comparison_method.less %}
       AND CAST(COALESCE(value.string_value, value.int_value, value.float_value, value.double_value) AS NUMERIC) < {{feature.value}}
-      {% elif feature.should_compare.less_or_equal %}
+      {% elif feature.comparison_method.less_or_equal %}
       AND CAST(COALESCE(value.string_value, value.int_value, value.float_value, value.double_value) AS NUMERIC) <= {{feature.value}}
       {% endif %}
     )), 0) AS cnt_{{feature.description}},
