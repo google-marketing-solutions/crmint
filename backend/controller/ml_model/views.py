@@ -78,6 +78,8 @@ variables_structure = fields.List(
         'source': fields.String,
         'role': fields.String,
         'key': fields.String,
+        'comparison': fields.String,
+        'value': fields.String,
         'value_type': fields.String,
     })
 )

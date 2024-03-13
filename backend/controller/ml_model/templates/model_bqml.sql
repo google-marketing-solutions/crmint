@@ -214,16 +214,43 @@ user_variables AS (
 aggregate_behavior AS (
   SELECT
     e.unique_id,
-    SUM((SELECT value.int_value FROM UNNEST(e.params) WHERE key = "engagement_time_msec")) AS engagement_time,
-    SUM(IF(e.name = "user_engagement", 1, 0)) AS cnt_user_engagement,
-    SUM(IF(e.name = "scroll", 1, 0)) AS cnt_scroll,
-    SUM(IF(e.name = "session_start", 1, 0)) AS cnt_session_start,
-    SUM(IF(e.name = "first_visit", 1, 0)) AS cnt_first_visit,
     -- inject the selected google analytics features
     {% for feature in google_analytics.features %}
+    {% if feature.comparison %}
+    IFNULL(SUM((
+      SELECT 1
+      FROM UNNEST(e.params)
+      WHERE e.name = "{{feature.name}}"
+      AND key = "{{feature.key}}"
+      {% if feature.comparison_method.regex %}
+      AND REGEXP_CONTAINS(value.string_value, r"{{feature.value}}")
+      {% elif feature.comparison_method.equal %}
+      {% if 'string' in feature.value_type %}
+      AND COALESCE(value.string_value, CAST(value.int_value AS STRING)) = "{{feature.value}}"
+      {% else %}
+      AND COALESCE(value.int_value, value.float_value, value.double_value) = {{feature.value}}
+      {% endif %}
+      {% elif feature.comparison_method.not_equal %}
+      {% if 'string' in feature.value_type %}
+      AND COALESCE(value.string_value, CAST(value.int_value AS STRING)) != "{{feature.value}}"
+      {% else %}
+      AND COALESCE(value.int_value, value.float_value, value.double_value) != {{feature.value}}
+      {% endif %}
+      {% elif feature.comparison_method.greater %}
+      AND CAST(COALESCE(value.string_value, value.int_value, value.float_value, value.double_value) AS NUMERIC) > {{feature.value}}
+      {% elif feature.comparison_method.greater_or_equal %}
+      AND CAST(COALESCE(value.string_value, value.int_value, value.float_value, value.double_value) AS NUMERIC) >= {{feature.value}}
+      {% elif feature.comparison_method.less %}
+      AND CAST(COALESCE(value.string_value, value.int_value, value.float_value, value.double_value) AS NUMERIC) < {{feature.value}}
+      {% elif feature.comparison_method.less_or_equal %}
+      AND CAST(COALESCE(value.string_value, value.int_value, value.float_value, value.double_value) AS NUMERIC) <= {{feature.value}}
+      {% endif %}
+    )), 0) AS cnt_{{feature.description}},
+    {% else %}
     SUM(IF(e.name = "{{feature.name}}", 1, 0)) AS cnt_{{feature.name}},
+    {% endif %}
     {% endfor %}
-    SUM(IF(e.name = "page_view", 1, 0)) AS cnt_page_view
+    SUM((SELECT value.int_value FROM UNNEST(e.params) WHERE key = "engagement_time_msec")) AS engagement_time
   FROM events AS e
   INNER JOIN user_variables AS uv
     ON e.unique_id = uv.unique_id

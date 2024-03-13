@@ -24,7 +24,7 @@ import { MlModelsService } from '../shared/ml-models.service';
 import { State } from 'app/models/shared';
 import {
   MlModel, Type, ClassificationType, RegressionType, UniqueId, HyperParameter,
-  Variable, BigQueryDataset, Timespan, Source, Destination, Input, Output, Role
+  Variable, BigQueryDataset, Timespan, Source, Destination, Input, Output, Role, Comparison
 } from 'app/models/ml-model';
 
 @Component({
@@ -55,8 +55,8 @@ export class MlModelFormComponent implements OnInit {
       this.createForm();
       this.types = Object.keys(Type).filter(type => type !== Type.LOGISTIC_REG);
       this.uniqueIds = Object.keys(UniqueId);
-      this.destinations = Object.keys(Destination);
       this.sources = Object.keys(Source);
+      this.destinations = Object.keys(Destination);
     }
 
   /**
@@ -362,6 +362,9 @@ export class MlModelFormComponent implements OnInit {
     const existingVariables: Variable[] = (formVariables.length ? formVariables : this.mlModel.variables) || [];
     const variables: Variable[] = this.getVariables();
     const isRegressionModel: boolean = this.type.isRegression;
+    const comparisons = Object.keys(Comparison).map(c => {
+      return { value: Comparison[c], label: c };
+    });
     let controls = [];
 
     for (const variable of variables) {
@@ -369,18 +372,27 @@ export class MlModelFormComponent implements OnInit {
 
       variable.roles = this.getApplicableVariableRoles(existingVariables, variable);
       variable.role = existingVariable && variable.roles.includes(existingVariable.role) ? existingVariable.role : null;
+      variable.comparison = existingVariable ? existingVariable.comparison : null;
+      variable.value = existingVariable ? existingVariable.value : null;
+      variable.key = null;
       variable.key_required = false;
       variable.hint = null;
 
       if (existingVariable && existingVariable.key && variable.role) {
         variable.key = existingVariable.key;
         variable.value_type = variable.parameters.find(p => p.key === variable.key).value_type;
-      } else if (variable.parameters.length === 1) {
-        variable.key = variable.parameters[0].key;
-        variable.value_type = variable.parameters[0].value_type;
       }
 
-      if (variable.role === Role.LABEL && variable.source == Source.GOOGLE_ANALYTICS) {
+      if (variable.role === Role.FEATURE && variable.source === Source.GOOGLE_ANALYTICS) {
+        variable.comparisons = comparisons;
+        variable.key_required = false;
+        if (!variable.key) {
+          variable.comparison = null;
+          variable.value = null;
+        }
+      }
+
+      if (variable.role === Role.LABEL && variable.source === Source.GOOGLE_ANALYTICS) {
         variable.key_required = true;
         variable.hint = `${isRegressionModel ? 'First value' : 'Trigger event'} will be automatically derived from the first occurrence of this event if not assigned.`;
       }
@@ -396,15 +408,19 @@ export class MlModelFormComponent implements OnInit {
 
       const control = this._fb.group({
         name: [variable.name],
+        placeholder: 'Key' + (variable.key_required ? ' *' : ''),
         source: [variable.source, this.enumValidator(Source)],
         count: [variable.count],
         roles: [variable.roles],
         role: [variable.role, this.enumValidator(Role)],
-        parameters: [variable.key_required ? variable.parameters : null],
+        parameters: [variable.key_required || variable.comparisons ? variable.parameters : null],
         key: [
           variable.key,
           variable.key_required ? [Validators.required] : []
         ],
+        comparisons: [variable.comparisons],
+        comparison: [variable.comparison, this.enumValidator(Comparison)],
+        value: [variable.value],
         value_type: [variable.value_type],
         hint: variable.hint
       });
@@ -624,7 +640,7 @@ export class MlModelFormComponent implements OnInit {
    */
   private enumValidator(e: object): ValidatorFn {
     return (control: AbstractControl): ValidationErrors | null => {
-      return !Object.keys(e).includes(control.value) && control.value !== null ? {invalidSelection: {value: control.value}} : null;
+      return !Object.values(e).includes(control.value) && control.value !== null ? {invalidSelection: {value: control.value}} : null;
     };
   }
 

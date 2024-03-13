@@ -89,6 +89,8 @@ class TestMlModelViews(controller_utils.ControllerAppTest):
             'source': 'FIRST_PARTY',
             'role': 'FIRST_VALUE',
             'key': None,
+            'comparison': None,
+            'value': None,
             'value_type': None
           },
           {
@@ -96,6 +98,8 @@ class TestMlModelViews(controller_utils.ControllerAppTest):
             'source': 'FIRST_PARTY',
             'role': 'TRIGGER_DATE',
             'key': None,
+            'comparison': None,
+            'value': None,
             'value_type': None
           },
           {
@@ -103,6 +107,17 @@ class TestMlModelViews(controller_utils.ControllerAppTest):
             'source': 'FIRST_PARTY',
             'role': 'FEATURE',
             'key': None,
+            'comparison': None,
+            'value': None,
+            'value_type': None
+          },
+          {
+            'name': 'page_view',
+            'source': 'GOOGLE_ANALYTICS',
+            'role': 'FEATURE',
+            'key': 'page_location',
+            'comparison': 'REGEX',
+            'value': 'example\.com\/about',
             'value_type': None
           },
           {
@@ -110,6 +125,8 @@ class TestMlModelViews(controller_utils.ControllerAppTest):
             'source': 'GOOGLE_ANALYTICS',
             'role': 'LABEL',
             'key': 'value',
+            'comparison': None,
+            'value': None,
             'value_type': 'int'
           }
         ],
@@ -367,6 +384,8 @@ class TestMlModelViews(controller_utils.ControllerAppTest):
             'source': 'GOOGLE_ANALYTICS',
             'role': 'FEATURE',
             'key': None,
+            'comparison': None,
+            'value': None,
             'value_type': None
           },
           {
@@ -374,6 +393,8 @@ class TestMlModelViews(controller_utils.ControllerAppTest):
             'source': 'FIRST_PARTY',
             'role': 'LABEL',
             'key': None,
+            'comparison': None,
+            'value': None,
             'value_type': None
           }
         ],

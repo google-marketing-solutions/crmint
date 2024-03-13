@@ -12,14 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
-# Do the following to create a new revision of the schema:
-# Remove existing migration file (if any that you created during this update).
-# docker-compose down --volumes
-# docker-compose run controller python -m flask db upgrade
-# docker-compose run controller python -m flask db migrate
-# docker-compose run controller python -m flask db upgrade
-
 """Models definitions."""
 
 import datetime
@@ -603,6 +595,8 @@ class MlModelVariable(extensions.db.Model):
   source = Column(String(255), nullable=False)
   role = Column(String(255), nullable=True)
   key = Column(String(255), nullable=True)
+  comparison = Column(String(255), nullable=True)
+  value = Column(String(255), nullable=True)
   value_type = Column(String(255), nullable=True)
 
   ml_model = orm.relationship(

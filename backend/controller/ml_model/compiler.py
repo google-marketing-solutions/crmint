@@ -21,6 +21,7 @@ import os
 from typing import Any
 import uuid
 import jinja2
+import re
 
 from controller import models
 from controller import shared
@@ -96,6 +97,16 @@ class VariableRole(shared.StrEnum):
   GCLID = 'GCLID'
 
 
+class VariableComparison(shared.StrEnum):
+  REGEX = 'REGEX'
+  EQUAL = 'EQUAL'
+  NOT_EQUAL = 'NOT_EQUAL'
+  GREATER = 'GREATER'
+  GREATER_OR_EQUAL = 'GREATER_OR_EQUAL'
+  LESS = 'LESS'
+  LESS_OR_EQUAL = 'LESS_OR_EQUAL'
+
+
 class VariableSet():
   """A set of model variables attributed to a specific source.
 
@@ -154,7 +165,17 @@ class VariableSet():
 
   @property
   def features(self):
-    return self._get_many(VariableRole.FEATURE)
+    features = self._get_many(VariableRole.FEATURE)
+    for feature in features:
+      if not hasattr(feature, 'comparison'):
+        feature.comparison = None
+      if feature.comparison:
+        feature.comparison_method = {
+          comparison.lower(): feature.comparison == comparison
+          for comparison in VariableComparison._member_names_
+        }
+        feature.description = f"{feature.name}_{feature.key}_{feature.comparison.lower()}_{self._strip_special_chars(feature.value).lower()}"
+    return features
 
   @property
   def label(self):
@@ -194,6 +215,10 @@ class VariableSet():
       if variable.role == role:
         filtered.append(variable)
     return filtered
+
+  def _strip_special_chars(self, value: str) -> str:
+    """Strips special characters from a string."""
+    return re.sub(r'\\[a-zA-Z]+|[^\w]', '', value)
 
 
 class Compiler():
