@@ -1,6 +1,6 @@
 google-cloud-logging
 google-cloud-pubsub
 Flask==2.0.3
-werkzeug<2.1.0
+werkzeug<2.4.0
 CacheControl
 gunicorn
