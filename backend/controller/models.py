@@ -590,9 +590,10 @@ class MlModelVariable(extensions.db.Model):
   """Model for ml model variable."""
   __tablename__ = 'ml_model_variables'
 
-  ml_model_id = Column(Integer, ForeignKey('ml_models.id'), primary_key=True)
-  name = Column(String(255), nullable=False, primary_key=True)
+  id = Column(Integer, primary_key=True, autoincrement=True)
+  ml_model_id = Column(Integer, ForeignKey('ml_models.id'), nullable=False)
   source = Column(String(255), nullable=False)
+  name = Column(String(255), nullable=False)
   role = Column(String(255), nullable=True)
   key = Column(String(255), nullable=True)
   comparison = Column(String(255), nullable=True)
