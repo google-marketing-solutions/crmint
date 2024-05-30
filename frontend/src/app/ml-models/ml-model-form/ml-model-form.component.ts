@@ -45,6 +45,7 @@ export class MlModelFormComponent implements OnInit {
   destinations: string[];
   cachedVariables: Variable[] = [];
   fetchingVariables: boolean = false;
+  variableSelectOpen: number = -1;
 
   constructor(
     private _fb: UntypedFormBuilder,
@@ -459,10 +460,9 @@ export class MlModelFormComponent implements OnInit {
       const control = this._fb.group({
         sources: [variableSources],
         source: [variable.source, this.enumValidator(Source)],
-        names: [variables.filter(v => v.source === existingVariable.source).map(v => v.name)],
+        list: [variables.filter(v => v.source === existingVariable.source).map(v => { return {name: v.name, count: v.count} })],
         name: [variable.name],
         key_placeholder: 'Key' + (variable.key_required ? ' *' : ''),
-        count: [variable.count],
         roles: [variable.roles],
         role: [variable.role, this.enumValidator(Role)],
         parameters: [variable.key_required || variable.comparisons ? variable.parameters : null],

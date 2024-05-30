@@ -155,17 +155,22 @@
                     </mat-option>
                   </mat-select>
                 </td>
-                <td *ngIf="value(variable, 'names'); let names" class="name">
-                  <mat-select placeholder="Variable" formControlName="name" (selectionChange)="refreshVariables()">
-                    <mat-option *ngFor="let name of names" [value]="name">
-                      {{ name }}
+                <td *ngIf="value(variable, 'list'); let list" class="name">
+                  <mat-select placeholder="Variable"
+                              formControlName="name"
+                              (selectionChange)="refreshVariables()"
+                              (opened)="variableSelectOpen = i"
+                              (blur)="variableSelectOpen = -1">
+                    <mat-option *ngFor="let variable of list" [value]="variable.name">
+                      {{ variable.name }}
+                      <span *ngIf="variableSelectOpen === i && variable.count"
+                            style="float:right; font-size:10px">
+                        {{ variable.count }}
+                      </span>
                     </mat-option>
                   </mat-select>
                 </td>
-                <td *ngIf="!value(variable, 'names')" class="name"></td>
-                <td class="count" [hidden]="!value(variable, 'count')">
-                  <mat-icon>bar_chart</mat-icon> {{ value(variable, 'count') }}
-                </td>
+                <td *ngIf="!value(variable, 'list')" class="name"></td>
                 <td *ngIf="value(variable, 'roles'); let roles" class="role">
                   <mat-select placeholder="Include As" formControlName="role" (selectionChange)="refreshVariables()">
                     <mat-option [value]="null">----</mat-option>
