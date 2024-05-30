@@ -3,9 +3,10 @@
   flex-direction: row
   position: relative
   align-items: center
-  margin-right: 90px
+  margin: 0px 40px
   .crmi-form-label
     padding-right: 20px
+    width: 165px
   .mat-form-label
     flex-grow: 0
   .mat-form-field, .mat-select, .mat-slider
@@ -22,6 +23,11 @@
     margin-left: 28px
   .mat-form-field + .mat-form-field
     margin-left: 28px
+
+.crmi-form-message-error
+  padding: 20px
+  border: 1px solid #c51162
+  border-radius: 4px
 
 .option-description
   display: block
@@ -107,7 +113,7 @@
 #variables
   table
     margin: 20px 0px
-    padding: 10px
+    padding: 20px 10px
     border: 1px solid rgba(0, 0, 0, 0.3)
     border-radius: 4px
     flex-grow: 1
@@ -115,12 +121,14 @@
     border-spacing: 10px 0px
     font-size: 14px
     tr
+      td#add-variable
+        padding-top: 20px
       td .mat-select
         margin: 5px
       td.name, td.source
-        width: 150px
+        width: 130px
         .mat-select
-          width: 150px
+          width: 130px
       td.role
         text-align: left
         .mat-select
@@ -133,6 +141,7 @@
           width: calc(100% - 20px)
       td.value
         .mat-form-field
+          width: 120px
           text-align: center
       td.count
         text-align: right
@@ -150,6 +159,16 @@
       td.hint
         padding: 0px
         width: 27px
+      td.remove
+        padding: 0px
+        width: 27px
+        text-align: right
+        button
+          border: none
+          box-shadow: none
+          width: 27px
+          min-width: 27px
+          padding: 0px
 
 
 #label

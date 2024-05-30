@@ -162,6 +162,7 @@
                     </mat-option>
                   </mat-select>
                 </td>
+                <td *ngIf="!value(variable, 'names')" class="name"></td>
                 <td class="count" [hidden]="!value(variable, 'count')">
                   <mat-icon>bar_chart</mat-icon> {{ value(variable, 'count') }}
                 </td>
@@ -171,37 +172,60 @@
                     <mat-option *ngFor="let role of roles" [value]="role">{{ role | labelcase }}</mat-option>
                   </mat-select>
                 </td>
+                <td *ngIf="!value(variable, 'roles')" class="role"></td>
                 <td *ngIf="value(variable, 'parameters'); let parameters" class="key">
-                  <mat-select [placeholder]="value(variable, 'placeholder')" formControlName="key" (selectionChange)="refreshVariables()">
+                  <mat-select [placeholder]="value(variable, 'key_placeholder')" formControlName="key" (selectionChange)="refreshVariables()">
                     <mat-option [value]="null">----</mat-option>
                     <mat-option *ngFor="let parameter of parameters" [value]="parameter.key">{{ parameter.key }}</mat-option>
                   </mat-select>
                 </td>
+                <td *ngIf="!value(variable, 'parameters')" class="key"></td>
                 <td *ngIf="value(variable, 'key') && value(variable, 'comparisons'); let comparisons" class="comparison">
-                  <mat-select placeholder="Comparison" formControlName="comparison">
+                  <mat-select placeholder="Comparison *" formControlName="comparison">
+                    <mat-option [value]="null">----</mat-option>
                     <mat-option *ngFor="let comparison of comparisons" [value]="comparison.value">{{ comparison.label | labelcase }}</mat-option>
                   </mat-select>
                 </td>
+                <td *ngIf="!value(variable, 'key') || !value(variable, 'comparisons')" class="value"></td>
                 <td *ngIf="value(variable, 'key') && value(variable, 'comparisons')" class="value">
                   <mat-form-field>
                     <input matInput type="text" formControlName="value">
                   </mat-form-field>
                 </td>
-                <td class='hint' *ngIf="error(variable)">
+                <td *ngIf="!value(variable, 'key') || !value(variable, 'comparisons')" class="value"></td>
+                <td *ngIf="error(variable)" class='hint'>
                   <mat-icon class="tooltip-icon"
                             [matTooltip]="error(variable) | labelcase"
-                            matTooltipPosition="after"
+                            matTooltipPosition="above"
                             matTooltipClass="crmi-tooltip">
                     warning
                   </mat-icon>
                 </td>
-                <td class='hint' *ngIf="!error(variable) && value(variable, 'hint')">
+                <td *ngIf="!error(variable) && value(variable, 'hint')" class='hint'>
                   <mat-icon class="tooltip-icon"
                             [matTooltip]="value(variable, 'hint')"
-                            matTooltipPosition="after"
+                            matTooltipPosition="above"
                             matTooltipClass="crmi-tooltip">
                     help
                   </mat-icon>
+                </td>
+                <td *ngIf="!error(variable) && !value(variable, 'hint')" class='hint'></td>
+                <td class='remove'>
+                  <button mat-raised-button
+                          (click)="removeVariable(i)"
+                          type="button">
+                    <mat-icon>delete</mat-icon>
+                  </button>
+                </td>
+              </tr>
+              <tr>
+                <td id="add-variable" colspan="999">
+                  <button mat-raised-button
+                          (click)="addVariable()"
+                          type="button"
+                          color="primary">
+                    Add
+                  </button>
                 </td>
               </tr>
             </tbody>
@@ -234,7 +258,12 @@
         <div *ngIf="type.isClassification" class="crmi-form-group">
           <label class="crmi-form-label">
             Number of Segments
-            <mat-icon class="tooltip-icon" title="Used when calculating conversion rates.">help</mat-icon>
+            <mat-icon class="tooltip-icon"
+                      matTooltip="Used when calculating conversion rates."
+                      matTooltipPosition="above"
+                      matTooltipClass="crmi-tooltip">
+              help
+            </mat-icon>
           </label>
           <mat-slider formControlName="conversionRateSegments" [min]="2" [max]="10" [step]="1" [thumbLabel]="true"></mat-slider>
           <span>{{ value('conversionRateSegments') }}</span>
@@ -261,8 +290,14 @@
           </div>
         </div>
 
+        <div *ngIf="errorMessage" class="crmi-form-message crmi-form-message-error">
+          <mat-icon class="tooltip-icon"
+                    matTooltipClass="crmi-tooltip">
+            warning
+          </mat-icon>
+          {{ errorMessage }}
+        </div>
         <div class="crmi-form-offset">
-          <div class="crmi-form-message crmi-form-message-error">{{ errorMessage }}</div>
           <button mat-raised-button
                   type="submit"
                   [disabled]="!mlModelForm.valid"

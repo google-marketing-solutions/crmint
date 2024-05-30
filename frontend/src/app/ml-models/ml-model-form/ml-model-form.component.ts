@@ -315,6 +315,33 @@ export class MlModelFormComponent implements OnInit {
   }
 
   /**
+   * Adds a new variable form control to the form array "variables". This creates a new entry where
+   * the user can start to fill in the necessary fields for defining a variable and how the backend
+   * should use/add that variable to the model via the templates.
+   */
+  addVariable() {
+    const variables: Variable[] = this.getVariables();
+    const variableSources: string[] = variables.map(v => v.source).filter((s, i, a) => a.indexOf(s) === i);
+
+    const formVariables = this.mlModelForm.get('variables') as UntypedFormArray;
+    formVariables.push(this._fb.group({
+      sources: [variableSources],
+      source: [null]
+    }));
+  }
+
+  /**
+   * Remove a variable form control to the form array "variables". This entry will no longer show up
+   * in the list of variables for the user to modify/adjust settings for.
+   *
+   * @param index The index to remove from the "variables" form array.
+   */
+  removeVariable(index: number) {
+    const formVariables = this.mlModelForm.get('variables') as UntypedFormArray;
+    formVariables.removeAt(index);
+  }
+
+  /**
    * Get variables (feature, label, and other options) from GA4 Events and First Party tables in BigQuery.
    */
   async fetchVariables() {
@@ -367,91 +394,91 @@ export class MlModelFormComponent implements OnInit {
     const comparisons = Object.keys(Comparison).map(c => {
       return { value: Comparison[c], label: c };
     });
+
+    if (!existingVariables.length) {
+      this.addVariable();
+      return;
+    }
+
     let controls = [];
 
-    if (existingVariables.length) {
-      for (let existingVariable of existingVariables) {
-        const matchingVariables = variables.filter(v => v.source === existingVariable.source);
-        if (!matchingVariables.length) {
-          continue;
-        }
-
-        let variable = matchingVariables.find(v => v.name === existingVariable.name);
-        if (!variable) {
-          controls.push(this._fb.group({
-            sources: [variableSources],
-            source: [existingVariable.source],
-            names: [variables.filter(v => v.source === existingVariable.source).map(v => v.name)],
-            name: [null],
-          }));
-          continue;
-        }
-
-        variable.roles = this.getApplicableVariableRoles(existingVariables, variable);
-        variable.role = existingVariable && variable.roles.includes(existingVariable.role) ? existingVariable.role : null;
-        variable.comparison = existingVariable ? existingVariable.comparison : null;
-        variable.value = existingVariable ? existingVariable.value : null;
-        variable.key = null;
-        variable.key_required = false;
-        variable.hint = null;
-
-        if (existingVariable && existingVariable.key && variable.role) {
-          variable.key = existingVariable.key;
-          variable.value_type = variable.parameters.find(p => p.key === variable.key).value_type;
-        }
-
-        if (variable.role === Role.FEATURE && variable.source === Source.GOOGLE_ANALYTICS) {
-          variable.comparisons = comparisons;
-          variable.key_required = false;
-          if (!variable.key) {
-            variable.comparison = null;
-            variable.value = null;
-          }
-        }
-
-        if (variable.role === Role.LABEL && variable.source === Source.GOOGLE_ANALYTICS) {
-          variable.key_required = true;
-          variable.hint = `${isRegressionModel ? 'First value' : 'Trigger event'} will be automatically derived from the first occurrence of this event if not assigned.`;
-        }
-
-        if ([Role.FIRST_VALUE, Role.TRIGGER_EVENT].includes(variable.role) && variable.source === Source.GOOGLE_ANALYTICS) {
-          variable.key_required = true;
-          variable.hint = 'Trigger date will be automatically derived from the first date associated with this event.';
-        }
-
-        if (variable.role === Role.GCLID) {
-          variable.hint = 'Trigger date field will be used as the datetime for the conversion sent to Google Ads.';
-        }
-
-        const control = this._fb.group({
-          sources: [variableSources],
-          source: [variable.source, this.enumValidator(Source)],
-          names: [variables.filter(v => v.source === existingVariable.source).map(v => v.name)],
-          name: [variable.name],
-          placeholder: 'Key' + (variable.key_required ? ' *' : ''),
-          count: [variable.count],
-          roles: [variable.roles],
-          role: [variable.role, this.enumValidator(Role)],
-          parameters: [variable.key_required || variable.comparisons ? variable.parameters : null],
-          key: [
-            variable.key,
-            variable.key_required ? [Validators.required] : []
-          ],
-          comparisons: [variable.comparisons],
-          comparison: [variable.comparison, this.enumValidator(Comparison)],
-          value: [variable.value],
-          value_type: [variable.value_type],
-          hint: variable.hint
-        });
-
-        control.setValidators(this.variableValidator(existingVariables));
-        controls.push(control);
+    for (let existingVariable of existingVariables) {
+      const matchingVariables = variables.filter(v => v.source === existingVariable.source);
+      if (!matchingVariables.length) {
+        continue;
       }
-    } else {
-      controls.push(this._fb.group({
+
+      let variable = matchingVariables.find(v => v.name === existingVariable.name);
+      if (!variable) {
+        controls.push(this._fb.group({
+          sources: [variableSources],
+          source: [existingVariable.source],
+          names: [variables.filter(v => v.source === existingVariable.source).map(v => v.name)],
+          name: [null],
+        }));
+        continue;
+      }
+
+      variable.roles = this.getApplicableVariableRoles(existingVariables, variable);
+      variable.role = existingVariable && variable.roles.includes(existingVariable.role) ? existingVariable.role : null;
+      variable.comparisons = null;
+      variable.comparison = null;
+      variable.value = null;
+      variable.key = null;
+      variable.key_required = false;
+      variable.hint = null;
+
+      if (existingVariable && existingVariable.key && variable.role) {
+        variable.key = existingVariable.key;
+        variable.value_type = variable.parameters.find(p => p.key === variable.key).value_type;
+      }
+
+      if (variable.role === Role.FEATURE && variable.source === Source.GOOGLE_ANALYTICS) {
+        variable.comparisons = comparisons;
+        variable.key_required = false;
+        if (variable.key && existingVariable) {
+          variable.comparison = existingVariable.comparison;
+          variable.value = existingVariable.value;
+        }
+      }
+
+      if (variable.role === Role.LABEL && variable.source === Source.GOOGLE_ANALYTICS) {
+        variable.key_required = true;
+        variable.hint = `${isRegressionModel ? 'First value' : 'Trigger event'} will be automatically derived from the first occurrence of this event if not assigned.`;
+      }
+
+      if ([Role.FIRST_VALUE, Role.TRIGGER_EVENT].includes(variable.role) && variable.source === Source.GOOGLE_ANALYTICS) {
+        variable.key_required = true;
+        variable.hint = 'Trigger date will be automatically derived from the first date associated with this event.';
+      }
+
+      if (variable.role === Role.GCLID) {
+        variable.hint = 'Trigger date field will be used as the datetime for the conversion sent to Google Ads.';
+      }
+
+      const control = this._fb.group({
         sources: [variableSources],
-        source: [null]
-      }));
+        source: [variable.source, this.enumValidator(Source)],
+        names: [variables.filter(v => v.source === existingVariable.source).map(v => v.name)],
+        name: [variable.name],
+        key_placeholder: 'Key' + (variable.key_required ? ' *' : ''),
+        count: [variable.count],
+        roles: [variable.roles],
+        role: [variable.role, this.enumValidator(Role)],
+        parameters: [variable.key_required || variable.comparisons ? variable.parameters : null],
+        key: [
+          variable.key,
+          variable.key_required ? [Validators.required] : []
+        ],
+        comparisons: [variable.comparisons],
+        comparison: [variable.comparison, this.enumValidator(Comparison)],
+        value: [variable.value],
+        value_type: [variable.value_type],
+        hint: variable.hint
+      });
+
+      control.setValidators(this.variableValidator(existingVariables));
+      controls.push(control);
     }
 
     this.mlModelForm.setControl('variables', this._fb.array(controls));
@@ -624,6 +651,20 @@ export class MlModelFormComponent implements OnInit {
   }
 
   /**
+   * Validate the ml model object to ensure everything provided by the user meets at least
+   * the minimum requirements to build the model out properly.
+   *
+   * @throws Errors that encapsulate the reason for validation failures.
+   */
+  validateMlModel() {
+    const featuresSet = this.mlModel.variables.filter(v => v.role === Role.FEATURE).length >= 2;
+    const labelSet = this.mlModel.variables.filter(v => v.role === Role.LABEL).length === 1;
+    if (!featuresSet || !labelSet) {
+      throw 'At least 2 features and 1 label must be added/selected from the list of variables.';
+    }
+  }
+
+  /**
    * Update the ml model object using the form data and send it to the backend to persist.
    */
   async save() {
@@ -631,6 +672,8 @@ export class MlModelFormComponent implements OnInit {
     this.prepareSaveMlModel();
 
     try {
+      this.validateMlModel();
+
       if (this.mlModel.id) {
         await this.mlModelsService.update(this.mlModel);
         this.router.navigate(['ml-models', this.mlModel.id]);
@@ -687,6 +730,18 @@ export class MlModelFormComponent implements OnInit {
           const variablesWithRole = existingVariables.filter(v => v.role === variableRole);
           if (variablesWithRole.length > 1) {
             return {cannotAssignThisRoleToMultipleVariables: true};
+          }
+        } else {
+          const key = control.get('key').value;
+          const comparison = control.get('comparison').value;
+          const value = control.get('value').value;
+
+          if (key && !comparison) {
+            return {comparisonRequiredWhenKeySelected: true}
+          }
+
+          if (comparison && !value) {
+            return {valueRequiredForComparison: true}
           }
         }
       } else {
