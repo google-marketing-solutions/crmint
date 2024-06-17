@@ -3,9 +3,10 @@
   flex-direction: row
   position: relative
   align-items: center
-  margin-right: 90px
+  margin: 0px 40px
   .crmi-form-label
     padding-right: 20px
+    width: 165px
   .mat-form-label
     flex-grow: 0
   .mat-form-field, .mat-select, .mat-slider
@@ -23,11 +24,13 @@
   .mat-form-field + .mat-form-field
     margin-left: 28px
 
-.option-description
-  display: block
-  float: right
-  font-size: 11px
-  font-weight: 600
+.crmi-form-message-error
+  padding: 20px
+  border: 1px solid #c51162
+  border-radius: 4px
+
+.crmi-form-offset
+  padding-left: 220px
 
 .notice
   background-color: #c51162
@@ -107,48 +110,49 @@
 #variables
   table
     margin: 20px 0px
-    padding: 10px
+    padding: 20px 10px
     border: 1px solid rgba(0, 0, 0, 0.3)
     border-radius: 4px
     flex-grow: 1
     height: auto
     border-spacing: 10px 0px
     font-size: 14px
-  table tr td .mat-select
-    margin: 5px
-  table tr td.source
-    color: rgba(0, 0, 0, 0.6)
-    font-weight: 500
-    font-size: 12px
-    width: 300px
-  table tr td.role
-    text-align: left
-    .mat-select
-      margin-left: 20px
-      width: calc(100% - 40px)
-  table tr td.key, table tr td.comparison
-    text-align: left
-    .mat-select
-      margin-left: 0px
-      width: calc(100% - 20px)
-  table tr td.value
-    .mat-form-field
-      text-align: center
-  table tr td.count
-    text-align: right
-    font-size: 12px
-    width: 300px
-    .mat-icon
-      font-size: 14px
-      font-weight: 700
-      vertical-align: middle
-      padding-top: 8px
-  table tr td.count[hidden]
-    display: block
-    visibility: hidden
-  table tr td.hint
-    padding: 0px
-    width: 27px
+    tr
+      td#add-variable
+        padding-top: 20px
+      td .mat-select
+        margin: 5px
+      td.name, td.source
+        width: 130px
+        .mat-select
+          width: 130px
+      td.role
+        text-align: left
+        .mat-select
+          margin-left: 0px
+          width: calc(100% - 20px)
+      td.key, td.comparison
+        text-align: left
+        .mat-select
+          margin-left: 0px
+          width: calc(100% - 20px)
+      td.value
+        .mat-form-field
+          width: 120px
+          text-align: center
+      td.hint
+        padding: 0px
+        width: 27px
+      td.remove
+        padding: 0px
+        width: 27px
+        text-align: right
+        button
+          border: none
+          box-shadow: none
+          width: 27px
+          min-width: 27px
+          padding: 0px
 
 
 #label
@@ -187,7 +191,7 @@
   padding-left: 3px
 
 button[type='submit']
-  margin-top: 50px
+  margin: 50px 0px
 
 button:disabled
   cursor: not-allowed

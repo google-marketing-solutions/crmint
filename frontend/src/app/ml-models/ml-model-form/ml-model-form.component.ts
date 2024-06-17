@@ -45,6 +45,7 @@ export class MlModelFormComponent implements OnInit {
   destinations: string[];
   cachedVariables: Variable[] = [];
   fetchingVariables: boolean = false;
+  variableSelectOpen: number = -1;
 
   constructor(
     private _fb: UntypedFormBuilder,
@@ -190,7 +191,8 @@ export class MlModelFormComponent implements OnInit {
    */
   value(control: string|AbstractControl, key: string = ''): any {
     const formControl = control instanceof AbstractControl ? control : this.mlModelForm.get(control);
-    return key ? formControl.get(key).value : formControl.value;
+    const targetControl = key ? formControl.get(key) : formControl;
+    return targetControl ? targetControl.value : null;
   }
 
   /**
@@ -314,6 +316,33 @@ export class MlModelFormComponent implements OnInit {
   }
 
   /**
+   * Adds a new variable form control to the form array "variables". This creates a new entry where
+   * the user can start to fill in the necessary fields for defining a variable and how the backend
+   * should use/add that variable to the model via the templates.
+   */
+  addVariable() {
+    const variables: Variable[] = this.getVariables();
+    const variableSources: string[] = variables.map(v => v.source).filter((s, i, a) => a.indexOf(s) === i);
+
+    const formVariables = this.mlModelForm.get('variables') as UntypedFormArray;
+    formVariables.push(this._fb.group({
+      sources: [variableSources],
+      source: [null]
+    }));
+  }
+
+  /**
+   * Remove a variable form control to the form array "variables". This entry will no longer show up
+   * in the list of variables for the user to modify/adjust settings for.
+   *
+   * @param index The index to remove from the "variables" form array.
+   */
+  removeVariable(index: number) {
+    const formVariables = this.mlModelForm.get('variables') as UntypedFormArray;
+    formVariables.removeAt(index);
+  }
+
+  /**
    * Get variables (feature, label, and other options) from GA4 Events and First Party tables in BigQuery.
    */
   async fetchVariables() {
@@ -361,19 +390,41 @@ export class MlModelFormComponent implements OnInit {
     const formVariables: Variable[] = this.value('variables');
     const existingVariables: Variable[] = (formVariables.length ? formVariables : this.mlModel.variables) || [];
     const variables: Variable[] = this.getVariables();
+    const variableSources: string[] = variables.map(v => v.source).filter((s, i, a) => a.indexOf(s) === i);
     const isRegressionModel: boolean = this.type.isRegression;
     const comparisons = Object.keys(Comparison).map(c => {
       return { value: Comparison[c], label: c };
     });
+
+    if (!existingVariables.length) {
+      this.addVariable();
+      return;
+    }
+
     let controls = [];
 
-    for (const variable of variables) {
-      const existingVariable: Variable = existingVariables.find(v => v.name === variable.name && v.source === variable.source);
+    for (let existingVariable of existingVariables) {
+      const matchingVariables = variables.filter(v => v.source === existingVariable.source);
+      if (!matchingVariables.length) {
+        continue;
+      }
+
+      let variable = matchingVariables.find(v => v.name === existingVariable.name);
+      if (!variable) {
+        controls.push(this._fb.group({
+          sources: [variableSources],
+          source: [existingVariable.source],
+          names: [variables.filter(v => v.source === existingVariable.source).map(v => v.name)],
+          name: [null],
+        }));
+        continue;
+      }
 
       variable.roles = this.getApplicableVariableRoles(existingVariables, variable);
       variable.role = existingVariable && variable.roles.includes(existingVariable.role) ? existingVariable.role : null;
-      variable.comparison = existingVariable ? existingVariable.comparison : null;
-      variable.value = existingVariable ? existingVariable.value : null;
+      variable.comparisons = null;
+      variable.comparison = null;
+      variable.value = null;
       variable.key = null;
       variable.key_required = false;
       variable.hint = null;
@@ -386,9 +437,9 @@ export class MlModelFormComponent implements OnInit {
       if (variable.role === Role.FEATURE && variable.source === Source.GOOGLE_ANALYTICS) {
         variable.comparisons = comparisons;
         variable.key_required = false;
-        if (!variable.key) {
-          variable.comparison = null;
-          variable.value = null;
+        if (variable.key && existingVariable) {
+          variable.comparison = existingVariable.comparison;
+          variable.value = existingVariable.value;
         }
       }
 
@@ -407,10 +458,11 @@ export class MlModelFormComponent implements OnInit {
       }
 
       const control = this._fb.group({
-        name: [variable.name],
-        placeholder: 'Key' + (variable.key_required ? ' *' : ''),
+        sources: [variableSources],
         source: [variable.source, this.enumValidator(Source)],
-        count: [variable.count],
+        list: [variables.filter(v => v.source === existingVariable.source).map(v => { return {name: v.name, count: v.count} })],
+        name: [variable.name],
+        key_placeholder: 'Key' + (variable.key_required ? ' *' : ''),
         roles: [variable.roles],
         role: [variable.role, this.enumValidator(Role)],
         parameters: [variable.key_required || variable.comparisons ? variable.parameters : null],
@@ -599,6 +651,20 @@ export class MlModelFormComponent implements OnInit {
   }
 
   /**
+   * Validate the ml model object to ensure everything provided by the user meets at least
+   * the minimum requirements to build the model out properly.
+   *
+   * @throws Errors that encapsulate the reason for validation failures.
+   */
+  validateMlModel() {
+    const featuresSet = this.mlModel.variables.filter(v => v.role === Role.FEATURE).length >= 2;
+    const labelSet = this.mlModel.variables.filter(v => v.role === Role.LABEL).length === 1;
+    if (!featuresSet || !labelSet) {
+      throw 'At least 2 features and 1 label must be added/selected from the list of variables.';
+    }
+  }
+
+  /**
    * Update the ml model object using the form data and send it to the backend to persist.
    */
   async save() {
@@ -606,6 +672,8 @@ export class MlModelFormComponent implements OnInit {
     this.prepareSaveMlModel();
 
     try {
+      this.validateMlModel();
+
       if (this.mlModel.id) {
         await this.mlModelsService.update(this.mlModel);
         this.router.navigate(['ml-models', this.mlModel.id]);
@@ -662,6 +730,18 @@ export class MlModelFormComponent implements OnInit {
           const variablesWithRole = existingVariables.filter(v => v.role === variableRole);
           if (variablesWithRole.length > 1) {
             return {cannotAssignThisRoleToMultipleVariables: true};
+          }
+        } else {
+          const key = control.get('key').value;
+          const comparison = control.get('comparison').value;
+          const value = control.get('value').value;
+
+          if (key && !comparison) {
+            return {comparisonRequiredWhenKeySelected: true}
+          }
+
+          if (comparison && !value) {
+            return {valueRequiredForComparison: true}
           }
         }
       } else {
