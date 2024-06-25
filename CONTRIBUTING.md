@@ -98,7 +98,6 @@ $ pip-compile --allow-unsafe --generate-hashes --resolver=backtracking setup.py
 #### Backend
 Update dependencies in requirements-controller.in and/or requirements-jobs.in then:
 ```sh
-$ cd backend/
 $ pip-compile --allow-unsafe --generate-hashes --resolver=backtracking backend/requirements-controller.in
 $ pip-compile --allow-unsafe --generate-hashes --resolver=backtracking backend/requirements-jobs.in
 ```

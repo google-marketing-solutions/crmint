@@ -414,7 +414,7 @@ export class MlModelFormComponent implements OnInit {
         controls.push(this._fb.group({
           sources: [variableSources],
           source: [existingVariable.source],
-          names: [variables.filter(v => v.source === existingVariable.source).map(v => v.name)],
+          list: [variables.filter(v => v.source === existingVariable.source).map(v => { return {name: v.name, count: v.count} })],
           name: [null],
         }));
         continue;

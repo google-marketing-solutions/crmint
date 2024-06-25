@@ -33,10 +33,7 @@ depends_on = None
 def upgrade():
     op.drop_constraint('ml_model_variables_ibfk_1', 'ml_model_variables', type_='foreignkey')
     op.drop_constraint('PRIMARY', 'ml_model_variables', type_='primary')
-    with op.batch_alter_table('ml_model_variables', schema=None) as batch_op:
-        batch_op.add_column(sa.Column('id', sa.Integer()))
-    op.create_primary_key('PRIMARY', 'ml_model_variables', ['id'])
-    op.execute('ALTER TABLE ml_model_variables MODIFY id INTEGER NOT NULL AUTO_INCREMENT;')
+    op.execute('ALTER TABLE ml_model_variables ADD id INTEGER PRIMARY KEY AUTO_INCREMENT;')
     op.create_foreign_key(
         'ml_model_variables_ibfk_1', 'ml_model_variables', 'ml_models',
         ['ml_model_id'], ['id'])
@@ -44,9 +41,7 @@ def upgrade():
 
 def downgrade():
     op.drop_constraint('ml_model_variables_ibfk_1', 'ml_model_variables', type_='foreignkey')
-    op.drop_constraint('PRIMARY', 'ml_model_variables', type_='primary')
-    with op.batch_alter_table('ml_model_variables', schema=None) as batch_op:
-        batch_op.drop_column('id')
+    op.execute('ALTER TABLE ml_model_variables DROP COLUMN id;')
     op.create_primary_key(
         'PRIMARY', 'ml_model_variables',
         ['ml_model_id', 'name'])
