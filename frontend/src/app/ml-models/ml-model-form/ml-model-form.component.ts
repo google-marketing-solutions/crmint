@@ -198,14 +198,11 @@ export class MlModelFormComponent implements OnInit {
   /**
    * Return any error for a given control.
    *
-   * @param control The name of the control or the control itself.
-   * @param key The key within the control to lookup the value for (optional).
-   * @returns The error associated with the control (if any).
+   * @param control The control itself.
+   * @returns The error associated with the control (if any) or undefined otherwise.
    */
-  error(control: string|AbstractControl, key: string = ''): string {
-    const formControl = control instanceof AbstractControl ? control : this.mlModelForm.get(control);
-    const errors = key ? formControl.get(key).errors : formControl.errors;
-    return errors ? Object.keys(errors)[0] : '';
+  error(control: AbstractControl): string|undefined {
+    return control.errors ? Object.keys(control.errors)[0] : undefined;
   }
 
   get type() {
@@ -298,6 +295,67 @@ export class MlModelFormComponent implements OnInit {
   }
 
   /**
+   * Check the model variables selected to ensure the necessary variables have been
+   * specified and if not return any errors that would require user correction.
+   *
+   * @returns List of validation errors if any and otherwise returns undefined.
+   */
+  get variableErrors(): string[]|undefined {
+    let errors = [];
+
+    const source: Source = this.value('input', 'source');
+    const destination: Destination = this.value('output', 'destination');
+    const existingVariables: Variable[] = this.value('variables');
+    const uniqueId: UniqueId = this.value('uniqueId');
+
+    if (existingVariables.filter(v => v.role === Role.FEATURE).length < 2) {
+      errors.push('At least 2 features must be selected/specified.');
+    }
+
+    if (existingVariables.filter(v => v.role === Role.LABEL).length === 0) {
+      errors.push('A label must be selected/specified.');
+    } else if (existingVariables.filter(v => v.role === Role.LABEL).length > 1) {
+      errors.push('Only 1 label can be selected/specified.');
+    }
+
+    if (source.includes(Source.FIRST_PARTY)) {
+      const selectedGCLID: Variable = existingVariables.find(v => v.role === Role.GCLID);
+      const selectedTriggerDate: Variable = existingVariables.find(v => v.role === Role.TRIGGER_DATE);
+
+      // client ID required when unique ID is set as client ID.
+      if (uniqueId === UniqueId.CLIENT_ID && existingVariables.filter(v => v.role === Role.CLIENT_ID).length === 0) {
+        errors.push('A client ID must be selected/specified due to it being selected as the user identifier.');
+      }
+
+      // user ID required when unique ID is set as user ID.
+      if (uniqueId === UniqueId.USER_ID && existingVariables.filter(v => v.role === Role.USER_ID).length === 0) {
+        errors.push('A user ID must be selected/specified due to it being selected as the user identifier.');
+      }
+
+      // GCLID role required for Google Ads destination if it cannot be pulled automatically from Google Analytics.
+      if (!source.includes(Source.GOOGLE_ANALYTICS) && destination === Destination.GOOGLE_ADS_OFFLINE_CONVERSION && !selectedGCLID) {
+        errors.push('A GCLID must be selected/specified due to the specified destination and no way to automatically derive.');
+      }
+
+      // check if possible to derive from Google Analytics variables that were selected and if not return validation error.
+      if (!selectedTriggerDate) {
+        const selectedTrigger: Variable = existingVariables.find(v => [Role.FIRST_VALUE, Role.TRIGGER_EVENT].includes(v.role));
+        const selectedLabel = existingVariables.find(v => v.role === Role.LABEL);
+
+        if (
+          !source.includes(Source.GOOGLE_ANALYTICS) ||
+          (!selectedTrigger && selectedLabel && selectedLabel.source !== Source.GOOGLE_ANALYTICS) ||
+          (selectedTrigger && selectedTrigger.source === Source.FIRST_PARTY)
+        ) {
+          errors.push('A trigger date must be selected/specified due to there being no way to automatically derive.');
+        }
+      }
+    }
+
+    return errors.length > 0 ? errors : undefined;
+  }
+
+  /**
    * Dynamically updates required input parameters based on the input source selected.
    */
   refreshInput() {
@@ -327,8 +385,11 @@ export class MlModelFormComponent implements OnInit {
     const formVariables = this.mlModelForm.get('variables') as UntypedFormArray;
     formVariables.push(this._fb.group({
       sources: [variableSources],
-      source: [null]
+      source: [variableSources.length === 1 ? variableSources[0] : null]
     }));
+    if (variableSources.length === 1) {
+      this.refreshVariables();
+    }
   }
 
   /**
@@ -340,6 +401,7 @@ export class MlModelFormComponent implements OnInit {
   removeVariable(index: number) {
     const formVariables = this.mlModelForm.get('variables') as UntypedFormArray;
     formVariables.removeAt(index);
+    this.refreshVariables();
   }
 
   /**
@@ -441,6 +503,7 @@ export class MlModelFormComponent implements OnInit {
           variable.comparison = existingVariable.comparison;
           variable.value = existingVariable.value;
         }
+        variable.hint = 'When no key is selected the feature value will be the event count for a given user.';
       }
 
       if (variable.role === Role.LABEL && variable.source === Source.GOOGLE_ANALYTICS) {
@@ -651,20 +714,6 @@ export class MlModelFormComponent implements OnInit {
   }
 
   /**
-   * Validate the ml model object to ensure everything provided by the user meets at least
-   * the minimum requirements to build the model out properly.
-   *
-   * @throws Errors that encapsulate the reason for validation failures.
-   */
-  validateMlModel() {
-    const featuresSet = this.mlModel.variables.filter(v => v.role === Role.FEATURE).length >= 2;
-    const labelSet = this.mlModel.variables.filter(v => v.role === Role.LABEL).length === 1;
-    if (!featuresSet || !labelSet) {
-      throw 'At least 2 features and 1 label must be added/selected from the list of variables.';
-    }
-  }
-
-  /**
    * Update the ml model object using the form data and send it to the backend to persist.
    */
   async save() {
@@ -672,8 +721,6 @@ export class MlModelFormComponent implements OnInit {
     this.prepareSaveMlModel();
 
     try {
-      this.validateMlModel();
-
       if (this.mlModel.id) {
         await this.mlModelsService.update(this.mlModel);
         this.router.navigate(['ml-models', this.mlModel.id]);
@@ -720,10 +767,7 @@ export class MlModelFormComponent implements OnInit {
    */
   private variableValidator(existingVariables: Variable[]): ValidatorFn {
     return (control: AbstractControl): ValidationErrors | null => {
-      const variableSource: Source = control.get('source').value;
       const variableRole: Role = control.get('role').value;
-      const source: Source = this.value('input', 'source');
-      const destination: Destination = this.value('output', 'destination');
 
       if (variableRole) {
         if (variableRole !== Role.FEATURE) {
@@ -742,60 +786,6 @@ export class MlModelFormComponent implements OnInit {
 
           if (comparison && !value) {
             return {valueRequiredForComparison: true}
-          }
-        }
-      } else {
-        // duplicative role selection should be handled first and then other errors will show after.
-        const singleSelectRoles = Object.keys(Role).filter(r => r !== Role.FEATURE);
-        for (const role of singleSelectRoles) {
-          const variablesWithRole = existingVariables.filter(v => v.role === role);
-          if (variablesWithRole.length > 1) {
-            return null;
-          }
-        }
-
-        const uniqueId: UniqueId = this.value('uniqueId');
-        const includesFirstPartyData: boolean = source.includes(Source.FIRST_PARTY);
-        const includesGoogleAnalyticsData: boolean = source.includes(Source.GOOGLE_ANALYTICS);
-
-        if (existingVariables.filter(v => v.role === Role.LABEL).length === 0) {
-          return {labelNotSelected: true};
-        }
-
-        if (variableSource === Source.FIRST_PARTY) {
-          // client ID required when unique ID is set as client ID.
-          if (includesFirstPartyData && uniqueId === UniqueId.CLIENT_ID && existingVariables.filter(v => v.role === Role.CLIENT_ID).length === 0) {
-            return {clientIdNotSelected: true};
-          }
-
-          // user ID required when unique ID is set as user ID.
-          if (includesFirstPartyData && uniqueId === UniqueId.USER_ID && existingVariables.filter(v => v.role === Role.USER_ID).length === 0) {
-            return {userIdNotSelected: true};
-          }
-
-          const selectedGCLID: Variable = existingVariables.find(v => v.role === Role.GCLID);
-
-          // GCLID role required for Google Ads destination if it cannot be pulled automatically from Google Analytics.
-          if (!includesGoogleAnalyticsData && destination === Destination.GOOGLE_ADS_OFFLINE_CONVERSION && !selectedGCLID) {
-            return {gclidNotSelected: true};
-          }
-
-          const selectedTriggerDate: Variable = existingVariables.find(v => v.role === Role.TRIGGER_DATE);
-
-          if (includesFirstPartyData && !selectedTriggerDate) {
-            // check if possible to derive from Google Analytics variables that were selected and if not return validation error.
-            if (includesGoogleAnalyticsData) {
-              const selectedTrigger: Variable = existingVariables.find(v => [Role.FIRST_VALUE, Role.TRIGGER_EVENT].includes(v.role));
-              const selectedLabel = existingVariables.find(v => v.role === Role.LABEL);
-
-              if ((!selectedTrigger && selectedLabel.source !== Source.GOOGLE_ANALYTICS) || (selectedTrigger && selectedTrigger.source === Source.FIRST_PARTY)) {
-                return {triggerDateNotSelected: true};
-              }
-            // trigger date role is required in the absence of Google Analytics data to
-            // understand applicability of data based on configured timespan.
-            } else {
-              return {triggerDateRequiredForTimespanAdherence: true};
-            }
           }
         }
       }
