@@ -418,7 +418,9 @@ export class MlModelFormComponent implements OnInit {
         const ts = this.value('timespans');
         variables = await this.mlModelsService.getVariables(input, dataset, ts);
         variables.sort((a: Variable, b: Variable) => {
-          return a.source.localeCompare(b.source);
+          const aCompare = `${a.role + a.source + a.name}`;
+          const bCompare = `${b.role + b.source + a.name}`;
+          return aCompare.localeCompare(bCompare);
         });
         this.cachedVariables = variables;
         this.errorMessage = '';
@@ -462,12 +464,6 @@ export class MlModelFormComponent implements OnInit {
       this.addVariable();
       return;
     }
-
-    existingVariables.sort((a: Variable, b: Variable) => {
-      const aCompare = `${a.source + a.role}`;
-      const bCompare = `${b.source + b.role}`;
-      return aCompare.localeCompare(bCompare);
-    });
 
     let controls = [];
 
