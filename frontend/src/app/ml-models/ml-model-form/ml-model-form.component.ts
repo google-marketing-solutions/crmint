@@ -27,6 +27,8 @@ import {
   Variable, BigQueryDataset, Timespan, Source, Destination, Input, Output, Role, Comparison
 } from 'app/models/ml-model';
 
+const MIN_NUM_OF_FEATURES = 2;
+
 @Component({
   selector: 'app-ml-model-form',
   templateUrl: './ml-model-form.component.html',
@@ -309,52 +311,15 @@ export class MlModelFormComponent implements OnInit {
     let errors = [];
 
     const source: Source = this.value('input', 'source');
-    const destination: Destination = this.value('output', 'destination');
-    const existingVariables: Variable[] = this.value('variables');
-    const uniqueId: UniqueId = this.value('uniqueId');
+    const variables: Variable[] = this.value('variables');
 
-    if (existingVariables.filter(v => v.role === Role.FEATURE).length < 2) {
-      errors.push('At least 2 features must be selected/specified.');
-    }
-
-    if (existingVariables.filter(v => v.role === Role.LABEL).length === 0) {
-      errors.push('A label must be selected/specified.');
-    } else if (existingVariables.filter(v => v.role === Role.LABEL).length > 1) {
-      errors.push('Only 1 label can be selected/specified.');
-    }
+    this.checkMinimumNumberOfFeatures(variables, errors);
+    this.checkOneLabel(variables, errors);
 
     if (source.includes(Source.FIRST_PARTY)) {
-      const selectedGCLID: Variable = existingVariables.find(v => v.role === Role.GCLID);
-      const selectedTriggerDate: Variable = existingVariables.find(v => v.role === Role.TRIGGER_DATE);
-
-      // client ID required when unique ID is set as client ID.
-      if (uniqueId === UniqueId.CLIENT_ID && existingVariables.filter(v => v.role === Role.CLIENT_ID).length === 0) {
-        errors.push('A client ID must be selected/specified due to it being selected as the user identifier.');
-      }
-
-      // user ID required when unique ID is set as user ID.
-      if (uniqueId === UniqueId.USER_ID && existingVariables.filter(v => v.role === Role.USER_ID).length === 0) {
-        errors.push('A user ID must be selected/specified due to it being selected as the user identifier.');
-      }
-
-      // GCLID role required for Google Ads destination if it cannot be pulled automatically from Google Analytics.
-      if (!source.includes(Source.GOOGLE_ANALYTICS) && destination === Destination.GOOGLE_ADS_OFFLINE_CONVERSION && !selectedGCLID) {
-        errors.push('A GCLID must be selected/specified due to the specified destination and no way to automatically derive.');
-      }
-
-      // check if possible to derive from Google Analytics variables that were selected and if not return validation error.
-      if (!selectedTriggerDate) {
-        const selectedTrigger: Variable = existingVariables.find(v => [Role.FIRST_VALUE, Role.TRIGGER_EVENT].includes(v.role));
-        const selectedLabel = existingVariables.find(v => v.role === Role.LABEL);
-
-        if (
-          !source.includes(Source.GOOGLE_ANALYTICS) ||
-          (!selectedTrigger && selectedLabel && selectedLabel.source !== Source.GOOGLE_ANALYTICS) ||
-          (selectedTrigger && selectedTrigger.source === Source.FIRST_PARTY)
-        ) {
-          errors.push('A trigger date must be selected/specified due to there being no way to automatically derive.');
-        }
-      }
+      this.checkUniqueId(variables, errors);
+      this.checkGCLID(variables, errors);
+      this.checkTriggerDate(variables, errors);
     }
 
     return errors.length > 0 ? errors : undefined;
@@ -793,6 +758,92 @@ export class MlModelFormComponent implements OnInit {
       }
 
       return null;
+    }
+  }
+
+  /**
+   * Check if the minimum number of features is specified.
+   *
+   * @param variables The currently configured/selected variables.
+   * @param errors A running list of errors found during check calls.
+   */
+  private checkMinimumNumberOfFeatures(variables: Variable[], errors: string[]) {
+    if (variables.filter(v => v.role === Role.FEATURE).length < MIN_NUM_OF_FEATURES) {
+      errors.push(`At least ${MIN_NUM_OF_FEATURES} features must be selected/specified.`);
+    }
+  }
+
+  /**
+   * Check if one and only one label is specified.
+   *
+   * @param variables The currently configured/selected variables.
+   * @param errors A running list of errors found during check calls.
+   */
+  private checkOneLabel(variables: Variable[], errors: string[]) {
+    if (variables.filter(v => v.role === Role.LABEL).length === 0) {
+      errors.push('A label must be selected/specified.');
+    } else if (variables.filter(v => v.role === Role.LABEL).length > 1) {
+      errors.push('Only 1 label can be selected/specified.');
+    }
+  }
+
+  /**
+   * Check if proper unique identifier is specified.
+   *
+   * @param variables The currently configured/selected variables.
+   * @param errors A running list of errors found during check calls.
+   */
+  private checkUniqueId(variables: Variable[], errors: string[]) {
+    const uniqueId: UniqueId = this.value('uniqueId');
+
+    if (uniqueId === UniqueId.CLIENT_ID && variables.filter(v => v.role === Role.CLIENT_ID).length === 0) {
+      errors.push('A client ID must be selected/specified due to it being selected as the user identifier.');
+    }
+
+    if (uniqueId === UniqueId.USER_ID && variables.filter(v => v.role === Role.USER_ID).length === 0) {
+      errors.push('A user ID must be selected/specified due to it being selected as the user identifier.');
+    }
+  }
+
+  /**
+   * Check if GCLID provided when Google Ads is set as the destination
+   * if the GCLID cannot be pulled automatically from Google Analytics.
+   *
+   * @param variables The currently configured/selected variables.
+   * @param errors A running list of errors found during check calls.
+   */
+  private checkGCLID(variables: Variable[], errors: string[]) {
+    const source: Source = this.value('input', 'source');
+    const destination: Destination = this.value('output', 'destination');
+    const selectedGCLID: Variable = variables.find(v => v.role === Role.GCLID);
+
+    if (!source.includes(Source.GOOGLE_ANALYTICS) && destination === Destination.GOOGLE_ADS_OFFLINE_CONVERSION && !selectedGCLID) {
+      errors.push('A GCLID must be selected/specified due to the specified destination and no way to automatically derive.');
+    }
+  }
+
+  /**
+   * Check if possible to derive trigger date from Google Analytics variables
+   * that were selected and if not then add error to the errors list.
+   *
+   * @param variables The currently configured/selected variables.
+   * @param errors A running list of errors found during check calls.
+   */
+  private checkTriggerDate(variables: Variable[], errors: string[]) {
+    const selectedTriggerDate: Variable = variables.find(v => v.role === Role.TRIGGER_DATE);
+
+    if (!selectedTriggerDate) {
+      const source: Source = this.value('input', 'source');
+      const selectedTrigger: Variable = variables.find(v => [Role.FIRST_VALUE, Role.TRIGGER_EVENT].includes(v.role));
+      const selectedLabel = variables.find(v => v.role === Role.LABEL);
+
+      if (
+        !source.includes(Source.GOOGLE_ANALYTICS) ||
+        (!selectedTrigger && selectedLabel && selectedLabel.source !== Source.GOOGLE_ANALYTICS) ||
+        (selectedTrigger && selectedTrigger.source === Source.FIRST_PARTY)
+      ) {
+        errors.push('A trigger date must be selected/specified due to there being no way to automatically derive.');
+      }
     }
   }
 
