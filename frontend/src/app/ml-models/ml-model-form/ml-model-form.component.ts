@@ -463,6 +463,12 @@ export class MlModelFormComponent implements OnInit {
       return;
     }
 
+    existingVariables.sort((a: Variable, b: Variable) => {
+      const aCompare = `${a.source + a.role}`;
+      const bCompare = `${b.source + b.role}`;
+      return aCompare.localeCompare(bCompare);
+    });
+
     let controls = [];
 
     for (let existingVariable of existingVariables) {
