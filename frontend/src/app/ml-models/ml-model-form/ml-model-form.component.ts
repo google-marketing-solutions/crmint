@@ -137,6 +137,11 @@ export class MlModelFormComponent implements OnInit {
     try {
       const mlModel = await this.mlModelsService.get(id);
       this.mlModel = plainToClass(MlModel, mlModel as MlModel);
+      this.mlModel.variables.sort((a: Variable, b: Variable) => {
+        const aCompare = `${a.role + a.source + a.name}`;
+        const bCompare = `${b.role + b.source + b.name}`;
+        return aCompare.localeCompare(bCompare);
+      });
       this.assignMlModelToForm();
     } catch (error) {
       if (error && error.status === 404) {
@@ -417,11 +422,6 @@ export class MlModelFormComponent implements OnInit {
         const dataset = this.value('bigQueryDataset');
         const ts = this.value('timespans');
         variables = await this.mlModelsService.getVariables(input, dataset, ts);
-        variables.sort((a: Variable, b: Variable) => {
-          const aCompare = `${a.role + a.source + a.name}`;
-          const bCompare = `${b.role + b.source + a.name}`;
-          return aCompare.localeCompare(bCompare);
-        });
         this.cachedVariables = variables;
         this.errorMessage = '';
         this.refreshVariables();
