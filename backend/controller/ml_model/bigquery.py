@@ -113,7 +113,6 @@ class CustomClient(bigquery.Client):
       )
       GROUP BY 1,2,3
       ORDER BY
-        count DESC,
         name ASC,
         parameter_key ASC;
     """

@@ -198,9 +198,9 @@
                   </mat-form-field>
                 </td>
                 <td *ngIf="!value(variable, 'key') || !value(variable, 'comparisons')" class="value"></td>
-                <td *ngIf="error(variable)" class='hint'>
+                <td *ngIf="error(variable); let errorMessage" class='hint'>
                   <mat-icon class="tooltip-icon"
-                            [matTooltip]="error(variable) | labelcase"
+                            [matTooltip]="errorMessage | labelcase"
                             matTooltipPosition="above"
                             matTooltipClass="crmi-tooltip">
                     warning
@@ -231,6 +231,19 @@
                           color="primary">
                     Add
                   </button>
+                </td>
+              </tr>
+              <tr>
+                <td id="variable-errors" colspan="999">
+                  <div *ngIf="variables.length && variableErrors" class="crmi-form-message crmi-form-message-error">
+                    <mat-icon class="tooltip-icon"
+                              matTooltipClass="crmi-tooltip">
+                      warning
+                    </mat-icon>
+                    <ol>
+                      <li *ngFor="let errorMessage of variableErrors">{{ errorMessage }}</li>
+                    </ol>
+                  </div>
                 </td>
               </tr>
             </tbody>
@@ -305,7 +318,7 @@
         <div class="crmi-form-offset">
           <button mat-raised-button
                   type="submit"
-                  [disabled]="!mlModelForm.valid"
+                  [disabled]="!mlModelForm.valid || variableErrors"
                   color="primary">
             {{ mlModel.id ? 'Save' : 'Create' }}
           </button>

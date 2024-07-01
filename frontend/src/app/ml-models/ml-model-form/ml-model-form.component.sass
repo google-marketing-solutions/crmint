@@ -29,6 +29,10 @@
   border: 1px solid #c51162
   border-radius: 4px
 
+  ol
+    display: inline-block
+    vertical-align: middle
+
 .crmi-form-offset
   padding-left: 220px
 
@@ -114,6 +118,7 @@
     border: 1px solid rgba(0, 0, 0, 0.3)
     border-radius: 4px
     flex-grow: 1
+    flex-shrink: 0
     height: auto
     border-spacing: 10px 0px
     font-size: 14px
@@ -153,7 +158,10 @@
           width: 27px
           min-width: 27px
           padding: 0px
-
+  #variable-errors
+    padding-top: 20px
+    .crmi-form-message-error
+      margin-bottom: 0px
 
 #label
   .vertical-group

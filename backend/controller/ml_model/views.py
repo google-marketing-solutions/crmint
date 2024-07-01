@@ -275,7 +275,7 @@ class MlModelVariables(Resource):
             400,
             message=(
                 'GA4 BigQuery Dataset does not include expected events tables.'
-                ' Check configuration in Settings tab and try again.'
+                ' Check configuration (project, dataset, and timespan) above and try again.'
             ),
         )
       variables.extend(analytics_variables)
