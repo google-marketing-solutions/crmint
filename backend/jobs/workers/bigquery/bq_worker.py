@@ -68,16 +68,8 @@ class BQWorker(worker.Worker):
 
   def _wait(self, job):
     """Waits for job completion and relays to BQWaiter if it takes too long."""
-    delay = 5
-    waiting_time = 5
-    time.sleep(delay)
-    while not job.done():
-      if waiting_time > 300:  # Once 5 minutes have passed, spawn BQWaiter.
-        self._enqueue('BQWaiter', {'job_id': job.job_id}, 60)
-        return
-      if delay < 30:
-        delay = [5, 10, 15, 20, 30][int(waiting_time / 60)]
-      time.sleep(delay)
-      waiting_time += delay
-    if job.error_result is not None:
+    time.sleep(5)
+    if job.error_result:
       raise worker.WorkerException(job.error_result['message'])
+    if not job.done():
+      self._enqueue('BQWaiter', {'job_id': job.job_id}, 30)
