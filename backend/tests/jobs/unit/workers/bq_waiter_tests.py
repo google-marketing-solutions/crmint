@@ -32,8 +32,10 @@ class BQWaiterTest(parameterized.TestCase):
         {'job_id': 'JOBID',}, 1, 1, **logging_creds)
     mock_job = mock.create_autospec(
         bigquery.job.QueryJob, instance=True, spec_set=True)
+    mock_job.job_id = 'JOBID'
     mock_job.error_result = None
     mock_job.state = job_status
+    mock_job.done.return_value = not enqueue_called
     mock_client = mock.create_autospec(
         bigquery.Client, instance=True, spec_set=True)
     mock_client.get_job.return_value = mock_job
