@@ -40,12 +40,12 @@ class BQWorkerTest(parameterized.TestCase):
     }
     worker_inst = bq_worker.BQWorker(
         {'bq_project_id': 'BQID'}, 1, 1, **logging_creds)
-    mock_client = mock.create_autospec(
-        bigquery.Client, instance=True, spec_set=False)
-    mock_client.project = 'PROJECT'
-    job = bigquery.job.QueryJob('JOBID', 'query', mock_client)
-    self.enter_context(
-        mock.patch.object(job, 'done', return_value=job_is_done, autospec=True))
+    mock_job = mock.create_autospec(
+        bigquery.job.QueryJob, instance=True, spec_set=False)
+    mock_job.done.return_value = job_is_done
+    mock_job.job_id = 'JOBID'
+    mock_job.location = 'US'
+    mock_job.error_result = None
     patched_enqueue = self.enter_context(
         mock.patch.object(
             worker_inst,
@@ -53,11 +53,11 @@ class BQWorkerTest(parameterized.TestCase):
             return_value=True,
             autospec=True,
             spec_set=True))
-    worker_inst._wait(job)
+    worker_inst._wait(mock_job)
     if enqueue_called:
       patched_enqueue.assert_called_once()
       self.assertEqual(patched_enqueue.call_args[0][0], 'BQWaiter')
-      self.assertEqual(patched_enqueue.call_args[0][1], {'job_id': 'JOBID'})
+      self.assertEqual(patched_enqueue.call_args[0][1], {'job_id': 'JOBID', 'location': 'US'})
     else:
       patched_enqueue.assert_not_called()
 
@@ -93,7 +93,7 @@ class BQWorkerGetClientTest(parameterized.TestCase):
         'client_info_user_agent': 'cloud-solutions/crmint-usage-v3',
       },
       {
-        'report_usage_id_present': False, 
+        'report_usage_id_present': False,
         'client_info_user_agent': None
       },
   )

@@ -29,10 +29,11 @@ class BQWaiterTest(parameterized.TestCase):
         'logger_credentials': _make_credentials(),
     }
     worker_inst = bq_waiter.BQWaiter(
-        {'job_id': 'JOBID',}, 1, 1, **logging_creds)
+        {'job_id': 'JOBID', 'location': 'US'}, 1, 1, **logging_creds)
     mock_job = mock.create_autospec(
         bigquery.job.QueryJob, instance=True, spec_set=True)
     mock_job.job_id = 'JOBID'
+    mock_job.location = 'US'
     mock_job.error_result = None
     mock_job.state = job_status
     mock_job.done.return_value = not enqueue_called
@@ -54,10 +55,11 @@ class BQWaiterTest(parameterized.TestCase):
             spec_set=True))
     self.enter_context(mock.patch.object(worker_inst, '_log', autospec=True))
     worker_inst._execute()
+    mock_client.get_job.assert_called_with(job_id='JOBID', location='US')
     if enqueue_called:
       patched_enqueue.assert_called_once()
       self.assertEqual(patched_enqueue.call_args[0][0], 'BQWaiter')
-      self.assertEqual(patched_enqueue.call_args[0][1], {'job_id': 'JOBID'})
+      self.assertEqual(patched_enqueue.call_args[0][1], {'job_id': 'JOBID', 'location': 'US'})
     else:
       patched_enqueue.assert_not_called()
 
@@ -78,7 +80,7 @@ class BQWaiterTest(parameterized.TestCase):
               autospec=True,
               spec_set=True))
       worker_inst = bq_waiter.BQWaiter(
-          {'job_id': 'JOBID',}, 1, 1,
+          {'job_id': 'JOBID', 'location': 'US'}, 1, 1,
           logger_project='PROJECT',
           logger_credentials=_make_credentials())
       worker_inst._execute()
