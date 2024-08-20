@@ -25,7 +25,7 @@ from jobs.workers import worker
 # Param name used to specify a BQ project ID
 BQ_PROJECT_ID_PARAM_NAME = 'bq_project_id'
 
-# Param name used to specify a BQ data set name
+# Param name used to specify a BQ dataset name
 BQ_DATASET_NAME_PARAM_NAME = 'bq_dataset_id'
 
 # Param name used to specify a BQ table name
@@ -50,8 +50,7 @@ class BQWorker(worker.Worker):
         client_info = ClientInfo(user_agent='cloud-solutions/crmint-usage-v3')
     return bigquery.Client(
       client_options={'scopes': self._SCOPES},
-      client_info=client_info,
-    )
+      client_info=client_info)
 
   def _get_prefix(self):
     return f'{self._pipeline_id}_{self._job_id}_{self.__class__.__name__}'
@@ -68,16 +67,8 @@ class BQWorker(worker.Worker):
 
   def _wait(self, job):
     """Waits for job completion and relays to BQWaiter if it takes too long."""
-    delay = 5
-    waiting_time = 5
-    time.sleep(delay)
-    while not job.done():
-      if waiting_time > 300:  # Once 5 minutes have passed, spawn BQWaiter.
-        self._enqueue('BQWaiter', {'job_id': job.job_id}, 60)
-        return
-      if delay < 30:
-        delay = [5, 10, 15, 20, 30][int(waiting_time / 60)]
-      time.sleep(delay)
-      waiting_time += delay
-    if job.error_result is not None:
+    time.sleep(5)
+    if job.error_result:
       raise worker.WorkerException(job.error_result['message'])
+    if not job.done():
+      self._enqueue('BQWaiter', {'job_id': job.job_id, 'location': job.location}, 30)

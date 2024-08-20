@@ -24,10 +24,13 @@ class BQWaiter(bq_worker.BQWorker):
 
   def _execute(self):
     client = self._get_client()
-    job = client.get_job(self._params['job_id'])
-    if job.error_result is not None:
+    job = client.get_job(
+      job_id=self._params['job_id'],
+      location=self._params['location'])
+    if job.error_result:
       raise worker.WorkerException(job.error_result['message'])
-    if job.state != 'DONE':
-      self._enqueue('BQWaiter', {'job_id': self._params['job_id']}, 60)
+    if not job.done():
+      self.log_info(f'Current BigQuery job state: {job.state}')
+      self._enqueue('BQWaiter', {'job_id': job.job_id, 'location': job.location}, 60)
     else:
       self.log_info('Finished successfully!')
