@@ -40,11 +40,11 @@
     "ngx-window-token": "~5.0.0",
     "rxjs": "~6.5.4",
     "tslib": "^2.4.0",
-    "webpack": "^5.76.0",
+    "webpack": "^5.94.0",
     "zone.js": "~0.11.4"
   },
   "devDependencies": {
-    "@angular-devkit/build-angular": "^15.2.6",
+    "@angular-devkit/build-angular": "^18.2.8",
     "@angular/cli": "^15.2.6",
     "@angular/compiler-cli": "^15.2.7",
     "@angular/language-service": "^15.2.7",
