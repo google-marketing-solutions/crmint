@@ -6,7 +6,7 @@ Flask-RESTful
 oauthlib
 Flask-Cors
 Flask-Migrate
-mysql-connector-python==8.0.28
+mysql-connector-python==9.1.0
 google-cloud-bigquery
 appengine-python-standard
 croniter==1.4.1
