@@ -150,7 +150,15 @@ class ResetStatuses(Resource):
     return '', 200
 
 
+class ReadinessCheck(Resource):
+  """Readiness check endpoint."""
+
+  def get(self):
+    return 'OK', 200
+
+
 api.add_resource(Configuration, '/configuration')
 api.add_resource(GlobalVariable, '/global_variables')
 api.add_resource(GeneralSettingsRoute, '/general_settings')
 api.add_resource(ResetStatuses, '/reset/statuses')
+api.add_resource(ReadinessCheck, '/readiness_check')

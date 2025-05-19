@@ -7,5 +7,5 @@ google-cloud-bigquery
 google-cloud-storage
 
 # Pin a loose requirement from "google-api-core"
-google-api-core[grpc]
-googleapis-common-protos[grpc]
+google-api-core[grpc]~=2.15.0
+googleapis-common-protos[grpc]~=1.61.0

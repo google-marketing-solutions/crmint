@@ -65,5 +65,14 @@ ENV PYTHONPATH /app/cli:$PYTHONPATH
 RUN mkdir -p /app/eggs
 RUN cd /app/eggs && python /app/cli/setup.py develop
 
+# Create a non-root user and group
+RUN groupadd -r crmint_cli_user && useradd -r -g crmint_cli_user crmint_cli_user
+
+# chown directories to the new user
+RUN chown -R crmint_cli_user:crmint_cli_user /app \
+    && chown -R crmint_cli_user:crmint_cli_user /opt/venv
+
+USER crmint_cli_user
+
 WORKDIR /app
 CMD /bin/bash
