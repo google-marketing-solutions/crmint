@@ -57,6 +57,11 @@ def create(stage_path: Union[None, str], debug: bool) -> None:
         project_id=project_id,
         region=region,
         gcloud_account_email=gcloud_account_email)
+    
+    # Optional flags
+    if 'vpc_access_connector_id' in locals() and locals()['vpc_access_connector_id']:
+      context.vpc_access_connector_id = locals()['vpc_access_connector_id']
+
     shared.create_stage_file(stage_path, context)
     click.echo(click.style(f'Stage file created: {stage_path}', fg='green'))
 
@@ -87,6 +92,7 @@ def migrate(stage_path: Union[None, str], debug: bool) -> None:
 @click.option('--controller_image', default=None)
 @click.option('--jobs_image', default=None)
 @click.option('--frontend_image', default=None)
+@click.option('--vpc_access_connector_id', default=None)
 @click.option('--debug/--no-debug', default=False)
 def update(
     stage_path: Union[None, str],
@@ -94,6 +100,7 @@ def update(
     controller_image: Union[None, str],
     jobs_image: Union[None, str],
     frontend_image: Union[None, str],
+    vpc_access_connector_id: Union[None, str],
     debug: bool
   ) -> None:
   """Update CRMint version."""
@@ -126,6 +133,8 @@ def update(
   stage.frontend_image = f'{frontend_image.split(":")[0]}:{version}'
   stage.controller_image = f'{controller_image.split(":")[0]}:{version}'
   stage.jobs_image = f'{jobs_image.split(":")[0]}:{version}'
+  if vpc_access_connector_id is not None:
+    stage.vpc_access_connector_id = vpc_access_connector_id if vpc_access_connector_id else None
   shared.create_stage_file(stage.stage_path, stage)
   click.echo(click.style(f'Stage updated to version: {version}', fg='green'))
 

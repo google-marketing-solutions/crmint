@@ -72,6 +72,41 @@ variable "network_region" {
 }
 
 
+
+
+variable "use_shared_vpc" {
+  description = "Whether to use a Shared VPC from a host project instead of creating a local VPC."
+  type        = bool
+  default     = true
+}
+
+variable "shared_vpc_host_project_id" {
+  description = "The ID of the Shared VPC host project."
+  type        = string
+  default     = "crmint-shared-vpc1"
+}
+
+variable "shared_vpc_network" {
+  description = "The name of the Shared VPC network."
+  type        = string
+  default     = "shared-vpc"
+}
+
+
+variable "shared_vpc_subnetwork" {
+  description = "The name of the Shared VPC subnetwork to use for the VPC Access Connector. Must have a /28 IP CIDR range if creating a new connector."
+  type        = string
+  default     = "iowa-2"
+}
+
+variable "vpc_access_connector_id" {
+  description = "The full ID of an existing VPC Access Connector to use (e.g. projects/PROJECT/locations/REGION/connectors/NAME). If not provided, one will be created."
+  type        = string
+  default     = null
+}
+
+
+
 ##
 # Database
 
@@ -148,4 +183,28 @@ variable "custom_domain" {
 variable "test_google_access_token" {
   type    = string
   default = null
+}
+
+variable "frontend_sa_email" {
+  description = "Existing Service Account email for Frontend. If null, one will be created."
+  type        = string
+  default     = null
+}
+
+variable "jobs_sa_email" {
+  description = "Existing Service Account email for Jobs. If null, one will be created."
+  type        = string
+  default     = null
+}
+
+variable "controller_sa_email" {
+  description = "Existing Service Account email for Controller. If null, one will be created."
+  type        = string
+  default     = null
+}
+
+variable "pubsub_sa_email" {
+  description = "Existing Service Account email for PubSub. If null, one will be created."
+  type        = string
+  default     = null
 }

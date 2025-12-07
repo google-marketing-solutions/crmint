@@ -13,6 +13,8 @@ resource "google_compute_region_network_endpoint_group" "frontend_neg" {
   cloud_run {
     service = google_cloud_run_service.frontend_run.name
   }
+
+  depends_on = [google_project_service.apis]
 }
 
 resource "google_compute_region_network_endpoint_group" "controller_neg" {
@@ -22,6 +24,8 @@ resource "google_compute_region_network_endpoint_group" "controller_neg" {
   cloud_run {
     service = google_cloud_run_service.controller_run.name
   }
+
+  depends_on = [google_project_service.apis]
 }
 
 resource "google_compute_region_network_endpoint_group" "jobs_neg" {
@@ -31,6 +35,8 @@ resource "google_compute_region_network_endpoint_group" "jobs_neg" {
   cloud_run {
     service = google_cloud_run_service.jobs_run.name
   }
+
+  depends_on = [google_project_service.apis]
 }
 
 resource "google_compute_backend_service" "frontend_backend" {
@@ -132,9 +138,15 @@ resource "google_compute_global_forwarding_rule" "default" {
 ##
 # Virtual Private Cloud
 
+data "google_compute_network" "shared" {
+  count   = var.use_shared_vpc ? 1 : 0
+  name    = var.shared_vpc_network
+  project = var.shared_vpc_host_project_id
+}
+
 resource "google_compute_network" "private" {
   provider = google-beta
-  count = var.use_vpc ? 1 : 0
+  count = var.use_vpc && !var.use_shared_vpc ? 1 : 0
 
   name                    = "crmint-private-network"
   project                 = var.network_project_id != null ? var.network_project_id : var.project_id
@@ -148,7 +160,7 @@ resource "google_compute_network" "private" {
 
 resource "google_compute_global_address" "db_private_ip_address" {
   provider = google-beta
-  count = var.use_vpc ? 1 : 0
+  count = var.use_vpc && !var.use_shared_vpc ? 1 : 0
 
   name          = "crmint-db-private-ip-address"
   project       = var.network_project_id != null ? var.network_project_id : var.project_id
@@ -161,7 +173,7 @@ resource "google_compute_global_address" "db_private_ip_address" {
 
 resource "google_service_networking_connection" "private_vpc_connection" {
   provider = google-beta
-  count = var.use_vpc ? 1 : 0
+  count = var.use_vpc && !var.use_shared_vpc ? 1 : 0
 
   network                 = google_compute_network.private[count.index].id
   service                 = "servicenetworking.googleapis.com"
@@ -169,7 +181,7 @@ resource "google_service_networking_connection" "private_vpc_connection" {
 }
 
 resource "google_compute_subnetwork" "private" {
-  count = var.use_vpc ? 1 : 0
+  count = var.use_vpc && !var.use_shared_vpc ? 1 : 0
 
   name          = "crmint-private-subnetwork"
   ip_cidr_range = "10.8.0.0/28"
@@ -179,7 +191,7 @@ resource "google_compute_subnetwork" "private" {
 
 resource "google_vpc_access_connector" "connector" {
   provider       = google-beta
-  count = var.use_vpc ? 1 : 0
+  count = (var.vpc_access_connector_id == null || var.vpc_access_connector_id == "") ? 1 : 0
 
   name           = "crmint-vpc-conn"
   machine_type   = "e2-micro"
@@ -189,9 +201,12 @@ resource "google_vpc_access_connector" "connector" {
   region         = var.network_region != null ? var.network_region : var.region
 
   subnet {
-    name = google_compute_subnetwork.private[count.index].name
-    project_id = var.network_project_id != null ? var.network_project_id : var.project_id
+    name = var.use_shared_vpc ? var.shared_vpc_subnetwork : one(google_compute_subnetwork.private[*].name)
+    project_id = var.use_shared_vpc ? var.shared_vpc_host_project_id : (var.network_project_id != null ? var.network_project_id : var.project_id)
   }
 
-  depends_on = [google_project_service.vpcaccess]
+  depends_on = [
+    google_project_service.vpcaccess,
+    google_compute_subnetwork.private
+  ]
 }

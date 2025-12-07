@@ -318,7 +318,12 @@ def default_stage_context(*,
       database_availability_type=settings.DATABASE_HA_TYPE,
       frontend_image=settings.FRONTEND_IMAGE,
       controller_image=settings.CONTROLLER_IMAGE,
-      jobs_image=settings.JOBS_IMAGE)
+      jobs_image=settings.JOBS_IMAGE,
+      frontend_sa_email=None,
+      controller_sa_email=None,
+      jobs_sa_email=None,
+      pubsub_sa_email=None,
+      vpc_access_connector_id=None)
   return StageContext(namespace)
 
 

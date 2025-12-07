@@ -1,9 +1,27 @@
 locals {
-  private_network = var.use_vpc ? google_compute_network.private[0] : null
+  private_network_self_link = var.use_vpc ? (
+    var.use_shared_vpc ? one(data.google_compute_network.shared[*].self_link) : one(google_compute_network.private[*].self_link)
+  ) : null
+}
+
+resource "null_resource" "debug_values" {
+  triggers = {
+    always_run = "${timestamp()}"
+  }
+
+  provisioner "local-exec" {
+    command = <<EOT
+      echo "DEBUG_VALUES: use_vpc=${var.use_vpc}"
+      echo "DEBUG_VALUES: use_shared_vpc=${var.use_shared_vpc}"
+      echo "DEBUG_VALUES: shared_vpc_network=${var.shared_vpc_network}"
+      echo "DEBUG_VALUES: shared_vpc_host_project_id=${var.shared_vpc_host_project_id}"
+      echo "DEBUG_VALUES: vpc_access_connector_id=${coalesce(var.vpc_access_connector_id, "null")}"
+      echo "DEBUG_VALUES: computed_network_link=${var.use_vpc ? (var.use_shared_vpc ? "projects/${var.shared_vpc_host_project_id}/global/networks/${var.shared_vpc_network}" : "LOCAL_PRIVATE") : "DISABLED"}"
+    EOT
+  }
 }
 
 resource "google_sql_database_instance" "main" {
-  depends_on = [google_service_networking_connection.private_vpc_connection]
 
   name             = var.database_instance_name
   database_version = "MYSQL_8_0"
@@ -22,11 +40,11 @@ resource "google_sql_database_instance" "main" {
     }
 
     dynamic "ip_configuration" {
-      # Includes this block only if `local.private_network` is set to a non-null value.
-      for_each = local.private_network[*]
+      # Includes this block only if `var.use_vpc` is true.
+      for_each = var.use_vpc ? [1] : []
       content {
         ipv4_enabled = false
-        private_network = local.private_network.id
+        private_network = var.use_shared_vpc ? "projects/${var.shared_vpc_host_project_id}/global/networks/${var.shared_vpc_network}" : google_compute_network.private[0].self_link
       }
     }
 
@@ -35,6 +53,11 @@ resource "google_sql_database_instance" "main" {
       hour = 2
     }
   }
+
+  depends_on = [
+    google_service_networking_connection.private_vpc_connection,
+    google_compute_network.private
+  ]
 }
 
 resource "google_sql_database" "crmint" {
@@ -51,4 +74,10 @@ resource "google_sql_user" "crmint" {
   name     = var.database_user
   instance = google_sql_database_instance.main.name
   password = random_password.main_db_password.result
+}
+
+output "debug_network_link" {
+  value = var.use_vpc ? (
+    var.use_shared_vpc ? "projects/${var.shared_vpc_host_project_id}/global/networks/${var.shared_vpc_network}" : (length(google_compute_network.private) > 0 ? google_compute_network.private[0].self_link : "MISSING")
+  ) : "VPC_DISABLED"
 }

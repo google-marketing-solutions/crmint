@@ -50,7 +50,7 @@ resource "google_pubsub_subscription" "subscriptions" {
   push_config {
     oidc_token {
       audience              = google_iap_client.default.client_id
-      service_account_email = google_service_account.pubsub_sa.email
+      service_account_email = local.pubsub_sa_email
     }
 
     push_endpoint = "${each.value.endpoint}?token=${random_id.pubsub_verification_token.b64_url}"

@@ -20,7 +20,7 @@ resource "google_cloud_run_service" "frontend_run" {
     }
 
     spec {
-      service_account_name = google_service_account.frontend_sa.email
+      service_account_name = local.frontend_sa_email
 
       containers {
         image = var.frontend_image
@@ -62,7 +62,7 @@ resource "google_secret_manager_secret_version" "cloud_db_uri-latest" {
 resource "google_secret_manager_secret_iam_member" "cloud_db_uri-access" {
   secret_id = google_secret_manager_secret.cloud_db_uri.id
   role      = "roles/secretmanager.secretAccessor"
-  member    = "serviceAccount:${google_service_account.controller_sa.email}"
+  member    = "serviceAccount:${local.controller_sa_email}"
 }
 
 resource "google_cloud_run_service" "controller_run" {
@@ -88,7 +88,7 @@ resource "google_cloud_run_service" "controller_run" {
         },
         var.use_vpc ? {
           # Uses the VPC Connector
-          "run.googleapis.com/vpc-access-connector" = google_vpc_access_connector.connector[0].name
+          "run.googleapis.com/vpc-access-connector" = (var.vpc_access_connector_id != null && var.vpc_access_connector_id != "") ? var.vpc_access_connector_id : google_vpc_access_connector.connector[0].name
           # Routes only egress to private ip addresses through the VPC Connector.
           "run.googleapis.com/vpc-access-egress" = "private-ranges-only"
         } : {
@@ -98,7 +98,7 @@ resource "google_cloud_run_service" "controller_run" {
     }
 
     spec {
-      service_account_name = google_service_account.controller_sa.email
+      service_account_name = local.controller_sa_email
 
       containers {
         image = var.controller_image
@@ -133,7 +133,7 @@ resource "google_cloud_run_service" "controller_run" {
         }
         env {
           name  = "SERVICE_ACCOUNT_EMAIL"
-          value = google_service_account.controller_sa.email
+          value = local.controller_sa_email
         }
         env {
           name  = "PUBSUB_VERIFICATION_TOKEN"
@@ -159,7 +159,10 @@ resource "google_cloud_run_service" "controller_run" {
     latest_revision = true
   }
 
-  depends_on = [google_secret_manager_secret_version.cloud_db_uri-latest]
+  depends_on = [
+    google_secret_manager_secret_version.cloud_db_uri-latest,
+    google_project_iam_member.run_managed_sa--vpcaccess-user
+  ]
 }
 
 resource "google_cloud_run_service" "jobs_run" {
@@ -178,13 +181,23 @@ resource "google_cloud_run_service" "jobs_run" {
 
   template {
     metadata {
-      annotations = {
-        "autoscaling.knative.dev/minScale" = "0"
-        "autoscaling.knative.dev/maxScale" = "5"
-      }
+      annotations = merge(
+        {
+          "autoscaling.knative.dev/minScale" = "0"
+          "autoscaling.knative.dev/maxScale" = "5"
+        },
+        var.use_vpc ? {
+          # Uses the VPC Connector
+          "run.googleapis.com/vpc-access-connector" = (var.vpc_access_connector_id != null && var.vpc_access_connector_id != "") ? var.vpc_access_connector_id : google_vpc_access_connector.connector[0].name
+          # Routes only egress to private ip addresses through the VPC Connector.
+          "run.googleapis.com/vpc-access-egress" = "private-ranges-only"
+        } : {
+          "run.googleapis.com/cloudsql-instances" = google_sql_database_instance.main.connection_name
+        }
+      )
     }
     spec {
-      service_account_name = google_service_account.jobs_sa.email
+      service_account_name = local.jobs_sa_email
 
       containers {
         image = var.jobs_image
@@ -225,6 +238,10 @@ resource "google_cloud_run_service" "jobs_run" {
     percent         = 100
     latest_revision = true
   }
+
+  depends_on = [
+    google_project_iam_member.run_managed_sa--vpcaccess-user
+  ]
 }
 
 # Local variables are used to simplify the definition of outputs.
