@@ -60,20 +60,26 @@ jobs:
         run: |
           EOF=$(dd if=/dev/urandom bs=15 count=1 status=none | base64)
           mkdir -p ~/pr/terraform
-          echo ${{ steps.init.outcome }} > ~/pr/terraform/init_outcome
+          echo ${STEPS_INIT_OUTCOME} > ~/pr/terraform/init_outcome
           echo "Saved init outcome"
-          echo ${{ steps.validate.outcome }} > ~/pr/terraform/validate_outcome
+          echo ${STEPS_VALIDATE_OUTCOME} > ~/pr/terraform/validate_outcome
           echo "Saved validate outcome"
           cat <<$EOF > ~/pr/terraform/validate_output
-          ${{ steps.validate.outputs.stdout }}
+          ${STEPS_VALIDATE_OUTPUTS_STDOUT}
           $EOF
           echo "Saved validate output"
-          echo ${{ steps.plan.outcome }} > ~/pr/terraform/plan_outcome
+          echo ${STEPS_PLAN_OUTCOME} > ~/pr/terraform/plan_outcome
           cat <<$EOF > ~/pr/terraform/plan_output
-          ${{ steps.plan.outputs.stdout }}
+          ${STEPS_PLAN_OUTPUTS_STDOUT}
           $EOF
           echo "Saved plan output"
         shell: bash
+        env:
+          STEPS_INIT_OUTCOME: ${{ steps.init.outcome }}
+          STEPS_VALIDATE_OUTCOME: ${{ steps.validate.outcome }}
+          STEPS_VALIDATE_OUTPUTS_STDOUT: ${{ steps.validate.outputs.stdout }}
+          STEPS_PLAN_OUTCOME: ${{ steps.plan.outcome }}
+          STEPS_PLAN_OUTPUTS_STDOUT: ${{ steps.plan.outputs.stdout }}
 
       - uses: actions/upload-artifact@v3
         with:
