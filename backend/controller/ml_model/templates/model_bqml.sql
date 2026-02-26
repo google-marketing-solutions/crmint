@@ -254,8 +254,8 @@ aggregate_behavior AS (
   FROM events AS e
   INNER JOIN user_variables AS uv
     ON e.unique_id = uv.unique_id
-  WHERE (uv.label > 0 AND e.date <= uv.trigger_date)
-  OR uv.label = 0
+  WHERE (CAST(uv.label AS INT64) > 0 AND e.date <= uv.trigger_date)
+  OR CAST(uv.label AS INT64) = 0
   GROUP BY 1
 ),
 unified_dataset AS (
