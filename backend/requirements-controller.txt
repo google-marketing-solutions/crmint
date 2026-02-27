@@ -15,7 +15,7 @@ aniso8601==9.0.1 \
 appengine-python-standard==1.0.0 \
     --hash=sha256:50acc3ad8e02a501e6a2c5352d5826c69d581fdf510d12f6d23fb716d26250c3 \
     --hash=sha256:87f1cb402e84cf8a1a1645b62a49306f47be4129944150b4c2b243e2282492b9
-    # via -r backend/requirements-controller.in
+    # via -r requirements-controller.in
 attrs==22.2.0 \
     --hash=sha256:29e95c7f6778868dbd49170f98f8818f78f3dc5e0e37c0b1f474e3561b240836 \
     --hash=sha256:c9227bfc2f01993c03f68db37d1d15c9690188323c067c641f1a35ca58185f99
@@ -23,7 +23,7 @@ attrs==22.2.0 \
 cachecontrol==0.12.11 \
     --hash=sha256:2c75d6a8938cb1933c75c50184549ad42728a27e9f6b92fd677c3151aa72555b \
     --hash=sha256:a5b9fcc986b184db101aa280b42ecdcdfc524892596f606858e0b7a8b4d9e144
-    # via -r backend/common/requirements.in
+    # via -r common/requirements.in
 cachetools==5.3.0 \
     --hash=sha256:13dfddc7b8df938c21a940dfa6557ce6e94a2f1cdfa58eb90c805721d58f2c14 \
     --hash=sha256:429e1a1e845c008ea6c85aa35d4b98b65d6a9763eeef3e37e92728a12d1de9d4
@@ -116,12 +116,12 @@ click==8.1.3 \
 croniter==1.4.1 \
     --hash=sha256:1a6df60eacec3b7a0aa52a8f2ef251ae3dd2a7c7c8b9874e73e791636d55a361 \
     --hash=sha256:9595da48af37ea06ec3a9f899738f1b2c1c13da3c38cea606ef7cd03ea421128
-    # via -r backend/requirements-controller.in
+    # via -r requirements-controller.in
 flask==2.0.3 \
     --hash=sha256:59da8a3170004800a2837844bfa84d49b022550616070f7cb1a659682b2e7c9f \
     --hash=sha256:e1120c228ca2f553b470df4a5fa927ab66258467526069981b3eb0a91902687d
     # via
-    #   -r backend/common/requirements.in
+    #   -r common/requirements.in
     #   flask-cors
     #   flask-migrate
     #   flask-restful
@@ -129,20 +129,20 @@ flask==2.0.3 \
 flask-cors==3.0.10 \
     --hash=sha256:74efc975af1194fc7891ff5cd85b0f7478be4f7f59fe158102e91abb72bb4438 \
     --hash=sha256:b60839393f3b84a0f3746f6cdca56c1ad7426aa738b70d6c61375857823181de
-    # via -r backend/requirements-controller.in
+    # via -r requirements-controller.in
 flask-migrate==4.0.4 \
     --hash=sha256:73293d40b10ac17736e715b377e7b7bde474cb8105165d77474df4c3619b10b3 \
     --hash=sha256:77580f27ab39bc68be4906a43c56d7674b45075bc4f883b1d0b985db5164d58f
-    # via -r backend/requirements-controller.in
+    # via -r requirements-controller.in
 flask-restful==0.3.9 \
     --hash=sha256:4970c49b6488e46c520b325f54833374dc2b98e211f1b272bd4b0c516232afe2 \
     --hash=sha256:ccec650b835d48192138c85329ae03735e6ced58e9b2d9c2146d6c84c06fa53e
-    # via -r backend/requirements-controller.in
+    # via -r requirements-controller.in
 flask-sqlalchemy==2.5.1 \
     --hash=sha256:2bda44b43e7cacb15d4e05ff3cc1f8bc97936cc464623424102bfc2c35e95912 \
     --hash=sha256:f12c3d4cc5cc7fdcc148b9527ea05671718c3ea45d50c7e732cceb33f574b390
     # via
-    #   -r backend/requirements-controller.in
+    #   -r requirements-controller.in
     #   flask-migrate
 frozendict==2.3.7 \
     --hash=sha256:01c01ba4b1b77aa4385f27b2514ac284af42b331eeb4b853a05cf39145853e5f \
@@ -182,20 +182,11 @@ frozendict==2.3.7 \
     --hash=sha256:ef54086cb00d8cc7811640040c90ec90fbaced17d4e730bb6279ba1bf46da667 \
     --hash=sha256:f9825a2462421cf0e28bb82d86555e0f11f74417cd7f1abc1f6739c23096bcad
     # via appengine-python-standard
-googleapis-common-protos[grpc]==1.59.0 \
-    --hash=sha256:4168fcb568a826a52f23510412da405abd93f4d23ba544bb68d943b14ba3cb44 \
-    --hash=sha256:b287dc48449d1d41af0c69f4ea26242b5ae4c3d7249a38b0984c86a4caffff1f
-    # via
-    #   -r backend/requirements-controller.in
-    #   google-api-core
-    #   google-cloud-audit-log
-    #   grpc-google-iam-v1
-    #   grpcio-status
 google-api-core[grpc]==2.11.0 \
     --hash=sha256:4b9bb5d5a380a0befa0573b302651b8a9a89262c1730e37bf423cec511804c22 \
     --hash=sha256:ce222e27b0de0d7bc63eb043b956996d6dccab14cc3b690aaea91c9cc99dc16e
     # via
-    #   -r backend/requirements-controller.in
+    #   -r requirements-controller.in
     #   google-cloud-appengine-logging
     #   google-cloud-bigquery
     #   google-cloud-core
@@ -219,7 +210,7 @@ google-cloud-audit-log==0.2.5 \
 google-cloud-bigquery==3.9.0 \
     --hash=sha256:39b055087a8471b0ebab7a4bf54decda845b6087b104ef0be078ced1e1dccb26 \
     --hash=sha256:c7b539c6a020cd662fef950b3367ab1c33a4ba07e008bccf2e9cb09a516d0de9
-    # via -r backend/requirements-controller.in
+    # via -r requirements-controller.in
 google-cloud-core==2.3.2 \
     --hash=sha256:8417acf6466be2fa85123441696c4badda48db314c607cf1e5d543fa8bdc22fe \
     --hash=sha256:b9529ee7047fd8d4bf4a2182de619154240df17fbe60ead399078c1ae152af9a
@@ -229,11 +220,11 @@ google-cloud-core==2.3.2 \
 google-cloud-logging==3.5.0 \
     --hash=sha256:def71f6a7bb6652ce8fee18f0cad8c32157ac606fe1512802254a471bcdfe5e8 \
     --hash=sha256:f11544a21ea3556f70ebac7bc338ffa8a197913834ecdd8853d176b870823aaa
-    # via -r backend/common/requirements.in
+    # via -r common/requirements.in
 google-cloud-pubsub==2.16.0 \
     --hash=sha256:587da7d535ca858ceeed7036205355e5a6dd3e44ea4abc96f4e50d1abfd8843b \
     --hash=sha256:e41ec9635cc68dbd238f572f295b3d0bae6340c66ba31a70dfb890950ab33c2b
-    # via -r backend/common/requirements.in
+    # via -r common/requirements.in
 google-crc32c==1.5.0 \
     --hash=sha256:024894d9d3cfbc5943f8f230e23950cd4906b2fe004c72e29b209420a1e6b05a \
     --hash=sha256:02c65b9817512edc6a4ae7c7e987fea799d2e0ee40c53ec573a692bee24de876 \
@@ -308,6 +299,15 @@ google-resumable-media==2.4.1 \
     --hash=sha256:15b8a2e75df42dc6502d1306db0bce2647ba6013f9cd03b6e17368c0886ee90a \
     --hash=sha256:831e86fd78d302c1a034730a0c6e5369dd11d37bad73fa69ca8998460d5bae8d
     # via google-cloud-bigquery
+googleapis-common-protos[grpc]==1.59.0 \
+    --hash=sha256:4168fcb568a826a52f23510412da405abd93f4d23ba544bb68d943b14ba3cb44 \
+    --hash=sha256:b287dc48449d1d41af0c69f4ea26242b5ae4c3d7249a38b0984c86a4caffff1f
+    # via
+    #   -r requirements-controller.in
+    #   google-api-core
+    #   google-cloud-audit-log
+    #   grpc-google-iam-v1
+    #   grpcio-status
 greenlet==2.0.1 \
     --hash=sha256:0109af1138afbfb8ae647e31a2b1ab030f58b21dd8528c27beaeb0093b7938a9 \
     --hash=sha256:0459d94f73265744fee4c2d5ec44c6f34aa8a31017e6e9de770f7bcf29710be9 \
@@ -438,7 +438,7 @@ grpcio-status==1.53.0 \
 gunicorn==20.1.0 \
     --hash=sha256:9dcc4547dbb1cb284accfb15ab5667a0e5d1881cc443e0677b4882a4067a807e \
     --hash=sha256:e0a968b5ba15f8a328fdfd7ab1fcb5af4470c28aaf7e55df02a99bc13138e6e8
-    # via -r backend/common/requirements.in
+    # via -r common/requirements.in
 idna==3.4 \
     --hash=sha256:814f528e8dead7d329833b91c5faa87d60bf71824cd12a7530b5526063d02cb4 \
     --hash=sha256:90b77e79eaa3eba6de819a0c442c0b4ceefc341a7a2ab77d7562bf49f425c5c2
@@ -451,7 +451,7 @@ jinja2==3.1.3 \
     --hash=sha256:7d6d50dd97d52cbc355597bd845fabfbac3f551e1f99619e39a35ce8c370b5fa \
     --hash=sha256:ac8bd6544d4bb2c9792bf3a159e80bba8fda7f07e81bc3aed565432d5925ba90
     # via
-    #   -r backend/requirements-controller.in
+    #   -r requirements-controller.in
     #   flask
 mako==1.2.4 \
     --hash=sha256:c97c79c018b9165ac9922ae4f32da095ffd3c4e6872b45eded42926deea46818 \
@@ -580,33 +580,39 @@ msgpack==1.0.5 \
     --hash=sha256:f933bbda5a3ee63b8834179096923b094b76f0c7a73c1cfe8f07ad608c58844b \
     --hash=sha256:fe5c63197c55bce6385d9aee16c4d0641684628f63ace85f73571e65ad1c1e8d
     # via cachecontrol
-mysql-connector-python==8.0.28 \
-    --hash=sha256:04d75ec7c181e7907df3d40c2a573063f25ecfc5a95a7a90374861c02ce738a9 \
-    --hash=sha256:47f059bc2a7378acd56ac7a60b0526a2ba95d96b696a875b5b233a0feae30980 \
-    --hash=sha256:4d126ce5e03675d926a9e49ce1638d06af43ca7bac2b502d93373dc9425d386f \
-    --hash=sha256:50c87ff50762f4a0cc0816365dde0e7de763949e125488b8e872de6471e0e427 \
-    --hash=sha256:687071dc9e51892d0861bbcbcbd48e0f3579e3155f2a0ec310198704137c775a \
-    --hash=sha256:73c5149b33401610e28589d1fc669cba11d3b16215a8f6a75f63ece1f3af5f88 \
-    --hash=sha256:77ec293e265d01db1896a8e63a16b3d5c848a885cf76c77148adfed8453846e8 \
-    --hash=sha256:78bb1abb57bbb85263d65a240a901195e3de0e0992f25e42c48af0869079bb74 \
-    --hash=sha256:7d518491d6d51b186b3182b3698b1560d9bd80675c055163359d0aeea0001de1 \
-    --hash=sha256:8d8dd02e0e6bb7262156a836c3e83582d1a1a1ebb9d72e777a46813709404601 \
-    --hash=sha256:91be638d1b084835edf7aa426d85228174611a1cd6f016ca0f6d4339ac3d9d7b \
-    --hash=sha256:aaec9d13fc0177e421a3c4392f0eaf86347b825949d5dfc202d535cdb1e07f04 \
-    --hash=sha256:b3a747c5efd6de7b76686ab93834186e2276a62684600dbede615537040436ca \
-    --hash=sha256:b4c5ce835078555b6640921cae036daad46884dd21027f43c742fb505221e4e6 \
-    --hash=sha256:bb317b179bfbb3e86c771bb2b34794188a2d2b010cdaa1b4d1b5ea0961d0812c \
-    --hash=sha256:bd89598b173aa0fc525b59fff6e3598ff3cabad4260a3bb49cf420eac10d3b3b \
-    --hash=sha256:bdb4f187f737316d1c403085b2fb7c91717268d052ecbfc86066cef59f6d72a4 \
-    --hash=sha256:c76d771fdce1314b07619efff184ec03f56abef6b4ccdc686d3a995f5b225fec \
-    --hash=sha256:d559f69e8b58ac248e37d30e5676718adf69eeff56ed8a7c03f064d74af68f99 \
-    --hash=sha256:e008127430c8dc66bb1b6d6c7a17498ec57ffa81188fc1f8c9f764363c01d12e \
-    --hash=sha256:f5da43c77d409c8135132f5b5aee9ac91c2e97c3f87352e1b3017438a9cb9b82
-    # via -r backend/requirements-controller.in
+mysql-connector-python==9.1.0 \
+    --hash=sha256:109e17a4ada1442e3881a51e2bbabcb336ad229a619ac61e9ad24bd6b9b117bd \
+    --hash=sha256:25e261f3260ec798c48cb910862a299e565548a1b5421dec84315ddbc9ef28c4 \
+    --hash=sha256:28fd99ee464ac3b02d1e2a71a63ca4f25c6110e4414a46a5b64631e6d2096899 \
+    --hash=sha256:30a8f0ba84f8adf15a4877e80b3f97f786ce35616d918b9310578a2bd22952d5 \
+    --hash=sha256:346261a2aeb743a39cf66ba8bde5e45931d313b76ce0946a69a6d1187ec7d279 \
+    --hash=sha256:4f102452c64332b7e042fa37b84d4f15332bd639e479d15035f2a005fb9fbb34 \
+    --hash=sha256:6d7d5d458d0d600bbbebd9f2bce551e386b359bcce6026f7369b57922d26f13a \
+    --hash=sha256:72dcce5f2e4f5910d65f02eb318c1e4622464da007a3ae5e9ccd64169d8efac3 \
+    --hash=sha256:7b2eb48518b8c2bc9636883d264b291e5c93824fc6b61823ca9cf396a09474ad \
+    --hash=sha256:7d99c0a841a2c2a0e4d5b28376c1bfac794ec3821b66eb6fa2f7702cec820ee8 \
+    --hash=sha256:948ef0c7da87901176d4320e0f40a3277ee06fe6f58ce151c1e60d8d50fdeaf4 \
+    --hash=sha256:9b23a8e2acee91b5120febe00c53e7f472b9b6d49618e39fa1af86cdc1f0ade8 \
+    --hash=sha256:abf16fc1155ebeba5558e5702dd7210d634ac8da484eca05a640b68a548dc7cf \
+    --hash=sha256:aceaab679b852c0a2ec0eed9eb2a490171b3493484f1881b605cbf2f9c5fde6d \
+    --hash=sha256:c350b1aaf257b1b778f44b8bfaeda07751f55e150f5a7464342f36e4aac8e805 \
+    --hash=sha256:c36a9b9ebf9587aaa5d7928468fefe8faf6fc993a03cb242bb160ede9cf75b2d \
+    --hash=sha256:c75f674a52b8820c90d466183b2bb59f89bcf09d17ebe9b391313d89565c8896 \
+    --hash=sha256:d627ebafc0327b935d8783454e7a4b5c32324ed39a2a1589239490ab850bf7d7 \
+    --hash=sha256:dacf1aa84dc7dd8ae908626c3ae50fce956d0105130c7465fd248a4f035d50b1 \
+    --hash=sha256:dcdcf380d07b9ca6f18a95e9516a6185f2ab31a53d290d5e698e77e59c043c9e \
+    --hash=sha256:e15153cb8ab5fcec00b99077de536489d22d4809fc28f633850398fef0560b1f \
+    --hash=sha256:e26a08a9500407fa8f4a6504f7077d1312bec4fa52cb0a58c1ad324ca1f3eeaa \
+    --hash=sha256:e2f0876e1efd76e05853cb0a623dba2746ee70686c043019d811737dd5c3d871 \
+    --hash=sha256:e75ecb3df2c2cbe4d92d5dd58a318fa708edebc0fa2d850fc2a9d42481dbb808 \
+    --hash=sha256:ec4386b2426bfb07f83455bf895d8a7e2d6c067343ac05be5511083ca2424991 \
+    --hash=sha256:f67b22e3eaf5b03ffac97232d3dd67b56abcacad907ad4391c847bad5ba58f0e \
+    --hash=sha256:fec943d333851c4b5e57cd0b04dde36e6817f0d4d62b2a58ce028a82be444866
+    # via -r requirements-controller.in
 oauthlib==3.2.2 \
     --hash=sha256:8139f29aac13e25d502680e9e19963e83f16838d48a0d71c287fe40e7067fbca \
     --hash=sha256:9859c40929662bec5d64f34d01c99e093149682a3f38915dc0655d5a633dd918
-    # via -r backend/requirements-controller.in
+    # via -r requirements-controller.in
 packaging==23.1 \
     --hash=sha256:994793af429502c4ea2ebf6bf664629d07c1a9fe974af92966e4b8d2df7edc61 \
     --hash=sha256:a392980d2b6cffa644431898be54b0045151319d1e7ec34f0cfed48767dd334f
@@ -714,7 +720,6 @@ protobuf==4.22.3 \
     #   googleapis-common-protos
     #   grpc-google-iam-v1
     #   grpcio-status
-    #   mysql-connector-python
     #   proto-plus
 pyasn1==0.4.8 \
     --hash=sha256:39c7e2ec30515947ff4e87fb6f456dfc6e84857d34be479c9d4a4ba4bf46aa5d \
@@ -754,44 +759,6 @@ ruamel-yaml==0.17.21 \
     --hash=sha256:742b35d3d665023981bd6d16b3d24248ce5df75fdb4e2924e93a05c1f8b61ca7 \
     --hash=sha256:8b7ce697a2f212752a35c1ac414471dc16c424c9573be4926b56ff3f5d23b7af
     # via appengine-python-standard
-ruamel-yaml-clib==0.2.7 \
-    --hash=sha256:045e0626baf1c52e5527bd5db361bc83180faaba2ff586e763d3d5982a876a9e \
-    --hash=sha256:15910ef4f3e537eea7fe45f8a5d19997479940d9196f357152a09031c5be59f3 \
-    --hash=sha256:184faeaec61dbaa3cace407cffc5819f7b977e75360e8d5ca19461cd851a5fc5 \
-    --hash=sha256:1f08fd5a2bea9c4180db71678e850b995d2a5f4537be0e94557668cf0f5f9497 \
-    --hash=sha256:2aa261c29a5545adfef9296b7e33941f46aa5bbd21164228e833412af4c9c75f \
-    --hash=sha256:3110a99e0f94a4a3470ff67fc20d3f96c25b13d24c6980ff841e82bafe827cac \
-    --hash=sha256:3243f48ecd450eddadc2d11b5feb08aca941b5cd98c9b1db14b2fd128be8c697 \
-    --hash=sha256:370445fd795706fd291ab00c9df38a0caed0f17a6fb46b0f607668ecb16ce763 \
-    --hash=sha256:40d030e2329ce5286d6b231b8726959ebbe0404c92f0a578c0e2482182e38282 \
-    --hash=sha256:41d0f1fa4c6830176eef5b276af04c89320ea616655d01327d5ce65e50575c94 \
-    --hash=sha256:4a4d8d417868d68b979076a9be6a38c676eca060785abaa6709c7b31593c35d1 \
-    --hash=sha256:4b3a93bb9bc662fc1f99c5c3ea8e623d8b23ad22f861eb6fce9377ac07ad6072 \
-    --hash=sha256:5bc0667c1eb8f83a3752b71b9c4ba55ef7c7058ae57022dd9b29065186a113d9 \
-    --hash=sha256:721bc4ba4525f53f6a611ec0967bdcee61b31df5a56801281027a3a6d1c2daf5 \
-    --hash=sha256:763d65baa3b952479c4e972669f679fe490eee058d5aa85da483ebae2009d231 \
-    --hash=sha256:7bdb4c06b063f6fd55e472e201317a3bb6cdeeee5d5a38512ea5c01e1acbdd93 \
-    --hash=sha256:8831a2cedcd0f0927f788c5bdf6567d9dc9cc235646a434986a852af1cb54b4b \
-    --hash=sha256:91a789b4aa0097b78c93e3dc4b40040ba55bef518f84a40d4442f713b4094acb \
-    --hash=sha256:92460ce908546ab69770b2e576e4f99fbb4ce6ab4b245345a3869a0a0410488f \
-    --hash=sha256:99e77daab5d13a48a4054803d052ff40780278240a902b880dd37a51ba01a307 \
-    --hash=sha256:a234a20ae07e8469da311e182e70ef6b199d0fbeb6c6cc2901204dd87fb867e8 \
-    --hash=sha256:a7b301ff08055d73223058b5c46c55638917f04d21577c95e00e0c4d79201a6b \
-    --hash=sha256:be2a7ad8fd8f7442b24323d24ba0b56c51219513cfa45b9ada3b87b76c374d4b \
-    --hash=sha256:bf9a6bc4a0221538b1a7de3ed7bca4c93c02346853f44e1cd764be0023cd3640 \
-    --hash=sha256:c3ca1fbba4ae962521e5eb66d72998b51f0f4d0f608d3c0347a48e1af262efa7 \
-    --hash=sha256:d000f258cf42fec2b1bbf2863c61d7b8918d31ffee905da62dede869254d3b8a \
-    --hash=sha256:d5859983f26d8cd7bb5c287ef452e8aacc86501487634573d260968f753e1d71 \
-    --hash=sha256:d5e51e2901ec2366b79f16c2299a03e74ba4531ddcfacc1416639c557aef0ad8 \
-    --hash=sha256:da538167284de58a52109a9b89b8f6a53ff8437dd6dc26d33b57bf6699153122 \
-    --hash=sha256:debc87a9516b237d0466a711b18b6ebeb17ba9f391eb7f91c649c5c4ec5006c7 \
-    --hash=sha256:df5828871e6648db72d1c19b4bd24819b80a755c4541d3409f0f7acd0f335c80 \
-    --hash=sha256:ecdf1a604009bd35c674b9225a8fa609e0282d9b896c03dd441a91e5f53b534e \
-    --hash=sha256:efa08d63ef03d079dcae1dfe334f6c8847ba8b645d08df286358b1f5293d24ab \
-    --hash=sha256:f01da5790e95815eb5a8a138508c01c758e5f5bc0ce4286c4f7028b8dd7ac3d0 \
-    --hash=sha256:f34019dced51047d6f70cb9383b2ae2853b7fc4dce65129a5acd49f4f9256646 \
-    --hash=sha256:f6d3d39611ac2e4f62c3128a9eed45f19a6608670c5a2f4f07f24e8de3441d38
-    # via ruamel-yaml
 six==1.16.0 \
     --hash=sha256:1e61c37477a1626458e36f7b1d82aa5c9b094fa4802892072e49de9c60c4c926 \
     --hash=sha256:8abb2f1d86890a2dfb989f9a77cfcfd3e47c2a354b01111771326f8aa26e0254
@@ -844,7 +811,7 @@ sqlalchemy==1.4.47 \
     --hash=sha256:f80915681ea9001f19b65aee715115f2ad310730c8043127cf3e19b3009892dd \
     --hash=sha256:fc700b862e0a859a37faf85367e205e7acaecae5a098794aff52fdd8aea77b12
     # via
-    #   -r backend/requirements-controller.in
+    #   -r requirements-controller.in
     #   alembic
     #   flask-sqlalchemy
 typing-extensions==4.5.0 \
@@ -861,7 +828,7 @@ werkzeug==2.0.3 \
     --hash=sha256:1421ebfc7648a39a5c58c601b154165d05cf47a3cd0ccb70857cbdacf6c8f2b8 \
     --hash=sha256:b863f8ff057c522164b6067c9e28b041161b4be5ba4d0daceeaa50a163822d3c
     # via
-    #   -r backend/common/requirements.in
+    #   -r common/requirements.in
     #   flask
 
 # The following packages are considered to be unsafe in a requirements file:
