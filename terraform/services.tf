@@ -103,17 +103,16 @@ resource "google_cloud_run_service" "controller_run" {
       containers {
         image = var.controller_image
 
-        # TODO(dulacp): soon available in beta
-        # liveness_probe {
-        #   initial_delay_seconds = 20
-        #   timeout_seconds = 4
-        #   period_seconds = 5
-        #   failure_threshold = 2
+        liveness_probe {
+          initial_delay_seconds = 20
+          timeout_seconds = 4
+          period_seconds = 5
+          failure_threshold = 2
 
-        #   http_get {
-        #     path = "/readiness_check"
-        #   }
-        # }
+          http_get {
+            path = "/api/readiness_check"
+          }
+        }
 
         env {
           name  = "REPORT_USAGE_ID"
@@ -189,17 +188,16 @@ resource "google_cloud_run_service" "jobs_run" {
       containers {
         image = var.jobs_image
 
-        # TODO(dulacp): soon available in beta
-        # liveness_probe {
-        #   initial_delay_seconds = 20
-        #   timeout_seconds = 4
-        #   period_seconds = 5
-        #   failure_threshold = 2
+        liveness_probe {
+          initial_delay_seconds = 20
+          timeout_seconds = 4
+          period_seconds = 5
+          failure_threshold = 2
 
-        #   http_get {
-        #     path = "/readiness_check"
-        #   }
-        # }
+          http_get {
+            path = "/readiness_check"
+          }
+        }
 
         env {
           name  = "GOOGLE_CLOUD_PROJECT"

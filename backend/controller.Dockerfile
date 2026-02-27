@@ -12,19 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM ubuntu:20.04 AS base
-MAINTAINER Alex Prikhodko <aprikhodko@google.com>
-MAINTAINER Pierre Dulac <dulacp@google.com>
+FROM python:3.9-slim-bullseye AS base
+LABEL maintainer="Your Name <you@example.com>"
 
 # Removes output stream buffering, allowing for more efficient logging
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONDONTWRITEBYTECODE=1
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends python3.9 python3-distutils python-is-python3 mysql-client \
-    # Set Python 3.9 as the default for python3
-    && update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.8 1 \
-    && update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.9 2 \
+    && apt-get install -y --no-install-recommends mysql-client \
     # Cleaning
     && rm -rf /var/cache/apt/archives/*.deb \
     && rm -rf /var/lib/apt/lists/*
@@ -36,7 +32,7 @@ FROM base as builder
 
 RUN apt-get update \
     && apt-get install -y \
-        git build-essential python3.9-dev python3-pip \
+        git build-essential python3-pip \
     # Cleaning
     && rm -rf /var/cache/apt/archives/*.deb \
     && rm -rf /var/lib/apt/lists/*
@@ -59,6 +55,9 @@ RUN pip install \
 #
 FROM base
 
+# Create a non-root user and group
+RUN groupadd -r crmint_user && useradd -r -g crmint_user crmint_user
+
 # Copy installed dependencies
 RUN mkdir -p /install/dependencies
 COPY --from=builder /install/dependencies /install/dependencies
@@ -66,6 +65,12 @@ ENV PYTHONPATH="${PYTHONPATH}:/install/dependencies"
 ENV PATH="${PATH}:/install/dependencies/bin"
 
 COPY . /app
+
+# Create /app directory and chown to new user (already created by COPY .)
+RUN chown -R crmint_user:crmint_user /app \
+    && chown -R crmint_user:crmint_user /install/dependencies
+
+USER crmint_user
 
 WORKDIR /app
 
