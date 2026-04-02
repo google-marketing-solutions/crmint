@@ -33,7 +33,7 @@
     "core-js": "~2.6.11",
     "cron-parser": "^4.5.0",
     "cronstrue": "^2.11.0",
-    "lodash": "^4.17.20",
+    "lodash": "^4.18.1",
     "moment": "^2.29.4",
     "ng-click-outside": "^6.0.0",
     "ngx-clipboard": "~15.0.0",
