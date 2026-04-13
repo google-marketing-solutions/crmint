@@ -20,7 +20,7 @@ VERSION = '3.2.0'
 
 test_deps = [
     'absl-py==1.0.0',
-    'pytest==7.1.2',
+    'pytest==9.0.3',
     'pytest-cov==3.0.0',
 ]
 extras = {
